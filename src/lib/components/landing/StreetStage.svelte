@@ -3,12 +3,23 @@
 	 * Panggung gulir halaman depan.
 	 *
 	 * Kanvas menempel (sticky) selama beberapa layar, dan posisi gulir menggerakkan
-	 * dua hal sekaligus: kamera menyusuri koridor, dan jam berjalan dari subuh ke
-	 * tengah malam. Kepadatan pejalan kaki tidak dikarang — angkanya profil 24 jam
-	 * catchment Bundaran HI, dinormalisasi terhadap jam puncaknya sendiri.
+	 * dua hal sekaligus: kamera menyusuri koridor, dan jam berjalan maju dari jam
+	 * mesin pengunjung, satu putaran penuh, kembali ke jam yang sama. Kepadatan
+	 * pejalan kaki tidak dikarang — angkanya profil 24 jam catchment Bundaran HI,
+	 * dinormalisasi terhadap jam puncaknya sendiri.
 	 *
-	 * Pemetaan gulir sengaja tidak linear: ada bagian yang menahan (pembaca sempat
-	 * membaca), ada bagian yang melaju (satu hari lewat dalam satu dorongan).
+	 * Dua hal yang diperbaiki dari versi sebelumnya, dan keduanya soal tempo:
+	 *
+	 * 1. **Sehari tidak lagi lewat dalam satu dorongan.** Dulu 18 jam dipadatkan ke
+	 *    sepertiga lintasan yang hanya sepanjang 1,4 layar — satu sentakan jempol
+	 *    dan matahari sudah terbenam. Sekarang satu hari mengambil hampir seluruh
+	 *    lintasan pada panggung yang jauh lebih panjang.
+	 * 2. **Harinya tidak berulang.** Dulu setelah tengah malam jamnya terus melaju
+	 *    sampai tengah hari berikutnya, jadi matahari terbit dua kali dalam satu
+	 *    gulir dan yang terbaca adalah pengulangan, bukan satu hari.
+	 *
+	 * Pemetaannya tetap tidak linear: ada bagian yang menahan supaya pembaca sempat
+	 * membaca, ada bagian yang berjalan tenang.
 	 */
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
@@ -49,6 +60,11 @@
 	const START_HOUR = localHour();
 	const reduced = prefersReducedMotion();
 
+	/* Sehari penuh, sekali, maju terus. Berakhir di jam yang sama dengan saat
+	   halaman dibuka — pengunjung kembali ke waktunya sendiri, dan petak di
+	   sebelah kafe masih kosong. */
+	const DAY = 24;
+
 	let host = $state<HTMLElement | null>(null);
 	let progress = $state(0);
 
@@ -58,24 +74,18 @@
 
 	/* Peta gulir → (jam, kamera). Setiap segmen punya kecepatannya sendiri. */
 	function mapProgress(p: number) {
-		if (p < 0.16) {
+		if (p < 0.1) {
 			// menahan: jam mesin pengunjung, kamera diam
 			return { hour: START_HOUR, cam: 0 };
 		}
-		if (p < 0.52) {
-			// satu hari penuh lewat — dari subuh ke tengah malam
-			const t = (p - 0.16) / 0.36;
-			return { hour: 5 + t * 18.4, cam: t * 0.28 };
+		if (p < 0.8) {
+			// satu putaran penuh, tenang — inilah bagian terpanjang lintasan
+			const t = (p - 0.1) / 0.7;
+			return { hour: START_HOUR + t * DAY, cam: t * 0.78 };
 		}
-		if (p < 0.78) {
-			// mendarat di jam puncak dan mendekati petak yang bisa disewa
-			const t = (p - 0.52) / 0.26;
-			const from = 23.4;
-			const to = PEAK_HOUR;
-			return { hour: from + (to + 24 - from) * t, cam: 0.28 + t * 0.62 };
-		}
-		const t = (p - 0.78) / 0.22;
-		return { hour: PEAK_HOUR, cam: 0.9 + t * 0.1 };
+		// kembali ke jam semula; yang tersisa cuma kamera merapat ke petak kosong
+		const t = (p - 0.8) / 0.2;
+		return { hour: START_HOUR + DAY, cam: 0.78 + t * 0.22 };
 	}
 
 	$effect(() => {
@@ -127,9 +137,9 @@
 		if (p > b) return 1 - (p - b) / fade;
 		return 1;
 	}
-	const showHero = $derived(band(progress, 0, 0.14));
-	const showDay = $derived(band(progress, 0.22, 0.46));
-	const showLot = $derived(band(progress, 0.58, 0.95));
+	const showHero = $derived(band(progress, 0, 0.09));
+	const showDay = $derived(band(progress, 0.18, 0.52));
+	const showLot = $derived(band(progress, 0.66, 1));
 </script>
 
 <section class="stage" bind:this={host} style:--ink={day.ink} style:--ink-muted={day.inkMuted}>
@@ -194,7 +204,10 @@
 <style>
 	.stage {
 		position: relative;
-		height: 480vh;
+		/* Tinggi ini yang menentukan berapa lama sehari berlangsung. Pada 480vh,
+		   24 jam lewat dalam ±1,4 layar; di sini tiap layar gulir kira-kira lima
+		   jam, dan mataharinya sempat terlihat bergerak. */
+		height: 760vh;
 	}
 	.sticky {
 		position: sticky;

@@ -144,7 +144,8 @@
 		flex-direction: column;
 		gap: 0.0625rem;
 		padding: 0.5rem 0.625rem;
-		background: var(--bg-elevated);
+		background-color: var(--bg-elevated);
+		background-image: var(--lift-surface);
 	}
 	.val {
 		font-size: 1.375rem;

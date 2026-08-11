@@ -1,5 +1,6 @@
 <script lang="ts">
 	import CoverageGrid from '$lib/components/landing/CoverageGrid.svelte';
+	import GridStage from '$lib/components/landing/GridStage.svelte';
 	import HourProfile from '$lib/components/landing/HourProfile.svelte';
 	import LandingNav from '$lib/components/landing/LandingNav.svelte';
 	import Reveal from '$lib/components/ui/Reveal.svelte';
@@ -174,6 +175,11 @@
 		<Reveal>
 			<h2>Dari data mentah jadi satu angka yang bisa dipertanggungjawabkan.</h2>
 		</Reveal>
+
+		<!-- Kisi itu keputusan bentuk yang paling sulit dijelaskan dengan kalimat,
+		     jadi ia diperlihatkan: satu maket kedua, digerakkan gulir seperti maket
+		     jalan di atasnya, dengan alat ukur yang dipakai gambar kerja. -->
+		<Reveal><GridStage /></Reveal>
 
 		<Reveal><SignalFlow /></Reveal>
 
@@ -364,9 +370,13 @@
 
 	/* Lembar gambar: alas kertas, dan garis rambut di tepi atas sebagai sambungan
 	   dari pelat maket yang baru saja lewat. */
+	/* Kertasnya terangkat sedikit di tepi atas — sambungan dari pelat maket yang
+	   baru saja lewat, dan yang membuat lembar ini terbaca sebagai benda, bukan
+	   sebagai lubang di bawah adegan. Selisihnya beberapa persen saja. */
 	.sheet {
 		position: relative;
 		background: var(--paper);
+		background-image: var(--lift-paper);
 		border-top: 1px solid var(--paper-line);
 	}
 	.sheet > :global(*) {
@@ -540,6 +550,10 @@
 		margin: 0;
 		padding: 1.75rem;
 		border: 1px solid var(--paper-line);
+		background-image: var(--lift-panel);
+		/* Garis cahaya setebal satu piksel di tepi atas: bidang ini menangkap
+		   cahaya, bukan sekadar dibingkai. */
+		box-shadow: inset 0 1px 0 var(--lift-edge);
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
@@ -643,7 +657,8 @@
 			background-color 180ms ease-out;
 	}
 	.go {
-		background: var(--label-1);
+		background-color: var(--label-1);
+		background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 60%);
 		color: var(--paper);
 	}
 	.go:hover {
