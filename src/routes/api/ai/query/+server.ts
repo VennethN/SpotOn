@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
-import { isCategory } from '$lib/categories';
-import { answer, parseQuestion, runQuery } from '$lib/nlq';
-import { DEFAULT_WEIGHTS } from '$lib/scoring';
+import { isCategory } from '$lib/domain/categories';
+import { answer, parseQuestion, runQuery } from '$lib/domain/nlq';
+import { normalizeWeights } from '$lib/domain/weights';
 import { parseWithLLM } from '$lib/server/llm';
 import { loadHexes } from '$lib/server/source';
 import type { AiAnswer, CategoryKey, Weights } from '$lib/types';
@@ -12,9 +12,6 @@ interface Body {
 	kategori?: string;
 	weights?: Partial<Weights>;
 }
-
-const clamp01 = (v: unknown, fallback: number) =>
-	typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
 
 /**
  * POST /api/ai/query — mesin rekomendasi di dalam antarmuka.
@@ -45,13 +42,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (question.length > 500) throw error(413, 'Pertanyaan terlalu panjang.');
 
 	const fallback: CategoryKey = isCategory(body.kategori) ? body.kategori : 'kopi';
-	const w = body.weights ?? {};
-	const weights: Weights = {
-		wd: clamp01(w.wd, DEFAULT_WEIGHTS.wd),
-		ws: clamp01(w.ws, DEFAULT_WEIGHTS.ws),
-		gate: w.gate ?? DEFAULT_WEIGHTS.gate,
-		radius: w.radius === 400 ? 400 : 800
-	};
+	const weights: Weights = normalizeWeights(body.weights);
 
 	const catchments = loadHexes();
 	const parsed = await parseWithLLM(question, weights, fallback);

@@ -2,8 +2,8 @@
 	import CoverageGrid from '$lib/components/landing/CoverageGrid.svelte';
 	import HourProfile from '$lib/components/landing/HourProfile.svelte';
 	import LandingNav from '$lib/components/landing/LandingNav.svelte';
-	import Reveal from '$lib/components/landing/Reveal.svelte';
-	import ScoreScale from '$lib/components/landing/ScoreScale.svelte';
+	import Reveal from '$lib/components/ui/Reveal.svelte';
+	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import SectionMark from '$lib/components/landing/SectionMark.svelte';
 	import SignalFlow from '$lib/components/landing/SignalFlow.svelte';
 	import SourceBars from '$lib/components/landing/SourceBars.svelte';
@@ -207,7 +207,7 @@
 				</p>
 				<div class="scale-slot">
 					<span class="cap">Hasilnya satu skala, dan itu juga legenda petanya</span>
-					<ScoreScale />
+					<ScoreRamp nodata="belum terdata — tidak diberi nilai sama sekali" />
 				</div>
 				<details>
 					<summary>Rumus persisnya</summary>

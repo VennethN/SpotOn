@@ -16,9 +16,9 @@
 	 * - **Tidak memaksa gerak.** Dengan `prefers-reduced-motion`, seluruh
 	 *   percakapan tampil sekaligus dan tidak ada yang berjalan sendiri.
 	 */
-	import TapakFigure from '$lib/components/TapakFigure.svelte';
-	import { prefersReducedMotion } from '$lib/motion.svelte';
-	import { pct } from '$lib/scoring';
+	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
+	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
+	import { pct } from '$lib/utils/format';
 	import type { CategoryKey } from '$lib/types';
 
 	export interface DemoResult {

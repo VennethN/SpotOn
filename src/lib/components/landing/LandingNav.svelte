@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
+	import { applyTheme, storedTheme, type Theme } from '$lib/state/theme.svelte';
 
 	const LINKS = [
 		{ href: '#masalah', label: 'Masalah' },
@@ -9,12 +11,11 @@
 	];
 
 	let scrolled = $state(false);
-	let theme = $state<'light' | 'dark' | 'system'>('system');
+	let theme = $state<Theme>('system');
 
 	$effect(() => {
 		if (!browser) return;
-		const stored = localStorage.getItem('spoton:theme');
-		theme = stored === 'dark' || stored === 'light' ? stored : 'system';
+		theme = storedTheme();
 
 		// Bilah baru memadat setelah panggung maket benar-benar lewat. Dipatok pada
 		// "scrollY > 8" saja, ia berubah jadi material buram di gulir pertama dan
@@ -33,15 +34,9 @@
 		};
 	});
 
-	function cycleTheme() {
-		theme = theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
-		if (theme === 'system') {
-			document.documentElement.removeAttribute('data-theme');
-			localStorage.removeItem('spoton:theme');
-		} else {
-			document.documentElement.setAttribute('data-theme', theme);
-			localStorage.setItem('spoton:theme', theme);
-		}
+	function pickTheme(next: Theme) {
+		theme = next;
+		applyTheme(next);
 	}
 </script>
 
@@ -60,35 +55,7 @@
 	</nav>
 
 	<div class="actions">
-		<button
-			type="button"
-			class="ghost"
-			onclick={cycleTheme}
-			aria-label={theme === 'system' ? 'Tema sistem' : theme === 'dark' ? 'Tema gelap' : 'Tema terang'}
-		>
-			<!-- Satu keluarga ikon digambar sendiri, satu berat garis. Glif Unicode
-			     berganti bentuk per platform dan tidak pernah sebaris dengan tipografinya. -->
-			<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-				{#if theme === 'dark'}
-					<path
-						d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8 5.6 5.6 0 1 0 13.2 9.6Z"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.4"
-						stroke-linejoin="round"
-					/>
-				{:else if theme === 'light'}
-					<circle cx="8" cy="8" r="3.1" fill="none" stroke="currentColor" stroke-width="1.4" />
-					<g stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-						<path d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6" />
-						<path d="M3.4 3.4 4.5 4.5M11.5 11.5l1.1 1.1M12.6 3.4 11.5 4.5M4.5 11.5l-1.1 1.1" />
-					</g>
-				{:else}
-					<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4" />
-					<path d="M8 2a6 6 0 0 0 0 12Z" fill="currentColor" />
-				{/if}
-			</svg>
-		</button>
+		<ThemeToggle {theme} onchange={pickTheme} ghost />
 		<a class="cta" href="/app">Buka SpotOn</a>
 	</div>
 </header>
@@ -165,30 +132,12 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
-	.ghost {
-		display: grid;
-		place-items: center;
-		border: 1px solid currentColor;
-		background: transparent;
-		border-radius: 999px;
-		width: 1.75rem;
-		height: 1.75rem;
-		cursor: pointer;
-		color: var(--stage-ink-muted, var(--label-2));
-		transition:
-			transform 100ms ease-out,
-			color 160ms ease-out;
-	}
-	.ghost:hover {
-		color: var(--stage-ink, var(--label-1));
-	}
-	.nav.scrolled .ghost {
+	/* Tombol temanya komponen bersama; yang khas bilah ini cuma bagaimana ia
+	   berubah saat bilahnya memadat di atas kertas. */
+	.nav.scrolled :global(.ghost) {
 		color: var(--label-2);
 		border-color: var(--separator);
 		background: var(--fill-1);
-	}
-	.ghost:active {
-		transform: scale(0.92);
 	}
 	.cta {
 		display: inline-flex;

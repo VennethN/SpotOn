@@ -10,10 +10,10 @@
 	 * Bahasanya sengaja bahasa orang: "seramai apa", bukan "indeks permintaan".
 	 * Angka lengkapnya tetap ada, satu klik di bawah.
 	 */
-	import StreetScene from '$lib/components/StreetScene.svelte';
-	import { daylightAt, formatHour, localHour } from '$lib/three/daylight';
-	import { getAppState } from '$lib/state.svelte';
-	import { pct } from '$lib/scoring';
+	import StreetScene from '$lib/components/ui/StreetScene.svelte';
+	import { daylightAt, localHour } from '$lib/scene/daylight';
+	import { formatHour, pct } from '$lib/utils/format';
+	import { getAppState } from '$lib/state/app.svelte';
 
 	/**
 	 * Panel ini jauh lebih kecil daripada panggung halaman depan, jadi kameranya

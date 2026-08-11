@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { CATEGORIES } from '$lib/categories';
+import { CATEGORIES } from '$lib/domain/categories';
 import { activeModel, llmEnabled } from '$lib/server/llm';
 import { loadHexes, provenance } from '$lib/server/source';
 import type { RequestHandler } from './$types';

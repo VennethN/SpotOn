@@ -1,7 +1,14 @@
 import { CATEGORY_KEYS } from './categories';
-import type { Hex, CategoryKey, ScoredHex, Typology, Weights } from './types';
+import type { Hex, CategoryKey, ScoredHex, Typology, Weights } from '$lib/types';
 
-export const DEFAULT_WEIGHTS: Weights = { wd: 0.5, ws: 0.5, gate: true, radius: 800 };
+/**
+ * Mesin Opportunity Score — hitungan saja.
+ *
+ * Pemformat angka (`pct`, jam, warna skala) dan penyusun kalimat dulu ikut
+ * tinggal di sini, sehingga modul yang jadi rujukan kebenaran angka juga jadi
+ * tempat orang mengubah tampilan. Sekarang keduanya terpisah: yang di sini
+ * menghitung, `utils/format` menampilkan, `domain/narrate` menceritakan.
+ */
 
 /**
  * Radius 400 m ≈ seperempat luas radius 800 m. Hitungan POI & listing diskalakan
@@ -131,34 +138,3 @@ export function scoreAcrossCategories(
 		score: scoreOne(target, key, w, maxOsm(all, key, w.radius)).score
 	}));
 }
-
-/** Posisi 0..6 pada skala warna peluang. */
-export function rampIndex(score: number): number {
-	return Math.max(0, Math.min(6, Math.round(score * 6)));
-}
-
-export function rampVar(score: number | null): string {
-	if (score === null) return 'var(--nodata)';
-	return `var(--ramp-${rampIndex(score)})`;
-}
-
-/**
- * Frasa penawaran harus mencerminkan KEDUA pendorongnya (jumlah pesaing ×
- * keramaian). Kalau hanya keramaian yang dibaca, narasinya bisa berlawanan
- * dengan skornya sendiri.
- */
-export function supplyPhrase(r: ScoredHex): string {
-	const padat = (r.supply ?? 0) >= 0.6;
-	const ramai = r.ramai >= 0.45;
-	if (padat && ramai) return 'jumlahnya padat dan mayoritas ramai → penawaran kuat, celah pasar sempit';
-	if (padat && !ramai)
-		return 'jumlahnya padat tetapi mayoritas sepi/sedang → pasar penuh namun lesu, indikasi jenuh';
-	if (!padat && ramai)
-		return 'jumlahnya sedikit tetapi mayoritas ramai → permintaan tampak tertahan, ada ruang masuk';
-	return 'jumlahnya sedikit dan mayoritas sepi/sedang → penawaran lemah';
-}
-
-export const pct = (v: number | null | undefined): string =>
-	v === null || v === undefined ? '—' : String(Math.round(v * 100));
-
-export const hh = (h: number): string => (h < 0 ? '—' : `${String(h).padStart(2, '0')}:00`);

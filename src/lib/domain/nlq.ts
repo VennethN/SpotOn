@@ -1,5 +1,7 @@
+import { formatHour, pct } from '$lib/utils/format';
 import { CATEGORY_MAP } from './categories';
-import { pct, hh, scoreAll, supplyPhrase } from './scoring';
+import { supplyPhrase } from './narrate';
+import { scoreAll } from './scoring';
 import type {
 	AiAnswer,
 	Hex,
@@ -8,7 +10,7 @@ import type {
 	ScoredHex,
 	StructuredQuery,
 	Weights
-} from './types';
+} from '$lib/types';
 
 const KEYWORDS: Array<[RegExp, CategoryKey]> = [
 	[/kopi|coffee|kafe|cafe/i, 'kopi'],
@@ -214,7 +216,7 @@ export function runQuery(
 			id: r.id,
 			name: r.name,
 			value: r.score,
-			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${hh(r.puncak)}, non-tunai ${pct(r.nontunai)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.ramai)}% ramai — ${supplyPhrase(r)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propKat}.`,
+			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.puncak)}, non-tunai ${pct(r.nontunai)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.ramai)}% ramai — ${supplyPhrase(r)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propKat}.`,
 			evidence: evidence(r)
 		})),
 		highlight: cands.map((r) => r.id),

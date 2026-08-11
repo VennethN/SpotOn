@@ -1,4 +1,4 @@
-import type { CategoryKey } from './types';
+import type { CategoryKey } from '$lib/types';
 
 export interface CategoryDef {
 	key: CategoryKey;

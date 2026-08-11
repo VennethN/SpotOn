@@ -29,24 +29,40 @@ npm run dev
 
 ## Struktur
 
+Berkas dikelompokkan menurut perannya, jadi tempat mencarinya bisa ditebak dari
+apa yang mau diubah.
+
 ```
 src/lib/
-  data/            kisi heksagon + simpul transit
-  server/source.ts satu-satunya tempat sumber data ditentukan  ← tukar di sini saat API MAPID siap
-  scoring.ts       mesin Opportunity Score (dipakai server dan klien)
-  nlq.ts           pertanyaan bahasa natural → query terstruktur → jawaban
-  narrate.ts       hasil mesin skor → kalimat Tapak (dipakai /app dan landing)
-  tapak.svelte.ts  percakapan pemandu di dalam aplikasi
-  three/           maket isometrik: adegan jalan + model cahaya 24 jam
-  motion.svelte.ts pegas, proyeksi momentum, rubber-banding
-  state.svelte.ts  status antarmuka (rune, disebar lewat context)
-  components/      panel WebGIS + komponen landing
+  types.ts       bentuk data yang dipakai semua lapisan
+  data/          kisi heksagon + simpul transit
+  domain/        aturan bisnis murni — tanpa DOM, dipakai server maupun klien
+    scoring.ts     mesin Opportunity Score
+    weights.ts     bobot bawaan + pembersih nilai (satu pintu)
+    nlq.ts         pertanyaan → query terstruktur → jawaban
+    narrate.ts     hasil mesin skor → kalimat manusia
+    categories.ts  lima jenis usaha dan tag OSM-nya
+  server/        hanya berjalan di server (dijaga SvelteKit)
+    source.ts      satu-satunya tempat sumber data ditentukan  ← tukar di sini saat API MAPID siap
+    llm.ts         lapisan pemahaman bahasa (OpenRouter)
+    params.ts      query string → argumen mesin skor
+  state/         rune yang hidup selama sesi
+    app.svelte.ts    status antarmuka, disebar lewat context
+    tapak.svelte.ts  percakapan pemandu
+    theme.svelte.ts  terang/gelap/ikut-sistem
+  utils/         pembantu murni: format.ts (angka, jam, warna skala), geo.ts, motion.svelte.ts
+  scene/         maket isometrik: street.ts (three.js) + daylight.ts (model cahaya 24 jam)
+  components/
+    app/           permukaan WebGIS — komponen yang membaca AppState
+    landing/       susunan khas halaman depan
+    ui/            komponen tanpa status, dipakai kedua permukaan
 src/routes/
   +page.svelte     landing
   +page.server.ts  angka & percakapan contoh landing, dihitung mesin skor
   app/             WebGIS
   api/             endpoint
-docs/              ketentuan kompetisi, proposal, dan status implementasi
+scripts/         pembangun data (Overpass); helper bersamanya di scripts/lib/
+docs/            ketentuan kompetisi, proposal, dan status implementasi
 ```
 
 ## Data
@@ -89,7 +105,7 @@ Salin `.env.example` menjadi `.env`, lalu isi.
 
 Model **hanya memahami** pertanyaan: ia memilih operasi dan mengisi argumennya lewat
 function-calling, lalu berhenti. Seluruh angka — skor, permintaan, cacah pesaing, N —
-dihitung `src/lib/scoring.ts` dari data, sama persis dengan yang dipakai peta dan tabel.
+dihitung `src/lib/domain/scoring.ts` dari data, sama persis dengan yang dipakai peta dan tabel.
 Karena itu tidak ada nilai yang bisa dikarang model.
 
 Bila pertanyaannya di luar jangkauan data, model memanggil `tidak_dimengerti` dan

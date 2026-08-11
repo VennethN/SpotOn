@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { CATEGORY_KEYS } from '$lib/categories';
+import { CATEGORY_KEYS } from '$lib/domain/categories';
 import type { CategoryKey, StructuredQuery, Weights } from '$lib/types';
 
 /**
