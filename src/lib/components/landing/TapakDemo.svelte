@@ -224,6 +224,8 @@
 	   terpotong di atas. */
 	.demo {
 		border: 1px solid var(--paper-line);
+		background-image: var(--lift-panel);
+		box-shadow: inset 0 1px 0 var(--lift-edge);
 		display: flex;
 		flex-direction: column;
 		height: clamp(29rem, 66vh, 36rem);

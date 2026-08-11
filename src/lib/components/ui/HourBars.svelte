@@ -116,7 +116,8 @@
 		width: 100%;
 		/* Ujung data dibulatkan, pangkalnya tetap menempel pada garis dasar. */
 		border-radius: 3px 3px 0 0;
-		background: color-mix(in srgb, var(--accent) 42%, transparent);
+		background-color: color-mix(in srgb, var(--accent) 42%, transparent);
+		background-image: var(--lift-bar);
 		transition: background-color 140ms ease-out;
 	}
 	.dense .bar {

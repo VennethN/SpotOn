@@ -51,7 +51,8 @@ src/lib/
     tapak.svelte.ts  percakapan pemandu
     theme.svelte.ts  terang/gelap/ikut-sistem
   utils/         pembantu murni: format.ts (angka, jam, warna skala), geo.ts, motion.svelte.ts
-  scene/         maket isometrik: street.ts (three.js) + daylight.ts (model cahaya 24 jam)
+  scene/         maket isometrik: street.ts (blok jalan) + grid.ts (kisi heksagon)
+                 + daylight.ts (model cahaya 24 jam) + world.ts (kontrak adegan)
   components/
     app/           permukaan WebGIS — komponen yang membaca AppState
     landing/       susunan khas halaman depan
