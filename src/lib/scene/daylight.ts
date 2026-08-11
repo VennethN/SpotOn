@@ -1,3 +1,5 @@
+import { formatHour } from '$lib/utils/format';
+
 /**
  * Model cahaya 24 jam untuk Jakarta (−6.2° LU, praktis di khatulistiwa: matahari
  * terbit ~05:50 dan terbenam ~18:00 sepanjang tahun, dan lewat nyaris tepat di
@@ -257,12 +259,6 @@ function phaseOf(h: number): Phase {
 	if (h < 17.6) return 'sore';
 	if (h < 19.2) return 'senja';
 	return 'malam';
-}
-
-export function formatHour(hour: number): string {
-	const h = Math.floor(hour) % 24;
-	const m = Math.floor((hour - Math.floor(hour)) * 60);
-	return `${String(h).padStart(2, '0')}.${String(m).padStart(2, '0')}`;
 }
 
 export function daylightAt(hour: number): DaylightSample {

@@ -6,10 +6,10 @@
 	 * Selama modul belum tiba (atau WebGL tidak tersedia), yang tampil adalah
 	 * gradien langit pada jam yang sama — bukan kotak kosong.
 	 */
-	import { daylightAt, type DaylightSample } from '$lib/three/daylight';
-	import type { StreetWorld } from '$lib/three/street';
+	import { daylightAt, type DaylightSample } from '$lib/scene/daylight';
+	import type { StreetWorld } from '$lib/scene/street';
 	import type { CategoryKey } from '$lib/types';
-	import { prefersReducedMotion } from '$lib/motion.svelte';
+	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 
 	interface Props {
 		hour?: number;
@@ -52,7 +52,7 @@
 
 		(async () => {
 			try {
-				const { StreetWorld: W } = await import('$lib/three/street');
+				const { StreetWorld: W } = await import('$lib/scene/street');
 				if (disposed || !canvas) return;
 				instance = new W(canvas, { reducedMotion: prefersReducedMotion() });
 				world = instance;

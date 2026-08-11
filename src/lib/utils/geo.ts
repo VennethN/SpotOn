@@ -1,28 +1,6 @@
-import type { Feature, FeatureCollection, Point, Polygon } from 'geojson';
+import type { Feature, FeatureCollection, Point } from 'geojson';
 
 const EARTH_R = 6378137;
-
-/**
- * Poligon lingkaran geodesik — catchment digambar pada skala sebenarnya di
- * permukaan bumi, bukan sebagai lingkaran berjari-jari piksel yang ikut mengecil
- * saat zoom. Radius berjalan kaki hanya bermakna kalau ukurannya benar.
- */
-export function circlePolygon(
-	lon: number,
-	lat: number,
-	radiusMeters: number,
-	steps = 96
-): Polygon {
-	const coords: [number, number][] = [];
-	const latRad = (lat * Math.PI) / 180;
-	const dLat = (radiusMeters / EARTH_R) * (180 / Math.PI);
-	const dLon = dLat / Math.cos(latRad);
-	for (let i = 0; i <= steps; i++) {
-		const theta = (i / steps) * 2 * Math.PI;
-		coords.push([lon + dLon * Math.cos(theta), lat + dLat * Math.sin(theta)]);
-	}
-	return { type: 'Polygon', coordinates: [coords] };
-}
 
 /**
  * Sebaran titik pesaing di dalam catchment memakai spiral Fibonacci.

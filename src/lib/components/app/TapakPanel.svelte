@@ -7,10 +7,10 @@
 	 * Kotak ketik tetap ada untuk yang sudah tahu mau tanya apa.
 	 */
 	import { onMount } from 'svelte';
-	import TapakFigure from '$lib/components/TapakFigure.svelte';
-	import { getAppState } from '$lib/state.svelte';
-	import { Tapak } from '$lib/tapak.svelte';
-	import { pct } from '$lib/scoring';
+	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
+	import { getAppState } from '$lib/state/app.svelte';
+	import { Tapak } from '$lib/state/tapak.svelte';
+	import { pct } from '$lib/utils/format';
 
 	const app = getAppState();
 	const tapak = new Tapak(app);

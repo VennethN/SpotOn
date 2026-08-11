@@ -1,15 +1,14 @@
 import { getContext, setContext } from 'svelte';
-import { browser } from '$app/environment';
-import { CATEGORY_MAP } from './categories';
-import { scoreAcrossCategories, scoreAll } from './scoring';
-import { DEFAULT_WEIGHTS } from './scoring';
-import type { AiAnswer, Hex, CategoryKey, ScoredHex, Weights } from './types';
+import { CATEGORY_MAP } from '$lib/domain/categories';
+import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
+import { DEFAULT_WEIGHTS } from '$lib/domain/weights';
+import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
+import type { AiAnswer, Hex, CategoryKey, ScoredHex, Weights } from '$lib/types';
 
 export type LayerKey = 'score' | 'rute' | 'poi' | 'nodata' | 'label';
-export type Theme = 'light' | 'dark' | 'system';
+export type { Theme };
 
 const KEY = Symbol('spoton');
-const THEME_STORAGE = 'spoton:theme';
 
 /**
  * Status antarmuka SpotOn.
@@ -89,14 +88,7 @@ export class AppState {
 
 	setTheme(theme: Theme) {
 		this.theme = theme;
-		if (!browser) return;
-		if (theme === 'system') {
-			document.documentElement.removeAttribute('data-theme');
-			localStorage.removeItem(THEME_STORAGE);
-		} else {
-			document.documentElement.setAttribute('data-theme', theme);
-			localStorage.setItem(THEME_STORAGE, theme);
-		}
+		applyTheme(theme);
 	}
 
 	/** Tema efektif setelah preferensi sistem diperhitungkan. */
@@ -107,14 +99,8 @@ export class AppState {
 
 	/** Memulihkan pilihan tema dan memantau preferensi sistem. Mengembalikan pembersihnya. */
 	initTheme(): () => void {
-		if (!browser) return () => {};
-		const stored = localStorage.getItem(THEME_STORAGE);
-		this.theme = stored === 'dark' || stored === 'light' ? stored : 'system';
-		const mq = window.matchMedia('(prefers-color-scheme: dark)');
-		this.systemDark = mq.matches;
-		const onChange = (e: MediaQueryListEvent) => (this.systemDark = e.matches);
-		mq.addEventListener('change', onChange);
-		return () => mq.removeEventListener('change', onChange);
+		this.theme = storedTheme();
+		return watchSystemDark((dark) => (this.systemDark = dark));
 	}
 
 	/** Bertanya ke mesin rekomendasi (endpoint server). */

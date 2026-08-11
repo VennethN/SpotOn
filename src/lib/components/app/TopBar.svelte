@@ -1,7 +1,8 @@
 <script lang="ts">
-	import Segmented from './Segmented.svelte';
-	import { CATEGORIES } from '$lib/categories';
-	import { getAppState } from '$lib/state.svelte';
+	import Segmented from '$lib/components/ui/Segmented.svelte';
+	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
+	import { CATEGORIES } from '$lib/domain/categories';
+	import { getAppState } from '$lib/state/app.svelte';
 	import type { CategoryKey } from '$lib/types';
 
 	const app = getAppState();
@@ -11,13 +12,6 @@
 	   pojok kiri bawah — di sana ia menumpuk dengan skala peta dan legenda. */
 	let { advanced = $bindable(false) }: { advanced?: boolean } = $props();
 
-	const themeLabel = $derived(
-		app.theme === 'system' ? 'Tema sistem' : app.theme === 'dark' ? 'Tema gelap' : 'Tema terang'
-	);
-
-	function cycleTheme() {
-		app.setTheme(app.theme === 'system' ? 'light' : app.theme === 'light' ? 'dark' : 'system');
-	}
 </script>
 
 <header class="bar material">
@@ -59,9 +53,7 @@
 			</svg>
 			<span class="adv-text">Pengaturan lanjutan</span>
 		</button>
-		<button type="button" class="btn" onclick={cycleTheme} aria-label={themeLabel} title={themeLabel}>
-			{app.theme === 'system' ? '◐' : app.theme === 'dark' ? '☾' : '☀'}
-		</button>
+		<ThemeToggle theme={app.theme} onchange={(t) => app.setTheme(t)} />
 	</div>
 </header>
 

@@ -1,8 +1,8 @@
-import { CATEGORIES, CATEGORY_MAP } from './categories';
-import { narrate } from './narrate';
-import { pct } from './scoring';
-import type { AppState } from './state.svelte';
-import type { AiAnswer, CategoryKey } from './types';
+import { CATEGORIES, CATEGORY_MAP } from '$lib/domain/categories';
+import { narrate } from '$lib/domain/narrate';
+import { pct } from '$lib/utils/format';
+import type { AppState } from '$lib/state/app.svelte';
+import type { AiAnswer, CategoryKey } from '$lib/types';
 
 /**
  * Tapak — pemandu di dalam SpotOn.

@@ -1,13 +1,14 @@
 <script lang="ts">
-	import { CATEGORY_MAP } from '$lib/categories';
-	import { hh, pct, rampIndex, supplyPhrase } from '$lib/scoring';
-	import { getAppState } from '$lib/state.svelte';
+	import HourBars from '$lib/components/ui/HourBars.svelte';
+	import { CATEGORY_MAP } from '$lib/domain/categories';
+	import { supplyPhrase } from '$lib/domain/narrate';
+	import { formatHour, pct, rampIndex } from '$lib/utils/format';
+	import { getAppState } from '$lib/state/app.svelte';
 
 	const app = getAppState();
 	const row = $derived(app.selected);
 	const def = $derived(app.definition);
 	const across = $derived(app.selectedAcrossCategories);
-	const peakValue = $derived(row?.jam?.length ? Math.max(...row.jam) : 0);
 </script>
 
 {#if !row}
@@ -73,17 +74,7 @@
 					Profil jam transaksi — Struk Go · <code>Waktu Transaksi</code> · N = {row.nStruk}
 					<span class="tag mock">MOCK</span>
 				</h3>
-				<div class="hours" role="img" aria-label={`Profil transaksi per jam, puncak ${hh(row.puncak)}`}>
-					{#each row.jam as v, h (h)}
-						<span
-							class="bar"
-							class:peak={h === row.puncak}
-							style:height={`${Math.max(3, (v / (peakValue || 1)) * 100)}%`}
-							title={`${hh(h)} — ${v} transaksi`}
-						></span>
-					{/each}
-				</div>
-				<div class="axis mono"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+				<HourBars jam={row.jam} dense />
 			</section>
 
 			<section>
@@ -106,7 +97,7 @@
 			</section>
 
 			<div class="note">
-				<strong>Ringkasan AI.</strong> Hex memuncak pukul <strong>{hh(row.puncak)}</strong>.
+				<strong>Ringkasan AI.</strong> Hex memuncak pukul <strong>{formatHour(row.puncak)}</strong>.
 				Untuk <strong>{def.name}</strong>, OSM mencatat <strong>{row.osm} pesaing</strong> dalam
 				radius {app.weights.radius} m — {supplyPhrase(row)}; tersedia
 				<strong>{row.listings} listing</strong> berkategori {def.propKat}.
@@ -173,30 +164,6 @@
 	}
 	section h3 code {
 		color: var(--label-2);
-	}
-
-	.hours {
-		display: flex;
-		align-items: flex-end;
-		gap: 2px;
-		height: 3.25rem;
-		border-bottom: 1px solid var(--separator-strong);
-	}
-	.bar {
-		flex: 1;
-		min-height: 2px;
-		border-radius: 2px 2px 0 0;
-		background: var(--ramp-3);
-		transform-origin: bottom;
-		transition: height 240ms cubic-bezier(0.32, 0.72, 0, 1);
-	}
-	.bar.peak {
-		background: var(--accent);
-	}
-	.axis {
-		display: flex;
-		justify-content: space-between;
-		color: var(--label-3);
 	}
 
 	.bars {

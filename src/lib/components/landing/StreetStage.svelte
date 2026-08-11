@@ -10,9 +10,10 @@
 	 * Pemetaan gulir sengaja tidak linear: ada bagian yang menahan (pembaca sempat
 	 * membaca), ada bagian yang melaju (satu hari lewat dalam satu dorongan).
 	 */
-	import StreetScene from '$lib/components/StreetScene.svelte';
-	import { daylightAt, formatHour, localHour } from '$lib/three/daylight';
-	import { SpringValue, prefersReducedMotion } from '$lib/motion.svelte';
+	import StreetScene from '$lib/components/ui/StreetScene.svelte';
+	import { daylightAt, localHour } from '$lib/scene/daylight';
+	import { formatHour } from '$lib/utils/format';
+	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import stations from '$lib/data/stations.json';
 	import type { CategoryKey } from '$lib/types';
 

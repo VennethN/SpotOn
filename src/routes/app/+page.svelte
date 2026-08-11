@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import TapakPanel from '$lib/components/TapakPanel.svelte';
-	import AttributeTable from '$lib/components/AttributeTable.svelte';
-	import ControlPanel from '$lib/components/ControlPanel.svelte';
-	import CatchmentDiorama from '$lib/components/CatchmentDiorama.svelte';
-	import DetailPanel from '$lib/components/DetailPanel.svelte';
-	import MapLegend from '$lib/components/MapLegend.svelte';
-	import MapView from '$lib/components/MapView.svelte';
-	import Segmented from '$lib/components/Segmented.svelte';
-	import Sheet from '$lib/components/Sheet.svelte';
-	import TopBar from '$lib/components/TopBar.svelte';
-	import { setAppState } from '$lib/state.svelte';
+	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
+	import AttributeTable from '$lib/components/app/AttributeTable.svelte';
+	import ControlPanel from '$lib/components/app/ControlPanel.svelte';
+	import CatchmentDiorama from '$lib/components/app/CatchmentDiorama.svelte';
+	import DetailPanel from '$lib/components/app/DetailPanel.svelte';
+	import MapLegend from '$lib/components/app/MapLegend.svelte';
+	import MapView from '$lib/components/app/MapView.svelte';
+	import Segmented from '$lib/components/ui/Segmented.svelte';
+	import Sheet from '$lib/components/ui/Sheet.svelte';
+	import TopBar from '$lib/components/app/TopBar.svelte';
+	import { setAppState } from '$lib/state/app.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

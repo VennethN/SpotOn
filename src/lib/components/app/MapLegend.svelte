@@ -10,7 +10,8 @@
 	 * Isinya sengaja tiga baris saja: skala, arti ujung-ujungnya, dan petak yang
 	 * belum terdata. Sisanya tetap di laci lanjutan.
 	 */
-	import { getAppState } from '$lib/state.svelte';
+	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
+	import { getAppState } from '$lib/state/app.svelte';
 
 	const app = getAppState();
 	const coverage = $derived(app.coverage);
@@ -44,19 +45,7 @@
 
 	{#if open}
 		<div class="body" id="legend-body">
-			<div class="ramp" aria-hidden="true">
-				{#each [0, 1, 2, 3, 4, 5, 6] as i (i)}
-					<span style:background={`var(--ramp-${i})`}></span>
-				{/each}
-			</div>
-			<div class="ends">
-				<span>0 · kecil</span>
-				<span>100 · besar</span>
-			</div>
-			<p class="nd">
-				<span class="key" aria-hidden="true"></span>
-				{coverage.belumTerdata} petak belum terdata — tidak dinilai
-			</p>
+			<ScoreRamp dense nodata={`${coverage.belumTerdata} petak belum terdata — tidak dinilai`} />
 		</div>
 	{/if}
 </div>
@@ -111,49 +100,7 @@
 
 	.body {
 		padding: 0 0.5625rem 0.5rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.3125rem;
 	}
-	.ramp {
-		display: flex;
-		height: 0.4375rem;
-		border-radius: 99px;
-		overflow: hidden;
-	}
-	.ramp span {
-		flex: 1;
-	}
-	.ends {
-		display: flex;
-		justify-content: space-between;
-		font-size: 0.5625rem;
-		color: var(--label-3);
-		font-variant-numeric: tabular-nums;
-	}
-	.nd {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		font-size: 0.625rem;
-		line-height: 1.35;
-		color: var(--label-2);
-	}
-	/* Arsir yang sama dengan yang dipakai peta — bukan kotak abu-abu polos, supaya
-	   yang di legenda dan yang di peta benar-benar benda yang sama. */
-	.key {
-		width: 0.6875rem;
-		height: 0.6875rem;
-		flex: none;
-		border-radius: 2px;
-		border: 1px solid var(--separator);
-		background: repeating-linear-gradient(
-			45deg,
-			var(--fill-1) 0 2px,
-			color-mix(in srgb, var(--nodata) 55%, transparent) 2px 4px
-		);
-	}
-
 	/* Di layar ringkas, sheet menempati bawah layar — legenda pindah ke atas kiri,
 	   tepat di bawah bilah, dan menutup dirinya sendiri supaya peta tetap lapang. */
 	@media (max-width: 1023px) {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { SpringValue, VelocityTracker, project, rubberband } from '$lib/motion.svelte';
+	import { SpringValue, VelocityTracker, project, rubberband } from '$lib/utils/motion.svelte';
 
 	let {
 		detents = [0.16, 0.52, 0.92],
