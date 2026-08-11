@@ -20,7 +20,8 @@
 	let map = $state<MapLibreMap | null>(null);
 	let ready = $state(false);
 	let gl: typeof import('maplibre-gl') | null = null;
-	let markers = new Map<string, { marker: Marker; el: HTMLButtonElement }>();
+	let markers = new Map<string, { marker: Marker; el: HTMLButtonElement; rank: number }>();
+	let labelFrame = 0;
 
 	/** Jalur angkutan, digambar dari yang paling padat ke paling jarang supaya
 	    rel yang sedikit tidak tertimbun koridor bus yang rapat. */
@@ -236,6 +237,7 @@
 	    ratusan simpul DOM. Yang ditandai hanya yang sedang berarti bagi pengguna. */
 	const MAX_MARKERS = 14;
 
+	/** Urutan penting: yang lebih depan menang saat dua label berebut tempat. */
 	function markerSet(rows: ScoredHex[]): Set<string> {
 		const keep = new Set<string>();
 		if (app.selectedId) keep.add(app.selectedId);
@@ -282,9 +284,10 @@
 				const marker = new gl.Marker({ element: el, anchor: 'center' })
 					.setLngLat([r.lon, r.lat])
 					.addTo(map);
-				entry = { marker, el };
+				entry = { marker, el, rank: 0 };
 				markers.set(r.id, entry);
 			}
+			entry.rank = [...keep].indexOf(r.id);
 			const rank = app.highlight.indexOf(r.id);
 			const selected = app.selectedId === r.id;
 			entry.el.className = `stn${selected ? ' is-selected' : ''}${r.nodata ? ' is-nodata' : ''}`;
@@ -295,6 +298,51 @@
 				(app.layers.label || selected ? `<span class="stn-label">${shortName(r.name)}</span>` : '');
 			entry.el.style.display = r.nodata && !app.layers.nodata ? 'none' : '';
 		}
+
+		layoutLabels();
+	}
+
+	/**
+	 * Label yang bertabrakan disembunyikan, bukan digambar bertindih.
+	 *
+	 * Empat belas petak teratas kerap berkerumun di satu koridor, dan nama-namanya
+	 * lantas saling menimpa sampai tidak satu pun terbaca. Yang lebih penting —
+	 * petak terpilih, lalu hasil berperingkat — mendapat tempat lebih dulu; sisanya
+	 * mundur jadi titik saja. Titiknya tetap ada, jadi tidak ada petak yang hilang.
+	 */
+	function layoutLabels() {
+		if (!map) return;
+		const entries = [...markers.values()].sort((a, b) => a.rank - b.rank);
+		const placed: DOMRect[] = [];
+
+		for (const e of entries) {
+			const label = e.el.querySelector<HTMLElement>('.stn-label');
+			if (!label) continue;
+			label.style.visibility = '';
+		}
+		for (const e of entries) {
+			const label = e.el.querySelector<HTMLElement>('.stn-label');
+			if (!label || e.el.style.display === 'none') continue;
+			const box = label.getBoundingClientRect();
+			const clash = placed.some(
+				(q) =>
+					box.left < q.right + 4 &&
+					q.left < box.right + 4 &&
+					box.top < q.bottom + 2 &&
+					q.top < box.bottom + 2
+			);
+			if (clash) label.style.visibility = 'hidden';
+			else placed.push(box);
+		}
+	}
+
+	/** Digeser/di-zoom → tata ulang, sekali per bingkai. */
+	function scheduleLabels() {
+		if (labelFrame) return;
+		labelFrame = requestAnimationFrame(() => {
+			labelFrame = 0;
+			layoutLabels();
+		});
 	}
 
 	const shortName = (n: string) =>
@@ -333,15 +381,24 @@
 			m.addControl(new gl.AttributionControl({ compact: true }), 'bottom-right');
 			m.addControl(new gl.ScaleControl({ maxWidth: 96, unit: 'metric' }), 'bottom-left');
 			m.touchZoomRotate.disableRotation();
-			m.on('load', () => {
+			// `load` menunggu bingkai pertama benar-benar tergambar — termasuk ubin
+			// basemap. Kalau basemapnya lambat, diblokir, atau mati, peristiwa itu
+			// tidak pernah datang dan seluruh lapisan rekomendasi ikut tidak pernah
+			// dipasang, padahal geometri dan skornya lokal dan tidak butuh jaringan.
+			// `styledata` datang begitu spesifikasi gayanya terbaca, jadi hasil
+			// hitungan tetap tampil walau petanya sendiri kosong.
+			m.once('styledata', () => {
 				addLayers(m);
 				ready = true;
 			});
+			m.on('move', scheduleLabels);
+			m.on('zoom', scheduleLabels);
 			map = m;
 			if (import.meta.env.DEV) (window as unknown as { __map: MapLibreMap }).__map = m;
 		})();
 		return () => {
 			disposed = true;
+			if (labelFrame) cancelAnimationFrame(labelFrame);
 			map?.remove();
 			markers.clear();
 		};

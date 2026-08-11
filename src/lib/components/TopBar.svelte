@@ -7,6 +7,10 @@
 	const app = getAppState();
 	const coverage = $derived(app.coverage);
 
+	/* Laci pengaturan lanjutan dibuka dari sini, bukan dari tombol mengambang di
+	   pojok kiri bawah — di sana ia menumpuk dengan skala peta dan legenda. */
+	let { advanced = $bindable(false) }: { advanced?: boolean } = $props();
+
 	const themeLabel = $derived(
 		app.theme === 'system' ? 'Tema sistem' : app.theme === 'dark' ? 'Tema gelap' : 'Tema terang'
 	);
@@ -36,6 +40,25 @@
 		<span class="pill" title="Petak yang sudah ada datanya, dan jumlah pesaing sejenis yang terdata di OpenStreetMap">
 			{coverage.terdata}/{coverage.total} petak · {coverage.poi} pesaing terdata
 		</span>
+		<button
+			type="button"
+			class="btn adv"
+			class:on={advanced}
+			onclick={() => (advanced = !advanced)}
+			aria-expanded={advanced}
+		>
+			<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+				<g stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none">
+					<path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
+				</g>
+				<g fill="currentColor">
+					<circle cx="6" cy="4.5" r="1.7" />
+					<circle cx="10.5" cy="8" r="1.7" />
+					<circle cx="5" cy="11.5" r="1.7" />
+				</g>
+			</svg>
+			<span class="adv-text">Pengaturan lanjutan</span>
+		</button>
 		<button type="button" class="btn" onclick={cycleTheme} aria-label={themeLabel} title={themeLabel}>
 			{app.theme === 'system' ? '◐' : app.theme === 'dark' ? '☾' : '☀'}
 		</button>
@@ -93,6 +116,19 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+	}
+	.adv.on {
+		background: var(--fill-3);
+	}
+	/* Pada tata letak ringkas, pengaturan lanjutan sudah punya tabnya sendiri di
+	   dalam sheet — tombol ini di sana hanya akan jadi tombol yang tidak berbuat apa-apa. */
+	@media (max-width: 1023px) {
+		.adv {
+			display: none;
+		}
+	}
+	.adv svg {
+		flex: none;
 	}
 	.pill {
 		font-size: 0.6875rem;

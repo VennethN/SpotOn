@@ -61,18 +61,44 @@ const CATEGORY_TINT: Record<CategoryKey, number> = {
 const BASE = 96;
 const ROAD_HALF = 9;
 const WALK_HALF = 13.5;
-const BUSWAY_HALF = 2.1;
+/** Tinggi trotoar. Perabot dan orang berdiri di atasnya, bukan di aspal. */
+const WALK_Y = 0.18;
 const HALTE_Z = 0;
 const HALTE_LEN = 17;
+const HALTE_HALF = 2.6;
+/** Tinggi peron. Yang menunggu berdiri DI ATAS angka ini, bukan di tanah. */
+const HALTE_Y = 1.0;
+/* Halte TransJakarta berdiri di median dan busnya merapat di sampingnya, bukan
+   menembusnya. Dua lajur mengapit peron — persis seperti koridor sungguhan. */
+const BUS_LANE_W = 3.5;
+const BUS_LANE_X = HALTE_HALF + BUS_LANE_W / 2;
 const CAFE_X = 19;
 const CAFE_Z = -9;
-const LOT_X = 19;
-/* Menempel pada kafe: dinding ke dinding. Berjauhan, mata harus menebak
-   hubungan keduanya; berdampingan, perbandingannya langsung terbaca. */
-const LOT_Z = 4.5;
-/* Tiga slot petak berjajar di sisi kafe. Berapa yang ditampilkan ditentukan data,
-   bukan komposisi: nol ruang disewakan harus benar-benar terlihat sebagai nol. */
-const LOT_SLOTS = [4.5, 17, 29.5];
+const CAFE_W = 11;
+const CAFE_D = 13;
+
+/* Petak sewa menempel pada kafe: dinding ke dinding. Berjauhan, mata harus
+   menebak hubungan keduanya; berdampingan, perbandingannya langsung terbaca.
+   Lebarnya disamakan dengan kafe supaya dua benda ini benar-benar sebanding. */
+const LOT_X = CAFE_X;
+const LOT_PAD_W = CAFE_W;
+const LOT_PAD_D = 9.6;
+const LOT_GAP = 1.3;
+/* Tiga slot berjajar. Berapa yang ditampilkan ditentukan data, bukan komposisi:
+   nol ruang disewakan harus benar-benar terlihat sebagai nol. Titik tengahnya
+   dihitung, tidak ditulis tangan — angka yang ditulis tangan pernah membuat
+   petak kedua dan ketiga bertindihan dengan tetangganya. */
+const LOT_SLOTS = [0, 1, 2].map(
+	(i) => CAFE_Z + CAFE_D / 2 + LOT_GAP + LOT_PAD_D / 2 + i * (LOT_PAD_D + LOT_GAP)
+);
+
+/* Pita yang disediakan untuk pokok cerita di sisi kanan: kafe, lalu deret petak
+   sewa. Tidak ada massa bangunan yang boleh masuk ke sini. Inilah yang dulu bocor —
+   penjagaannya hanya menutupi petak pertama dan hanya menguji titik tengah blok,
+   sehingga bangunan tetangga tumbuh menembus petak yang justru harus terbaca kosong. */
+const SUBJECT_Z0 = CAFE_Z - CAFE_D / 2 - 1.8;
+const SUBJECT_Z1 = LOT_SLOTS[LOT_SLOTS.length - 1] + LOT_PAD_D / 2 + 1.8;
+
 const MAX_RIVALS = 10;
 
 const MAX_WALKERS = 96;
@@ -91,8 +117,37 @@ interface Person {
 	stride: number;
 	height: number;
 	pose: Pose;
+	/** Ketinggian lantai tempat ia berdiri — peron halte tidak setinggi trotoar. */
+	base: number;
 	/** Kelompok, supaya tiap kelompok bisa diskalakan sendiri oleh keramaian. */
 	group: 'walk' | 'seat' | 'cafe' | 'halte';
+}
+
+/**
+ * Arsiran diagonal 45°, digambar sekali lalu diulang. Periodenya membagi habis
+ * sisi kanvas, jadi sambungan antar ubinnya tidak terlihat.
+ */
+function makeHatchTexture(): THREE.CanvasTexture {
+	const S = 64;
+	const c = document.createElement('canvas');
+	c.width = S;
+	c.height = S;
+	const g = c.getContext('2d');
+	if (g) {
+		g.strokeStyle = '#ffffff';
+		g.lineWidth = 3.5;
+		g.beginPath();
+		for (let i = 0; i <= S * 2; i += 16) {
+			g.moveTo(i, 0);
+			g.lineTo(i - S, S);
+		}
+		g.stroke();
+	}
+	const t = new THREE.CanvasTexture(c);
+	t.wrapS = THREE.RepeatWrapping;
+	t.wrapT = THREE.RepeatWrapping;
+	t.repeat.set(2.6, 2.2);
+	return t;
 }
 
 function mulberry32(seed: number) {
@@ -130,7 +185,11 @@ export class StreetWorld {
 	#rivalMarks!: THREE.InstancedMesh;
 	#bus = new THREE.Group();
 	#proposedMat!: THREE.MeshStandardMaterial;
-	#lotLineMats: THREE.LineBasicMaterial[] = [];
+	/** Garis dan arsiran petak sewa — warnanya dilawankan ke alas tiap jam. */
+	#lotLineMats: Array<THREE.LineBasicMaterial | THREE.MeshBasicMaterial> = [];
+	#hatchTex: THREE.CanvasTexture | null = null;
+	/** Muka bangunan tempat papan pesaing boleh menempel. */
+	#signSpots: { x: number; z: number; len: number }[] = [];
 
 	#state: StreetState = { ...DEFAULT_STATE };
 	#day: DaylightSample = daylightAt(12);
@@ -239,14 +298,14 @@ export class StreetWorld {
 		road.receiveShadow = true;
 		this.#scene.add(road);
 
-		// Lajur busway di tengah — TransJakarta memang memakai lajur median terpisah.
-		const busway = new THREE.Mesh(
-			new THREE.BoxGeometry(BUSWAY_HALF * 2, 0.1, BASE),
-			new THREE.MeshStandardMaterial({ color: 0xc6c2bb, roughness: 0.9 })
-		);
-		busway.position.y = 0.06;
-		busway.receiveShadow = true;
-		this.#scene.add(busway);
+		// Lajur busway mengapit median — TransJakarta memakai lajur terpisah di tengah.
+		const laneMat = new THREE.MeshStandardMaterial({ color: 0xc6c2bb, roughness: 0.9 });
+		for (const side of [-1, 1] as const) {
+			const lane = new THREE.Mesh(new THREE.BoxGeometry(BUS_LANE_W, 0.1, BASE), laneMat);
+			lane.position.set(side * BUS_LANE_X, 0.06, 0);
+			lane.receiveShadow = true;
+			this.#scene.add(lane);
+		}
 
 		for (const side of [-1, 1] as const) {
 			const walk = new THREE.Mesh(
@@ -299,8 +358,11 @@ export class StreetWorld {
 		const g = new THREE.Group();
 		const shell = new THREE.MeshStandardMaterial({ color: 0xe6e3dd, roughness: 0.8 });
 
-		const platform = new THREE.Mesh(new THREE.BoxGeometry(5.2, 1.0, HALTE_LEN), shell);
-		platform.position.set(0, 0.5, HALTE_Z);
+		const platform = new THREE.Mesh(
+			new THREE.BoxGeometry(HALTE_HALF * 2, HALTE_Y, HALTE_LEN),
+			shell
+		);
+		platform.position.set(0, HALTE_Y / 2, HALTE_Z);
 		platform.castShadow = true;
 		platform.receiveShadow = true;
 		g.add(platform);
@@ -366,8 +428,12 @@ export class StreetWorld {
 		seg(8.2, 4.6);
 		seg(7.4, -4.4);
 
-		const joint = new THREE.Mesh(new THREE.BoxGeometry(2.3, 2.3, 1.4), tyre);
-		joint.position.set(0, 1.85, 0.1);
+		// Sambungan akordion. Dibuat gelap dan kurus, dua segmennya terbaca sebagai
+		// dua bus yang beriringan — jadi ia hanya sedikit lebih kurus dari bodinya,
+		// dengan warna yang sama, dan panjangnya menutup penuh celah antar segmen.
+		const joint = new THREE.Mesh(new THREE.BoxGeometry(2.35, 2.3, 1.9), body);
+		joint.position.set(0, 1.85, 0.2);
+		joint.castShadow = true;
 		this.#bus.add(joint);
 
 		const wheels = new THREE.InstancedMesh(
@@ -388,7 +454,8 @@ export class StreetWorld {
 		wheels.castShadow = true;
 		this.#bus.add(wheels);
 
-		this.#bus.position.set(0, 0.1, 0);
+		// Merapat di lajur sebelah peron, bukan menembusnya.
+		this.#bus.position.set(-BUS_LANE_X, 0.1, 0);
 		this.#scene.add(this.#bus);
 	}
 
@@ -396,24 +463,67 @@ export class StreetWorld {
 
 	#buildBlocks() {
 		const rnd = mulberry32(20260212);
-		const boxes: { x: number; z: number; w: number; d: number; h: number; side: 1 | -1 }[] = [];
+		const boxes: {
+			x: number;
+			z: number;
+			w: number;
+			d: number;
+			h: number;
+			side: 1 | -1;
+			front: boolean;
+		}[] = [];
+
+		// Dua deret per sisi. Deret belakang bukan hiasan: tanpanya, pita yang
+		// dikosongkan untuk petak sewa menganga sampai tepi pelat dan blok ini
+		// terbaca sebagai kota yang habis, bukan sebagai satu petak yang kosong.
+		const ROWS = [
+			{ front: true, x0: WALK_HALF, depth: [11, 9] },
+			{ front: false, x0: WALK_HALF + 22.5, depth: [8, 4] }
+		] as const;
 
 		for (const side of [-1, 1] as const) {
-			let z = -46;
-			while (z < 46) {
-				const w = 8 + rnd() * 8;
-				const d = 11 + rnd() * 9;
-				const h = side === 1 ? 5.5 + rnd() * 9 : 4 + rnd() * 4;
-				const cz = z + w / 2;
-				// kafe dan petak sewa punya tempatnya sendiri di sisi kanan
-				const reserved =
-					side === 1 && cz > CAFE_Z - 8 && cz < LOT_Z + 8;
-				if (!reserved) {
-					boxes.push({ x: side * (WALK_HALF + d / 2), z: cz, w, d, h, side });
+			for (const row of ROWS) {
+				let z = -46;
+				while (z < 46) {
+					const w = 8 + rnd() * 8;
+					const d = row.depth[0] + rnd() * row.depth[1];
+					const base = side === 1 ? 5.5 : 4;
+					const h = (row.front ? base : base + 1.5) + rnd() * (side === 1 ? 9 : 4);
+					const cz = z + w / 2;
+					// Diuji dengan bentangnya, bukan titik tengahnya: blok selebar 16 m
+					// yang titik tengahnya di luar pita tetap bisa menembusnya separuh.
+					const intrudes =
+						side === 1 && row.front && cz + w / 2 > SUBJECT_Z0 && cz - w / 2 < SUBJECT_Z1;
+					if (!intrudes) {
+						boxes.push({
+							x: side * (row.x0 + d / 2),
+							z: cz,
+							w,
+							d,
+							h,
+							side,
+							front: row.front
+						});
+					}
+					z += w + 1.4 + rnd() * 1.4;
 				}
-				z += w + 1.4 + rnd() * 1.4;
 			}
 		}
+
+		// Papan nama pesaing dipasang pada muka bangunan yang benar-benar ada, bukan
+		// pada titik yang ditentukan sebelumnya — papan yang melayang di sela bangunan
+		// akan terbaca sebagai kesalahan gambar. Yang terdekat dengan halte lebih dulu:
+		// satu pesaing pun harus jatuh di tempat yang terlihat.
+		this.#signSpots = boxes
+			.filter((b) => b.front)
+			.map((b) => ({
+				x: b.x - b.side * (b.d / 2 + 0.06),
+				z: b.z,
+				// papan tidak boleh lebih panjang daripada mukanya sendiri
+				len: Math.min(1, (b.w * 0.62) / 3.2)
+			}))
+			.sort((a, b) => Math.abs(a.z) - Math.abs(b.z))
+			.slice(0, MAX_RIVALS);
 
 		const mass = new THREE.InstancedMesh(
 			new THREE.BoxGeometry(1, 1, 1),
@@ -459,13 +569,15 @@ export class StreetWorld {
 		});
 		this.#scene.add(this.#windows);
 
-		// etalase lantai dasar
+		// Etalase lantai dasar — hanya pada deret depan. Etalase pada bangunan yang
+		// berdiri di belakang blok lain tidak menghadap siapa-siapa.
+		const fronts = boxes.filter((b) => b.front);
 		this.#shopfronts = new THREE.InstancedMesh(
 			new THREE.BoxGeometry(0.26, 2.4, 1),
 			new THREE.MeshBasicMaterial({ toneMapped: false }),
-			boxes.length
+			fronts.length
 		);
-		boxes.forEach((b, i) => {
+		fronts.forEach((b, i) => {
 			this.#place(b.x - b.side * (b.d / 2 + 0.04), 1.5, b.z, 0, 1, 1, b.w * 0.7);
 			this.#shopfronts.setMatrixAt(i, this.#dummy.matrix);
 			this.#windowSeeds.push(rnd());
@@ -485,7 +597,7 @@ export class StreetWorld {
 			metalness: 0.08
 		});
 
-		const body = new THREE.Mesh(new THREE.BoxGeometry(11, 7.2, 13), shell);
+		const body = new THREE.Mesh(new THREE.BoxGeometry(CAFE_W, 7.2, CAFE_D), shell);
 		body.position.set(CAFE_X, 3.6, CAFE_Z);
 		body.castShadow = true;
 		body.receiveShadow = true;
@@ -519,13 +631,13 @@ export class StreetWorld {
 		for (let t = 0; t < 4; t++) {
 			const tz = CAFE_Z - 4.6 + t * 3.1;
 			const tx = CAFE_X - 8.2;
-			this.#place(tx, 0.94, tz);
+			this.#place(tx, WALK_Y + 0.94, tz);
 			tops.setMatrixAt(t, this.#dummy.matrix);
-			this.#place(tx, 0.54, tz);
+			this.#place(tx, WALK_Y + 0.54, tz);
 			legs.setMatrixAt(t, this.#dummy.matrix);
-			this.#place(tx, 2.9, tz, 0, 1, 1, 1);
+			this.#place(tx, WALK_Y + 2.9, tz, 0, 1, 1, 1);
 			shades.setMatrixAt(t, this.#dummy.matrix);
-			this.#place(tx, 1.9, tz, 0, 1, 2.6, 1);
+			this.#place(tx, WALK_Y + 1.9, tz, 0, 1, 2.6, 1);
 			poles.setMatrixAt(t, this.#dummy.matrix);
 			for (const [dx, dz] of [
 				[-1.0, 0],
@@ -533,7 +645,7 @@ export class StreetWorld {
 				[0, -1.0],
 				[0, 1.0]
 			]) {
-				this.#place(tx + dx, 0.62, tz + dz);
+				this.#place(tx + dx, WALK_Y + 0.62, tz + dz);
 				chairs.setMatrixAt(ci++, this.#dummy.matrix);
 			}
 		}
@@ -551,24 +663,50 @@ export class StreetWorld {
 		this.#proposedMat = new THREE.MeshStandardMaterial({
 			color: 0xd8c3aa,
 			transparent: true,
-			opacity: 0.3,
+			opacity: 0.26,
 			roughness: 0.6,
-			emissive: 0x000000
+			emissive: 0x000000,
+			// Tanpa ini, dua petak yang berurutan saling menghapus bergantung sudut
+			// kamera — yang di belakang kadang tampak, kadang hilang.
+			depthWrite: false
 		});
-		// Garis tepi tegas: di maket arsitek, usulan digariskan, tidak dicat.
-		const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
-		const groundMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
-		this.#lotLineMats = [edgeMat, groundMat];
-
-		const padGeo = new THREE.PlaneGeometry(12, 13);
-		const padMat = new THREE.MeshBasicMaterial({
+		// Di maket arsitek, yang belum berdiri digariskan putus-putus dan yang sudah
+		// berdiri digariskan penuh. Petak sewa memakai kedua konvensi itu sekaligus:
+		// tapaknya nyata (garis penuh di tanah), massanya baru usulan (garis putus).
+		const edgeMat = new THREE.LineDashedMaterial({
+			color: 0xffffff,
+			dashSize: 0.85,
+			gapSize: 0.5,
+			transparent: true,
+			opacity: 0.92
+		});
+		const groundMat = new THREE.LineBasicMaterial({
 			color: 0xffffff,
 			transparent: true,
-			opacity: 0.16
+			opacity: 0.75
 		});
-		const volGeo = new THREE.BoxGeometry(10, 6.4, 11);
+
+		// Arsiran diagonal: cara baku menandai petak kosong pada gambar kerja, dan
+		// satu-satunya isyarat yang tetap terbaca saat maketnya gelap — bidang putih
+		// tembus pandang saja hilang begitu matahari turun.
+		const hatch = makeHatchTexture();
+		this.#hatchTex = hatch;
+		const padMat = new THREE.MeshBasicMaterial({
+			map: hatch,
+			color: 0xffffff,
+			transparent: true,
+			opacity: 0.5,
+			depthWrite: false,
+			toneMapped: false
+		});
+		this.#lotLineMats = [edgeMat, groundMat, padMat];
+
+		const padGeo = new THREE.PlaneGeometry(LOT_PAD_W, LOT_PAD_D);
+		const volGeo = new THREE.BoxGeometry(LOT_PAD_W - 1.6, 6.4, LOT_PAD_D - 1.6);
 		const volEdges = new THREE.EdgesGeometry(volGeo);
-		const padEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(12, 0.02, 13));
+		const padEdges = new THREE.EdgesGeometry(
+			new THREE.BoxGeometry(LOT_PAD_W, 0.02, LOT_PAD_D)
+		);
 
 		for (const z of LOT_SLOTS) {
 			const slot = new THREE.Group();
@@ -584,6 +722,8 @@ export class StreetWorld {
 
 			const edges = new THREE.LineSegments(volEdges, edgeMat);
 			edges.position.copy(proposed.position);
+			// Wajib untuk garis putus-putus: tanpa jarak per ruas, garisnya tergambar penuh.
+			edges.computeLineDistances();
 			slot.add(edges);
 
 			const ground = new THREE.LineSegments(padEdges, groundMat);
@@ -596,19 +736,19 @@ export class StreetWorld {
 
 		this.#scene.add(this.#lotGroup);
 
-		// Gerai pesaing sejenis: papan kecil bertanda di sepanjang trotoar seberang.
-		// Jumlah yang menyala mengikuti cacah pesaing yang benar-benar terdata.
+		// Gerai pesaing sejenis: papan kecil bertanda pada muka bangunan di sepanjang
+		// jalan. Jumlah yang tampil mengikuti cacah pesaing yang benar-benar terdata.
 		this.#rivalMarks = new THREE.InstancedMesh(
 			new THREE.BoxGeometry(0.25, 1.5, 3.2),
 			new THREE.MeshStandardMaterial({ color: 0xd8c3aa, roughness: 0.7 }),
 			MAX_RIVALS
 		);
 		this.#rivalMarks.castShadow = true;
-		for (let i = 0; i < MAX_RIVALS; i++) {
-			const z = -34 + i * 7.4;
-			this.#place(-(WALK_HALF + 0.1), 2.4, z);
+		this.#rivalMarks.count = 0;
+		this.#signSpots.forEach((s, i) => {
+			this.#place(s.x, 2.4, s.z, 0, 1, 1, s.len);
 			this.#rivalMarks.setMatrixAt(i, this.#dummy.matrix);
-		}
+		});
 		this.#scene.add(this.#rivalMarks);
 	}
 
@@ -635,6 +775,7 @@ export class StreetWorld {
 					stride: 0,
 					height: 0.94 + rnd() * 0.12,
 					pose: 'sit',
+					base: WALK_Y,
 					group: 'seat'
 				});
 			}
@@ -649,6 +790,7 @@ export class StreetWorld {
 				stride: rnd() < 0.4 ? (rnd() - 0.5) * 0.5 : 0,
 				height: 0.9 + rnd() * 0.2,
 				pose: rnd() < 0.35 ? 'walk' : 'stand',
+				base: WALK_Y,
 				group: 'cafe'
 			});
 		}
@@ -662,6 +804,7 @@ export class StreetWorld {
 				stride: 0,
 				height: 0.9 + rnd() * 0.2,
 				pose: 'stand',
+				base: HALTE_Y,
 				group: 'halte'
 			});
 		}
@@ -679,6 +822,7 @@ export class StreetWorld {
 				stride: (rnd() - 0.5) * 1.5,
 				height: 0.9 + rnd() * 0.2,
 				pose: 'walk',
+				base: WALK_Y,
 				group: 'walk'
 			});
 		}
@@ -756,9 +900,10 @@ export class StreetWorld {
 
 			const s = p.height;
 			const seated = p.pose === 'sit';
-			const hipY = (seated ? 0.46 : 0.52) * s;
-			const torsoY = (seated ? 0.86 : 0.95) * s;
-			const headY = (seated ? 1.2 : 1.34) * s;
+			const y0 = p.base;
+			const hipY = y0 + (seated ? 0.46 : 0.52) * s;
+			const torsoY = y0 + (seated ? 0.86 : 0.95) * s;
+			const headY = y0 + (seated ? 1.2 : 1.34) * s;
 			const swing = p.pose === 'walk' ? p.stride : 0;
 
 			this.#place(p.x, torsoY, p.z, p.yaw);
@@ -782,7 +927,7 @@ export class StreetWorld {
 				const aoff = 0.21 * s * sign;
 				this.#dummy.position.set(
 					p.x + aoff * Math.cos(p.yaw),
-					(seated ? 1.04 : 1.16) * s,
+					y0 + (seated ? 1.04 : 1.16) * s,
 					p.z - aoff * Math.sin(p.yaw)
 				);
 				this.#dummy.rotation.set(seated ? -0.9 : -swing * sign * 0.7, p.yaw, 0);
@@ -838,7 +983,7 @@ export class StreetWorld {
 
 		const rivals = this.#state.nodata
 			? 0
-			: Math.max(0, Math.min(MAX_RIVALS, Math.round(this.#state.rivals)));
+			: Math.max(0, Math.min(this.#signSpots.length, Math.round(this.#state.rivals)));
 		this.#rivalMarks.count = rivals;
 		(this.#rivalMarks.material as THREE.MeshStandardMaterial).color.setHex(tint);
 
@@ -899,12 +1044,16 @@ export class StreetWorld {
 		// dan merapat ke kafe. Sudut yang berubah drastis akan merusak bacaan denah.
 		const azim = Math.PI * (0.72 + e * 0.1);
 		const elev = 0.62 - e * 0.1;
-		const dist = 120;
+		// Pada kamera ortografis, jarak tidak mengubah skala sama sekali — tapi kabut
+		// dihitung dari jarak ke kamera. Dipasang jauh (dulu 120 m), seluruh adegan
+		// berkabut rata dan maketnya jadi susu; dipasang tepat di luar blok, kabut
+		// kembali bekerja sebagaimana mestinya: yang jauh larut, yang dekat bening.
+		const dist = 32;
 
 		// Titik pandang dikunci pada gugus yang jadi pokok cerita — halte, kafe, dan
 		// petak kosong di sebelahnya — lalu merapat ke muka kafe. Membingkai blok
 		// secara umum membuat ketiganya mengecil dan tak satu pun terbaca.
-		const cx = 8 + e * 10;
+		const cx = 8 + e * 6;
 		const cz = 2 - e * 4;
 
 		this.#camera.position.set(
@@ -917,7 +1066,7 @@ export class StreetWorld {
 		// "Zoom" pada kamera ortografis adalah lebar frustum, bukan jarak.
 		// Dibuka jauh: seluruh pelat maket muat di layar lebar, tepinya kelihatan, dan
 		// mata langsung membaca "benda di atas meja". Baru kemudian merapat ke kafe.
-		this.#viewWidth = 108 - e * 66;
+		this.#viewWidth = 118 - e * 68;
 		this.#applyFrustum();
 
 		// Bus merapat ke halte seiring gulir — satu-satunya benda yang benar-benar
@@ -925,7 +1074,7 @@ export class StreetWorld {
 		this.#bus.position.z = 31 - e * 31;
 	}
 
-	#viewWidth = 108;
+	#viewWidth = 118;
 
 	#applyFrustum() {
 		const w = this.#canvas.clientWidth || 1;
@@ -997,6 +1146,7 @@ export class StreetWorld {
 
 	dispose() {
 		this.stop();
+		this.#hatchTex?.dispose();
 		this.#scene.traverse((o) => {
 			const mesh = o as THREE.Mesh;
 			if (mesh.geometry) mesh.geometry.dispose();
