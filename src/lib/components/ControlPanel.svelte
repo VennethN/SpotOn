@@ -88,12 +88,12 @@
 	<section>
 		<h2 class="eyebrow">Kejujuran data</h2>
 		<p class="prose">
-			<strong>{coverage.terdata} dari {coverage.total}</strong> catchment punya data misi
+			<strong>{coverage.terdata} dari {coverage.total}</strong> petak punya data misi
 			({coverage.titikMisi} titik contoh). <strong>{coverage.poi}</strong> POI pesaing terhitung dari
 			OSM pada radius {app.weights.radius} m.
 		</p>
 		<p class="prose">
-			Hex tanpa data <strong>tidak diinterpolasi</strong> — ditandai arsir dan masuk daftar
+			Petak tanpa data <strong>tidak diinterpolasi</strong> — ditandai arsir dan masuk daftar
 			prioritas survei. Setiap skor disertai N pada tabel dan panel, sehingga pengguna dapat menilai
 			sendiri seberapa tebal dasar angkanya.
 		</p>
@@ -102,8 +102,9 @@
 	<section>
 		<h2 class="eyebrow">Provenans</h2>
 		<p class="prose">
-			<strong>Nyata <span class="tag real">OSM</span></strong> — koordinat & nama 13 stasiun MRT lin
-			Utara–Selatan, geometri jalur, dan jumlah POI pesaing per radius, dari Overpass API (ODbL).
+			<strong>Nyata <span class="tag real">OSM</span></strong> — simpul transit empat moda (MRT, KRL,
+			LRT, TransJakarta), geometri jalurnya, dan {coverage.poi} POI pesaing sejenis pada radius
+			{app.weights.radius} m, dari Overpass API (ODbL). Akses transit tiap petak dihitung dari sini.
 		</p>
 		<p class="prose">
 			<strong>Contoh <span class="tag mock">MOCK</span></strong> — atribut khas dataset misi MAPID

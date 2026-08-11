@@ -5,6 +5,7 @@
 	import ControlPanel from '$lib/components/ControlPanel.svelte';
 	import CatchmentDiorama from '$lib/components/CatchmentDiorama.svelte';
 	import DetailPanel from '$lib/components/DetailPanel.svelte';
+	import MapLegend from '$lib/components/MapLegend.svelte';
 	import MapView from '$lib/components/MapView.svelte';
 	import Segmented from '$lib/components/Segmented.svelte';
 	import Sheet from '$lib/components/Sheet.svelte';
@@ -46,7 +47,8 @@
 
 <div class="app">
 	<MapView />
-	<TopBar />
+	<TopBar bind:advanced />
+	<MapLegend />
 
 	{#if compact}
 		<Sheet bind:index={sheetIndex} detents={[0.14, 0.5, 0.92]}>
@@ -82,15 +84,6 @@
 				</section>
 			</aside>
 		{/if}
-
-		<button
-			type="button"
-			class="advanced-toggle btn"
-			onclick={() => (advanced = !advanced)}
-			aria-expanded={advanced}
-		>
-			{advanced ? 'Tutup pengaturan' : 'Pengaturan lanjutan'}
-		</button>
 
 		<aside class="rail right scroll" aria-label="Tapak dan detail kawasan">
 			<section class="card material">
@@ -150,12 +143,8 @@
 	.rail.left {
 		left: 0.75rem;
 		width: 17rem;
-	}
-	.advanced-toggle {
-		position: fixed;
-		left: 0.75rem;
-		bottom: 0.75rem;
-		z-index: 6;
+		/* Legenda duduk di kiri bawah; rail berhenti di atasnya, tidak menimpanya. */
+		bottom: 9.5rem;
 	}
 	.rail.right {
 		right: 0.75rem;
