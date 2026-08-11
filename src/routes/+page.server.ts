@@ -112,6 +112,14 @@ const SCRIPTS: Script[] = [
 	}
 ];
 
+/**
+ * Tidak ada satu pun angka di sini yang bergantung pada permintaan: kisinya
+ * berkas yang ikut di-bundel. Jadi halaman ini digambar sekali saat build dan
+ * disajikan sebagai berkas statis — tidak ada fungsi server yang dibangunkan
+ * hanya untuk menghitung ulang jawaban yang sama.
+ */
+export const prerender = true;
+
 export const load: PageServerLoad = () => {
 	const hexes = loadHexes();
 	const terdata = hexes.filter((h) => !h.nodata);
