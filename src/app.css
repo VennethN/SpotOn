@@ -101,6 +101,32 @@
 	--paper: #edebe6;
 	--paper-line: rgba(28, 26, 22, 0.14);
 
+	/* ── angkatan ──────────────────────────────────────────────────────────
+	   Bidang yang rata sempurna terbaca sebagai lubang, bukan sebagai benda.
+	   Yang mengangkatnya di sini bukan warna baru: cahaya datang dari atas,
+	   jadi tepi atas tiap bidang sedikit lebih terang daripada bawahnya —
+	   isyarat yang sama dengan yang dipakai maket. Selisihnya ditahan di
+	   bawah 5%; begitu terlihat sebagai gradasi, ia sudah terlalu jauh. */
+	--lift-paper: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--paper) 95%, white) 0%,
+		var(--paper) 34rem
+	);
+	--lift-panel: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--paper) 92%, white) 0%,
+		var(--paper) 8rem
+	);
+	--lift-surface: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--bg-elevated) 93%, white) 0%,
+		var(--bg-elevated) 7rem
+	);
+	/* Garis cahaya setebal satu piksel di tepi atas — bukan gradasi, kilau. */
+	--lift-edge: rgba(255, 255, 255, 0.55);
+	/* Batang data: sedikit lebih terang di pangkal, seperti bidang yang miring. */
+	--lift-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+
 	/* ruang — em/rem agar layout ikut membesar bersama teks pengguna */
 	--gap: 0.75rem;
 	--pad: 0.875rem;
@@ -151,6 +177,9 @@
 		--route-brt: #de85d4;
 		--paper: #111316;
 		--paper-line: rgba(255, 255, 255, 0.13);
+		/* Gelap: cahayanya lebih pelit, tapi arahnya tetap dari atas. */
+		--lift-edge: rgba(255, 255, 255, 0.14);
+		--lift-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
 	}
 }
 
@@ -193,6 +222,8 @@
 	--route-brt: #de85d4;
 	--paper: #111316;
 	--paper-line: rgba(255, 255, 255, 0.13);
+	--lift-edge: rgba(255, 255, 255, 0.14);
+	--lift-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
 }
 
 /* transparansi & kontras: preferensi sistem menang atas estetika */
@@ -212,6 +243,12 @@
 		--separator: var(--separator-strong);
 		--mat-thick: var(--bg-elevated);
 		--mat-regular: var(--bg-elevated);
+		/* Angkatan bekerja dengan selisih beberapa persen — persis yang diminta
+		   dihapus di sini. Bidangnya jadi rata, batasnya dibawa garis. */
+		--lift-paper: none;
+		--lift-panel: none;
+		--lift-surface: none;
+		--lift-bar: none;
 	}
 }
 

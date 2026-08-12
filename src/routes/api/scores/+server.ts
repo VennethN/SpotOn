@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { CATEGORY_MAP } from '$lib/categories';
-import { scoreAll } from '$lib/scoring';
+import { CATEGORY_MAP } from '$lib/domain/categories';
+import { scoreAll } from '$lib/domain/scoring';
 import { readCategory, readWeights } from '$lib/server/params';
 import { loadHexes } from '$lib/server/source';
 import type { RequestHandler } from './$types';

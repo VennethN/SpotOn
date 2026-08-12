@@ -1,21 +1,24 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import TapakPanel from '$lib/components/TapakPanel.svelte';
-	import AttributeTable from '$lib/components/AttributeTable.svelte';
-	import ControlPanel from '$lib/components/ControlPanel.svelte';
-	import CatchmentDiorama from '$lib/components/CatchmentDiorama.svelte';
-	import DetailPanel from '$lib/components/DetailPanel.svelte';
-	import MapView from '$lib/components/MapView.svelte';
-	import Segmented from '$lib/components/Segmented.svelte';
-	import Sheet from '$lib/components/Sheet.svelte';
-	import TopBar from '$lib/components/TopBar.svelte';
-	import { setAppState } from '$lib/state.svelte';
+	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
+	import AttributeTable from '$lib/components/app/AttributeTable.svelte';
+	import ControlPanel from '$lib/components/app/ControlPanel.svelte';
+	import CatchmentDiorama from '$lib/components/app/CatchmentDiorama.svelte';
+	import DetailPanel from '$lib/components/app/DetailPanel.svelte';
+	import MapLegend from '$lib/components/app/MapLegend.svelte';
+	import MapView from '$lib/components/app/MapView.svelte';
+	import Segmented from '$lib/components/ui/Segmented.svelte';
+	import Sheet from '$lib/components/ui/Sheet.svelte';
+	import TopBar from '$lib/components/app/TopBar.svelte';
+	import { setAppState } from '$lib/state/app.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	// Data awal sengaja diambil sekali; status selanjutnya hidup di AppState.
 	const app = setAppState(untrack(() => data.catchments));
+	const c = $derived(copy());
 
 	/** Tata letak ringkas memakai sheet yang bisa diseret; lebar memakai panel mengambang. */
 	let compact = $state(false);
@@ -41,24 +44,25 @@
 </script>
 
 <svelte:head>
-	<title>SpotOn — Peta rekomendasi site-selection kawasan transit Jakarta</title>
+	<title>{c.meta.appTitle}</title>
 </svelte:head>
 
 <div class="app">
 	<MapView />
-	<TopBar />
+	<TopBar bind:advanced />
+	<MapLegend />
 
 	{#if compact}
 		<Sheet bind:index={sheetIndex} detents={[0.14, 0.5, 0.92]}>
 			{#snippet header()}
 				<Segmented
-					label="Panel"
+					label={c.app.panel}
 					bind:value={app.sheetTab}
 					options={[
-						{ value: 'rekomendasi', label: 'Tapak' },
-						{ value: 'detail', label: 'Kawasan' },
-						{ value: 'tabel', label: 'Tabel' },
-						{ value: 'kontrol', label: 'Lanjutan' }
+						{ value: 'rekomendasi', label: c.app.tabs.rekomendasi },
+						{ value: 'detail', label: c.app.tabs.detail },
+						{ value: 'tabel', label: c.app.tabs.tabel },
+						{ value: 'kontrol', label: c.app.tabs.kontrol }
 					]}
 				/>
 			{/snippet}
@@ -75,35 +79,26 @@
 		</Sheet>
 	{:else}
 		{#if advanced}
-			<aside class="rail left scroll" aria-label="Pengaturan lanjutan">
+			<aside class="rail left scroll" aria-label={c.app.advanced}>
 				<section class="card material">
-					<h2 class="eyebrow head">Pengaturan lanjutan</h2>
+					<h2 class="eyebrow head">{c.app.advanced}</h2>
 					<div class="body"><ControlPanel /></div>
 				</section>
 			</aside>
 		{/if}
 
-		<button
-			type="button"
-			class="advanced-toggle btn"
-			onclick={() => (advanced = !advanced)}
-			aria-expanded={advanced}
-		>
-			{advanced ? 'Tutup pengaturan' : 'Pengaturan lanjutan'}
-		</button>
-
-		<aside class="rail right scroll" aria-label="Tapak dan detail kawasan">
+		<aside class="rail right scroll" aria-label={c.app.tapak}>
 			<section class="card material">
-				<h2 class="eyebrow head">Tapak <span class="muted">— pemandu Anda</span></h2>
+				<h2 class="eyebrow head">{c.app.tapak} <span class="muted">{c.app.tapakSub}</span></h2>
 				<div class="body"><TapakPanel /></div>
 			</section>
 			<section class="card material">
-				<h2 class="eyebrow head">Suasana kawasan</h2>
+				<h2 class="eyebrow head">{c.app.mood}</h2>
 				<div class="body"><CatchmentDiorama /></div>
 			</section>
 			<section class="card material">
 				<details>
-					<summary class="eyebrow head">Angka lengkap kawasan</summary>
+					<summary class="eyebrow head">{c.app.numbers}</summary>
 					<div class="body"><DetailPanel /></div>
 				</details>
 			</section>
@@ -116,12 +111,12 @@
 				onclick={() => (app.tableOpen = !app.tableOpen)}
 				aria-expanded={app.tableOpen}
 			>
-				{app.tableOpen ? 'Sembunyikan tabel atribut' : 'Tabel atribut'}
+				{app.tableOpen ? c.app.tableHide : c.app.table}
 			</button>
 			{#if app.tableOpen}
 				<section class="card material table-panel">
 					<h2 class="eyebrow head">
-						Tabel atribut <span class="muted">— klik judul kolom untuk mengurutkan</span>
+						{c.app.table} <span class="muted">{c.app.tableHint}</span>
 					</h2>
 					<AttributeTable />
 				</section>
@@ -150,12 +145,8 @@
 	.rail.left {
 		left: 0.75rem;
 		width: 17rem;
-	}
-	.advanced-toggle {
-		position: fixed;
-		left: 0.75rem;
-		bottom: 0.75rem;
-		z-index: 6;
+		/* Legenda duduk di kiri bawah; rail berhenti di atasnya, tidak menimpanya. */
+		bottom: 9.5rem;
 	}
 	.rail.right {
 		right: 0.75rem;

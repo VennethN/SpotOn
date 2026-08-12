@@ -9,15 +9,15 @@ Legenda: ✅ selesai · 🟡 sebagian · ⬜ belum
 
 | Komponen | Status | Di mana |
 |---|---|---|
-| Peta interaktif jadi elemen utama | ✅ | [`MapView.svelte`](../src/lib/components/MapView.svelte) — peta full-bleed, panel mengambang di atasnya |
+| Peta interaktif jadi elemen utama | ✅ | [`MapView.svelte`](../src/lib/components/app/MapView.svelte) — peta full-bleed, panel mengambang di atasnya |
 | Basemap **MAPID MAPS** | 🟡 | Basemap dapat ditukar lewat env `PUBLIC_MAPID_STYLE_URL`; sementara memakai raster terbuka karena kunci gaya MAPID belum ada |
 | Zoom | ✅ | Kontrol zoom kustom + scroll/pinch |
 | Klik objek | ✅ | Klik catchment → panel detail |
-| Filter data | ✅ | Jenis usaha, bobot permintaan/persaingan, gerbang ruang usaha, radius |
-| Tabel lokasi & tabel atribut | ✅ | [`AttributeTable.svelte`](../src/lib/components/AttributeTable.svelte), dapat diurutkan per kolom |
-| Layer control | ✅ | [`ControlPanel.svelte`](../src/lib/components/ControlPanel.svelte) |
-| Visualisasi data (grafik/chart) | ✅ | Profil 24 jam transaksi + bar peluang lintas kategori di [`DetailPanel.svelte`](../src/lib/components/DetailPanel.svelte) |
-| **AI di dalam interface** | ✅ | [`AiPanel.svelte`](../src/lib/components/AiPanel.svelte) → `POST /api/ai/query` |
+| Filter data | ✅ | Jenis usaha, bobot permintaan/persaingan, gerbang ruang usaha |
+| Tabel lokasi & tabel atribut | ✅ | [`AttributeTable.svelte`](../src/lib/components/app/AttributeTable.svelte), dapat diurutkan per kolom |
+| Layer control | ✅ | [`ControlPanel.svelte`](../src/lib/components/app/ControlPanel.svelte); legenda skor selalu tampak lewat [`MapLegend.svelte`](../src/lib/components/app/MapLegend.svelte) |
+| Visualisasi data (grafik/chart) | ✅ | Profil 24 jam transaksi + bar peluang lintas kategori di [`DetailPanel.svelte`](../src/lib/components/app/DetailPanel.svelte) |
+| **AI di dalam interface** | ✅ | [`TapakPanel.svelte`](../src/lib/components/app/TapakPanel.svelte) → `POST /api/ai/query`; percakapan contohnya juga dimainkan di landing lewat mesin skor yang sama |
 | Akses publik (Vercel) | 🟡 | Adapter Vercel sudah terpasang; belum dideploy |
 
 ## B.5 Struktur WebGIS yang direkomendasikan
@@ -27,8 +27,8 @@ Legenda: ✅ selesai · 🟡 sebagian · ⬜ belum
 | Beranda / Overview | ✅ | Landing page di `/` — masalah, metode, dan ringkasan insight |
 | Peta Interaktif | ✅ | `/app` |
 | Analisis dan Insight | ✅ | Panel detail + tabel atribut |
-| Interaksi AI di dalam interface | ✅ | Panel AI |
-| AI Insight (ringkasan, perbandingan, rekomendasi) | ✅ | Intent `RANK`, `COMPARE`, `FLAG_SATURATED`, `COVERAGE` di [`nlq.ts`](../src/lib/nlq.ts) |
+| Interaksi AI di dalam interface | ✅ | Panel Tapak |
+| AI Insight (ringkasan, perbandingan, rekomendasi) | ✅ | Intent `RANK`, `COMPARE`, `FLAG_SATURATED`, `COVERAGE` di [`nlq.ts`](../src/lib/domain/nlq.ts) |
 | Survey Activities | ⬜ | Baru muncul sebagai daftar prioritas catchment "belum terdata"; halaman khusus belum ada |
 | Metodologi dan Sumber Data | 🟡 | Ringkas di panel provenans & landing; halaman metodologi penuh belum ada |
 | Rekomendasi | ✅ | Daftar ter-ranking + justifikasi "Kenapa di sini?" |
