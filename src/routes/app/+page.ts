@@ -1,5 +1,5 @@
 import { DEFAULT_CATEGORY } from '$lib/domain/weights';
-import type { CategorySlice, HexBase } from '$lib/types';
+import type { CategorySlice, GridMeta, HexBase } from '$lib/types';
 import type { PageLoad } from './$types';
 
 /**
@@ -29,10 +29,10 @@ export const load: PageLoad = async ({ fetch }) => {
 	]);
 	if (!baseRes.ok) throw new Error('Failed to load catchment data.');
 
-	const base: { catchments: HexBase[] } = await baseRes.json();
+	const base: { catchments: HexBase[]; meta: GridMeta } = await baseRes.json();
 	// A category that fails to load is not fatal: the grid still draws, and the
 	// legend offers the heatmap again rather than the page refusing to open.
 	const slice: CategorySlice | undefined = sliceRes.ok ? await sliceRes.json() : undefined;
 
-	return { catchments: base.catchments, slice };
+	return { catchments: base.catchments, slice, meta: base.meta };
 };
