@@ -1,53 +1,53 @@
-# Status implementasi terhadap ketentuan panitia
+# Implementation status against the organisers' rules
 
-Dibandingkan langsung dengan [00-ketentuan-kompetisi.md](00-ketentuan-kompetisi.md),
-bagian B.2 (komponen wajib), B.5 (struktur), dan C (peran AI).
+Compared directly against [00-ketentuan-kompetisi.md](00-ketentuan-kompetisi.md),
+sections B.2 (mandatory components), B.5 (structure), and C (the role of AI).
 
-Legenda: ✅ selesai · 🟡 sebagian · ⬜ belum
+Key: ✅ done · 🟡 partial · ⬜ not started
 
-## B.2 Komponen wajib WebGIS
+## B.2 Mandatory WebGIS components
 
-| Komponen | Status | Di mana |
+| Component | Status | Where |
 |---|---|---|
-| Peta interaktif jadi elemen utama | ✅ | [`MapView.svelte`](../src/lib/components/app/MapView.svelte) — peta full-bleed, panel mengambang di atasnya |
-| Basemap **MAPID MAPS** | 🟡 | Basemap dapat ditukar lewat env `PUBLIC_MAPID_STYLE_URL`; sementara memakai raster terbuka karena kunci gaya MAPID belum ada |
-| Zoom | ✅ | Kontrol zoom kustom + scroll/pinch |
-| Klik objek | ✅ | Klik catchment → panel detail |
-| Filter data | ✅ | Jenis usaha, bobot permintaan/persaingan, gerbang ruang usaha |
-| Tabel lokasi & tabel atribut | ✅ | [`AttributeTable.svelte`](../src/lib/components/app/AttributeTable.svelte), dapat diurutkan per kolom |
-| Layer control | ✅ | [`ControlPanel.svelte`](../src/lib/components/app/ControlPanel.svelte); legenda skor selalu tampak lewat [`MapLegend.svelte`](../src/lib/components/app/MapLegend.svelte) |
-| Visualisasi data (grafik/chart) | ✅ | Profil 24 jam transaksi + bar peluang lintas kategori di [`DetailPanel.svelte`](../src/lib/components/app/DetailPanel.svelte) |
-| **AI di dalam interface** | ✅ | [`TapakPanel.svelte`](../src/lib/components/app/TapakPanel.svelte) → `POST /api/ai/query`; percakapan contohnya juga dimainkan di landing lewat mesin skor yang sama |
-| Akses publik (Vercel) | 🟡 | Adapter Vercel sudah terpasang; belum dideploy |
+| Interactive map as the primary element | ✅ | [`MapView.svelte`](../src/lib/components/app/MapView.svelte) — full-bleed map, panels floating above it |
+| **MAPID MAPS** basemap | 🟡 | The basemap can be swapped via the `PUBLIC_MAPID_STYLE_URL` env var; currently an open raster basemap, because there is no MAPID style key yet |
+| Zoom | ✅ | Custom zoom controls + scroll/pinch |
+| Click on objects | ✅ | Click a catchment → detail panel |
+| Data filtering | ✅ | Business category, demand/competition weights, commercial-space gate |
+| Location table & attribute table | ✅ | [`AttributeTable.svelte`](../src/lib/components/app/AttributeTable.svelte), sortable by column |
+| Layer control | ✅ | [`ControlPanel.svelte`](../src/lib/components/app/ControlPanel.svelte); the score legend is always visible via [`MapLegend.svelte`](../src/lib/components/app/MapLegend.svelte) |
+| Data visualisation (graphs/charts) | ✅ | 24-hour transaction profile + cross-category opportunity bars in [`DetailPanel.svelte`](../src/lib/components/app/DetailPanel.svelte) |
+| **AI inside the interface** | ✅ | [`TapakPanel.svelte`](../src/lib/components/app/TapakPanel.svelte) → `POST /api/ai/query`; a sample conversation also plays on the landing page, driven by the same scoring engine |
+| Public access (Vercel) | 🟡 | The Vercel adapter is installed; not deployed yet |
 
-## B.5 Struktur WebGIS yang direkomendasikan
+## B.5 Recommended WebGIS structure
 
-| Bagian | Status | Di mana |
+| Section | Status | Where |
 |---|---|---|
-| Beranda / Overview | ✅ | Landing page di `/` — masalah, metode, dan ringkasan insight |
-| Peta Interaktif | ✅ | `/app` |
-| Analisis dan Insight | ✅ | Panel detail + tabel atribut |
-| Interaksi AI di dalam interface | ✅ | Panel Tapak |
-| AI Insight (ringkasan, perbandingan, rekomendasi) | ✅ | Intent `RANK`, `COMPARE`, `FLAG_SATURATED`, `COVERAGE` di [`nlq.ts`](../src/lib/domain/nlq.ts) |
-| Survey Activities | ⬜ | Baru muncul sebagai daftar prioritas catchment "belum terdata"; halaman khusus belum ada |
-| Metodologi dan Sumber Data | 🟡 | Ringkas di panel provenans & landing; halaman metodologi penuh belum ada |
-| Rekomendasi | ✅ | Daftar ter-ranking + justifikasi "Kenapa di sini?" |
+| Home / Overview | ✅ | Landing page at `/` — the problem, the method, and a summary of the insight |
+| Interactive Map | ✅ | `/app` |
+| Analysis and Insight | ✅ | Detail panel + attribute table |
+| AI interaction inside the interface | ✅ | The Tapak panel |
+| AI Insight (summary, comparison, recommendation) | ✅ | The `RANK`, `COMPARE`, `FLAG_SATURATED`, and `COVERAGE` intents in [`nlq.ts`](../src/lib/domain/nlq.ts) |
+| Survey Activities | ⬜ | So far only a priority list of "not yet surveyed" catchments; there is no dedicated page |
+| Methodology and Data Sources | 🟡 | Summarised in the provenance panel and on the landing page; there is no full methodology page |
+| Recommendations | ✅ | Ranked list + a "Why here?" justification |
 
-## C. Peran AI
+## C. The role of AI
 
-| Ketentuan | Status | Catatan |
+| Requirement | Status | Notes |
 |---|---|---|
-| AI menghasilkan output spasial | ✅ | Jawaban AI mengubah highlight di peta dan me-ranking catchment, bukan sekadar teks |
-| Alur input → proses → output → validasi dijelaskan | ✅ | Query terstruktur ditampilkan apa adanya; tiap klaim menyertakan N titik data |
-| **Lapis A — pengayaan data dari foto** | ⬜ | Klasifikasi tier formalitas & kualitas storefront belum dikerjakan; butuh dataset misi asli |
-| **Lapis B — mesin rekomendasi di interface** | 🟡 | Parsing niat masih rule-based di server; kontraknya sudah disiapkan agar bisa ditukar LLM + function-calling tanpa mengubah UI |
+| AI produces spatial output | ✅ | The AI's answer changes the highlight on the map and ranks catchments — it is not merely text |
+| The input → processing → output → validation flow is explained | ✅ | The structured query is shown verbatim; every claim carries the N data points behind it |
+| **Layer A — enriching data from photographs** | ⬜ | Classifying formality tier and storefront quality is not built; it needs the real mission dataset |
+| **Layer B — recommendation engine in the interface** | 🟡 | Intent parsing is still rule-based on the server; the contract is already shaped so an LLM + function-calling can be swapped in without touching the UI |
 
-## Utang teknis yang perlu diselesaikan
+## Technical debt still to clear
 
-1. **Basemap MAPID MAPS** — wajib pada produk final. Tinggal isi `PUBLIC_MAPID_STYLE_URL`.
-2. **Sumber data asli** — ganti `loadCatchments()` di [`src/lib/server/source.ts`](../src/lib/server/source.ts)
-   dengan pemanggilan API MAPID. Kontrak `Catchment` tidak perlu berubah.
-3. **LLM sungguhan pada `/api/ai/query`** — ganti `parseQuestion()` dengan function-calling.
-   Perhitungan skor tetap di server supaya angka tidak pernah datang dari model.
-4. **Halaman survey activities & metodologi** sesuai B.5.
-5. **Klasifikasi visual (Lapis A)** setelah dataset misi asli tersedia.
+1. **MAPID MAPS basemap** — mandatory for the final product. All that is needed is to fill in `PUBLIC_MAPID_STYLE_URL`.
+2. **Real data source** — replace `loadCatchments()` in [`src/lib/server/source.ts`](../src/lib/server/source.ts)
+   with a call to the MAPID API. The `Catchment` contract does not need to change.
+3. **A real LLM on `/api/ai/query`** — replace `parseQuestion()` with function-calling.
+   Score computation stays on the server, so no figure ever comes from the model.
+4. **Survey activities and methodology pages**, per B.5.
+5. **Visual classification (Layer A)**, once the real mission dataset is available.
