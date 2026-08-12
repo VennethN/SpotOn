@@ -45,7 +45,10 @@
 	const band = $derived(accessBand(access));
 	const uplift = $derived(accessUplift(access));
 	const hasRail = $derived(modes.some((m) => RAIL.includes(m.mode)));
-	const waiting = $derived(app.stops === null);
+	/* Waiting is not the same as never coming: with the stop file lost, this panel
+	   drops the loading line and keeps the counts, which is what the note above
+	   promises it does. */
+	const waiting = $derived(app.stops === null && !app.stopsFailed);
 
 	const colour = (m: Mode) => `var(--route-${m})`;
 </script>
