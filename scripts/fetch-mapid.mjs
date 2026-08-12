@@ -23,9 +23,10 @@
  * memang tinggal di antarmuka, bukan di sini.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mapidKey } from './lib/mapid-key.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const GEOSERVER = 'https://geoserver.mapid.io';
@@ -41,14 +42,6 @@ const FEATURE_LIMIT = 100000;
 
 /** Proyek GEO MAPID tempat dataset diimpor. Dari URL editor: /editor/<id>. */
 const PROJECT_ID = process.env.MAPID_PROJECT_ID || '6a7c1672fb8d434002151fa7';
-
-function apiKey() {
-	const raw = readFileSync(resolve(ROOT, '.env'), 'utf8');
-	const m = raw.match(/^MAPID_API_KEY=(.*)$/m);
-	const key = (m?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
-	if (!key) throw new Error('MAPID_API_KEY belum diisi di .env');
-	return key;
-}
 
 /**
  * Taksonomi MAPID (TIPE_1 → TIPE_2 → TIPE_3) dipetakan ke lima kategori SpotOn.
@@ -92,7 +85,7 @@ async function get(url, label) {
 }
 
 async function main() {
-	const key = apiKey();
+	const key = mapidKey();
 	console.log(`Proyek ${PROJECT_ID}\n`);
 
 	console.log('[1/2] Membaca daftar layer…');
