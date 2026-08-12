@@ -1,4 +1,4 @@
-import { CATEGORY_KEYS } from './categories';
+import { CATEGORY_KEYS, CATEGORY_MAP } from './categories';
 import type { Hex, CategoryKey, PoiSource, ScoredHex, Typology, Weights } from '$lib/types';
 
 /**
@@ -31,7 +31,25 @@ function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): 
 		if (!c.covered?.[cat]) return null;
 		return Math.round((c.mapid?.[cat] ?? 0) * areaFactor(radius));
 	}
-	return Math.round((c.osm[cat] ?? 0) * areaFactor(radius));
+	// The OSM side can be uncovered too, and it used to have no way of saying so.
+	//
+	// The old `?? 0` silently invented a zero for categories that had never been
+	// fetched from OSM at all — and that is not a theoretical possibility: adding a
+	// new category means a `hexes.json` that has not been rebuilt does not carry its
+	// key. The consequence is that every cell looks competitor-free, and the category
+	// with the least data wins across the whole map.
+	//
+	// What separates "zero" from "never fetched" is WHETHER THE KEY EXISTS, not its
+	// value: `build-hexes.mjs` writes an explicit 0 for every category it genuinely
+	// fetched and found empty.
+	//
+	// The `osmTag` check in front of it is not a duplicate. One reads the shape of
+	// the data, the other states an intent: a category with no OSM tag can never be
+	// counted from OSM, and that is a decision taken in `categories.ts` — not
+	// something to be inferred from a key happening to be absent from a file.
+	if (!CATEGORY_MAP[cat]?.osmTag) return null;
+	const n = c.osm?.[cat];
+	return typeof n === 'number' ? Math.round(n * areaFactor(radius)) : null;
 }
 
 /** Normalisation scale for supply: the densest catchment in this category. Cells

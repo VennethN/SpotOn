@@ -8,6 +8,13 @@ import type { CategoryKey, Weights } from '$lib/types';
  * Only reads and reshapes; value sanitising has a single entry point in
  * `domain/weights`, the same one used by endpoints that take a JSON body.
  */
+/** `?source=` when recognised; `undefined` so `normalizeWeights` decides the
+    default — this file reads, it does not decide. */
+function readSource(url: URL): Weights['source'] | undefined {
+	const raw = url.searchParams.get('source');
+	return raw === 'mapid' || raw === 'osm' ? raw : undefined;
+}
+
 export function readWeights(url: URL): Weights {
 	const num = (key: string, fallback: number) => {
 		const raw = url.searchParams.get(key);
@@ -19,10 +26,15 @@ export function readWeights(url: URL): Weights {
 		ws: num('ws', DEFAULT_WEIGHTS.ws),
 		gate: (url.searchParams.get('gate') ?? '1') !== '0',
 		radius: num('radius', DEFAULT_WEIGHTS.radius),
-		// Without this line the endpoint always scores with OSM whatever ?source=
-		// is sent — and the result still looks plausible, so nothing signals that
-		// the switch is doing nothing.
-		source: url.searchParams.get('source') === 'mapid' ? 'mapid' : 'osm'
+		// Without this line the endpoint ignores `?source=` entirely — and the result
+		// still looks plausible, so nothing signals that the switch is doing nothing.
+		//
+		// The default is read from DEFAULT_WEIGHTS rather than restated here. It once
+		// read `: 'osm'` directly, which made this file a second guard deciding the
+		// same thing its own way — exactly the pattern that has already bitten this
+		// weights module. When the default moved to MAPID, this one line would have
+		// quietly kept OSM for every endpoint while the interface had already moved.
+		source: readSource(url)
 	});
 }
 

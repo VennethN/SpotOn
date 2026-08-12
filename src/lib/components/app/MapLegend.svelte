@@ -19,11 +19,18 @@
 	const coverage = $derived(app.coverage);
 
 	/* Cells left unscored because the active source does not yet cover this city +
-	   category. Without saying so, a MAPID map for a category that has not been
-	   imported reads as "every score is zero" — the exact opposite conclusion from
-	   what is actually the case. */
-	const uncovered = $derived(app.weights.source === 'mapid' ? coverage.notCovered : 0);
+	   category. Without saying so, the map reads as "every score is zero" — the exact
+	   opposite conclusion from what is actually the case.
+
+	   This used to be forced to zero for the OSM source, on the assumption that only
+	   MAPID could be uncovered. That assumption stopped being true once four food
+	   categories (warteg, mie, seafood, foreign restaurants) were declared to have no
+	   OSM source: picking Warteg on OSM dashes EVERY cell, and it is exactly in that
+	   state that the note was being suppressed. */
+	const uncovered = $derived(coverage.notCovered);
 	const catName = $derived(c.category[app.category].name);
+	const srcName = $derived(app.weights.source === 'mapid' ? 'MAPID' : 'OSM');
+	const otherSrcName = $derived(app.weights.source === 'mapid' ? 'OSM' : 'MAPID');
 
 	let open = $state(true);
 </script>
@@ -59,8 +66,8 @@
 			{#if uncovered > 0}
 				<p class="uncovered" class:blocking={coverage.scored === 0}>
 					{coverage.scored === 0
-						? c.app.legendUncoveredAll(catName)
-						: c.app.legendUncovered(uncovered, catName)}
+						? c.app.legendUncoveredAll(catName, srcName, otherSrcName)
+						: c.app.legendUncovered(uncovered, catName, srcName)}
 				</p>
 			{/if}
 		</div>

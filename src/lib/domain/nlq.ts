@@ -14,18 +14,43 @@ import type {
 	AiAnswer,
 	Hex,
 	CategoryKey,
+	PoiSource,
 	Recommendation,
 	ScoredHex,
 	StructuredQuery,
 	Weights
 } from '$lib/types';
 
+/**
+ * Matched in order, first match wins — so the specific has to sit above the
+ * general. `boba` before `minuman`, and both before `warung`, which catches the
+ * word "makan": without that order "kedai minuman" would read as a warung, because
+ * the question almost always contains the word makan or jajan.
+ */
 const KEYWORDS: Array<[RegExp, CategoryKey]> = [
-	[/kopi|coffee|kafe|cafe/i, 'kopi'],
-	[/warung|makan|nasi|soto|resto/i, 'warung'],
-	[/minimarket|kelontong|swalayan/i, 'minimarket'],
-	[/laundry|cuci/i, 'laundry'],
-	[/apotek|obat|farmasi/i, 'apotek']
+	[/kopi|coffee|kafe|cafe|espresso|latte/i, 'kopi'],
+	// `jus` and `asing` below MUST be fenced with `\b`. Without it, both match in
+	// the middle of very common words — "justru" becomes a drinks stall,
+	// "masing-masing" becomes a foreign restaurant — and that match silently
+	// overrides the category the user has selected and pans the map with it.
+	[/boba|milk ?tea|thai tea|\bjus\b|juice|es krim|ice cream|dessert|minuman|drink/i, 'minuman'],
+	[/roti|bakery|kue|donat|donut|pastri|pastry|cake/i, 'roti'],
+	[/apotek|obat|farmasi|pharmac/i, 'apotek'],
+	[/laundry|binatu|cuci baju/i, 'laundry'],
+	[/bengkel|servis motor|service motor|montir|repair/i, 'bengkel'],
+	[/kelontong|toko sembako|sembako|grocery/i, 'kelontong'],
+	[/minimarket|swalayan|indomaret|alfamart|convenience/i, 'minimarket'],
+	[/cepat saji|fast ?food|kfc|mcd|mcdonald|burger/i, 'cepatsaji'],
+	[/\bmie\b|bakso|ramen|noodle|bakmi/i, 'mie'],
+	[/seafood|ikan bakar|kepiting|udang/i, 'seafood'],
+	[
+		/jepang|japanese|korea|korean|sushi|thai|cina|chinese|western|\basing\b|italia|pizza|steak/i,
+		'restoasing'
+	],
+	// Last and loosest: anything mentioning food without naming a type lands here,
+	// because a rice warung really is the most sensible default for the question
+	// "I want to open somewhere to eat".
+	[/warteg|warung|rumah makan|nasi|padang|soto|resto|makan|food/i, 'warteg']
 ];
 
 /**
@@ -98,8 +123,18 @@ function matchNames(q: string, rows: ScoredHex[]): ScoredHex[] {
 		.map((m) => m.r);
 }
 
+/**
+ * The label for whichever competitor source is in use.
+ *
+ * Every sentence used to say "OSM" whatever the source was, and that is no longer
+ * merely untidy: since the default moved to MAPID, the default note on every answer
+ * names the wrong source. In a product whose whole promise is figures you can
+ * trace, misnaming where a figure came from is the most expensive mistake there is.
+ */
+const sourceLabel = (s: PoiSource | undefined) => (s === 'mapid' ? 'MAPID' : 'OSM');
+
 const evidence = (r: ScoredHex) =>
-	`N misi = ${r.nTot} (struk ${r.nStruk} · menu ${r.nMenu} · properti ${r.nProp}) · pesaing OSM = ${r.osm}`;
+	`N misi = ${r.nTot} (struk ${r.nStruk} · menu ${r.nMenu} · properti ${r.nProp}) · pesaing ${sourceLabel(r.source)} = ${r.osm}`;
 
 /**
  * Runs a structured query against the scoring engine and assembles the
@@ -135,7 +170,9 @@ export function runQuery(
 	const provenance = [
 		`Alur: pertanyaan → parsing niat → function-calling ke daftar operasi spasial terbatas → PostGIS mengeksekusi → peta & panel diperbarui.`,
 		`Angka tidak dikarang model: LLM hanya memilih operasi dan mengisi argumen; seluruh nilai dihitung basis data dan ditautkan ke titik sumbernya.`,
-		`Sumber pesaing (nyata): OpenStreetMap via Overpass API, ${def.osmTag}, around:${w.radius}.`,
+		w.source === 'mapid'
+			? `Sumber pesaing (nyata): MAPID Data Premium, ${def.mapidSet}, around:${w.radius}.`
+			: `Sumber pesaing (nyata): OpenStreetMap via Overpass API, ${def.osmTag}, around:${w.radius}.`,
 		`Sumber lain (contoh): Struk Go · Menu Go · Properti Go — struktur mengikuti kolom asli.`
 	];
 

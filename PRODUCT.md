@@ -64,9 +64,9 @@ walking-catchment resolution. SpotOn's mechanism:
   adjacent catchments overlapped almost entirely and counted the same shoppers repeatedly. On a
   grid each cell is counted once, and transit access becomes a *property* of the cell — so a place
   served by both MRT and TransJakarta correctly outranks one served by either alone.
-- Transit coverage is all four modes from OSM: 20 MRT, 64 KRL, 33 LRT, 993 TransJakarta
-  (1,110 stops after de-duplication). 5 business categories (`kopi`, `warung`, `minimarket`,
-  `laundry`, `apotek`).
+- Transit coverage is all four modes from OSM: 20 MRT, 76 KRL, 33 LRT, 976 TransJakarta
+  (1,105 stops after de-duplication). 9 business categories (`kopi`, `minuman`, `roti`, `warung`,
+  `minimarket`, `kelontong`, `laundry`, `bengkel`, `apotek`).
 - The walking radius is fixed at 800 m and baked in when the grid is built. There is deliberately
   no user-facing radius control: re-scaling pre-computed counts would produce plausible-looking
   but unfounded numbers.
@@ -122,8 +122,8 @@ works.
 
 ## Evidence on Hand
 
-**Real.** 1,110 transit stops across MRT, KRL, LRT and TransJakarta; MRT line geometry; and
-**7,577 competitor POIs** across the five categories, spatially joined to each hexagon at 800 m —
+**Real.** 1,105 transit stops across MRT, KRL, LRT and TransJakarta; MRT line geometry; and
+**8,158 competitor POIs** across the nine categories (plus 24,614 from the MAPID premium catalogue), spatially joined to each hexagon at 800 m —
 all OpenStreetMap via Overpass API (ODbL). Transit access per cell is computed from this.
 
 **Sample (mock).** Struk Go, Menu Go, and Properti Go attributes — including `jam`, `nontunai`,

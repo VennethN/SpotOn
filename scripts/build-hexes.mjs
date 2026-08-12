@@ -10,16 +10,15 @@
  * TransJakarta stops sit 400–500 m apart, while the walking radius in use is
  * 800 m. Give every stop its own catchment and neighbouring catchments overlap
  * almost entirely: the same customer is counted three or four times, and "top 5
- * areas" just returns five adjacent stops along the same corridor. Adding 995
- * stops to the old model made the scores less trustworthy, not more.
+ * areas" just returns five adjacent stops along the same corridor. Adding 995 stops
+ * to the old model made the scores less trustworthy, not more.
  *
  * A hexagon grid settles it: each cell is counted once, no areas overlap, and
  * transit access becomes a *property* of a cell — so a location served by both the
  * MRT and TransJakarta genuinely scores higher than one served by only one of them.
  *
- * Resolution 8 (edge ±531 m, width ±1 km) was chosen so that one cell is
- * comparable to the 800 m catchment used before, while staying legible on a
- * city-wide map.
+ * Resolution 8 (edge ±531 m, width ±1 km) was chosen so that one cell is comparable
+ * to the 800 m catchment used before, while staying legible on a city-wide map.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -113,17 +112,106 @@ function transitMode(tags = {}) {
 
 function poiCategory(tags = {}) {
 	if (tags.amenity === 'cafe') return 'kopi';
-	if (tags.amenity === 'restaurant' || tags.amenity === 'fast_food') return 'warung';
+	if (tags.amenity === 'ice_cream') return 'minuman';
+	if (tags.shop === 'beverages' || tags.shop === 'bubble_tea') return 'minuman';
+	if (tags.shop === 'bakery' || tags.shop === 'pastry') return 'roti';
+	if (tags.amenity === 'fast_food') return 'cepatsaji';
+	// `amenity=restaurant` is deliberately NOT mapped. Since warung was split into
+	// warteg/mie/seafood/foreign restaurants, no single category is a fair home for
+	// it, and OSM cannot separate them: only 48.9% of eating places in Jakarta Pusat
+	// carry a `cuisine` tag, its vocabulary knows neither warteg nor Padang
+	// restaurants, and `seafood` does not appear in the sample at all. Guessing from
+	// `cuisine` would produce skewed counts, worst of all for warteg, the least
+	// tagged. So those four categories are declared uncovered by OSM via
+	// `osmTag: null`, and plain restaurants are not counted towards anything.
 	if (tags.shop === 'convenience' || tags.shop === 'supermarket') return 'minimarket';
-	if (tags.shop === 'laundry') return 'laundry';
+	// Deliberately kept apart from minimarket: OSM uses `convenience` for chain
+	// outlets, while `grocery`/`general`/`kiosk` are for neighbourhood corner shops.
+	// To someone about to open a business those are different competitors, so merging
+	// them hides exactly what they are looking for.
+	if (tags.shop === 'grocery' || tags.shop === 'general' || tags.shop === 'kiosk')
+		return 'kelontong';
+	if (tags.shop === 'laundry' || tags.shop === 'dry_cleaning') return 'laundry';
+	if (tags.shop === 'car_repair' || tags.shop === 'motorcycle_repair') return 'bengkel';
 	if (tags.amenity === 'pharmacy') return 'apotek';
 	return null;
 }
 
+/**
+ * POIs are fetched over several queries rather than one.
+ *
+ * Back at five categories, eight tag values fitted in a single query and Overpass
+ * served it without complaint. Nine categories need eighteen values, and that query
+ * started coming back `504 Gateway Timeout` over and over — not busy, but not
+ * finishing within its time budget. Split like this each query is far lighter, and
+ * one group failing does not drag down the whole fetch.
+ *
+ * There is a pause between groups because Overpass is a shared service; firing four
+ * queries at once is a quick way to stop being an invited guest.
+ */
+const POI_GROUPS = [
+	// `restaurant` is deliberately NOT requested. `poiCategory` maps it nowhere since
+	// warung was split, so asking for it means hauling in and discarding some 2,400
+	// elements on every run — weighing down the very queries this grouping exists to
+	// lighten.
+	{ key: 'amenity', values: 'cafe|fast_food|pharmacy|ice_cream' },
+	{ key: 'shop', values: 'convenience|supermarket|grocery|general|kiosk' },
+	{ key: 'shop', values: 'bakery|pastry|beverages|bubble_tea' },
+	{ key: 'shop', values: 'laundry|dry_cleaning|car_repair|motorcycle_repair' }
+];
+
 /** Mode weights: carrying capacity differs, so their contribution to access differs. */
 const MODE_WEIGHT = { mrt: 1.0, krl: 0.9, lrt: 0.6, brt: 0.45 };
 
-const CATEGORIES = ['kopi', 'warung', 'minimarket', 'laundry', 'apotek'];
+/**
+ * THIS ORDER IS DELIBERATELY NOT THE DISPLAY ORDER in `src/lib/domain/categories.ts`.
+ *
+ * This list is only used to generate the sample attributes (`busy`, `listing`, `d`),
+ * and each category draws three numbers from a PRNG seeded with the cell id. As long
+ * as the five original categories stay at the front and new ones are appended at the
+ * back, the sample figures for those five do not change at all when the grid is
+ * rebuilt — only the additions at the end do. Inserting a new category in the middle
+ * would shift the entire draw order and change thousands of sample figures for no
+ * real reason whatsoever.
+ */
+const CATEGORIES = [
+	'kopi',
+	'warteg',
+	'minimarket',
+	'laundry',
+	'apotek',
+	'minuman',
+	'roti',
+	'kelontong',
+	'bengkel',
+	'cepatsaji',
+	'mie',
+	'seafood',
+	'restoasing'
+];
+
+/**
+ * The categories that genuinely have a source in OSM. ONLY these may appear as keys
+ * on `hexes.json.osm`.
+ *
+ * Whether a key exists is what the scoring engine reads as "fetched and genuinely
+ * zero" versus "not covered". Writing a zero for a category with no OSM tag would
+ * declare the whole of Jakarta free of warteg competitors — and since zero
+ * competitors is the best score this map can give, its entire ranking becomes a lie.
+ * This list has to match the non-null `osmTag` entries in
+ * `src/lib/domain/categories.ts`.
+ */
+const OSM_CATEGORIES = new Set([
+	'kopi',
+	'minuman',
+	'roti',
+	'cepatsaji',
+	'minimarket',
+	'kelontong',
+	'laundry',
+	'bengkel',
+	'apotek'
+]);
 
 /* ── program ──────────────────────────────────────────────────────────────── */
 
@@ -160,24 +248,27 @@ node["public_transport"="platform"]["operator"~"TransJakarta",i](${BBOX});
 
 	await sleep(4000);
 
-	// 2) competitor POIs — one query for all five categories
+	// 2) competitor POIs — split over several queries, see the note on POI_GROUPS
 	console.log('[2/4] Fetching competitor POIs…');
-	const poiQuery = `[out:json][timeout:180];(
-node["amenity"~"^(cafe|restaurant|fast_food|pharmacy)$"](${BBOX});
-node["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
-way["amenity"~"^(cafe|restaurant|fast_food|pharmacy)$"](${BBOX});
-way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
-);out center;`;
-	const poiRaw = await overpass(poiQuery, 'poi');
-
 	const pois = [];
-	for (const el of poiRaw.elements) {
-		const lat = el.lat ?? el.center?.lat;
-		const lon = el.lon ?? el.center?.lon;
-		if (lat == null || lon == null) continue;
-		const cat = poiCategory(el.tags);
-		if (!cat) continue;
-		pois.push({ lat, lon, cat });
+	for (const [gi, g] of POI_GROUPS.entries()) {
+		const q = `[out:json][timeout:180];(
+node["${g.key}"~"^(${g.values})$"](${BBOX});
+way["${g.key}"~"^(${g.values})$"](${BBOX});
+);out center;`;
+		const raw = await overpass(q, `poi ${gi + 1}/${POI_GROUPS.length}`);
+		let n = 0;
+		for (const el of raw.elements) {
+			const lat = el.lat ?? el.center?.lat;
+			const lon = el.lon ?? el.center?.lon;
+			if (lat == null || lon == null) continue;
+			const cat = poiCategory(el.tags);
+			if (!cat) continue;
+			pois.push({ lat, lon, cat });
+			n++;
+		}
+		console.log(`      [${gi + 1}/${POI_GROUPS.length}] ${String(n).padStart(5)} POI · ${g.key}=${g.values.slice(0, 46)}`);
+		if (gi < POI_GROUPS.length - 1) await sleep(4000);
 	}
 	const byCat = pois.reduce((a, p) => ((a[p.cat] = (a[p.cat] ?? 0) + 1), a), {});
 	console.log(`      ${pois.length} POIs:`, byCat);
@@ -219,7 +310,7 @@ way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
 		const access = Math.min(1, Math.sqrt(weighted) / 3.2);
 
 		const nearPois = poiIndex.near(lat, lon, WALK_M);
-		const osm = { kopi: 0, warung: 0, minimarket: 0, laundry: 0, apotek: 0 };
+		const osm = Object.fromEntries([...OSM_CATEGORIES].map((c) => [c, 0]));
 		for (const p of nearPois) osm[p.cat]++;
 
 		// A human-readable name: the nearest transit node that has one.

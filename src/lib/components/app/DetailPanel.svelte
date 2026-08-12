@@ -44,9 +44,16 @@
 					<span class="sub">{c.detail.nStruk(row.nStruk)}</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow">{c.detail.rivals} <span class="tag real">OSM</span></span>
+					<!-- The source label follows the switch rather than being hardcoded
+					     to "OSM". Since the default moved to MAPID, the old version
+					     labelled figures that came from MAPID as OSM — misnaming where
+					     a figure came from, in a product whose whole promise is that. -->
+					<span class="eyebrow">
+						{c.detail.rivals}
+						<span class="tag real">{row.source === 'mapid' ? 'MAPID' : 'OSM'}</span>
+					</span>
 					<span class="val">{row.osm}</span>
-					<span class="sub mono">{def.osmTag}</span>
+					<span class="sub mono">{row.source === 'mapid' ? def.mapidSet : def.osmTag}</span>
 				</div>
 				<div class="tile">
 					<span class="eyebrow">{c.detail.supplyEff}</span>

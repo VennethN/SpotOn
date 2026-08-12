@@ -121,8 +121,18 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	/* Nine categories fit on no narrow screen, and even on a wide one they push the
+	   title bar apart if left alone. So they scroll horizontally — shrinking the type
+	   until it fits just makes the labels unreadable, and hiding some behind a menu
+	   makes categories that exist look like they do not. */
 	.cats {
 		margin-inline: auto;
+		min-width: 0;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.cats::-webkit-scrollbar {
+		display: none;
 	}
 	.right {
 		display: flex;

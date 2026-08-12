@@ -500,7 +500,8 @@
 			</span>
 			<span class="tip-sub">
 				Permintaan {pct(hovered.demand)} · penawaran {pct(hovered.supply)}<br />
-				{hovered.osm} pesaing (OSM, r={app.weights.radius} m) · {hovered.listings} listing<br />
+				{hovered.osm} pesaing ({hovered.source === 'mapid' ? 'MAPID' : 'OSM'}, r={app.weights
+					.radius} m) · {hovered.listings} listing<br />
 				N misi = {hovered.nTot} titik
 			</span>
 		{/if}
