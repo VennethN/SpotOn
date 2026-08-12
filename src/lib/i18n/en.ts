@@ -409,11 +409,11 @@ export const en: Copy = {
 		legendUnit: 'opportunity score',
 		sourceLabel: 'Competitor data source',
 		sourceOsm: 'OpenStreetMap — even coverage, volunteered',
-		sourceMapid: 'MAPID — surveyed, only some cities so far',
-		legendUncovered: (n: number, cat: string) =>
-			`${n} cells are not yet covered by MAPID data for ${cat} — unscored, which is not the same as having no competitors`,
-		legendUncoveredAll: (cat: string) =>
-			`No MAPID data has been imported for ${cat}, so nothing can be scored. Import the dataset, or switch back to OSM.`,
+		sourceMapid: 'MAPID — surveyed, all 5 Jakarta cities',
+		legendUncovered: (n: number, cat: string, src: string) =>
+			`${n} cells are not covered by ${src} data for ${cat} — unscored, which is not the same as having no competitors`,
+		legendUncoveredAll: (cat: string, src: string, other: string) =>
+			`${src} has no competitor data for ${cat}, so nothing can be scored. Try the ${other} source.`,
 		legendNodata: (n: number) => `${n} cells have no data, left unscored`,
 		ask: 'Or ask your own…',
 		askAria: 'Ask Tapak',

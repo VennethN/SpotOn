@@ -130,10 +130,17 @@ async function main() {
 	// Jadi batas hanya ditarik bila memang belum ada. Paksa dengan
 	// `--refresh-kota` setelah kisinya dibangun ulang atau batas OSM berubah.
 	const refresh = process.argv.includes('--refresh-kota');
-	// Kolom ditulis untuk SETIAP petak (berisi null untuk yang di luar wilayah
-	// yang diambil), jadi hadirnya kunci — bukan nilainya — yang menandakan
-	// penetapan sudah pernah jalan.
-	const cached = grid.hexes.length > 0 && grid.hexes.every((h) => 'kota' in h);
+	// Ujinya "ada petak yang BENAR-BENAR dapat kota", bukan "kolomnya ada".
+	//
+	// Sempat diuji dengan `every((h) => 'kota' in h)`, dan itu keliru dengan cara
+	// yang tidak berbunyi: `h.kota = kotaName` menulis kuncinya untuk tiap petak
+	// termasuk yang null, dan JSON menyimpan null apa adanya. Jadi satu putaran
+	// yang batas administrasinya kembali kosong — cermin membalas
+	// `{"elements":[]}`, atau salah `admin_level` seperti yang pernah terjadi —
+	// menghasilkan `"kota": null` di semua petak, lolos uji itu selamanya, dan
+	// menandai seluruh pasangan petak×kategori "belum tercakup" tanpa ada yang
+	// bisa memperbaikinya kecuali ingat memakai `--refresh-kota`.
+	const cached = grid.hexes.some((h) => h.kota);
 
 	let kotas = null;
 	if (cached && !refresh) {
