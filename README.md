@@ -107,6 +107,24 @@ dibandingkan lintas sumber. Perbandingan lengkapnya ada di
 datasetnya baru dibuka untuk 50 tim terkurasi. Strukturnya mengikuti kolom asli, dan seluruh
 akses data melewati `src/lib/server/source.ts` — jadi penggantian ke API MAPID tidak menyentuh UI.
 
+Pembacanya sudah siap. Ketiga dataset itu tidak ada di katalog premium maupun indeks layer
+publik — sudah diuji sepanjang tiap jalan yang bisa dijangkau kunci API, dan pengujiannya
+diulang tiap kali skrip di bawah dijalankan tanpa argumen:
+
+```bash
+node scripts/fetch-mission.mjs             # jalan mana yang sudah terbuka?
+node scripts/fetch-mission.mjs --selftest  # uji pengurai kolom, tanpa jaringan
+
+MAPID_STRUK_LAYER=<id> MAPID_MENU_LAYER=<id> MAPID_PROP_LAYER=<id> \
+  node scripts/fetch-mission.mjs           # → src/lib/data/mission-poi.json
+```
+
+Yang dibutuhkan hanya `layer_id`, **bukan** kepemilikan proyek: `project_id` yang dikirim
+berfungsi sebagai karcis baca milik sendiri, sehingga layer publik siapa pun bisa dibaca.
+Sebaliknya, isi proyek orang lain tidak bisa didaftar (403 `Not owner`) — jadi mengarahkan
+`MAPID_PROJECT_ID` ke proyek berbagi tidak akan berhasil. Rinciannya di
+[`docs/04-data-mapid.md`](docs/04-data-mapid.md) §4.
+
 Catchment tanpa data ditampilkan sebagai **"belum terdata"**, tidak pernah diinterpolasi.
 Setiap skor disertai N titik data di baliknya.
 

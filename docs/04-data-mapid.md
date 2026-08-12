@@ -385,11 +385,81 @@ katalog premium. Selama belum ada:
 - **Ruang usaha yang disewakan** — tetap contoh; gerbang ketersediaan ruang
   masih berjalan sebagai penampung yang ditandai jelas.
 
-Bila dataset misi sudah muncul di akun, ia akan hadir sebagai **proyek terpisah**
-yang dibagikan, bukan sebagai entri katalog. Buka proyeknya di editor, ambil
-`project_id` dari URL (`/editor/<id>`), lalu jalankan skrip dengan
-`MAPID_PROJECT_ID=<id>`. Layer di proyek itu akan terbaca sebagai "khas proyek"
-dan ikut masuk tanpa perubahan kode.
+### Sudah ditelusuri, dan hasilnya nihil
+
+Setiap jalan yang bisa dijangkau `MAPID_API_KEY` sudah diuji, bukan diasumsikan:
+
+| Jalan | Hasil |
+|---|---|
+| `search_data_premium_v2` — `STRUK GO`, `MENU GO`, `PROPERTI GO`, `MISSION`, `CATALYST` | tidak ada satu pun dataset misi |
+| `search_layers_public` — ketiga nama | tidak ada satu pun dataset misi |
+| `get_layer_list` proyek sendiri | 12 layer, semuanya salinan katalog |
+| `missions/*`, `activities/*`, `forms/*`, daftar proyek | seluruhnya 404 — endpoint-nya memang tidak ada |
+
+Pemeriksaan ini bukan catatan sekali jalan: `node scripts/fetch-mission.mjs`
+tanpa argumen mengulanginya setiap kali dijalankan, supaya ketiadaannya terus
+diuji dan tidak pelan-pelan berubah jadi asumsi — pola yang sama dengan
+`missing` di `fetch-mapid.mjs`.
+
+> **Jebakan penamaan.** Katalog menjawab `STRUK` dengan sembilan belas dataset
+> `KONSTRUKSI` — kata "STRUK" ada di dalamnya. `PROPERTI GO` menarik
+> `HARGA PROPERTI DI KABUPATEN GOWA`. Penyaring nama di skrip karena itu
+> mewajibkan `GO` menempel dan memakai batas kata; keduanya dikunci di
+> `--selftest`.
+
+### Koreksi: `MAPID_PROJECT_ID=<proyek berbagi>` tidak akan berhasil
+
+Edisi sebelumnya menganjurkan: buka proyek misi di editor, ambil `project_id`
+dari URL, jalankan skrip dengan `MAPID_PROJECT_ID=<id>`. **Cara itu gagal**, dan
+gagalnya diam-diam merusak yang lain juga:
+
+```
+get_layer_list(project_id milik orang lain)   → 403 {"message":"Not owner"}
+get_layer(layer_id orang lain, project_id kita) → 200, isi lengkap
+get_layer(layer_id orang lain, project_id mereka) → 404 is_owner_project:false
+```
+
+Dua hal yang terbaca dari situ:
+
+1. **Proyek milik orang lain tidak bisa didaftar isinya.** Berbagi proyek di GEO
+   MAPID bersifat *viewer mode* lewat tautan; `get_layer_list` tetap menolak.
+2. **"Karcis baca" di `lib/mapid.mjs` ternyata bukan trik khusus katalog
+   premium.** Layer apa pun bisa dibaca asal `project_id` yang dikirim milik
+   sendiri. Yang membatasi bukan izin, melainkan **penemuan**: kita perlu
+   `layer_id`-nya, bukan kepemilikannya.
+
+Mengisi `MAPID_PROJECT_ID` dengan proyek orang lain justru menjatuhkan pembacaan
+katalog premium sekalian, karena karcis itu harus proyek sendiri.
+
+### Cara yang benar, begitu datanya ada
+
+Yang dibutuhkan hanya `layer_id` tiap dataset — segmen terakhir URL layer,
+`https://geo.mapid.io/layer/<LAYER_ID>`:
+
+```bash
+MAPID_STRUK_LAYER=<id> MAPID_MENU_LAYER=<id> MAPID_PROP_LAYER=<id> \
+  node scripts/fetch-mission.mjs
+```
+
+Skrip juga memungut sendiri layer bernama `STRUK GO` / `MENU GO` / `PROPERTI GO`
+bila kebetulan sudah diimpor ke proyek kita, jadi jalur impor manual tetap
+bekerja tanpa variabel lingkungan.
+
+Skemanya sudah ditranskrip dari [§A.4 ketentuan](00-ketentuan-kompetisi.md) dan
+nama kolomnya dicocokkan longgar lewat daftar alias. Kolom yang tidak ketemu
+**dilaporkan**, tidak dibaca sebagai nol — bagian pembayaran yang berganti nama
+akan terlihat sebagai "kolom tidak ketemu", bukan sebagai catchment yang membayar
+tunai. `node scripts/fetch-mission.mjs --selftest` menguji pengurainya tanpa
+jaringan.
+
+### Contoh 15 titik dari panitia
+
+Ketentuan mencantumkan tautan contoh per dataset (`mapid.co.id/SampleStrukGo`,
+`SampleMenuGo`, `SamplePropertiGo`). Isinya belum sempat diperiksa dari sesi ini
+— host `mapid.co.id` diblokir kebijakan egress lingkungan kerja, sementara
+`geoserver.mapid.io` dan `server.mapid.io` terbuka. Bila tautan itu bermuara ke
+sebuah layer GEO MAPID, `layer_id`-nya sudah cukup untuk dipakai di perintah di
+atas.
 
 ---
 
@@ -421,6 +491,21 @@ GET https://server.mapid.io/moneys_bun/get_data_premium_count
 GET https://server.mapid.io/moneys_bun/get_data_premium_by_category_id
       ?category_id=<id>&skip=<n>
 ```
+
+Aturan kepemilikan yang berlaku di ketiga endpoint layer, sudah diuji satu per
+satu (lihat §4):
+
+| Panggilan | Jawaban |
+|---|---|
+| `get_layer` layer orang lain + `project_id` **sendiri** | 200, isi lengkap |
+| `get_layer` layer orang lain + `project_id` **mereka** | 404, `is_owner_project:false` |
+| `get_layer_list` proyek orang lain | 403 `{"message":"Not owner"}` |
+| `get_detail_wo_geojson_by_link` layer siapa pun | 200 |
+
+Ringkasnya: `project_id` yang dikirim adalah **karcis baca milik sendiri**, bukan
+petunjuk tempat layer itu tinggal. Karena itu satu `layer_id` sudah cukup untuk
+membaca dataset apa pun yang publik — dan karena itu pula isi proyek orang lain
+tidak bisa didaftar.
 
 Yang **tidak** dipakai lagi:
 
