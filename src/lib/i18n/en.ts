@@ -618,6 +618,10 @@ export const en: Copy = {
 			pois: 'businesses mapped',
 			cats: 'business types'
 		},
+		/* The way out for someone who would rather not be asked first. It names what
+		   you get rather than what you are skipping, and Tapak is still there on the
+		   right afterwards, so nothing is given up by taking it. */
+		launchSkip: 'Just show me the map',
 		/* The chips are framed as examples, not a menu. Without this label a row of
 		   business-type buttons reads as "these are the only things you may ask". */
 		closeArea: 'Close area',

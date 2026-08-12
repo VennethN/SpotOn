@@ -633,6 +633,10 @@ export const id = {
 			pois: 'titik usaha terdata',
 			cats: 'jenis usaha'
 		},
+		/* Jalan keluar buat yang tidak mau ditanya dulu. Bunyinya menyebut apa yang
+		   didapat, bukan apa yang dilewati: "lewati" saja tidak memberi tahu ke mana
+		   perginya. Tapak tetap ada di sebelah kanan, jadi tidak ada yang hilang. */
+		launchSkip: 'Lihat petanya dulu',
 		closeArea: 'Tutup kawasan',
 		dismissRemark: 'Tutup catatan Tapak',
 		home: 'Kembali ke beranda SpotOn',
