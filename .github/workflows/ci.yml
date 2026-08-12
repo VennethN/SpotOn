@@ -1,0 +1,109 @@
+# Pemeriksaan pada tiap perubahan, lalu deploy begitu masuk `main`.
+#
+# Satu berkas, dua tahap, dan urutannya yang penting: `deploy` menunggu `periksa`
+# lulus. Kalau typecheck atau build gagal, tidak ada yang naik ke produksi —
+# itulah seluruh alasan tahap ini digabung, bukan dipisah jadi dua alur yang
+# berjalan sendiri-sendiri.
+#
+# CATATAN PENTING: jangan aktifkan alur ini bersamaan dengan Git integration
+# bawaan Vercel. Kalau repositori ini sudah tersambung di dashboard Vercel, tiap
+# push akan dideploy dua kali — sekali oleh Vercel, sekali oleh alur ini. Pilih
+# salah satu: matikan "Connected Git Repository" di Vercel, atau hapus job
+# `deploy` di bawah dan biarkan Vercel yang mengurus.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Push beruntun ke branch yang sama tidak perlu diperiksa semuanya; yang lama
+# dibatalkan. Deploy ke `main` tidak dibatalkan di tengah jalan supaya produksi
+# tidak pernah ditinggalkan setengah jadi.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  periksa:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` dan bukan `npm install`: yang dipasang harus persis isi
+      # package-lock, bukan versi terbaru yang kebetulan cocok dengan rentangnya.
+      - run: npm ci
+
+      - name: Typecheck & a11y
+        run: npm run check
+
+      - name: Build produksi
+        run: npm run build
+
+  deploy:
+    name: Deploy ke Vercel
+    needs: periksa
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      # Rahasianya tidak bisa dipasang dari sini, jadi jalannya pertama kali
+      # hampir pasti belum ada. Itu keadaan yang wajar, bukan kegagalan: alur
+      # berhenti dengan tenang dan menyebutkan apa yang kurang, alih-alih
+      # meninggalkan tanda merah yang tidak bisa ditindaklanjuti siapa pun.
+      - name: Periksa kredensial Vercel
+        id: guard
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo '::notice title=Deploy dilewati::Isi dulu secret VERCEL_TOKEN, VERCEL_ORG_ID, dan VERCEL_PROJECT_ID di Settings → Secrets and variables → Actions. Lihat README bagian Deploy.'
+          else
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      # Menarik pengaturan proyek beserta Environment Variables produksinya —
+      # termasuk PUBLIC_MAPID_STYLE_URL dan OPENROUTER_*. Kunci-kunci itu hidup
+      # di Vercel, bukan di GitHub, jadi tidak ada yang perlu disalin dua tempat.
+      - name: Tarik pengaturan proyek
+        if: steps.guard.outputs.ready == 'true'
+        run: npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build di lingkungan Vercel
+        if: steps.guard.outputs.ready == 'true'
+        run: npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+
+      # `--prebuilt` mengunggah hasil build di atas, bukan membangun ulang di
+      # Vercel. Yang dideploy persis yang sudah lolos pemeriksaan tadi.
+      - name: Unggah ke produksi
+        id: deploy
+        if: steps.guard.outputs.ready == 'true'
+        run: |
+          url="$(npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Terdeploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"

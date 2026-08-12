@@ -130,14 +130,37 @@ menyertakan `parsedBy` (`model` atau `aturan`) supaya jalur yang dipakai tidak d
 
 ## Deploy (Vercel)
 
-Sudah memakai `@sveltejs/adapter-vercel`.
+Sudah memakai `@sveltejs/adapter-vercel`. Manual:
 
 ```bash
 npx vercel deploy
 ```
 
-Atau hubungkan repositori ini ke Vercel: framework SvelteKit terdeteksi otomatis, tanpa
-konfigurasi build tambahan. Isi `PUBLIC_MAPID_STYLE_URL` di Environment Variables.
+### Otomatis lewat GitHub Actions
+
+`.github/workflows/ci.yml` menjalankan typecheck dan build pada tiap pull request
+dan tiap push. Khusus push ke `main`, setelah pemeriksaan itu lulus, hasilnya
+langsung dideploy ke produksi. Kalau typecheck atau build gagal, tidak ada yang
+naik — itu sebabnya keduanya satu alur, bukan dua yang berjalan sendiri-sendiri.
+
+Isi tiga secret di **Settings → Secrets and variables → Actions**:
+
+| Secret | Dari mana |
+|---|---|
+| `VERCEL_TOKEN` | Vercel → Account Settings → Tokens |
+| `VERCEL_ORG_ID` | `.vercel/project.json` setelah `npx vercel link` (atau Team Settings → General) |
+| `VERCEL_PROJECT_ID` | sumber yang sama, `.vercel/project.json` |
+
+Sebelum ketiganya terisi, job deploy berhenti dengan tenang dan menyebutkan apa
+yang kurang — bukan gagal merah.
+
+Environment Variables aplikasi (`PUBLIC_MAPID_STYLE_URL`, `OPENROUTER_API_KEY`,
+`OPENROUTER_MODEL`) tetap tinggal di Vercel, bukan di GitHub. Alur ini menariknya
+sendiri lewat `vercel pull`, jadi tidak ada kunci yang perlu disalin dua tempat.
+
+> **Pilih satu.** Kalau repositori ini juga tersambung ke Vercel lewat Git
+> integration bawaannya, tiap push akan dideploy dua kali. Matikan *Connected Git
+> Repository* di Vercel, atau hapus job `deploy` dan biarkan Vercel yang mengurus.
 
 ## Perintah lain
 
