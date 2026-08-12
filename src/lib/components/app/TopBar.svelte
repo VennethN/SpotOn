@@ -121,8 +121,19 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+	/* Sembilan kategori tidak muat di layar sempit mana pun, dan pada layar lebar
+	   pun mereka mendesak keluar bilah judul kalau dibiarkan. Digulir mendatar
+	   saja — mengecilkan tulisannya sampai muat justru membuat labelnya tidak
+	   terbaca, dan menyembunyikan sebagian di balik menu membuat kategori yang
+	   ada terlihat seperti tidak ada. */
 	.cats {
 		margin-inline: auto;
+		min-width: 0;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.cats::-webkit-scrollbar {
+		display: none;
 	}
 	.right {
 		display: flex;

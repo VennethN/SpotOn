@@ -51,9 +51,17 @@ const LAMP_ON = new THREE.Color(0xffdcb0);
 /** Semburat sangat lemah per jenis usaha — cukup untuk membedakan, tidak untuk berteriak. */
 const CATEGORY_TINT: Record<CategoryKey, number> = {
 	kopi: 0xd8c3aa,
-	warung: 0xbfd2c2,
+	minuman: 0xd9c6d2,
+	roti: 0xe2cfae,
+	warteg: 0xbfd2c2,
+	cepatsaji: 0xe3c4b6,
+	mie: 0xd6cdb0,
+	seafood: 0xb6cdd6,
+	restoasing: 0xcbc3d8,
 	minimarket: 0xe0c2ba,
+	kelontong: 0xd3cbb4,
 	laundry: 0xc2d1dc,
+	bengkel: 0xc6c8cf,
 	apotek: 0xbdd6c9
 };
 

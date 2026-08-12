@@ -37,11 +37,11 @@
 	]);
 
 	const POIS = $derived([
-		{ nm: c.category.warung.name, v: k.poisByCategory.warung ?? 0 },
 		{ nm: c.category.minimarket.name, v: k.poisByCategory.minimarket ?? 0 },
 		{ nm: c.category.kopi.name, v: k.poisByCategory.kopi ?? 0 },
+		{ nm: c.category.cepatsaji.name, v: k.poisByCategory.cepatsaji ?? 0 },
 		{ nm: c.category.apotek.name, v: k.poisByCategory.apotek ?? 0 },
-		{ nm: c.category.laundry.name, v: k.poisByCategory.laundry ?? 0 }
+		{ nm: c.category.roti.name, v: k.poisByCategory.roti ?? 0 }
 	]);
 </script>
 
