@@ -51,8 +51,9 @@
 	const accessFactor = $derived(ACCESS_FLOOR + ACCESS_SPAN * access);
 	const shares = $derived(transit ? modeShares(transit) : []);
 	const groups = $derived(transit ? stopsByMode(transit, app.selectedStops) : []);
-	/** The stop list is fetched on first selection; until it lands, only counts exist. */
-	const waiting = $derived(app.stops === null);
+	/** The stop list is fetched on first selection; until it lands, only counts exist.
+	    A fetch that FAILED is not waiting — that branch falls back instead. */
+	const waiting = $derived(app.stops === null && !app.stopsFailed);
 
 	/**
 	 * Is there a score left to split into "kept" and "added by transit"?
@@ -238,6 +239,10 @@
 			<h4 class="eyebrow sub">{c.breakdown.stationsTitle}</h4>
 			{#if waiting}
 				<p class="formula">{c.breakdown.stationsLoading}</p>
+			{:else if app.stopsFailed}
+				<!-- The names are gone, the arithmetic is not: everything above this line
+				     came from the grid, and says so. -->
+				<p class="formula">{c.breakdown.stationsFailed}</p>
 			{:else}
 				<div class="stations">
 					{#each groups as g (g.mode)}
