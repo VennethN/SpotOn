@@ -51,7 +51,9 @@
 
 	<div class="right">
 		<span class="pill" title={c.app.coverageTitle}>
-			{c.app.coverage(coverage.withData, coverage.total, coverage.poi)}
+			{app.ready
+				? c.app.coverage(coverage.withData, coverage.total, coverage.poi)
+				: c.app.coverageCells(coverage.withData, coverage.total)}
 		</span>
 		<button
 			type="button"
