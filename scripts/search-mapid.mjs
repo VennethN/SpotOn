@@ -40,9 +40,10 @@
  * pada aturan itu, bukan cuma peta akhirnya.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mapidKey } from './lib/mapid-key.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const GEOSERVER = 'https://geoserver.mapid.io';
@@ -78,13 +79,6 @@ const TERMS = {
 	laundry: { must: /LAUNDRY|BINATU/i, base: ['LAUNDRY'] }
 };
 
-function apiKey() {
-	const raw = readFileSync(resolve(ROOT, '.env'), 'utf8');
-	const key = (raw.match(/^MAPID_API_KEY=(.*)$/m)?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
-	if (!key) throw new Error('MAPID_API_KEY belum diisi di .env');
-	return key;
-}
-
 async function get(url, label) {
 	for (let attempt = 0; attempt < 4; attempt++) {
 		try {
@@ -114,7 +108,7 @@ async function searchAll(term, key) {
 }
 
 async function main() {
-	const key = apiKey();
+	const key = mapidKey();
 	const argv = process.argv.slice(2);
 	const groups = argv.length
 		? { '(istilah bebas)': { must: new RegExp(argv.join('|'), 'i'), base: argv } }
