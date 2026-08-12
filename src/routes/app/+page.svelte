@@ -21,6 +21,7 @@
 	import SpotCard from '$lib/components/app/SpotCard.svelte';
 	import Sheet from '$lib/components/ui/Sheet.svelte';
 	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
+	import TapakToast from '$lib/components/app/TapakToast.svelte';
 	import { setAppState } from '$lib/state/app.svelte';
 	import { copy, lang } from '$lib/state/lang.svelte';
 	import { Tapak } from '$lib/state/tapak.svelte';
@@ -172,6 +173,13 @@
 		{:else}
 			<MapLegend />
 		{/if}
+	{/if}
+
+	<!-- Outside the three branches: what Tapak says about a picked area belongs to
+	     the map, not to whichever surface happens to be open. It can only appear once
+	     the map is reachable, which is after the launcher has gone. -->
+	{#if started}
+		<TapakToast {tapak} />
 	{/if}
 </div>
 
