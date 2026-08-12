@@ -199,7 +199,7 @@
 									{#if r.value != null}
 										<span class="sc">{pct(r.value)}</span>
 									{:else}
-										<span class="sc none">—</span>
+										<span class="sc none">·</span>
 									{/if}
 								</li>
 							{/each}

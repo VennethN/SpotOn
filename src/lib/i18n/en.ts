@@ -51,9 +51,21 @@ export const en: Copy = {
 	theme: { system: 'Match system', light: 'Light', dark: 'Dark' },
 
 	stage: {
-		heroTitle: 'Walk the street first.\nThen sign.',
+		/**
+		 * The headline names the product rather than reaching for a metaphor.
+		 *
+		 * What used to sit here was "Walk the street first. Then sign." — a figure of
+		 * speech that only lands if the reader ALREADY knows this is about renting a
+		 * shop, which is precisely what they do not know yet at this line. The body
+		 * only described the model, so someone arriving here could finish a whole
+		 * screen without learning what SpotOn is.
+		 *
+		 * Now: one line stating the job, then a body tying the scene behind it back
+		 * to that job.
+		 */
+		heroTitle: "Don't guess where to open.\nAsk the map.",
 		heroBody:
-			'One block near a transit stop, at the hour it is right now. How busy the pavement gets follows a 24-hour transaction profile. The numbers on this page are sample data; the real ones are computed inside the app.',
+			'SpotOn reads footfall, competitors and rentable space across every transit area in Jakarta, then tells you where to open and why. The figures on this page are still samples.',
 		heroHint: 'scroll to watch a full day',
 		dayTitle: 'How busy it is changes by the hour.',
 		dayBody:
@@ -169,7 +181,7 @@ export const en: Copy = {
 		},
 		outOfScale: 'no data yet, outside the scale',
 		label:
-			'A model of the hexagonal grid. Each cell is one hexagon; height and colour both represent the opportunity score on the same scale as the map, and cells without data are left sunken and colourless. The dashed circle marks the walking distance from the cell being measured.'
+			'A model of the hexagonal grid. Each cell is one hexagon, and both its height and its colour represent the opportunity score on the same scale as the map. Cells without data are left sunken and colourless. The dashed circle marks the walking distance from the cell being measured.'
 	},
 
 	ai: {
@@ -183,7 +195,7 @@ export const en: Copy = {
 		more: (n: number) => `+${n} more in the app`,
 		play: 'Play conversation',
 		pause: 'Pause conversation',
-		foot: 'The questions are samples; the answers come from the same scoring engine as the app.',
+		foot: 'The questions are samples, but the answers come from the same scoring engine as the app.',
 		footMock: 'mission attributes are still sample data.'
 	},
 
@@ -230,7 +242,7 @@ export const en: Copy = {
 			{ t: 'Small businesses on a tight budget', d: 'Find a good location where the rent still makes sense.' },
 			{
 				t: 'First-time owners',
-				d: '“What kind of business makes sense around here?” — answered, with the reasoning.'
+				d: '“What kind of business makes sense around here?” Answered, with the reasoning.'
 			},
 			{ t: 'Expansion teams', d: 'Shortlist and rank candidate sites along the transit corridors.' },
 			{ t: 'Property owners & agents', d: 'Know what a unit suits, and who the right tenant is.' }
@@ -254,10 +266,10 @@ export const en: Copy = {
 	},
 
 	meta: {
-		title: "SpotOn — Don't guess where to open. Ask the map.",
+		title: "SpotOn · Don't guess where to open. Ask the map.",
 		description:
 			'SpotOn brings together demand, competition and available space for every walkable catchment around Jakarta transit, then shows where to open a business and why.',
-		appTitle: 'SpotOn — Site selection map for Jakarta transit areas'
+		appTitle: 'SpotOn · Site selection map for Jakarta transit areas'
 	},
 
 	typology: {
@@ -291,13 +303,13 @@ export const en: Copy = {
 		listingOf: (n: number) => `listings out of ${n}`,
 		cashless: 'Cashless',
 		cashlessSub: 'proxy for spending power',
-		hourTitle: (n: number) => `Transactions per hour — Struk Go · N = ${n}`,
+		hourTitle: (n: number) => `Transactions per hour · Struk Go · N = ${n}`,
 		acrossTitle: 'Opportunity by business type, at the current weights',
 		summaryLead: 'Summary.',
 		summary: (jam: string, cat: string, osm: number, r: number, frasa: string, listing: number, kat: string) =>
-			`This cell is busiest at ${jam}. For ${cat}, OSM records ${osm} competitors within ${r} m; ${frasa}. There are ${listing} listings in the ${kat} category.`,
+			`This cell is busiest at ${jam}. For ${cat}, OSM records ${osm} competitors within ${r} m, and ${frasa}. There are ${listing} listings in the ${kat} category.`,
 		summaryNote:
-			'Competitor counts come from OSM (real); MAPID mission attributes are still samples. N is shown so it can be checked.'
+			'Competitor counts come from OSM (real), while MAPID mission attributes are still samples. N is shown so it can be checked.'
 	},
 
 	table: {
@@ -412,7 +424,7 @@ export const en: Copy = {
 		transitUplift: (persen: number) =>
 			`This access lifts the cell's opportunity score by roughly ${persen}% against a cell with no transit at all.`,
 		transitWhyRail:
-			'A rail station moves the same people past you at the same hours every working day — flow you can plan around, not passing traffic.',
+			'A rail station moves the same people past you at the same hours every working day. That is flow you can plan around, not passing traffic.',
 		transitWhyBus:
 			'TransJakarta stops are spread out, so the crowd is divided between many of them. Good for reach, not for one busy doorway.',
 		transitRadius: (m: number) => `Measured from the cell centre, ${m} m radius`,
@@ -439,12 +451,12 @@ export const en: Copy = {
 		advanced: 'Advanced settings',
 		advancedClose: 'Close settings',
 		tapak: 'Tapak',
-		tapakSub: '— your guide',
+		tapakSub: ', your guide',
 		mood: 'What the area feels like',
 		numbers: 'Full figures for this area',
 		table: 'Attribute table',
 		tableHide: 'Hide attribute table',
-		tableHint: '— click a column heading to sort',
+		tableHint: ', click a column heading to sort',
 		panel: 'Panel',
 		tabs: { recommendations: 'Tapak', detail: 'Area', table: 'Table', controls: 'Advanced' },
 		loadingMap: 'Loading map…',
@@ -453,10 +465,10 @@ export const en: Copy = {
 		reset: 'Reset the view',
 		legendUnit: 'opportunity score',
 		sourceLabel: 'Competitor data source',
-		sourceOsm: 'OpenStreetMap — even coverage, volunteered',
-		sourceMapid: 'MAPID — surveyed, all 5 Jakarta cities',
+		sourceOsm: 'OpenStreetMap: even coverage, volunteered',
+		sourceMapid: 'MAPID: surveyed, all 5 Jakarta cities',
 		legendUncovered: (n: number, cat: string, src: string) =>
-			`${n} cells are not covered by ${src} data for ${cat} — unscored, which is not the same as having no competitors`,
+			`${n} cells are not covered by ${src} data for ${cat}, so they are unscored. That is not the same as having no competitors`,
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} has no competitor data for ${cat}, so nothing can be scored. Try the ${other} source.`,
 		legendNodata: (n: number) => `${n} cells have no data, left unscored`,
@@ -475,6 +487,57 @@ export const en: Copy = {
 		ask: 'Or ask your own…',
 		askAria: 'Ask Tapak',
 		askSend: 'Ask',
+		/* The opening question box, centred on screen. The heading is a question, not
+		   a slogan: answering it is exactly what the user is being asked to do. */
+		launchTitle: 'What do you want to open?',
+		/**
+		 * Example questions, doing two jobs at once.
+		 *
+		 * `ask` is what types itself inside the field, and also what actually gets
+		 * sent. `short` is what the button says. Two forms, one list, so a button can
+		 * never promise a different question from the one it sends.
+		 *
+		 * The self-typing example teaches the SHAPE of a question; the buttons give a
+		 * one-tap way in. The button labels are deliberately short: a full sentence on
+		 * a pill widens the row until it stops reading as a suggestion.
+		 *
+		 * Every example has to be genuinely answerable, and the answer has to be worth
+		 * having. Two look for a location, one flags crowded areas, one compares two
+		 * places. Any area named must exist in the grid, or the comparison falls
+		 * through to "name two areas" and the suggestion becomes a trap.
+		 */
+		launchSuggestions: [
+			{
+				short: 'Coffee shop, cheap rent',
+				ask: 'Where should I open a coffee shop with cheap rent near the MRT?'
+			},
+			/* A pill label has to stand on its own, with no preceding sentence to lean
+			   on, so each one names its subject. "Already saturated" and "No data yet"
+			   named neither what was saturated nor what was missing data. Inside the
+			   conversation that is fine, because an answer sits above them. Here there
+			   is nothing above them at all. */
+			{ short: 'Areas to avoid', ask: 'Which areas are already saturated for minimarkets?' },
+			{ short: 'Compare two areas', ask: 'Compare Balai Kota and Manggarai for a pharmacy' },
+			/* This slot used to hold "Which areas have no data yet?". The question is
+			   answerable, but the answer is a list of areas that are deliberately NOT
+			   scored, and nobody opens SpotOn for that. As an opening suggestion it
+			   spent one of only four places. The coverage question still lives inside
+			   the conversation, which is where it belongs: after an answer worth
+			   questioning. */
+			{ short: 'Best areas for a laundry', ask: 'Where should I open a laundry near a station?' }
+		],
+		/* The foot of the card: how thick the evidence is, in four figures. The labels
+		   name the source, because a number with no origin is decoration. */
+		launchStats: {
+			hexes: 'cells scored',
+			stops: 'transit stops',
+			pois: 'businesses mapped',
+			cats: 'business types'
+		},
+		/* The chips are framed as examples, not a menu. Without this label a row of
+		   business-type buttons reads as "these are the only things you may ask". */
+		closeArea: 'Close area',
+		home: 'Back to the SpotOn home page',
 		emptyMood: 'No area selected yet. Tap a cell on the map to see what it feels like.',
 		pickBest: (cat: string) => `Pick the best one for a ${cat}`,
 		clock: 'Hour',
@@ -489,12 +552,18 @@ export const en: Copy = {
 
 	tapak: {
 		greet: (total: number, terdata: number) =>
-			`Hello, I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors; ${terdata} of them have data. What are you thinking of opening?`,
-		budgetAsk: (cat: string) => `A ${cat}, alright. How is the budget looking?`,
-		budgetTight: 'Tight',
-		budgetLoose: 'Reasonably open',
-		prefaceTight: "I'll look for places that actually have space up for rent.",
-		prefaceLoose: "Fine, let me look at all of them first.",
+			`Hello, I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors, and ${terdata} of them have data. What are you thinking of opening?`,
+		/* This used to ask "How is the budget looking?" and offer "Tight" or
+		   "Reasonably open" — two words that say nothing about what will change. The
+		   only thing actually chosen here is whether the results are narrowed to
+		   areas that genuinely have space up for rent, in the lower bracket. So that
+		   is what gets asked, and that is what the buttons say. */
+		budgetAsk: (cat: string) => `A ${cat}, alright. What about the rent?`,
+		budgetTight: 'Only where the rent is cheap',
+		budgetLoose: 'Any rent, just find a good area',
+		prefaceTight:
+			'Right. I will narrow it to areas that genuinely have space up for rent, in the lower bracket.',
+		prefaceLoose: 'Right, I will look at every area, with no rent filter.',
 		restart: 'What would you like to look at now?',
 		tryOther: 'Try another business',
 		avoid: 'Which ones should I avoid?',
@@ -511,7 +580,7 @@ export const en: Copy = {
 			`${why} All I know is the areas around Jakarta transit, for thirteen kinds of business. Want me to look at one of those?`,
 		coverageNone: 'Every area has data.',
 		coverageSome: (n: number) =>
-			`There are ${n} areas I have no data for at all. I'm not scoring them; rather than make something up, I'd rather say I don't know.`,
+			`There are ${n} areas I have no data for at all. I'm not scoring them. Rather than make something up, I'd rather say I don't know.`,
 		saturatedNone: 'Nothing is genuinely crowded for this business.',
 		saturatedSome: (n: number, cat: string) =>
 			`These ${n} areas are the ones to avoid for now for a ${cat}. The competitors sit close together and most of them are busy.`,
@@ -540,7 +609,7 @@ export const en: Copy = {
 	},
 
 	demo: {
-		coverageAsk: 'Hold on — is the data complete?',
+		coverageAsk: 'Hold on, is the data complete?',
 		coverageChip: 'Data coverage',
 		coverageReply: "Not all of it. Want me to show you which ones are missing?",
 		coverageYes: 'Show me',
