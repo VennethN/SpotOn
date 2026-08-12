@@ -9,6 +9,8 @@ penyusunan proposal (`MapID/`) agar konteksnya hidup berdampingan dengan kodenya
 | [01-proposal-spoton.md](01-proposal-spoton.md) | Proposal SpotOn yang diajukan (versi final). Berisi masalah, metode, indikator, peran AI, dan kelayakan teknis. |
 | [02-konteks-eksplorasi.md](02-konteks-eksplorasi.md) | Catatan eksplorasi ide: realitas dataset MAPID, enam konsep yang dipertimbangkan, dan alasan SpotOn dipilih. |
 | [03-status-implementasi.md](03-status-implementasi.md) | Pemetaan tiap komponen wajib panitia ke bagian kode yang mengimplementasikannya, beserta yang belum dikerjakan. |
+| [04-data-mapid.md](04-data-mapid.md) | Cara data MAPID diambil, endpoint yang sudah terverifikasi, cakupan sekarang, dan apa lagi yang tersedia di katalog premium. |
+| [mapid-layers.md](mapid-layers.md) | Daftar dataset MAPID yang dibaca SpotOn, beserta tautan tiap layer. **Dihasilkan skrip** — jangan disunting tangan. |
 
 ## Aset
 
