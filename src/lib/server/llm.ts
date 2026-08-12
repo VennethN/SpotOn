@@ -21,8 +21,24 @@ import type { CategoryKey, StructuredQuery, Weights } from '$lib/types';
  */
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-5';
-const TIMEOUT_MS = 12_000;
+
+/**
+ * Router gratis OpenRouter. Ia mendukung function calling — syarat mati di sini,
+ * karena lapisan ini tidak pernah meminta prosa, hanya pemilihan alat.
+ */
+const DEFAULT_MODEL = 'openrouter/free';
+
+/**
+ * Anggaran waktu satu panggilan.
+ *
+ * Sempat 12 detik, dan itu terlalu ketat untuk model gratis: giliran di antrean
+ * bersama membuat jawaban wajar datang di detik ke-14, jadi permintaan yang
+ * sebenarnya baik-baik saja dibatalkan tepat sebelum tiba. Yang terlihat oleh
+ * pengguna cuma Tapak yang diam-diam kembali memakai pengurai aturan, tanpa
+ * sebab yang kelihatan. Gagal karena kehabisan waktu tetap ditanggung dengan
+ * anggun — tapi jangan sampai kita sendiri yang memanggil kegagalan itu.
+ */
+const TIMEOUT_MS = 60_000;
 
 /**
  * Model yang dipakai lapisan pemahaman, dari `OPENROUTER_MODEL`.
@@ -182,7 +198,15 @@ export async function parseWithLLM(
 				],
 				tools: TOOLS,
 				// Model wajib memilih salah satu alat — termasuk alat "tidak paham".
-				tool_choice: 'required'
+				tool_choice: 'required',
+				// Wajib diisi, dan bukan sekadar penghematan. Tanpa baris ini
+				// OpenRouter memesan seluruh jendela keluaran model (65.536 token)
+				// di muka, lalu menolak permintaan dengan 402 bila sisa kredit
+				// kunci tidak sanggup menanggung pesanan sebesar itu — padahal
+				// yang benar-benar dipakai cuma puluhan token. Jawaban di sini
+				// selalu satu panggilan alat dengan argumen pendek, tidak pernah
+				// prosa, jadi 1.024 sudah sangat lapang.
+				max_tokens: 1024
 			})
 		});
 

@@ -18,7 +18,11 @@ export function readWeights(url: URL): Weights {
 		wd: num('wd', DEFAULT_WEIGHTS.wd),
 		ws: num('ws', DEFAULT_WEIGHTS.ws),
 		gate: (url.searchParams.get('gate') ?? '1') !== '0',
-		radius: num('radius', DEFAULT_WEIGHTS.radius)
+		radius: num('radius', DEFAULT_WEIGHTS.radius),
+		// Tanpa baris ini endpoint selalu menilai dengan OSM berapa pun nilai
+		// ?source= yang dikirim — dan hasilnya tetap terlihat wajar, jadi tidak
+		// ada yang menandakan bahwa saklarnya tidak berfungsi.
+		source: url.searchParams.get('source') === 'mapid' ? 'mapid' : 'osm'
 	});
 }
 

@@ -49,9 +49,31 @@ export interface Hex {
 	listing?: PerCategory<number>;
 	/** Sinyal permintaan ter-normalisasi per kategori (Struk Go). */
 	d?: PerCategory<number>;
+	/** Kota administrasi petak ini (batas OSM admin_level=5); null bila di luar. */
+	kota?: string | null;
+	/** Cacah pesaing MAPID per kategori; null berarti belum tercakup. */
+	mapid?: PerCategory<number | null>;
+	/** Per kategori: apakah dataset MAPID kota ini sudah diimpor. */
+	covered?: PerCategory<boolean>;
 }
 
-export type Typology = 'Underserved' | 'Kompetitif' | 'Jenuh' | 'Ramai, ruang terbatas' | 'Belum terdata';
+/**
+ * Sumber data pesaing. Keduanya sengaja lepas, tidak pernah dicampur dalam satu
+ * skor: OSM sukarela dan merata tapi tak seragam, MAPID tersurvei dan seragam
+ * tapi baru sebagian kota. Menggabungkannya akan menghasilkan angka yang tidak
+ * bisa dipertanggungjawabkan asalnya.
+ */
+export type PoiSource = 'osm' | 'mapid';
+
+export type Typology =
+	| 'Underserved'
+	| 'Kompetitif'
+	| 'Jenuh'
+	| 'Ramai, ruang terbatas'
+	/** Tidak ada titik misi di petak ini. */
+	| 'Belum terdata'
+	/** Sumber aktif belum mensurvei kota ini — beda dari "tidak ada pesaing". */
+	| 'Belum tercakup';
 
 /** Bobot & gerbang yang bisa diatur pengguna langsung di antarmuka. */
 export interface Weights {
@@ -63,6 +85,8 @@ export interface Weights {
 	gate: boolean;
 	/** Radius catchment dalam meter. */
 	radius: number;
+	/** Sumber cacah pesaing yang sedang dipakai. */
+	source: PoiSource;
 }
 
 /** Hasil skoring satu catchment untuk satu kategori usaha. */
@@ -83,7 +107,11 @@ export interface ScoredHex {
 	supply: number | null;
 	/** Rasio pesaing ramai, 0..1. */
 	ramai: number;
-	/** Jumlah pesaing OSM pada radius aktif. */
+	/** Sumber yang dipakai untuk angka `osm` di atas. */
+	source?: PoiSource;
+	/** Apakah petak ini tercakup sumber aktif; false → skor null. */
+	covered?: boolean;
+	/** Jumlah pesaing pada radius aktif, menurut sumber aktif. */
 	osm: number;
 	/** Listing ruang usaha cocok kategori pada radius aktif. */
 	listings: number;

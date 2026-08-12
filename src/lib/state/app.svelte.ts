@@ -4,7 +4,7 @@ import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_WEIGHTS } from '$lib/domain/weights';
 import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
-import type { AiAnswer, Hex, CategoryKey, ScoredHex, Weights } from '$lib/types';
+import type { AiAnswer, Hex, CategoryKey, ScoredHex, Weights, PoiSource } from '$lib/types';
 
 export type LayerKey = 'score' | 'rute' | 'poi' | 'nodata' | 'label';
 export type { Theme };
@@ -73,7 +73,10 @@ export class AppState {
 			terdata: terdata.length,
 			belumTerdata: rows.length - terdata.length,
 			titikMisi: terdata.reduce((a, r) => a + r.nTot, 0),
-			poi: rows.reduce((a, r) => a + r.osm, 0)
+			poi: rows.reduce((a, r) => a + r.osm, 0),
+			/** Petak nyata yang tidak dinilai karena sumber aktif belum mencakupnya. */
+			belumTercakup: rows.filter((r) => !r.nodata && r.score === null).length,
+			dinilai: rows.filter((r) => r.score !== null).length
 		};
 	}
 
@@ -84,6 +87,14 @@ export class AppState {
 
 	setCategory(cat: CategoryKey) {
 		this.category = cat;
+		this.highlight = [];
+	}
+
+	/** Ganti sumber cacah pesaing. Sorotan ikut dibersihkan: peringkat dihitung
+	    ulang dari data yang berbeda, jadi id yang tersorot tidak lagi berarti
+	    apa yang dimaksud pengguna saat menyorotnya. */
+	setSource(source: PoiSource) {
+		this.weights.source = source;
 		this.highlight = [];
 	}
 

@@ -106,6 +106,11 @@
 						id: r.id,
 						name: r.name,
 						nodata: r.nodata,
+						// Petak nyata yang tidak dinilai karena sumber aktif belum
+						// mencakup kotanya. Dibedakan dari `nodata` supaya tidak
+						// tampak seperti petak kosong — dan tidak diwarnai sama
+						// sekali, karena warna apa pun akan terbaca sebagai skor.
+						uncovered: !r.nodata && r.score === null,
 						color: r.nodata
 							? cssVar('--nodata')
 							: app.layers.score
@@ -142,7 +147,7 @@
 			id: 'catchment-fill',
 			type: 'fill',
 			source: 'catchments',
-			filter: ['!', ['get', 'nodata']],
+			filter: ['all', ['!', ['get', 'nodata']], ['!', ['get', 'uncovered']]],
 			paint: {
 				'fill-color': ['get', 'color'],
 				'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.68, 0.5]
@@ -154,6 +159,21 @@
 			source: 'catchments',
 			filter: ['get', 'nodata'],
 			paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0.85 }
+		});
+		// Belum tercakup: hanya garis putus-putus, tanpa isi. Sengaja berbeda dari
+		// arsiran `nodata` — keduanya sama-sama tak bernilai, tapi alasannya lain
+		// dan tindakan penggunanya pun lain (impor dataset vs tidak ada apa-apa).
+		m.addLayer({
+			id: 'catchment-uncovered',
+			type: 'line',
+			source: 'catchments',
+			filter: ['get', 'uncovered'],
+			paint: {
+				'line-color': cssVar('--nodata'),
+				'line-width': 1,
+				'line-dasharray': [2, 2],
+				'line-opacity': 0.9
+			}
 		});
 		m.addLayer({
 			id: 'catchment-line',
