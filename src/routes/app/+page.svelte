@@ -1,17 +1,30 @@
 <script lang="ts">
+	/**
+	 * A full-bleed map with floating chrome.
+	 *
+	 * Two acts. First: one question box in the middle of the screen, the map dimmed
+	 * behind it. Second: the moment something is asked, that box flies right and
+	 * becomes the conversation panel, the dimming lifts, and the map takes over.
+	 *
+	 * The old dashboard layout — left rail, right rail, table dock, settings drawer,
+	 * a bar of thirteen category buttons — is gone. Three surfaces remain: the map,
+	 * Tapak, and a card for the selected area that only exists when an area is
+	 * actually selected.
+	 */
 	import { onMount, untrack } from 'svelte';
-	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
-	import AttributeTable from '$lib/components/app/AttributeTable.svelte';
-	import ControlPanel from '$lib/components/app/ControlPanel.svelte';
-	import CatchmentDiorama from '$lib/components/app/CatchmentDiorama.svelte';
-	import DetailPanel from '$lib/components/app/DetailPanel.svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { fade } from 'svelte/transition';
+	import AskLauncher from '$lib/components/app/AskLauncher.svelte';
+	import MapChrome from '$lib/components/app/MapChrome.svelte';
 	import MapLegend from '$lib/components/app/MapLegend.svelte';
 	import MapView from '$lib/components/app/MapView.svelte';
-	import Segmented from '$lib/components/ui/Segmented.svelte';
+	import SpotCard from '$lib/components/app/SpotCard.svelte';
 	import Sheet from '$lib/components/ui/Sheet.svelte';
-	import TopBar from '$lib/components/app/TopBar.svelte';
+	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
 	import { setAppState } from '$lib/state/app.svelte';
-	import { copy } from '$lib/state/lang.svelte';
+	import { copy, lang } from '$lib/state/lang.svelte';
+	import { Tapak } from '$lib/state/tapak.svelte';
+	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -21,12 +34,19 @@
 		untrack(() => data.catchments),
 		untrack(() => data.slice)
 	);
+	// Tapak is held by the page: the centre question box and the right-hand panel are
+	// two forms of one conversation, not two conversations.
+	const tapak = new Tapak(app);
 	const c = $derived(copy());
 
-	/** The compact layout uses a draggable sheet; the wide one uses floating panels. */
+	/**
+	 * Act two begins as soon as there is any turn beyond the opening greeting —
+	 * whether the user asked, tapped an option, or picked an area on the map.
+	 */
+	const started = $derived(tapak.turns.length > 1);
+
+	/** The compact layout uses a draggable sheet. */
 	let compact = $state(false);
-	/** The technical settings drawer — closed until the user asks for it. */
-	let advanced = $state(false);
 	let sheetIndex = $state(1);
 
 	onMount(() => {
@@ -35,15 +55,83 @@
 		compact = mq.matches;
 		const onChange = (e: MediaQueryListEvent) => (compact = e.matches);
 		mq.addEventListener('change', onChange);
-
-		// What greets the user now is Tapak's greeting, not a preselected choice and a
-		// question run silently behind the scenes.
-
+		tapak.greet();
 		return () => {
 			stopTheme();
 			mq.removeEventListener('change', onChange);
 		};
 	});
+
+	/* Each turn stores a finished sentence rather than a key, so an old conversation
+	   does not switch language with it. Rather than leaving two languages in one
+	   thread, the thread restarts: it is short, and the opening greeting is the same. */
+	let lastLang = lang();
+	$effect(() => {
+		const now = lang();
+		if (now === lastLang) return;
+		lastLang = now;
+		tapak.reset();
+	});
+
+	// Tapak turns to look when the user picks an area on the map themselves.
+	$effect(() => {
+		void app.selectedId;
+		tapak.remarkOnSelection();
+	});
+
+	// On a compact screen, selecting an area raises the sheet to its middle detent:
+	// the card lives inside the sheet, so leaving the sheet shut makes the user's
+	// choice look like it did nothing.
+	$effect(() => {
+		if (app.selectedId && untrack(() => compact && sheetIndex === 0)) sheetIndex = 1;
+	});
+
+	/**
+	 * The question box does not simply vanish: it leaves towards the right, towards
+	 * where the panel is about to stand. The motion in between points at the
+	 * destination, so the eye knows where to look before the panel gets there.
+	 *
+	 * Deliberately not a FLIP crossfade: the two surfaces are different widths, and
+	 * scaling one to the size of the other scales its type with it — giant blurred
+	 * letters halfway across. Each moves at its own size instead.
+	 */
+	function leaveForPanel(_node: Element) {
+		const reduced = prefersReducedMotion();
+		return {
+			duration: reduced ? 120 : 340,
+			easing: cubicOut,
+			css: (t: number, u: number) =>
+				`opacity: ${t};` +
+				(reduced ? '' : `transform: translate3d(${u * 120}px, 0, 0) scale(${1 - 0.06 * u});`)
+		};
+	}
+
+	/** Arrives from the direction the question box left in, anchored on its own corner. */
+	function arriveFromCentre(_node: Element) {
+		const reduced = prefersReducedMotion();
+		return {
+			duration: reduced ? 120 : 400,
+			delay: reduced ? 0 : 140,
+			easing: cubicOut,
+			css: (t: number, u: number) =>
+				`transform-origin: top right;` +
+				`opacity: ${t};` +
+				(reduced ? '' : `transform: translate3d(${-u * 56}px, 0, 0) scale(${0.96 + 0.04 * t});`)
+		};
+	}
+
+	/** Enters from the corner it belongs to, and leaves the same way. */
+	function materialize(_node: Element, { origin = 'bottom left' } = {}) {
+		const reduced = prefersReducedMotion();
+		return {
+			duration: reduced ? 120 : 380,
+			easing: cubicOut,
+			css: (t: number, u: number) =>
+				`transform-origin: ${origin};` +
+				`opacity: ${t};` +
+				(reduced ? '' : `transform: translate3d(0, ${u * 14}px, 0) scale(${0.94 + 0.06 * t});`)
+		};
+	}
 </script>
 
 <svelte:head>
@@ -52,84 +140,38 @@
 
 <div class="app">
 	<MapView />
-	<TopBar bind:advanced />
-	<MapLegend />
+	<MapChrome />
 
-	{#if compact}
-		<Sheet bind:index={sheetIndex} detents={[0.14, 0.5, 0.92]}>
-			{#snippet header()}
-				<Segmented
-					label={c.app.panel}
-					bind:value={app.sheetTab}
-					options={[
-						{ value: 'recommendations', label: c.app.tabs.recommendations },
-						{ value: 'detail', label: c.app.tabs.detail },
-						{ value: 'table', label: c.app.tabs.table },
-						{ value: 'controls', label: c.app.tabs.controls }
-					]}
-				/>
-			{/snippet}
-			{#if app.sheetTab === 'recommendations'}
-				<TapakPanel />
-			{:else if app.sheetTab === 'detail'}
-				<CatchmentDiorama />
-				<DetailPanel />
-			{:else if app.sheetTab === 'table'}
-				<AttributeTable />
-			{:else}
-				<ControlPanel />
+	{#if !started}
+		<!-- A thin dimming: the map is pushed back while the first question is still
+		     unasked, then released the moment the conversation starts. Not a barrier,
+		     just depth. -->
+		<div class="scrim" transition:fade={{ duration: 320 }} aria-hidden="true"></div>
+		<div class="stage" out:leaveForPanel>
+			<AskLauncher {tapak} meta={data.meta} />
+		</div>
+	{:else if compact}
+		<MapLegend />
+		<Sheet bind:index={sheetIndex} detents={[0.12, 0.55, 0.94]}>
+			{#if app.selectedId}
+				<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>
+					<SpotCard />
+				</div>
 			{/if}
+			<TapakPanel {tapak} />
 		</Sheet>
 	{:else}
-		{#if advanced}
-			<aside class="rail left scroll" aria-label={c.app.advanced}>
-				<section class="card material">
-					<h2 class="eyebrow head">{c.app.advanced}</h2>
-					<div class="body"><ControlPanel /></div>
-				</section>
-			</aside>
-		{/if}
-
-		<!-- Tapak and the area panel lead, and the numbers sit behind a fold.
-		     Most people arriving here are choosing somewhere to open a business, not
-		     auditing a model: they ask Tapak, they look at the area. The full figures
-		     stay one click away for when a claim needs checking, which is the order
-		     these three actually get used in. -->
-		<aside class="rail right scroll" aria-label={c.app.tapak}>
-			<section class="card material lead">
-				<h2 class="eyebrow head">{c.app.tapak} <span class="muted">{c.app.tapakSub}</span></h2>
-				<div class="body"><TapakPanel /></div>
-			</section>
-			<section class="card material lead">
-				<h2 class="eyebrow head">{c.app.mood}</h2>
-				<div class="body"><CatchmentDiorama /></div>
-			</section>
-			<section class="card material quiet">
-				<details>
-					<summary class="eyebrow head">{c.app.numbers}</summary>
-					<div class="body"><DetailPanel /></div>
-				</details>
-			</section>
+		<aside class="guide material" aria-label={c.app.tapak} in:arriveFromCentre>
+			<TapakPanel {tapak} />
 		</aside>
 
-		<div class="table-dock" class:open={app.tableOpen}>
-			<button
-				type="button"
-				class="table-toggle btn"
-				onclick={() => (app.tableOpen = !app.tableOpen)}
-				aria-expanded={app.tableOpen}
-			>
-				{app.tableOpen ? c.app.tableHide : c.app.table}
-			</button>
-			{#if app.tableOpen}
-				<section class="card material table-panel">
-					<h2 class="eyebrow head">
-						{c.app.table} <span class="muted">{c.app.tableHint}</span>
-					</h2>
-					<AttributeTable />
-				</section>
-			{/if}
-		</div>
+		{#if app.selectedId}
+			<aside class="spot material" aria-label={c.app.mood} transition:materialize>
+				<SpotCard />
+			</aside>
+		{:else}
+			<MapLegend />
+		{/if}
 	{/if}
 </div>
 
@@ -140,118 +182,82 @@
 		overflow: hidden;
 	}
 
-	.rail {
+	.scrim {
 		position: fixed;
-		top: 3.25rem;
-		bottom: 0.75rem;
-		z-index: 5;
-		display: flex;
-		flex-direction: column;
-		gap: 0.625rem;
-		padding: 0.625rem 0.25rem 0.625rem 0;
-	}
-	.rail.left {
-		left: 0.75rem;
-		width: 17rem;
-		/* The legend sits bottom-left; the rail stops above it rather than covering it. */
-		bottom: 9.5rem;
-	}
-	.rail.right {
-		right: 0.75rem;
-		/* Wider than it was: this rail carries the two panels people actually work
-		   from, and at 23rem Tapak's answers and the station list both wrapped every
-		   other line. */
-		width: 26rem;
-	}
-	/* On a short screen the rail cannot hold both panels open, and what gets squeezed
-	   is whichever is lower. Letting it scroll keeps them at a readable size instead
-	   of shrinking both into uselessness. */
-	@media (min-width: 1024px) and (max-height: 800px) {
-		.rail.right {
-			width: 24rem;
-		}
-	}
-
-	.card {
-		position: relative;
-		border-radius: var(--r-lg);
-		overflow: hidden;
-		flex: none;
-	}
-	/* The two panels the product is actually driven from. They get the weight: a
-	   solid header rule and a slightly stronger shadow, so the eye lands on them
-	   before the technical card below. */
-	.card.lead > .head {
-		border-bottom-color: var(--separator-strong);
-		color: var(--label-1);
-	}
-	.card.lead {
-		box-shadow: var(--shadow-panel);
-	}
-	/* The numbers card is deliberately recessive — it is for checking a claim, not
-	   for making one. */
-	.card.quiet > details > summary {
-		color: var(--label-3);
-	}
-	.card.quiet {
-		background: var(--mat-regular);
-	}
-
-	.head {
-		padding: 0.5rem 0.75rem;
-		border-bottom: 1px solid var(--separator);
-	}
-	.head .muted {
-		text-transform: none;
-		letter-spacing: 0;
-		font-weight: 400;
-	}
-	.body {
-		padding: 0.75rem;
-	}
-
-	.table-dock {
-		position: fixed;
-		left: 50%;
-		bottom: 1rem;
+		inset: 0;
 		z-index: 6;
-		transform: translateX(-50%);
+		background: color-mix(in srgb, var(--bg-base) 34%, transparent);
+		-webkit-backdrop-filter: blur(2px);
+		backdrop-filter: blur(2px);
+	}
+
+	/* The question box sits slightly above the geometric centre: the eye reads the
+	   middle of a screen as being a little higher than it actually is. */
+	.stage {
+		position: fixed;
+		inset: 0;
+		z-index: 7;
+		display: grid;
+		place-items: center;
+		padding: 1.5rem 0.75rem calc(1.5rem + 6vh);
+		pointer-events: none;
+	}
+	.stage > :global(*) {
+		pointer-events: auto;
+	}
+
+	/* Tapak floats on the right and the map flows underneath. No scrim: this panel
+	   runs alongside the map rather than blocking it.
+
+	   Its height follows its contents rather than filling the column. A conversation
+	   one greeting long must not leave a screen-tall empty box; the panel grows with
+	   the thread up to the edge of the screen, and then the thread scrolls. */
+	.guide {
+		position: fixed;
+		right: 0.75rem;
+		top: 3.5rem;
+		z-index: 6;
+		width: 23rem;
+		max-height: calc(100vh - 4.25rem);
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		gap: 0.5rem;
-		width: min(58rem, calc(100vw - 44rem));
-	}
-	.table-toggle {
+		padding: 0.875rem;
+		border-radius: var(--r-xl);
 		background: var(--mat-thick);
-		-webkit-backdrop-filter: var(--blur-regular);
-		backdrop-filter: var(--blur-regular);
-		box-shadow: var(--shadow-panel);
+		-webkit-backdrop-filter: var(--blur-thick);
+		backdrop-filter: var(--blur-thick);
 	}
-	.table-panel {
-		width: 100%;
-		max-height: 55vh;
+
+	/* The area card takes the bottom-left corner, which is where the legend sits.
+	   They are shown one at a time rather than stacked: the legend explains the
+	   colours, and once a cell is picked the card is the more specific answer to the
+	   same question. */
+	.spot {
+		position: fixed;
+		left: 0.75rem;
+		bottom: 2.25rem;
+		z-index: 6;
+		width: 21rem;
+		max-height: calc(100vh - 6rem);
+		overflow: auto;
+		overscroll-behavior: contain;
 		display: flex;
 		flex-direction: column;
-		/* Enters from the direction of its button, not from a neutral point. */
-		transform-origin: bottom center;
-		animation: rise 260ms cubic-bezier(0.32, 0.72, 0, 1);
+		gap: 0.75rem;
+		padding: 0.875rem;
+		border-radius: var(--r-xl);
+		background: var(--mat-thick);
+		-webkit-backdrop-filter: var(--blur-thick);
+		backdrop-filter: var(--blur-thick);
+		will-change: transform, opacity;
 	}
 
-	@keyframes rise {
-		from {
-			opacity: 0;
-			transform: translateY(10px) scale(0.985);
-		}
-		to {
-			opacity: 1;
-			transform: none;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.table-panel {
-			animation: none;
-		}
+	.spot-inline {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding-bottom: 1rem;
+		margin-bottom: 1rem;
+		border-bottom: 1px solid var(--separator);
 	}
 </style>
