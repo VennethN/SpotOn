@@ -1,4 +1,4 @@
-import { CATEGORY_KEYS } from './categories';
+import { CATEGORY_KEYS, CATEGORY_MAP } from './categories';
 import type { Hex, CategoryKey, PoiSource, ScoredHex, Typology, Weights } from '$lib/types';
 
 /**
@@ -42,6 +42,13 @@ function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): 
 	// Yang membedakan "nol" dari "belum diambil" adalah ADA TIDAKNYA KUNCI, bukan
 	// nilainya: `build-hexes.mjs` menulis 0 secara eksplisit untuk tiap kategori
 	// yang benar-benar diambil dan ternyata kosong.
+	//
+	// Pemeriksaan `osmTag` di depannya bukan pengulangan. Yang satu membaca
+	// bentuk data, yang satu menyatakan niat: kategori tanpa tag OSM memang
+	// tidak akan pernah bisa dihitung dari OSM, dan itu keputusan yang diambil
+	// di `categories.ts` — bukan sesuatu yang harus disimpulkan dari kebetulan
+	// bahwa sebuah kunci tidak ada di berkas.
+	if (!CATEGORY_MAP[cat]?.osmTag) return null;
 	const n = c.osm?.[cat];
 	return typeof n === 'number' ? Math.round(n * areaFactor(radius)) : null;
 }
