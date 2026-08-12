@@ -15,15 +15,32 @@
 
 	/**
 	 * The per-format comparison is the one place that needs EVERY category at once,
-	 * so it is the one place that asks for them all. Everywhere else works from the
-	 * single active category, which is why the app does not load them up front.
+	 * so it is the one place that asks for them all — thirteen slices, and everywhere
+	 * else in the app works from the single active one.
 	 *
-	 * Only once a cell is actually selected: this panel is collapsed until then, and
-	 * fetching thirteen slices for a panel nobody has opened is the cost this whole
-	 * arrangement exists to avoid.
+	 * Asked for when the chart is ON SCREEN, not when a cell is selected. On the wide
+	 * layout this panel sits inside a `<details>` that starts closed, so selecting a
+	 * cell would otherwise fetch every category for a chart the user has not opened
+	 * and may never open — the exact cost this whole arrangement exists to avoid. An
+	 * IntersectionObserver covers both layouts at once: a closed `<details>` gives its
+	 * contents no box, so the chart simply never intersects until it is opened.
 	 */
+	let compareEl = $state<HTMLElement | null>(null);
+
 	$effect(() => {
-		if (app.selectedId) app.loadAllCategories();
+		const el = compareEl;
+		if (!el) return;
+		const io = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) void app.loadAllCategories();
+			},
+			// Primed before it is actually read, not at the moment it appears. The rail
+			// and the sheet both scroll, so without this the chart arrives on screen
+			// holding a single bar and the other twelve drop in under the reader's eyes.
+			{ rootMargin: '300px' }
+		);
+		io.observe(el);
+		return () => io.disconnect();
 	});
 </script>
 
@@ -93,7 +110,7 @@
 				<HourBars hourly={row.hourly} dense />
 			</section>
 
-			<section>
+			<section bind:this={compareEl}>
 				<h3 class="eyebrow">{c.detail.acrossTitle}</h3>
 				<div class="bars">
 					{#each across as item (item.key)}
