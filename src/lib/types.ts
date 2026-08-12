@@ -71,6 +71,46 @@ export interface Hex {
 	covered?: PerCategory<boolean>;
 }
 
+/** The `Hex` fields that hold one entry per business category. */
+export const CATEGORY_FIELDS = ['osm', 'mapid', 'covered', 'busy', 'listing', 'd'] as const;
+export type CategoryField = (typeof CATEGORY_FIELDS)[number];
+
+/**
+ * A cell without its per-category columns — what the first request carries.
+ *
+ * Those six dictionaries are two thirds of the grid's weight (464 KB of 693 KB) and
+ * they grow with every category added, while the reader looks at ONE category at a
+ * time. So they travel separately, as `CategorySlice`, and the page starts with the
+ * geometry and the per-cell figures that every category shares.
+ */
+export type HexBase = Omit<Hex, CategoryField>;
+
+/**
+ * One category's columns for the whole grid, aligned BY INDEX to the base array.
+ *
+ * Columnar rather than one object per cell: repeating six key names across 562 cells
+ * costs more bytes than the numbers themselves. A slice is ~17 KB against the ~44 KB
+ * the same figures take as objects.
+ *
+ * `n` exists to be checked. The alignment is positional, so a slice served by a
+ * different build than the base would silently attach every figure to the wrong
+ * cell — a map that looks perfectly normal and is wrong everywhere. The client
+ * refuses a slice whose length does not match rather than render that.
+ */
+export interface CategorySlice {
+	cat: CategoryKey;
+	/** Number of cells — must equal the base array's length. */
+	n: number;
+	/** Competitor counts (OSM). `null` = this category has no OSM source at all. */
+	osm: (number | null)[];
+	/** Competitor counts (MAPID). `null` = this city has not been surveyed. */
+	mapid: (number | null)[];
+	covered: boolean[];
+	busy: number[];
+	listing: number[];
+	d: number[];
+}
+
 /**
  * The competitor data source. The two are deliberately kept apart and never mixed
  * into one score: OSM is volunteered and widespread but uneven, MAPID is surveyed

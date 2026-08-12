@@ -1,5 +1,6 @@
 import raw from '$lib/data/hexes.json';
-import type { Hex } from '$lib/types';
+import { CATEGORY_FIELDS } from '$lib/types';
+import type { CategoryKey, CategorySlice, Hex, HexBase } from '$lib/types';
 
 /**
  * SpotOn's data source.
@@ -39,6 +40,52 @@ export function loadHexes(): Hex[] {
 
 export function findHex(id: string): Hex | undefined {
 	return hexes.find((h) => h.id === id);
+}
+
+/**
+ * The grid without its per-category columns.
+ *
+ * Built once at module load, not per request: the file never changes while the
+ * process is alive, and rebuilding 562 objects on every request would spend more
+ * time than the bytes saved.
+ */
+const base: HexBase[] = hexes.map((h) => {
+	const out = { ...h } as Partial<Hex>;
+	for (const f of CATEGORY_FIELDS) delete out[f];
+	return out as HexBase;
+});
+
+/** The grid without its per-category columns — the payload the app starts with. */
+export function loadBase(): HexBase[] {
+	return base;
+}
+
+/**
+ * One category's columns for every cell, in the same order as `loadBase()`.
+ *
+ * `osm` distinguishes null from 0 exactly as the stored file does. A category OSM
+ * cannot count has no key on `hex.osm`, and that missing key is what the scoring
+ * engine reads as "never fetched" — so it is carried across as an explicit null
+ * rather than being flattened to a zero that would read as "no competitors here".
+ */
+const sliceCache = new Map<CategoryKey, CategorySlice>();
+
+export function loadCategorySlice(cat: CategoryKey): CategorySlice {
+	const cached = sliceCache.get(cat);
+	if (cached) return cached;
+
+	const slice: CategorySlice = {
+		cat,
+		n: hexes.length,
+		osm: hexes.map((h) => h.osm?.[cat] ?? null),
+		mapid: hexes.map((h) => h.mapid?.[cat] ?? null),
+		covered: hexes.map((h) => h.covered?.[cat] ?? false),
+		busy: hexes.map((h) => h.busy?.[cat] ?? 0),
+		listing: hexes.map((h) => h.listing?.[cat] ?? 0),
+		d: hexes.map((h) => h.d?.[cat] ?? 0)
+	};
+	sliceCache.set(cat, slice);
+	return slice;
 }
 
 export const grid = file.meta;

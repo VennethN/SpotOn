@@ -60,6 +60,13 @@
 	};
 </script>
 
+<!-- Every column here is per-category, so with no category loaded there is nothing to
+     tabulate. Saying so beats an empty grid, which reads as "no cells match". -->
+{#if !app.ready}
+	<p class="empty">
+		{app.sliceLoading ? c.app.heatmapLoading : (app.sliceError ?? c.app.needCategory)}
+	</p>
+{:else}
 <div class="wrap scroll">
 	<table>
 		<thead>
@@ -99,8 +106,15 @@
 		</tbody>
 	</table>
 </div>
+{/if}
 
 <style>
+	.empty {
+		font-size: 0.75rem;
+		line-height: 1.5;
+		color: var(--label-3);
+		padding: 0.75rem;
+	}
 	.wrap {
 		max-height: min(50vh, 22rem);
 	}
