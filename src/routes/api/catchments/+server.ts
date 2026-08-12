@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { loadBase, provenance } from '$lib/server/source';
+import { grid, loadBase, provenance } from '$lib/server/source';
 import type { RequestHandler } from './$types';
 
 /**
@@ -27,6 +27,11 @@ export const GET: RequestHandler = () => {
 		{
 			catchments: catchments.map(({ city: _city, ...rest }) => rest),
 			provenance,
+			/* What the grid knows about itself: how many transit nodes it captured, how
+			   many competitor POIs were counted, and from which sources. A few hundred
+			   bytes, and it is what lets the interface state the size of the evidence
+			   from the data rather than from a sentence somebody typed once. */
+			meta: grid,
 			counts: {
 				total: catchments.length,
 				withData: catchments.filter((c) => !c.nodata).length,

@@ -267,8 +267,6 @@
 				</div>
 			{/if}
 		{/if}
-
-		<p class="prov">{c.breakdown.prov}</p>
 	</section>
 {/if}
 
@@ -593,8 +591,7 @@
 		color: var(--label-2);
 		font-variant-numeric: tabular-nums;
 	}
-	.formula,
-	.prov {
+	.formula {
 		font-size: 0.625rem;
 		line-height: 1.45;
 		color: var(--label-3);
