@@ -87,7 +87,7 @@ function scriptFor(kategori: CategoryKey, modalKecil: boolean): Script {
 /** Modal kecil dipakai selang-seling supaya kedua cabang percakapan ikut terlihat. */
 const SCRIPTS: Script[] = [
 	scriptFor('kopi', true),
-	scriptFor('warung', false),
+	scriptFor('warteg', false),
 	{
 		id: 'jenuh',
 		kategori: 'minimarket',

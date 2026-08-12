@@ -44,9 +44,16 @@
 					<span class="sub">{c.detail.nStruk(row.nStruk)}</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow">{c.detail.rivals} <span class="tag real">OSM</span></span>
+					<!-- Label sumbernya mengikuti saklar, bukan ditulis mati "OSM".
+					     Sejak bawaan pindah ke MAPID, versi lamanya memberi tanda
+					     OSM pada angka yang datang dari MAPID — salah menyebut asal
+					     angka, pada produk yang seluruh janjinya justru itu. -->
+					<span class="eyebrow">
+						{c.detail.rivals}
+						<span class="tag real">{row.source === 'mapid' ? 'MAPID' : 'OSM'}</span>
+					</span>
 					<span class="val">{row.osm}</span>
-					<span class="sub mono">{def.osmTag}</span>
+					<span class="sub mono">{row.source === 'mapid' ? def.mapidSet : def.osmTag}</span>
 				</div>
 				<div class="tile">
 					<span class="eyebrow">{c.detail.supplyEff}</span>

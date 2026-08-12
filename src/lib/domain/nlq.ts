@@ -12,18 +12,43 @@ import type {
 	AiAnswer,
 	Hex,
 	CategoryKey,
+	PoiSource,
 	Recommendation,
 	ScoredHex,
 	StructuredQuery,
 	Weights
 } from '$lib/types';
 
+/**
+ * Dicocokkan berurutan, yang pertama cocok menang — jadi yang spesifik harus
+ * di atas yang umum. `boba` sebelum `minuman`, dan keduanya sebelum `warung`
+ * yang menangkap kata "makan": tanpa urutan itu "kedai minuman" akan terbaca
+ * warung karena pertanyaannya nyaris selalu memuat kata makan atau jajan.
+ */
 const KEYWORDS: Array<[RegExp, CategoryKey]> = [
-	[/kopi|coffee|kafe|cafe/i, 'kopi'],
-	[/warung|makan|nasi|soto|resto/i, 'warung'],
-	[/minimarket|kelontong|swalayan/i, 'minimarket'],
-	[/laundry|cuci/i, 'laundry'],
-	[/apotek|obat|farmasi/i, 'apotek']
+	[/kopi|coffee|kafe|cafe|espresso|latte/i, 'kopi'],
+	// `jus` dan `asing` di bawah WAJIB berpagar `\b`. Tanpa itu keduanya
+	// mencocok di tengah kata yang sangat lazim — "justru" jadi kedai minuman,
+	// "masing-masing" jadi restoran asing — dan pencocokan itu diam-diam
+	// menimpa kategori yang sedang dipilih pengguna sekaligus menggeser peta.
+	[/boba|milk ?tea|thai tea|\bjus\b|juice|es krim|ice cream|dessert|minuman|drink/i, 'minuman'],
+	[/roti|bakery|kue|donat|donut|pastri|pastry|cake/i, 'roti'],
+	[/apotek|obat|farmasi|pharmac/i, 'apotek'],
+	[/laundry|binatu|cuci baju/i, 'laundry'],
+	[/bengkel|servis motor|service motor|montir|repair/i, 'bengkel'],
+	[/kelontong|toko sembako|sembako|grocery/i, 'kelontong'],
+	[/minimarket|swalayan|indomaret|alfamart|convenience/i, 'minimarket'],
+	[/cepat saji|fast ?food|kfc|mcd|mcdonald|burger/i, 'cepatsaji'],
+	[/\bmie\b|bakso|ramen|noodle|bakmi/i, 'mie'],
+	[/seafood|ikan bakar|kepiting|udang/i, 'seafood'],
+	[
+		/jepang|japanese|korea|korean|sushi|thai|cina|chinese|western|\basing\b|italia|pizza|steak/i,
+		'restoasing'
+	],
+	// Paling akhir dan paling longgar: apa pun yang menyebut makan tapi tidak
+	// menyebut jenisnya jatuh ke sini, karena warung nasi memang bawaan yang
+	// paling masuk akal untuk pertanyaan "mau buka tempat makan".
+	[/warteg|warung|rumah makan|nasi|padang|soto|resto|makan|food/i, 'warteg']
 ];
 
 /**
@@ -95,8 +120,19 @@ function matchNames(q: string, rows: ScoredHex[]): ScoredHex[] {
 		.map((m) => m.r);
 }
 
+/**
+ * Label sumber pesaing yang sedang dipakai.
+ *
+ * Dulu semua kalimat menyebut "OSM" apa pun sumbernya, dan itu tidak lagi
+ * sekadar tidak rapi: sejak bawaan pindah ke MAPID, keterangan bawaan setiap
+ * jawaban menyebut sumber yang salah. Pada produk yang seluruh janjinya adalah
+ * angka yang bisa ditelusuri, salah menyebut asal angka adalah kekeliruan yang
+ * paling mahal.
+ */
+const sourceLabel = (s: PoiSource | undefined) => (s === 'mapid' ? 'MAPID' : 'OSM');
+
 const evidence = (r: ScoredHex) =>
-	`N misi = ${r.nTot} (struk ${r.nStruk} · menu ${r.nMenu} · properti ${r.nProp}) · pesaing OSM = ${r.osm}`;
+	`N misi = ${r.nTot} (struk ${r.nStruk} · menu ${r.nMenu} · properti ${r.nProp}) · pesaing ${sourceLabel(r.source)} = ${r.osm}`;
 
 /**
  * Menjalankan query terstruktur terhadap mesin skor dan menyusun justifikasi.
@@ -132,7 +168,9 @@ export function runQuery(
 	const provenance = [
 		`Alur: pertanyaan → parsing niat → function-calling ke daftar operasi spasial terbatas → PostGIS mengeksekusi → peta & panel diperbarui.`,
 		`Angka tidak dikarang model: LLM hanya memilih operasi dan mengisi argumen; seluruh nilai dihitung basis data dan ditautkan ke titik sumbernya.`,
-		`Sumber pesaing (nyata): OpenStreetMap via Overpass API, ${def.osmTag}, around:${w.radius}.`,
+		w.source === 'mapid'
+			? `Sumber pesaing (nyata): MAPID Data Premium, ${def.mapidSet}, around:${w.radius}.`
+			: `Sumber pesaing (nyata): OpenStreetMap via Overpass API, ${def.osmTag}, around:${w.radius}.`,
 		`Sumber lain (contoh): Struk Go · Menu Go · Properti Go — struktur mengikuti kolom asli.`
 	];
 
