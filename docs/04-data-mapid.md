@@ -353,9 +353,45 @@ Catalogue categories not yet explored dataset by dataset, and their strongest ca
 | City Planning | 719 | Clean administrative boundaries — useful for labelling cells and aggregating by district. |
 | Manufacturing / Energy / Climate / Consumer Goods | — | No clear connection to retail site selection yet. |
 
+### The demand side, now actually read (not just found)
+
+Both candidates for replacing the invented `d` exist, complete for all five DKI cities, on
+the same **kelurahan (`DESA`) polygons** — 261 across DKI, 11.3 M residents.
+
+| Dataset | Jakarta Pusat layer id | Shape |
+|---|---|---|
+| `STATUS EKONOMI DAN SOSIAL - SOCIOECONOMIC STATUS (SES)` | `670cdb65016420edc8828109` | 44 MultiPolygon, ~28 columns |
+| `DEMOGRAFI` | `68b4fd08278efb81183f673e` | 44 MultiPolygon, ~110 columns |
+
+**`DEMOGRAFI` is the one to build on.** It carries `KEPADATAN PENDUDUK` and
+`JUMLAH PENDUDUK` for 2020–2024 (so growth, not just level), `LUAS WILAYAH`, `JUMLAH KK`,
+the full age ladder `USIA 0-4` … `USIA 75 TAHUN KE ATAS`, educational attainment, and an
+occupation breakdown (`WIRASWASTA`, `PERDAGANGAN`, `PELAJAR DAN MAHASISWA`, …). The age
+bands matter here specifically: `USIA 20-24` and `USIA 25-29` are the cohorts that carry
+F&B demand, and they are available per kelurahan.
+
+> **SES's headline column is useless inside Jakarta, and looks authoritative.** Of the 261
+> kelurahan, `SOCIOECONOMIC STATUS` reads `Atas` for **260** and `Menengah Atas` for one.
+> The class is computed against the whole of Indonesia, so within DKI it discriminates
+> nothing — yet a choropleth of it would render, and would look like an answer. Its
+> component scores are barely better: `SKOR PEKERJAAN` spans 1.693–1.819 across all of
+> Jakarta, and `BOBOT AKHIR` 2.222–2.627.
+
+What SES does add that DEMOGRAFI lacks: `PDRB 2023` (894 M – 41 B, a 46× spread) and
+`SKOR PENDIDIKAN` (2.158–3.733). Worth pulling in as secondary signals; not worth building
+demand on.
+
+For contrast, `KEPADATAN PENDUDUK 2024` in Jakarta Pusat alone runs 1,049 – 83,489 per km²,
+an 80× spread. That is a variable with something to say.
+
+Both are polygons and the grid is H3 hexagons, so the join is an area-weighted
+apportionment, not the point-in-radius count the POI datasets use — a different code path
+from `join-mapid.mjs`, and the reason this is not simply another `MANIFEST` row.
+
 ### If three had to be chosen
 
-1. **Social** — demographics. This is what stops `demand` being an invention.
+1. **Social → `DEMOGRAFI`** — verified above, all five cities, per kelurahan. This is what
+   stops `demand` being an invention. Take `SES` alongside it for `PDRB 2023` only.
 2. **Research → NIGHT TIME LIGHT** — an activity proxy available evenly, including in cells
    with no survey data at all.
 3. **Real Estate → APARTEMEN** — the resident side of demand, completing (1).
