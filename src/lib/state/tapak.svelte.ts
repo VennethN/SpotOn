@@ -6,19 +6,19 @@ import type { AppState } from '$lib/state/app.svelte';
 import type { AiAnswer, CategoryKey } from '$lib/types';
 
 /**
- * Tapak — pemandu di dalam SpotOn.
+ * Tapak — the guide inside SpotOn.
  *
- * Sosoknya salah satu figur putih di maket: orang yang sudah keliling tiap kawasan
- * dan melaporkan apa yang dilihatnya. Ia memimpin percakapan, bukan menunggu diketik:
- * menyapa lebih dulu, balik bertanya, menyodorkan pilihan yang bisa ditekan, dan
- * berkomentar saat pengguna memilih kawasan sendiri di peta.
+ * Tapak is one of the little white figures in the diorama: someone who has walked
+ * every area and reports what they saw. Tapak leads the conversation rather than
+ * waiting to be typed at: greeting first, asking back, offering options that can be
+ * tapped, and commenting when the user picks an area on the map themselves.
  *
- * Yang penting: Tapak tidak pernah mengarang angka. Setiap jawabannya datang dari
- * `/api/ai/query` — mesin skor yang sama yang dipakai seluruh aplikasi. Tapak hanya
- * memilih pertanyaan mana yang diajukan dan menerjemahkan hasilnya ke bahasa orang.
- * Karena itu tiap pertanyaan yang ia tawarkan selalu dipetakan ke salah satu niat
- * yang memang dimengerti mesin (RANK, FLAG_SATURATED, COMPARE, COVERAGE) — ia tidak
- * boleh menjanjikan sesuatu yang tidak bisa dijawab.
+ * What matters: Tapak never invents a number. Every answer comes from
+ * `/api/ai/query` — the same scoring engine the whole app uses. Tapak only chooses
+ * which question gets asked and translates the result into plain language. That is
+ * why every question offered always maps to one of the intents the engine actually
+ * understands (RANK, FLAG_SATURATED, COMPARE, COVERAGE) — Tapak must never promise
+ * something that cannot be answered.
  */
 
 export type ChipAction =
@@ -36,14 +36,14 @@ export interface Turn {
 	who: 'tapak' | 'user';
 	text: string;
 	chips?: Chip[];
-	/** Hasil dari mesin skor, ditampilkan sebagai daftar tempat. */
+	/** The scoring engine's result, shown as a list of places. */
 	answer?: AiAnswer;
-	/** Menandai giliran yang sedang menunggu jawaban mesin. */
+	/** Marks a turn that is waiting for the engine's answer. */
 	pending?: boolean;
 }
 
-/* Chip dibangun saat dibutuhkan, bukan sekali di tingkat modul: labelnya ikut
-   bahasa yang sedang dipilih, dan bahasa bisa diganti di tengah percakapan. */
+/* Chips are built on demand rather than once at module level: their labels follow
+   the selected language, and the language can change mid-conversation. */
 function categoryChips(): Chip[] {
 	const c = copy();
 	return CATEGORIES.map((def) => ({
@@ -54,11 +54,11 @@ function categoryChips(): Chip[] {
 
 export class Tapak {
 	turns = $state<Turn[]>([]);
-	/** Modal kecil → hasil disaring ke kawasan yang ruangnya benar-benar tersedia. */
+	/** Small budget → results are filtered to areas where space is genuinely available. */
 	smallBudget = $state<boolean | null>(null);
 	#app: AppState;
 	#greeted = false;
-	/** Nama kawasan yang terakhir dikomentari, supaya Tapak tidak mengulang diri. */
+	/** The last area commented on, so Tapak does not repeat itself. */
 	#lastRemarked: string | null = null;
 
 	constructor(app: AppState) {
@@ -73,7 +73,7 @@ export class Tapak {
 		this.turns.push({ who: 'tapak', text, chips });
 	}
 
-	/** Mengosongkan utas dan menyapa lagi — dipakai saat bahasa diganti. */
+	/** Clears the thread and greets again — used when the language is switched. */
 	reset() {
 		this.turns = [];
 		this.smallBudget = null;
@@ -85,13 +85,13 @@ export class Tapak {
 	greet() {
 		if (this.#greeted) return;
 		this.#greeted = true;
-		// Angkanya dibaca dari data, bukan ditulis tangan — begitu kisinya dibangun
-		// ulang, sapaan Tapak ikut benar tanpa ada yang perlu ingat memperbaruinya.
-		const { terdata, total } = this.#app.coverage;
-		this.#say(copy().tapak.greet(total, terdata), categoryChips());
+		// The figures are read from the data, not written by hand — once the grid is
+		// rebuilt, Tapak's greeting stays correct without anyone remembering to update it.
+		const { withData, total } = this.#app.coverage;
+		this.#say(copy().tapak.greet(total, withData), categoryChips());
 	}
 
-	/** Menutup chip pada giliran terakhir supaya pilihan lama tidak bisa ditekan ulang. */
+	/** Closes the chips on the last turn so stale options cannot be tapped again. */
 	#consume() {
 		for (let i = this.turns.length - 1; i >= 0; i--) {
 			if (this.turns[i].who === 'tapak' && this.turns[i].chips) {
@@ -107,7 +107,7 @@ export class Tapak {
 		this.#run(chip.action);
 	}
 
-	/** Pertanyaan yang diketik sendiri tetap dilayani mesin yang sama. */
+	/** A hand-typed question is served by the very same engine. */
 	submit(text: string) {
 		const q = text.trim();
 		if (!q) return;
@@ -138,8 +138,8 @@ export class Tapak {
 		if (action.kind === 'budget') {
 			this.smallBudget = action.small;
 			const cat = c.category[this.#app.category].name.toLowerCase();
-			// Frasa "modal kecil" inilah yang membuat mesin menyaring ke kawasan yang
-			// ruang usahanya benar-benar tersedia — bukan sekadar basa-basi.
+			// It is the phrase "modal kecil" (small budget) that makes the engine filter
+			// down to areas where commercial space is genuinely available — not small talk.
 			const q = action.small
 				? `Di mana buka ${cat} modal kecil dekat MRT?`
 				: `Di mana buka ${cat} dekat MRT?`;
@@ -185,8 +185,8 @@ export class Tapak {
 	}
 
 	#followUps(ans: AiAnswer): Chip[] {
-		// Tidak paham berarti tidak ada hasil untuk ditindaklanjuti; yang berguna
-		// justru menawarkan jalan yang memang bisa dijawab.
+		// Not understanding means there is no result to follow up on; what helps is
+		// offering routes that can actually be answered.
 		if (ans.notUnderstood) return categoryChips();
 
 		const c = copy();
@@ -207,8 +207,8 @@ export class Tapak {
 	}
 
 	/**
-	 * Dipanggil saat pengguna memilih kawasan sendiri di peta. Tapak ikut menoleh —
-	 * inilah yang membedakannya dari kotak obrolan yang cuma menunggu diketik.
+	 * Called when the user picks an area on the map themselves. Tapak turns to look
+	 * too — this is what sets it apart from a chat box that only waits to be typed in.
 	 */
 	remarkOnSelection() {
 		const row = this.#app.selected;

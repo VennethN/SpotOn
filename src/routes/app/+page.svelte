@@ -16,13 +16,13 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Data awal sengaja diambil sekali; status selanjutnya hidup di AppState.
+	// The initial data is deliberately fetched once; all state after that lives in AppState.
 	const app = setAppState(untrack(() => data.catchments));
 	const c = $derived(copy());
 
-	/** Tata letak ringkas memakai sheet yang bisa diseret; lebar memakai panel mengambang. */
+	/** The compact layout uses a draggable sheet; the wide one uses floating panels. */
 	let compact = $state(false);
-	/** Laci pengaturan teknis — tertutup sampai pengguna memintanya. */
+	/** The technical settings drawer — closed until the user asks for it. */
 	let advanced = $state(false);
 	let sheetIndex = $state(1);
 
@@ -33,8 +33,8 @@
 		const onChange = (e: MediaQueryListEvent) => (compact = e.matches);
 		mq.addEventListener('change', onChange);
 
-		// Yang menyambut pengguna sekarang sapaan Tapak, bukan satu pilihan dan satu
-		// pertanyaan yang dijalankan diam-diam di belakang layar.
+		// What greets the user now is Tapak's greeting, not a preselected choice and a
+		// question run silently behind the scenes.
 
 		return () => {
 			stopTheme();
@@ -59,19 +59,19 @@
 					label={c.app.panel}
 					bind:value={app.sheetTab}
 					options={[
-						{ value: 'rekomendasi', label: c.app.tabs.rekomendasi },
+						{ value: 'recommendations', label: c.app.tabs.recommendations },
 						{ value: 'detail', label: c.app.tabs.detail },
-						{ value: 'tabel', label: c.app.tabs.tabel },
-						{ value: 'kontrol', label: c.app.tabs.kontrol }
+						{ value: 'table', label: c.app.tabs.table },
+						{ value: 'controls', label: c.app.tabs.controls }
 					]}
 				/>
 			{/snippet}
-			{#if app.sheetTab === 'rekomendasi'}
+			{#if app.sheetTab === 'recommendations'}
 				<TapakPanel />
 			{:else if app.sheetTab === 'detail'}
 				<CatchmentDiorama />
 				<DetailPanel />
-			{:else if app.sheetTab === 'tabel'}
+			{:else if app.sheetTab === 'table'}
 				<AttributeTable />
 			{:else}
 				<ControlPanel />
@@ -145,7 +145,7 @@
 	.rail.left {
 		left: 0.75rem;
 		width: 17rem;
-		/* Legenda duduk di kiri bawah; rail berhenti di atasnya, tidak menimpanya. */
+		/* The legend sits bottom-left; the rail stops above it rather than covering it. */
 		bottom: 9.5rem;
 	}
 	.rail.right {
@@ -195,7 +195,7 @@
 		max-height: 55vh;
 		display: flex;
 		flex-direction: column;
-		/* Muncul dari arah tombolnya, bukan dari titik netral. */
+		/* Enters from the direction of its button, not from a neutral point. */
 		transform-origin: bottom center;
 		animation: rise 260ms cubic-bezier(0.32, 0.72, 0, 1);
 	}

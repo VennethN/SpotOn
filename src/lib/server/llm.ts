@@ -3,37 +3,39 @@ import { CATEGORY_KEYS } from '$lib/domain/categories';
 import type { CategoryKey, StructuredQuery, Weights } from '$lib/types';
 
 /**
- * Lapisan pemahaman bahasa: pertanyaan orang → query terstruktur.
+ * The language-understanding layer: a person's question → a structured query.
  *
- * Model dipanggil lewat OpenRouter dengan *function calling*, dan itu satu-satunya
- * tugasnya: memilih operasi dan mengisi argumen. Model tidak pernah menghitung,
- * menyusun kalimat jawaban, atau menyentuh angka — seluruh nilai tetap dihitung
- * mesin skor dari data. Dengan begitu tidak ada angka yang bisa dikarang model.
+ * The model is called through OpenRouter with *function calling*, and that is its
+ * only job: pick an operation and fill in the arguments. The model never computes,
+ * never writes the answer sentence, and never touches a number — every value is
+ * still calculated by the scoring engine from the data. That way there is no
+ * number the model could invent.
  *
- * Dua hal yang membuat lapisan ini jujur:
+ * Two things keep this layer honest:
  *
- * 1. Model diberi alat kedua, `tidak_dimengerti`. Kalau pertanyaannya di luar
- *    yang bisa dijawab data ini, ia mengaku — bukan menebak lalu dijawab dengan
- *    percaya diri. Ini justru bagian terpenting: jawaban yang salah paham tapi
- *    terdengar meyakinkan lebih berbahaya daripada tidak menjawab.
- * 2. Bila kunci tidak ada, panggilan gagal, atau waktu habis, pemanggil jatuh ke
- *    pengurai aturan. Demo tidak boleh mati hanya karena jaringan sedang buruk.
+ * 1. The model is given a second tool, `tidak_dimengerti` ("not understood"). If
+ *    the question lies outside what this data can answer, it says so — rather than
+ *    guessing and answering with confidence. That is the most important part: an
+ *    answer that misunderstands the question but sounds convincing is more
+ *    dangerous than no answer at all.
+ * 2. If the key is missing, the call fails, or time runs out, the caller falls back
+ *    to the rule-based parser. A demo must not die just because the network is bad.
  */
 
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 /**
- * Rantai model gratis, dicoba berurutan sampai ada yang menjawab.
+ * A chain of free models, tried in order until one answers.
  *
- * Semuanya wajib mendukung function calling — syarat mati di sini, karena
- * lapisan ini tidak pernah meminta prosa, hanya pemilihan alat. Model gratis
- * dipakai bergiliran oleh banyak orang, jadi kegagalan yang lumrah bukan
- * "model salah" melainkan "sedang penuh": 429, 503, atau jawaban yang datang
- * terlalu lambat. Satu nama model saja berarti satu titik gagal; berurutan
- * begini, penuhnya satu model cuma menggeser giliran ke model berikutnya.
+ * Every one of them must support function calling — a hard requirement here, since
+ * this layer never asks for prose, only for a tool choice. Free models are shared
+ * by many people at once, so the common failure is not "the model got it wrong"
+ * but "it is busy right now": 429, 503, or an answer that arrives too late. A
+ * single model name means a single point of failure; chained like this, one model
+ * being full just passes the turn to the next.
  *
- * Urutannya dari yang paling ringan-cepat ke yang paling besar: yang pertama
- * menjawab paling sering, yang di bawah menangkap sisanya.
+ * Ordered from lightest and fastest to largest: the first one answers most of the
+ * time, the ones below it catch the rest.
  */
 const MODEL_CHAIN = [
 	'nvidia/nemotron-3.5-lightning:free',
@@ -46,55 +48,61 @@ const MODEL_CHAIN = [
 const DEFAULT_MODEL = MODEL_CHAIN[0];
 
 /**
- * Anggaran waktu satu percobaan, dan anggaran seluruh rantai.
+ * The time budget for one attempt, and the budget for the whole chain.
  *
- * Per percobaan sempat 12 detik, dan itu terlalu ketat untuk model gratis:
- * giliran di antrean bersama membuat jawaban wajar datang di detik ke-14, jadi
- * permintaan yang sebenarnya baik-baik saja dibatalkan tepat sebelum tiba. Yang
- * terlihat pengguna cuma Tapak diam-diam kembali ke pengurai aturan, tanpa sebab
- * yang kelihatan.
+ * Per attempt this was once 12 seconds, and that is far too tight for free models:
+ * waiting your turn in a shared queue means a perfectly reasonable answer arrives
+ * at second 14, so a request that was doing fine got cancelled right before it
+ * landed. All the user saw was Tapak quietly falling back to the rule-based parser,
+ * for no visible reason.
  *
- * Batas totalnya ada supaya rantai tidak menjumlahkan keterlambatan: lima model
- * × 60 detik akan membuat pengguna menunggu lima menit demi jawaban yang toh
- * ada versi aturannya dalam sekejap. Habis anggaran total → langsung ke aturan.
+ * The total cap exists so the chain does not add up its delays: five models ×
+ * 60 seconds would leave the user waiting five minutes for an answer that has a
+ * rule-based version available in an instant. Total budget spent → straight to the
+ * rules.
  */
 const ATTEMPT_MS = 60_000;
 const TOTAL_MS = 90_000;
 
 /**
- * Model yang dipakai lapisan pemahaman, dari `OPENROUTER_MODEL`.
+ * The model this understanding layer uses, from `OPENROUTER_MODEL`.
  *
- * Dibaca lewat `$env/dynamic/private`, jadi mengganti model di Vercel cukup
- * mengubah Environment Variable — tidak perlu build ulang. Nilai kosong atau
- * berisi spasi diperlakukan sebagai "tidak diisi", bukan sebagai nama model
- * kosong yang akan ditolak OpenRouter dengan 400 yang membingungkan.
+ * Read through `$env/dynamic/private`, so switching models on Vercel is just an
+ * Environment Variable change — no rebuild needed. An empty or whitespace-only
+ * value is treated as "not set", rather than as an empty model name that
+ * OpenRouter would reject with a confusing 400.
  */
 export function activeModel(): string {
 	return env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
 }
 
 /**
- * Urutan model yang akan dicoba. `OPENROUTER_MODEL` yang diisi tangan berarti
- * pilihan sadar seseorang — dihormati apa adanya, tidak diam-diam dilengkapi
- * cadangan yang tidak ia minta.
+ * The order models will be tried in. An `OPENROUTER_MODEL` filled in by hand means
+ * someone made a deliberate choice — it is honoured as-is, not quietly padded with
+ * fallbacks they never asked for.
  */
 function modelChain(): string[] {
 	const pinned = env.OPENROUTER_MODEL?.trim();
 	return pinned ? [pinned] : MODEL_CHAIN;
 }
 
-/** Apakah lapisan model benar-benar bisa dipakai (kunci terpasang). */
+/** Whether the model layer is actually usable (the key is configured). */
 export function llmEnabled(): boolean {
 	return Boolean(env.OPENROUTER_API_KEY?.trim());
 }
 
 export type ParseResult =
 	| { ok: true; query: StructuredQuery }
-	/** Model mengerti bahasanya tapi tahu pertanyaannya di luar jangkauan data. */
+	/** The model understood the language but knows the question is out of the data's range. */
 	| { ok: false; reason: string }
-	/** Model tidak tersedia — pemanggil harus memakai pengurai aturan. */
+	/** The model is unavailable — the caller must use the rule-based parser. */
 	| null;
 
+/* The prompt and the tool schema below stay in Indonesian deliberately: users ask
+   in Indonesian, and the structured query these produce is the documented API
+   contract (intent, metrik, kategori, radius, filter). Translating them would
+   change model behaviour and break that contract, so only the surrounding code
+   comments are in English. */
 const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta rekomendasi lokasi usaha di kawasan stasiun transit Jakarta.
 
 Tugasmu HANYA menerjemahkan pertanyaan pengguna menjadi satu pemanggilan alat. Kamu tidak menghitung apa pun dan tidak menulis jawaban — mesin skor yang melakukannya dari data asli.
@@ -112,9 +120,9 @@ Pilih niat yang tepat:
 
 Panggil tidak_dimengerti bila pertanyaannya di luar jangkauan di atas — misalnya kota selain Jakarta, jenis usaha yang tidak ada dalam daftar, pertanyaan soal modal/perizinan/pajak, atau kalimat yang tidak jelas maksudnya. Jangan menebak jenis usaha terdekat hanya supaya bisa menjawab; lebih baik mengaku tidak paham.`;
 
-/* Satu-satunya kalimat yang benar-benar ditulis model dan dibaca pengguna adalah
-   `alasan` pada tidak_dimengerti. Ia harus keluar dalam bahasa yang sedang
-   dipilih pembaca, bukan bahasa prompt-nya. */
+/* The only sentence the model really writes and the user really reads is `alasan`
+   on tidak_dimengerti. It has to come out in the language the reader has selected,
+   not in the language of the prompt. */
 const LANG_RULE: Record<string, string> = {
 	id: 'Tulis argumen `alasan` dalam bahasa Indonesia.',
 	en: 'Write the `alasan` argument in English.'
@@ -192,8 +200,8 @@ function isCat(v: unknown): v is CategoryKey {
 }
 
 /**
- * Mengembalikan `null` bila lapisan model tidak bisa dipakai — pemanggil wajib
- * memperlakukannya sebagai "pakai pengurai aturan", bukan sebagai kegagalan.
+ * Returns `null` when the model layer cannot be used — the caller must treat that
+ * as "use the rule-based parser", not as a failure.
  */
 export async function parseWithLLM(
 	question: string,
@@ -213,14 +221,14 @@ export async function parseWithLLM(
 			}
 		],
 		tools: TOOLS,
-		// Model wajib memilih salah satu alat — termasuk alat "tidak paham".
+		// The model must pick one of the tools — including the "I don't understand" one.
 		tool_choice: 'required',
-		// Wajib diisi, dan bukan sekadar penghematan. Tanpa baris ini OpenRouter
-		// memesan seluruh jendela keluaran model (puluhan ribu token) di muka,
-		// lalu menolak permintaan dengan 402 bila sisa kredit kunci tidak sanggup
-		// menanggung pesanan sebesar itu — padahal yang benar-benar dipakai cuma
-		// puluhan token. Jawaban di sini selalu satu panggilan alat dengan argumen
-		// pendek, tidak pernah prosa, jadi 1.024 sudah sangat lapang.
+		// Required, and not merely a cost saving. Without this line OpenRouter
+		// reserves the model's entire output window (tens of thousands of tokens)
+		// up front, then rejects the request with a 402 if the key's remaining
+		// credit cannot cover an order that size — even though what actually gets
+		// used is a few dozen tokens. The answer here is always a single tool call
+		// with short arguments, never prose, so 1,024 is already very generous.
 		max_tokens: 1024
 	};
 
@@ -231,7 +239,7 @@ export async function parseWithLLM(
 	for (const [i, model] of chain.entries()) {
 		const left = deadline - Date.now();
 		if (left <= 0) {
-			console.error('[SpotOn] Anggaran waktu rantai model habis, memakai pengurai aturan.');
+			console.error('[SpotOn] Model chain time budget exhausted, falling back to the rule parser.');
 			break;
 		}
 
@@ -244,17 +252,17 @@ export async function parseWithLLM(
 				headers: {
 					authorization: `Bearer ${key}`,
 					'content-type': 'application/json',
-					// Dipakai OpenRouter untuk atribusi; tidak wajib, tapi sopan.
+					// Used by OpenRouter for attribution; not required, but polite.
 					'x-title': 'SpotOn'
 				},
 				body: JSON.stringify({ model, ...body })
 			});
 
 			if (!res.ok) {
-				// Nama model yang salah ketik jatuh persis di sini; tanpa menyebutnya,
-				// yang terlihat cuma "jawaban jadi pakai aturan" tanpa alasan.
+				// A mistyped model name lands exactly here; without naming it, all you
+				// see is "the answer came from the rules" with no reason given.
 				console.error(
-					`[SpotOn] ${model} menolak (${res.status}):`,
+					`[SpotOn] ${model} rejected the request (${res.status}):`,
 					(await res.text()).slice(0, 200)
 				);
 				continue;
@@ -263,24 +271,24 @@ export async function parseWithLLM(
 			const data = await res.json();
 			const got: ToolCall | undefined = data?.choices?.[0]?.message?.tool_calls?.[0];
 			if (!got?.function?.name) {
-				// Model menjawab, tapi berprosa alih-alih memanggil alat. Untuk
-				// lapisan ini itu sama tak terpakainya dengan galat jaringan.
-				console.error(`[SpotOn] ${model} tidak memanggil alat; lanjut ke model berikutnya.`);
+				// The model answered, but wrote prose instead of calling a tool. To this
+				// layer that is exactly as useless as a network error.
+				console.error(`[SpotOn] ${model} called no tool; moving on to the next model.`);
 				continue;
 			}
 
-			if (i > 0) console.error(`[SpotOn] Dijawab model cadangan: ${model}`);
+			if (i > 0) console.error(`[SpotOn] Answered by fallback model: ${model}`);
 			call = got;
 			break;
 		} catch (err) {
-			// Termasuk timeout (AbortError). Bukan alasan menggagalkan permintaan.
-			console.error(`[SpotOn] ${model} gagal:`, (err as Error).message);
+			// Includes timeouts (AbortError). Not a reason to fail the request.
+			console.error(`[SpotOn] ${model} failed:`, (err as Error).message);
 		} finally {
 			clearTimeout(timer);
 		}
 	}
 
-	// Seluruh rantai habis tanpa satu pun panggilan alat → pengurai aturan.
+	// The whole chain ran out without a single tool call → rule-based parser.
 	if (!call) return null;
 
 	try {
@@ -343,9 +351,9 @@ export async function parseWithLLM(
 
 		return { ok: true, query };
 	} catch (err) {
-		// Bentuk argumen yang tak terduga dari model. Sama seperti kegagalan lain
-		// di lapisan ini: turun ke pengurai aturan, jangan gagalkan permintaan.
-		console.error('[SpotOn] Panggilan alat tidak terbaca:', (err as Error).message);
+		// An unexpected argument shape from the model. Same as every other failure in
+		// this layer: drop to the rule-based parser, don't fail the request.
+		console.error('[SpotOn] Could not read the tool call:', (err as Error).message);
 		return null;
 	}
 }

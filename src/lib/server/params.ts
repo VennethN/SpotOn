@@ -3,10 +3,10 @@ import { DEFAULT_WEIGHTS, normalizeWeights } from '$lib/domain/weights';
 import type { CategoryKey, Weights } from '$lib/types';
 
 /**
- * Query string → argumen mesin skor.
+ * Query string → scoring-engine arguments.
  *
- * Hanya membaca dan mengubah bentuk; pembersihan nilainya satu pintu di
- * `domain/weights`, sama dengan yang dipakai endpoint yang menerima body JSON.
+ * Only reads and reshapes; value sanitising has a single entry point in
+ * `domain/weights`, the same one used by endpoints that take a JSON body.
  */
 export function readWeights(url: URL): Weights {
 	const num = (key: string, fallback: number) => {
@@ -19,9 +19,9 @@ export function readWeights(url: URL): Weights {
 		ws: num('ws', DEFAULT_WEIGHTS.ws),
 		gate: (url.searchParams.get('gate') ?? '1') !== '0',
 		radius: num('radius', DEFAULT_WEIGHTS.radius),
-		// Tanpa baris ini endpoint selalu menilai dengan OSM berapa pun nilai
-		// ?source= yang dikirim — dan hasilnya tetap terlihat wajar, jadi tidak
-		// ada yang menandakan bahwa saklarnya tidak berfungsi.
+		// Without this line the endpoint always scores with OSM whatever ?source=
+		// is sent — and the result still looks plausible, so nothing signals that
+		// the switch is doing nothing.
 		source: url.searchParams.get('source') === 'mapid' ? 'mapid' : 'osm'
 	});
 }

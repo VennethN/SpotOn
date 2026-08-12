@@ -3,17 +3,17 @@ import { pct } from '$lib/utils/format';
 import type { AiAnswer, ScoredHex, StructuredQuery } from '$lib/types';
 
 /**
- * Menerjemahkan hasil mesin skor ke satu kalimat yang bisa dibaca siapa pun.
+ * Turns the scoring engine's output into one sentence anybody can read.
  *
- * Dipisahkan dari kelas `Tapak` supaya halaman depan memakai kalimat yang sama
- * persis dengan aplikasinya. Kalau keduanya menulis kalimatnya sendiri-sendiri,
- * cepat atau lambat halaman depan menjanjikan sesuatu yang tidak dikatakan
- * aplikasinya — dan itu tepat jenis ketidakjujuran yang produk ini hindari.
+ * Kept separate from the `Tapak` class so the landing page uses exactly the same
+ * sentences as the app. If the two each wrote their own, sooner or later the
+ * landing page would promise something the app never says — precisely the kind of
+ * dishonesty this product avoids.
  */
 export function narrate(ans: AiAnswer, c: Copy): string {
 	const n$ = c.narrate;
-	// Model mengaku tidak paham. Tapak ikut mengaku, bukan mengarang jawaban
-	// atas pertanyaan yang tidak ia mengerti — di sinilah kepercayaan dijaga.
+	// The model admits it did not understand. Tapak admits it too, rather than
+	// inventing an answer to a question it does not grasp — this is where trust is kept.
 	if (ans.notUnderstood) return n$.notUnderstood(ans.notUnderstood);
 
 	const cat = c.category[ans.query.kategori].name.toLowerCase();
@@ -35,11 +35,10 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 }
 
 /**
- * Query terstruktur ditulis ulang sebagai potongan kata biasa.
+ * The structured query rewritten as ordinary word fragments.
  *
- * Isinya sama persis dengan objek query yang dijalankan mesin — pengguna tetap
- * bisa memeriksa apa yang ditangkap peta — tapi tanpa sintaks yang cuma terbaca
- * oleh programmer.
+ * The content is exactly the query object the engine ran — the user can still
+ * check what the map understood — but without syntax only a programmer can read.
  */
 export function describeQuery(q: StructuredQuery, c: Copy): string[] {
 	const out = [c.category[q.kategori].name.toLowerCase()];
@@ -52,15 +51,15 @@ export function describeQuery(q: StructuredQuery, c: Copy): string[] {
 }
 
 /**
- * Frasa penawaran harus mencerminkan KEDUA pendorongnya (jumlah pesaing ×
- * keramaian). Kalau hanya keramaian yang dibaca, narasinya bisa berlawanan
- * dengan skornya sendiri.
+ * The supply phrase has to reflect BOTH of its drivers (competitor count × how
+ * busy they are). Read only the busyness and the narrative can end up contradicting
+ * the very score it accompanies.
  */
 export function supplyPhrase(r: ScoredHex, c: Copy): string {
-	const padat = (r.supply ?? 0) >= 0.6;
-	const ramai = r.ramai >= 0.45;
-	if (padat && ramai) return c.supply.denseBusy;
-	if (padat && !ramai) return c.supply.denseQuiet;
-	if (!padat && ramai) return c.supply.fewBusy;
+	const dense = (r.supply ?? 0) >= 0.6;
+	const busy = r.busy >= 0.45;
+	if (dense && busy) return c.supply.denseBusy;
+	if (dense && !busy) return c.supply.denseQuiet;
+	if (!dense && busy) return c.supply.fewBusy;
 	return c.supply.fewQuiet;
 }

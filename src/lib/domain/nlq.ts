@@ -4,10 +4,12 @@ import { CATEGORY_MAP } from './categories';
 import { supplyPhrase } from './narrate';
 import { scoreAll } from './scoring';
 
-/* Teks di berkas ini adalah keluaran API — `headline`, `why`, `evidence`, dan
-   provenans. Antarmuka tidak menampilkannya apa adanya; yang dibaca pengguna
-   disusun ulang oleh `narrate` dalam bahasa yang sedang dipilih. Jadi kalimat di
-   sini dipatok bahasa Indonesia, satu kontrak yang stabil untuk pemakai API. */
+/* The prose in this file is API output — `headline`, `why`, `evidence`, and the
+   provenance notes. The interface never shows it verbatim; what the user reads is
+   rebuilt by `narrate` in whichever language is selected. So the sentences here are
+   pinned to Indonesian, a stable contract for API consumers. The same goes for the
+   structured-query field names and the keyword patterns, which have to match
+   Indonesian questions. */
 import type {
 	AiAnswer,
 	Hex,
@@ -27,12 +29,13 @@ const KEYWORDS: Array<[RegExp, CategoryKey]> = [
 ];
 
 /**
- * Menerjemahkan pertanyaan bahasa natural menjadi query terstruktur.
+ * Translates a natural-language question into a structured query.
  *
- * Pada produk final lapisan ini dijalankan LLM dengan function-calling ke daftar
- * operasi spasial terbatas; bentuk keluarannya tetap objek ini. Modelnya hanya
- * memilih operasi dan mengisi argumen — seluruh angka tetap dihitung mesin skor,
- * sehingga tidak ada nilai yang bisa dikarang model.
+ * In the finished product this layer is run by an LLM doing function-calling
+ * against a limited list of spatial operations; the output shape stays this same
+ * object. The model only picks the operation and fills in the arguments — every
+ * number is still computed by the scoring engine, so there is no value the model
+ * could invent.
  */
 export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): StructuredQuery {
 	const out: StructuredQuery = {
@@ -77,7 +80,7 @@ export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): Str
 	return out;
 }
 
-/** Mencocokkan nama catchment yang disebut di pertanyaan (untuk intent COMPARE). */
+/** Matches catchment names mentioned in the question (for the COMPARE intent). */
 function matchNames(q: string, rows: ScoredHex[]): ScoredHex[] {
 	const ql = q.toLowerCase();
 	return rows
@@ -99,9 +102,9 @@ const evidence = (r: ScoredHex) =>
 	`N misi = ${r.nTot} (struk ${r.nStruk} · menu ${r.nMenu} · properti ${r.nProp}) · pesaing OSM = ${r.osm}`;
 
 /**
- * Menjalankan query terstruktur terhadap mesin skor dan menyusun justifikasi.
- * Setiap kalimat "Kenapa di sini?" hanya merujuk angka yang juga tampil di panel,
- * sehingga pengguna dapat mengauditnya.
+ * Runs a structured query against the scoring engine and assembles the
+ * justification. Every "Why here?" sentence only cites figures that also appear in
+ * the panel, so the user can audit it.
  */
 export function answer(
 	question: string,
@@ -113,12 +116,12 @@ export function answer(
 }
 
 /**
- * Menjalankan query terstruktur — dari mana pun asalnya.
+ * Runs a structured query — wherever it came from.
  *
- * Dipisahkan dari `parseQuestion` supaya query hasil model bisa dijalankan lewat
- * jalur yang sama persis dengan query hasil aturan. Mesin skornya satu, jadi
- * tidak ada dua versi kebenaran: mengganti lapisan pemahaman tidak pernah
- * mengubah cara angkanya dihitung.
+ * Split out from `parseQuestion` so a model-produced query runs down exactly the
+ * same path as a rule-produced one. There is a single scoring engine, so there are
+ * never two versions of the truth: swapping the understanding layer never changes
+ * how the numbers are computed.
  */
 export function runQuery(
 	query: StructuredQuery,
@@ -165,7 +168,7 @@ export function runQuery(
 				id: r.id,
 				name: r.name,
 				value: r.supply,
-				why: `${r.osm} pesaing sejenis dalam radius ${w.radius} m, ${pct(r.ramai)}% berkondisi ramai. Permintaan ${pct(r.demand)} tidak melampauinya.`,
+				why: `${r.osm} pesaing sejenis dalam radius ${w.radius} m, ${pct(r.busy)}% berkondisi ramai. Permintaan ${pct(r.demand)} tidak melampauinya.`,
 				evidence: evidence(r)
 			})),
 			highlight: sat.map((r) => r.id),
@@ -199,7 +202,7 @@ export function runQuery(
 				id: r.id,
 				name: r.name,
 				value: r.score,
-				why: `Permintaan ${pct(r.demand)} · penawaran ${pct(r.supply)} (${r.osm} pesaing OSM, ${pct(r.ramai)}% ramai) · ${r.listings} listing ${def.propKat}.`,
+				why: `Permintaan ${pct(r.demand)} · penawaran ${pct(r.supply)} (${r.osm} pesaing OSM, ${pct(r.busy)}% ramai) · ${r.listings} listing ${def.propertyCategory}.`,
 				evidence: evidence(r)
 			})),
 			highlight: picked.map((r) => r.id),
@@ -222,7 +225,7 @@ export function runQuery(
 			id: r.id,
 			name: r.name,
 			value: r.score,
-			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.puncak)}, non-tunai ${pct(r.nontunai)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.ramai)}% ramai — ${supplyPhrase(r, ID)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propKat}.`,
+			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.peakHour)}, non-tunai ${pct(r.cashless)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.busy)}% ramai — ${supplyPhrase(r, ID)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propertyCategory}.`,
 			evidence: evidence(r)
 		})),
 		highlight: cands.map((r) => r.id),

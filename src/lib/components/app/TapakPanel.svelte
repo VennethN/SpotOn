@@ -1,10 +1,10 @@
 <script lang="ts">
 	/**
-	 * Percakapan dengan Tapak — permukaan utama aplikasi.
+	 * The conversation with Tapak — the app's primary surface.
 	 *
-	 * Tapak yang memulai dan yang menawarkan langkah berikutnya, jadi pengguna yang
-	 * tidak tahu harus bertanya apa tetap bisa jalan hanya dengan menekan pilihan.
-	 * Kotak ketik tetap ada untuk yang sudah tahu mau tanya apa.
+	 * Tapak opens and offers the next step, so a user who does not know what to ask
+	 * can still get moving just by tapping options. The text box stays for those who
+	 * already know what they want to ask.
 	 */
 	import { onMount } from 'svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
@@ -22,9 +22,9 @@
 
 	onMount(() => tapak.greet());
 
-	/* Tiap giliran menyimpan kalimat jadi, bukan kunci, jadi percakapan lama tidak
-	   ikut berganti bahasa. Daripada menyisakan dua bahasa dalam satu utas, utasnya
-	   dimulai ulang — percakapannya pendek dan sapaan pembukanya sama saja. */
+	/* Each turn stores a finished sentence rather than a key, so an old conversation
+	   does not switch language with it. Rather than leaving two languages in one
+	   thread, the thread restarts — it is short and the opening greeting is the same. */
 	let lastLang = lang();
 	$effect(() => {
 		const now = lang();
@@ -33,14 +33,14 @@
 		tapak.reset();
 	});
 
-	// Tapak ikut menoleh saat pengguna memilih kawasan sendiri di peta.
+	// Tapak turns to look when the user picks an area on the map themselves.
 	$effect(() => {
 		void app.selectedId;
 		tapak.remarkOnSelection();
 	});
 
-	// Gulir mengikuti giliran terbaru, bukan melompat: pengguna harus melihat
-	// pesan baru itu datang, bukan tiba-tiba sudah di bawah.
+	// The scroll follows the newest turn rather than jumping: the user has to see
+	// the new message arrive, not suddenly find themselves at the bottom.
 	$effect(() => {
 		void tapak.turns.length;
 		if (!log) return;

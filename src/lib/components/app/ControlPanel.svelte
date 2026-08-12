@@ -10,7 +10,7 @@
 
 	const layerRows: Array<{ key: LayerKey; swatch: string }> = [
 		{ key: 'score', swatch: 'var(--ramp-4)' },
-		{ key: 'rute', swatch: 'var(--route-mrt)' },
+		{ key: 'routes', swatch: 'var(--route-mrt)' },
 		{ key: 'poi', swatch: 'var(--good)' },
 		{ key: 'nodata', swatch: 'var(--nodata)' },
 		{ key: 'label', swatch: 'transparent' }
@@ -46,11 +46,11 @@
 		</label>
 	</section>
 
-	<!-- Pemilih radius dihapus saat model pindah ke kisi heksagon.
-	     Cacah pesaing dan akses transit dihitung sekali pada radius 800 m ketika
-	     kisinya dibangun, jadi tombol 400 m hanya akan menskalakan angka yang sudah
-	     jadi — hasilnya tampak masuk akal padahal tidak berdasar. Kontrol yang
-	     diam-diam tidak melakukan apa yang tertulis lebih buruk daripada tidak ada. -->
+	<!-- The radius picker was removed when the model moved to a hexagon grid.
+	     Competitor counts and transit access are computed once at an 800 m radius when
+	     the grid is built, so a 400 m button would only rescale figures that are already
+	     final — the result looks plausible while resting on nothing. A control that
+	     quietly fails to do what it says is worse than no control at all. -->
 	<section>
 		<h2 class="eyebrow">{c.control.walk}</h2>
 		<p class="note">{c.control.walkNote(app.weights.radius)}</p>
@@ -82,7 +82,7 @@
 	<section>
 		<h2 class="eyebrow">{c.control.honesty}</h2>
 		<p class="prose">
-			{c.control.honesty1(coverage.terdata, coverage.total, coverage.titikMisi)}
+			{c.control.honesty1(coverage.withData, coverage.total, coverage.missionPoints)}
 			{c.control.honesty2(coverage.poi, app.weights.radius)}
 		</p>
 		<p class="prose">{c.control.honesty3}</p>

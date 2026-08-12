@@ -1,12 +1,12 @@
 import type { Weights } from '$lib/types';
 
 /**
- * Bobot & gerbang: nilai bawaan dan satu-satunya tempat nilainya dibersihkan.
+ * Weights & gates: the default values, and the single place they are sanitised.
  *
- * Dulu ada dua penjaga yang berdiri sendiri — satu membaca query string, satu
- * membaca body JSON — dengan `clamp01` masing-masing. Dua salinan aturan yang
- * sama berarti cepat atau lambat keduanya berbeda, dan endpoint yang satu akan
- * menerima bobot yang ditolak endpoint lainnya.
+ * There used to be two independent guards — one reading the query string, one
+ * reading the JSON body — each with its own `clamp01`. Two copies of the same rule
+ * means sooner or later the two diverge, and one endpoint starts accepting weights
+ * the other rejects.
  */
 export const DEFAULT_WEIGHTS: Weights = { wd: 0.5, ws: 0.5, gate: true, radius: 800, source: 'osm' };
 
@@ -14,11 +14,11 @@ const clamp01 = (v: unknown, fallback: number): number =>
 	typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
 
 /**
- * Bobot apa pun asalnya → bobot yang aman dipakai mesin skor.
+ * Weights from any origin → weights the scoring engine can safely use.
  *
- * Radius sengaja hanya menerima 400 atau 800: mesin skor cuma bisa menskalakan
- * hitungan yang sudah jadi ke dua nilai itu. Angka lain akan menghasilkan
- * bilangan yang tampak masuk akal padahal tidak berdasar.
+ * The radius deliberately accepts only 400 or 800: the engine can only rescale its
+ * precomputed counts to those two values. Any other number would produce figures
+ * that look plausible while resting on nothing.
  */
 export function normalizeWeights(partial: Partial<Weights> | undefined): Weights {
 	const p = partial ?? {};

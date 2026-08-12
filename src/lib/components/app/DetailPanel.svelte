@@ -51,7 +51,7 @@
 				<div class="tile">
 					<span class="eyebrow">{c.detail.supplyEff}</span>
 					<span class="val">{pct(row.supply)}</span>
-					<span class="sub">{c.detail.busyPct(pct(row.ramai))}</span>
+					<span class="sub">{c.detail.busyPct(pct(row.busy))}</span>
 				</div>
 				<div class="tile">
 					<span class="eyebrow">{c.detail.space} <span class="tag mock">MOCK</span></span>
@@ -60,7 +60,7 @@
 				</div>
 				<div class="tile">
 					<span class="eyebrow">{c.detail.cashless} <span class="tag mock">MOCK</span></span>
-					<span class="val">{pct(row.nontunai)}%</span>
+					<span class="val">{pct(row.cashless)}%</span>
 					<span class="sub">{c.detail.cashlessSub}</span>
 				</div>
 			</div>
@@ -70,7 +70,7 @@
 					{c.detail.hourTitle(row.nStruk)}
 					<span class="tag mock">MOCK</span>
 				</h3>
-				<HourBars jam={row.jam} dense />
+				<HourBars hourly={row.hourly} dense />
 			</section>
 
 			<section>
@@ -95,13 +95,13 @@
 			<div class="note">
 				<strong>{c.detail.summaryLead}</strong>
 				{c.detail.summary(
-					formatHour(row.puncak),
+					formatHour(row.peakHour),
 					name,
 					row.osm,
 					app.weights.radius,
 					supplyPhrase(row, c),
 					row.listings,
-					def.propKat
+					def.propertyCategory
 				)}
 				<span class="muted">{c.detail.summaryNote}</span>
 			</div>

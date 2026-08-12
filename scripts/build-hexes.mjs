@@ -1,27 +1,25 @@
 /**
- * Membangun kisi heksagon Jakarta beserta atributnya.
+ * Builds Jakarta's hexagon grid along with its attributes.
  *
  *   node scripts/build-hexes.mjs
  *
- * Keluaran: `src/lib/data/hexes.json`.
+ * Output: `src/lib/data/hexes.json`.
  *
- * KENAPA HEKSAGON, BUKAN CATCHMENT PER HALTE
+ * WHY HEXAGONS, NOT A CATCHMENT PER STOP
  *
- * Halte TransJakarta berjarak 400–500 m satu sama lain, sedangkan radius jalan
- * kaki yang dipakai 800 m. Kalau tiap halte diberi catchment sendiri, catchment
- * yang bersebelahan nyaris bertumpuk seluruhnya: pembeli yang sama dihitung tiga
- * empat kali, dan "5 kawasan teratas" hanya akan mengembalikan lima halte
- * berdampingan di koridor yang sama. Menambah 995 halte ke model lama justru
- * membuat skornya kurang bisa dipercaya, bukan lebih.
+ * TransJakarta stops sit 400–500 m apart, while the walking radius in use is
+ * 800 m. Give every stop its own catchment and neighbouring catchments overlap
+ * almost entirely: the same customer is counted three or four times, and "top 5
+ * areas" just returns five adjacent stops along the same corridor. Adding 995
+ * stops to the old model made the scores less trustworthy, not more.
  *
- * Kisi heksagon menyelesaikannya: tiap petak dihitung sekali, tidak ada wilayah
- * yang tumpang tindih, dan akses transit menjadi *sifat* sebuah petak — sehingga
- * lokasi yang dilayani MRT sekaligus TransJakarta memang bernilai lebih tinggi
- * daripada yang hanya dilayani salah satunya.
+ * A hexagon grid settles it: each cell is counted once, no areas overlap, and
+ * transit access becomes a *property* of a cell — so a location served by both the
+ * MRT and TransJakarta genuinely scores higher than one served by only one of them.
  *
- * Resolusi 8 (sisi ±531 m, lebar ±1 km) dipilih supaya satu petak sebanding
- * dengan catchment 800 m yang dipakai sebelumnya, dan tetap terbaca pada peta
- * seluruh kota.
+ * Resolution 8 (edge ±531 m, width ±1 km) was chosen so that one cell is
+ * comparable to the 800 m catchment used before, while staying legible on a
+ * city-wide map.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -32,12 +30,12 @@ import * as h3 from 'h3-js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RES = 8;
-/** Jangkauan jalan kaki yang dipakai untuk menghitung akses & pesaing. */
+/** The walking range used to compute access & competitors. */
 const WALK_M = 800;
 const BBOX = '-6.42,106.65,-6.05,107.05';
 
 
-/* ── jarak ────────────────────────────────────────────────────────────────── */
+/* ── distance ─────────────────────────────────────────────────────────────── */
 
 const R = 6371008.8;
 const rad = (d) => (d * Math.PI) / 180;
@@ -52,7 +50,7 @@ function haversine(aLat, aLon, bLat, bLon) {
 	return 2 * R * Math.asin(Math.sqrt(x));
 }
 
-/** Indeks spasial kasar: ember 0.01° (±1.1 km) — cukup untuk radius 800 m. */
+/** Coarse spatial index: 0.01° buckets (±1.1 km) — plenty for an 800 m radius. */
 function makeIndex(points) {
 	const cell = 0.01;
 	const map = new Map();
@@ -82,7 +80,7 @@ function makeIndex(points) {
 	};
 }
 
-/* ── deterministik ────────────────────────────────────────────────────────── */
+/* ── deterministic ────────────────────────────────────────────────────────── */
 
 function hashSeed(str) {
 	let h = 2166136261;
@@ -102,7 +100,7 @@ function mulberry32(seed) {
 	};
 }
 
-/* ── klasifikasi ──────────────────────────────────────────────────────────── */
+/* ── classification ───────────────────────────────────────────────────────── */
 
 function transitMode(tags = {}) {
 	const op = (tags.operator ?? '') + ' ' + (tags.network ?? '');
@@ -122,7 +120,7 @@ function poiCategory(tags = {}) {
 	return null;
 }
 
-/** Bobot moda: kapasitas angkut berbeda, jadi kontribusi aksesnya berbeda. */
+/** Mode weights: carrying capacity differs, so their contribution to access differs. */
 const MODE_WEIGHT = { mrt: 1.0, krl: 0.9, lrt: 0.6, brt: 0.45 };
 
 const CATEGORIES = ['kopi', 'warung', 'minimarket', 'laundry', 'apotek'];
@@ -130,10 +128,10 @@ const CATEGORIES = ['kopi', 'warung', 'minimarket', 'laundry', 'apotek'];
 /* ── program ──────────────────────────────────────────────────────────────── */
 
 async function main() {
-	console.log(`Kisi heksagon H3 resolusi ${RES} · radius jalan kaki ${WALK_M} m\n`);
+	console.log(`H3 hexagon grid at resolution ${RES} · walking radius ${WALK_M} m\n`);
 
-	// 1) simpul transit — satu kueri untuk semua moda
-	console.log('[1/4] Mengambil simpul transit…');
+	// 1) transit nodes — one query for every mode
+	console.log('[1/4] Fetching transit nodes…');
 	const transitQuery = `[out:json][timeout:180];(
 node["station"="subway"](${BBOX});
 node["railway"="station"](${BBOX});
@@ -150,20 +148,20 @@ node["public_transport"="platform"]["operator"~"TransJakarta",i](${BBOX});
 		if (el.type !== 'node' || el.lat == null) continue;
 		const mode = transitMode(el.tags);
 		if (!mode) continue;
-		// Halte arah berlawanan sering dua simpul terpisah ±30 m; dedup kasar
-		// supaya satu tempat henti tidak dihitung dua kali.
+		// Opposite-direction stops are often two separate nodes ±30 m apart; a coarse
+		// dedup keeps one stopping place from being counted twice.
 		const key = `${mode}|${el.lat.toFixed(4)}|${el.lon.toFixed(4)}`;
 		if (seen.has(key)) continue;
 		seen.add(key);
 		stops.push({ lat: el.lat, lon: el.lon, mode, name: el.tags?.name ?? null });
 	}
 	const byMode = stops.reduce((a, s) => ((a[s.mode] = (a[s.mode] ?? 0) + 1), a), {});
-	console.log(`      ${stops.length} simpul:`, byMode);
+	console.log(`      ${stops.length} nodes:`, byMode);
 
 	await sleep(4000);
 
-	// 2) POI pesaing — satu kueri untuk lima kategori
-	console.log('[2/4] Mengambil POI pesaing…');
+	// 2) competitor POIs — one query for all five categories
+	console.log('[2/4] Fetching competitor POIs…');
 	const poiQuery = `[out:json][timeout:180];(
 node["amenity"~"^(cafe|restaurant|fast_food|pharmacy)$"](${BBOX});
 node["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
@@ -182,37 +180,37 @@ way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
 		pois.push({ lat, lon, cat });
 	}
 	const byCat = pois.reduce((a, p) => ((a[p.cat] = (a[p.cat] ?? 0) + 1), a), {});
-	console.log(`      ${pois.length} POI:`, byCat);
+	console.log(`      ${pois.length} POIs:`, byCat);
 
-	// 3) kisi: semua petak yang bersinggungan dengan jangkauan jalan kaki simpul transit
-	console.log('[3/4] Membangun kisi…');
+	// 3) the grid: every cell that intersects the walking range of a transit node
+	console.log('[3/4] Building the grid…');
 	const cells = new Set();
 	for (const s of stops) {
 		const home = h3.latLngToCell(s.lat, s.lon, RES);
-		// gridDisk 1 menutup petak tetangga; lebar petak ±1 km, jadi ini sudah
-		// mencakup jangkauan 800 m dari simpul mana pun di dalamnya.
+		// gridDisk 1 covers the neighbouring cells; a cell is ±1 km wide, so this
+		// already spans the 800 m range from any node inside it.
 		for (const c of h3.gridDisk(home, 1)) cells.add(c);
 	}
-	console.log(`      ${cells.size} petak`);
+	console.log(`      ${cells.size} cells`);
 
 	const stopIndex = makeIndex(stops);
 	const poiIndex = makeIndex(pois);
 
-	// 4) atribut per petak
-	console.log('[4/4] Menghitung atribut…');
+	// 4) per-cell attributes
+	console.log('[4/4] Computing attributes…');
 	const hexes = [];
 	let nodataCount = 0;
 
 	for (const id of cells) {
 		const [lat, lon] = h3.cellToLatLng(id);
 		const nearStops = stopIndex.near(lat, lon, WALK_M);
-		if (nearStops.length === 0) continue; // petak tanpa akses transit bukan urusan produk ini
+		if (nearStops.length === 0) continue; // a cell without transit access is not this product's business
 
 		const transit = { mrt: 0, krl: 0, lrt: 0, brt: 0 };
 		for (const s of nearStops) transit[s.mode]++;
 
-		// Akses: jumlah berbobot, diredam akar supaya halte ke-11 tidak dihitung
-		// sepenting halte pertama.
+		// Access: a weighted count, damped by a square root so the 11th stop does not
+		// count for as much as the first.
 		const weighted =
 			transit.mrt * MODE_WEIGHT.mrt +
 			transit.krl * MODE_WEIGHT.krl +
@@ -224,7 +222,7 @@ way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
 		const osm = { kopi: 0, warung: 0, minimarket: 0, laundry: 0, apotek: 0 };
 		for (const p of nearPois) osm[p.cat]++;
 
-		// Nama manusiawi: simpul transit terdekat yang punya nama.
+		// A human-readable name: the nearest transit node that has one.
 		let label = null;
 		let best = Infinity;
 		for (const s of nearStops) {
@@ -238,44 +236,45 @@ way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
 
 		const rnd = mulberry32(hashSeed(id));
 
-		// ── atribut misi MAPID: CONTOH ──────────────────────────────────────
-		// Belum publik, jadi dibangkitkan — tapi tidak acak buta: bentuknya
-		// mengikuti akses transit dan kepadatan usaha yang NYATA, supaya polanya
-		// masuk akal secara spasial. Tetap wajib ditandai contoh di antarmuka.
+		// ── MAPID mission attributes: SAMPLE DATA ───────────────────────────
+		// Not public yet, so these are generated — but not blindly random: their
+		// shape follows the REAL transit access and business density, so the
+		// pattern makes spatial sense. They must still be flagged as samples in
+		// the interface.
 		const nodata = rnd() < 0.18;
 		if (nodata) nodataCount++;
 
 		const activity = access * 0.65 + Math.min(1, nearPois.length / 60) * 0.35;
 
-		let jam = null;
+		let hourly = null;
 		let nStruk = 0;
 		let nMenu = 0;
 		let nProp = 0;
-		let nontunai = 0;
-		let ramai = null;
+		let cashless = 0;
+		let busy = null;
 		let listing = null;
 		let d = null;
 
 		if (!nodata) {
 			const peakHour = rnd() < 0.5 ? 12 : 19;
 			const scale = 8 + activity * 46;
-			jam = Array.from({ length: 24 }, (_, h) => {
+			hourly = Array.from({ length: 24 }, (_, h) => {
 				const morning = Math.exp(-((h - 7.5) ** 2) / 5) * 0.55;
 				const noon = Math.exp(-((h - 12) ** 2) / 6) * (peakHour === 12 ? 1 : 0.7);
 				const evening = Math.exp(-((h - 19) ** 2) / 7) * (peakHour === 19 ? 1 : 0.72);
 				const night = h >= 1 && h <= 4 ? 0 : 0.05;
 				return Math.round((morning + noon + evening + night) * scale * (0.85 + rnd() * 0.3));
 			});
-			nStruk = jam.reduce((a, v) => a + v, 0);
+			nStruk = hourly.reduce((a, v) => a + v, 0);
 			nMenu = Math.round(nearPois.length * (0.3 + rnd() * 0.5));
 			nProp = Math.round(4 + activity * 26 * (0.5 + rnd()));
-			nontunai = Math.round((0.28 + access * 0.5 + rnd() * 0.12) * 100) / 100;
+			cashless = Math.round((0.28 + access * 0.5 + rnd() * 0.12) * 100) / 100;
 
-			ramai = {};
+			busy = {};
 			listing = {};
 			d = {};
 			for (const c of CATEGORIES) {
-				ramai[c] = Math.round((0.2 + rnd() * 0.6) * 100) / 100;
+				busy[c] = Math.round((0.2 + rnd() * 0.6) * 100) / 100;
 				listing[c] = Math.round(rnd() * (nProp / 4));
 				d[c] = Math.round(Math.min(1, activity * (0.55 + rnd() * 0.7)) * 100) / 100;
 			}
@@ -293,12 +292,12 @@ way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
 			access: Math.round(access * 1000) / 1000,
 			osm,
 			nodata: nodata || undefined,
-			jam: jam ?? undefined,
+			hourly: hourly ?? undefined,
 			nStruk,
 			nMenu,
 			nProp,
-			nontunai: nodata ? undefined : nontunai,
-			ramai: ramai ?? undefined,
+			cashless: nodata ? undefined : cashless,
+			busy: busy ?? undefined,
 			listing: listing ?? undefined,
 			d: d ?? undefined
 		});
@@ -315,8 +314,8 @@ way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
 		stopsByMode: byMode,
 		pois: pois.length,
 		poisByCategory: byCat,
-		real: 'Simpul transit (MRT, KRL, LRT, TransJakarta) dan POI pesaing: OpenStreetMap via Overpass API (ODbL).',
-		mock: 'Atribut misi MAPID (jam, struk, menu, properti, non-tunai) dibangkitkan mengikuti akses transit dan kepadatan usaha nyata — tetap CONTOH sampai API MAPID tersedia.',
+		real: 'Transit nodes (MRT, KRL, LRT, TransJakarta) and competitor POIs: OpenStreetMap via Overpass API (ODbL).',
+		mock: 'MAPID mission attributes (hourly profile, receipts, menus, properties, cashless share) are generated to follow real transit access and business density — still SAMPLE DATA until the MAPID API is available.',
 		regenerate: 'node scripts/build-hexes.mjs'
 	};
 
@@ -324,11 +323,11 @@ way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
 	mkdirSync(dirname(dest), { recursive: true });
 	writeFileSync(dest, JSON.stringify({ meta, hexes }));
 
-	console.log(`\n${hexes.length} petak tersimpan (${nodataCount} belum terdata)`);
+	console.log(`\n${hexes.length} cells written (${nodataCount} with no data)`);
 	console.log(`→ ${dest}`);
 }
 
 main().catch((err) => {
-	console.error('Gagal:', err.message);
+	console.error('Failed:', err.message);
 	process.exit(1);
 });

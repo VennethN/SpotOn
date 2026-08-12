@@ -12,12 +12,12 @@
 			content="SpotOn — WebGIS rekomendasi site-selection berbasis AI untuk ritel & F&B di kawasan transit Jakarta."
 		/>
 		<script>
-			// Terapkan tema sebelum paint pertama agar tidak berkedip.
+			// Apply the theme before the first paint so it does not flash.
 			try {
 				const t = localStorage.getItem('spoton:theme');
 				if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
 			} catch (e) {
-				/* localStorage tidak tersedia — pakai preferensi sistem */
+				/* localStorage unavailable — fall back to the system preference */
 			}
 		</script>
 		%sveltekit.head%

@@ -7,9 +7,9 @@ import type { RequestHandler } from './$types';
 
 /**
  * GET /api/scores?kategori=kopi&wd=0.5&ws=0.5&gate=1&radius=800
- * Opportunity Score terhitung per catchment. Antarmuka menghitung ulang secara
- * lokal saat slider digeser agar umpan baliknya seketika; endpoint ini adalah
- * kontrak yang sama untuk konsumen lain (ekspor, pengujian, integrasi).
+ * The computed Opportunity Score per catchment. The interface recomputes locally as
+ * the sliders move so the feedback is instant; this endpoint is the same contract
+ * for every other consumer (export, testing, integration).
  */
 export const GET: RequestHandler = ({ url }) => {
 	const kategori = readCategory(url);

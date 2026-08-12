@@ -1,9 +1,9 @@
 <script lang="ts">
 	/**
-	 * Penanda bagian, dipinjam dari sudut lembar gambar teknik: nomor, nama, lalu
-	 * garis rambut yang menerus sampai tepi. Satu-satunya warna di halaman teks
-	 * ini duduk di siku garisnya — cukup untuk menandai "bagian baru dimulai",
-	 * tidak sampai berteriak.
+	 * A section marker, borrowed from the corner of a technical drawing sheet: number,
+	 * name, then a hairline running out to the edge. The only colour on this page of
+	 * text sits in the elbow of that line — enough to mark "a new section starts here",
+	 * not enough to shout.
 	 */
 	let { n, label }: { n: string; label: string } = $props();
 </script>

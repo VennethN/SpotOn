@@ -1,11 +1,11 @@
 <script lang="ts">
 	/**
-	 * Tombol tema, satu untuk landing dan aplikasi.
+	 * The theme button, one for both the landing page and the app.
 	 *
-	 * Dulu ada dua: yang di landing memakai ikon SVG segaris dengan tipografinya,
-	 * yang di bilah aplikasi memakai glif Unicode (◐ ☾ ☀) yang berganti bentuk —
-	 * dan kadang berganti warna — per platform. Satu tombol menghapus sekaligus
-	 * salinan kodenya dan selisih rupanya.
+	 * There used to be two: the landing one used an SVG icon in line with its
+	 * typography, the app-bar one used Unicode glyphs (◐ ☾ ☀) that change shape —
+	 * and sometimes colour — per platform. One button removes both the duplicated
+	 * code and the difference in appearance.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
 	import { nextTheme, type Theme } from '$lib/state/theme.svelte';
@@ -13,7 +13,7 @@
 	interface Props {
 		theme: Theme;
 		onchange: (t: Theme) => void;
-		/** Gaya bilah landing: tanpa alas, mengikuti tinta langit di belakangnya. */
+		/** Landing-bar styling: no backing, following the ink of the sky behind it. */
 		ghost?: boolean;
 	}
 	let { theme, onchange, ghost = false }: Props = $props();
@@ -44,7 +44,7 @@
 				<path d="M3.4 3.4 4.5 4.5M11.5 11.5l1.1 1.1M12.6 3.4 11.5 4.5M4.5 11.5l-1.1 1.1" />
 			</g>
 		{:else}
-			<!-- Ikut sistem: lingkaran separuh terisi. -->
+			<!-- Follow the system: a half-filled circle. -->
 			<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.4" />
 			<path d="M8 2a6 6 0 0 0 0 12Z" fill="currentColor" />
 		{/if}

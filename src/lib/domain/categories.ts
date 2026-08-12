@@ -2,39 +2,39 @@ import type { CategoryKey } from '$lib/types';
 
 export interface CategoryDef {
 	key: CategoryKey;
-	/** Nama pendek untuk segmented control. */
+	/** Short name for the segmented control. */
 	short: string;
-	/** Nama lengkap untuk kalimat. */
+	/** Full name, for use in sentences. */
 	name: string;
-	/** Tag OSM sumber hitungan pesaing — ditampilkan agar angka dapat ditelusuri. */
+	/** The OSM tag the competitor count comes from — shown so the figure can be traced. */
 	osmTag: string;
-	/** Kategori Properti Go yang dianggap cocok untuk usaha ini. */
-	propKat: string;
+	/** The Properti Go category considered a match for this kind of business. */
+	propertyCategory: string;
 }
 
 export const CATEGORIES: CategoryDef[] = [
-	{ key: 'kopi', short: 'Kopi', name: 'Kedai Kopi', osmTag: 'amenity=cafe', propKat: 'Coffee Shop' },
+	{ key: 'kopi', short: 'Kopi', name: 'Kedai Kopi', osmTag: 'amenity=cafe', propertyCategory: 'Coffee Shop' },
 	{
 		key: 'warung',
 		short: 'Warung',
 		name: 'Warung Makan',
 		osmTag: 'amenity=restaurant|fast_food',
-		propKat: 'Retail F&B'
+		propertyCategory: 'Retail F&B'
 	},
 	{
 		key: 'minimarket',
 		short: 'Minimarket',
 		name: 'Minimarket',
 		osmTag: 'shop=convenience|supermarket',
-		propKat: 'Minimarket'
+		propertyCategory: 'Minimarket'
 	},
-	{ key: 'laundry', short: 'Laundry', name: 'Laundry', osmTag: 'shop=laundry', propKat: 'Laundry' },
+	{ key: 'laundry', short: 'Laundry', name: 'Laundry', osmTag: 'shop=laundry', propertyCategory: 'Laundry' },
 	{
 		key: 'apotek',
 		short: 'Apotek',
 		name: 'Apotek',
 		osmTag: 'amenity=pharmacy',
-		propKat: 'Ruko'
+		propertyCategory: 'Ruko'
 	}
 ];
 

@@ -1,45 +1,45 @@
 <script lang="ts">
 	/**
-	 * Profil 24 jam: satu batang per jam, puncaknya ditonjolkan.
+	 * A 24-hour profile: one bar per hour, with the peak picked out.
 	 *
-	 * Bagan yang sama dipakai di panel detail aplikasi dan di halaman depan.
-	 * Sebelumnya digambar dua kali dengan kode yang berbeda, jadi perbaikan pada
-	 * satu bagan tidak pernah sampai ke bagan yang lain.
+	 * The same chart is used in the app's detail panel and on the landing page.
+	 * It used to be drawn twice with different code, so a fix to one chart never
+	 * reached the other.
 	 *
-	 * Satu deret, satu rona — tingginya yang membawa besaran, warnanya tidak
-	 * membawa apa-apa selain "ini datanya". Hanya jam puncak yang diberi label;
-	 * memberi angka pada 24 batang membuat tidak satu pun terbaca. Angka
-	 * lengkapnya disediakan pemanggil, di tabel yang dilipat.
+	 * One series, one hue — height carries the magnitude, the colour carries
+	 * nothing beyond "this is the data". Only the peak hour gets a label;
+	 * putting a number on 24 bars means not one of them reads. The full
+	 * figures are supplied by the caller, in the collapsible table.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
 	import { formatHour, num } from '$lib/utils/format';
 
 	interface Props {
-		/** 24 nilai, indeks = jam. */
-		jam: number[];
-		/** Satuan untuk pembaca layar dan tooltip. Kosong = satuan aplikasi. */
+		/** 24 values, index = hour. */
+		hourly: number[];
+		/** Unit for screen readers and the tooltip. Empty = the app's unit. */
 		unit?: string;
-		/** Ringkas: tinggi kecil untuk panel sempit, tanpa sumbu dan tooltip. */
+		/** Compact: short height for narrow panels, no axis and no tooltip. */
 		dense?: boolean;
 	}
-	let { jam, unit, dense = false }: Props = $props();
+	let { hourly, unit, dense = false }: Props = $props();
 
 	const c = $derived(copy());
 	const u = $derived(unit ?? c.hourChart.unitApp);
 
-	const peak = $derived(Math.max(1, ...jam));
-	const peakHour = $derived(jam.indexOf(Math.max(...jam)));
-	const total = $derived(jam.reduce((a, b) => a + b, 0));
-	// Tanda jam yang jatuh tepat di bawah label puncak dilewati; dua label yang
-	// bertumpuk lebih buruk daripada satu tanda yang hilang.
+	const peak = $derived(Math.max(1, ...hourly));
+	const peakHour = $derived(hourly.indexOf(Math.max(...hourly)));
+	const total = $derived(hourly.reduce((a, b) => a + b, 0));
+	// Hour ticks that land right under the peak label are skipped; two labels
+	// stacked on each other is worse than one missing tick.
 	const ticks = $derived([0, 6, 12, 18].filter((h) => Math.abs(h - peakHour) > 1.5));
 
 	let hover = $state<number | null>(null);
 
 	const at = (h: number) => ((h + 0.5) / 24) * 100;
 	/**
-	 * Label sumbu ditengahkan pada batangnya, kecuali di kedua tepi: di sana
-	 * separuh labelnya jatuh ke luar bidang dan angkanya terpotong.
+	 * Axis labels are centred on their bar, except at both edges: there half
+	 * the label falls outside the plot and the number gets clipped.
 	 */
 	const anchor = (h: number) => (at(h) < 6 ? '0' : at(h) > 94 ? '-100%' : '-50%');
 </script>
@@ -51,7 +51,7 @@
 		aria-label={c.hourChart.label(num(total), formatHour(peakHour), num(peak), u)}
 		onpointerleave={() => (hover = null)}
 	>
-		{#each jam as v, h (h)}
+		{#each hourly as v, h (h)}
 			<button
 				type="button"
 				class="col"
@@ -68,7 +68,7 @@
 
 		{#if hover !== null && !dense}
 			<span class="tip" style:left={`${at(hover)}%`}>
-				<b>{num(jam[hover])}</b>
+				<b>{num(hourly[hover])}</b>
 				{u} · {formatHour(hover)}
 			</span>
 		{/if}
@@ -116,7 +116,7 @@
 	.bar {
 		display: block;
 		width: 100%;
-		/* Ujung data dibulatkan, pangkalnya tetap menempel pada garis dasar. */
+		/* The data end is rounded, the foot stays flush with the baseline. */
 		border-radius: 3px 3px 0 0;
 		background-color: color-mix(in srgb, var(--accent) 42%, transparent);
 		background-image: var(--lift-bar);
