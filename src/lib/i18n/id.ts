@@ -25,9 +25,13 @@ export const id = {
 	   akan tertulis "3 coffee shop". */
 	category: {
 		kopi: { name: 'Kedai Kopi', short: 'Kopi', many: 'kedai kopi' },
+		minuman: { name: 'Kedai Minuman', short: 'Minuman', many: 'kedai minuman' },
+		roti: { name: 'Toko Roti & Kue', short: 'Roti', many: 'toko roti' },
 		warung: { name: 'Warung Makan', short: 'Warung', many: 'warung makan' },
 		minimarket: { name: 'Minimarket', short: 'Minimarket', many: 'minimarket' },
+		kelontong: { name: 'Toko Kelontong', short: 'Kelontong', many: 'toko kelontong' },
 		laundry: { name: 'Laundry', short: 'Laundry', many: 'laundry' },
+		bengkel: { name: 'Bengkel Kendaraan', short: 'Bengkel', many: 'bengkel' },
 		apotek: { name: 'Apotek', short: 'Apotek', many: 'apotek' }
 	},
 
@@ -75,7 +79,10 @@ export const id = {
 		hexes: { label: 'petak kawasan dinilai', sub: (r: number) => `heksagon H3, jalan kaki ${r} m` },
 		stops: { label: 'titik transit terdata', sub: 'MRT, KRL, LRT, TransJakarta' },
 		pois: { label: 'gerai pesaing terdata', sub: 'OpenStreetMap (ODbL)' },
-		cats: { label: 'jenis usaha dinilai', sub: 'kopi, warung, minimarket, laundry, apotek' },
+		cats: {
+			label: 'jenis usaha dinilai',
+			sub: 'kopi, minuman, roti, warung, minimarket, kelontong, laundry, bengkel, apotek'
+		},
 		coverNote: (terdata: string, total: string, nodata: string) =>
 			`${terdata} dari ${total} petak sudah ada datanya. Sisanya ${nodata} kami tandai belum terdata: tidak kami tebak, tidak kami beri nilai.`
 	},
@@ -218,7 +225,7 @@ export const id = {
 
 	audience: {
 		mark: 'Untuk siapa',
-		title: 'Satu peta, lima jenis keputusan.',
+		title: 'Satu peta, sembilan jenis keputusan.',
 		rows: [
 			{ t: 'Pemodal ritel & kuliner', d: 'Memilih lokasi cabang baru dari data, bukan dari firasat.' },
 			{ t: 'UMKM bermodal pas-pasan', d: 'Cari lokasi bagus yang sewanya masih masuk akal.' },
@@ -446,7 +453,7 @@ export const id = {
 
 	narrate: {
 		notUnderstood: (why: string) =>
-			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk lima jenis usaha. Mau saya carikan salah satunya?`,
+			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk sembilan jenis usaha. Mau saya carikan salah satunya?`,
 		coverageNone: 'Semua kawasan sudah ada datanya.',
 		coverageSome: (n: number) =>
 			`Ada ${n} kawasan yang datanya belum saya punya sama sekali. Saya tidak menilainya; daripada saya karang, lebih baik saya bilang belum tahu.`,

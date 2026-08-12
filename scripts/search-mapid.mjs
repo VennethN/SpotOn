@@ -1,7 +1,7 @@
 /**
  * Menelusuri katalog data premium MAPID.
  *
- *   node scripts/search-mapid.mjs                 # lima kategori SpotOn
+ *   node scripts/search-mapid.mjs                 # sembilan kategori SpotOn
  *   node scripts/search-mapid.mjs APOTEK ATM      # istilah bebas
  *   node scripts/search-mapid.mjs --kota "BANDUNG,SURABAYA" PASAR
  *
@@ -35,7 +35,19 @@ import { matchesDataset, searchPremium } from './lib/mapid.mjs';
 const KOTA_DEFAULT = ['JAKARTA PUSAT', 'JAKARTA BARAT', 'JAKARTA SELATAN', 'JAKARTA TIMUR', 'JAKARTA UTARA'];
 
 /** Istilah yang dipakai MANIFEST fetch-mapid.mjs, supaya keduanya bisa diadu. */
-const TERMS_DEFAULT = ['COFFEE SHOP', 'RESTORAN', 'MAKANAN DAN MINUMAN', 'MINIMARKET', 'APOTEK', 'LAUNDRY'];
+const TERMS_DEFAULT = [
+	'COFFEE SHOP',
+	'BRAND COFFEE SHOP',
+	'MINUMAN',
+	'ROTI DAN KUE',
+	'RESTORAN',
+	'MAKANAN DAN MINUMAN',
+	'MINIMARKET',
+	'TOKO KELONTONG',
+	'LAYANAN ATAU JASA',
+	'PERAWATAN DAN PERBAIKAN OTOMOTIF',
+	'APOTEK'
+];
 
 function parseArgv(argv) {
 	const kota = [...KOTA_DEFAULT];
