@@ -8,7 +8,7 @@ import type { Weights } from '$lib/types';
  * sama berarti cepat atau lambat keduanya berbeda, dan endpoint yang satu akan
  * menerima bobot yang ditolak endpoint lainnya.
  */
-export const DEFAULT_WEIGHTS: Weights = { wd: 0.5, ws: 0.5, gate: true, radius: 800 };
+export const DEFAULT_WEIGHTS: Weights = { wd: 0.5, ws: 0.5, gate: true, radius: 800, source: 'osm' };
 
 const clamp01 = (v: unknown, fallback: number): number =>
 	typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
@@ -26,6 +26,7 @@ export function normalizeWeights(partial: Partial<Weights> | undefined): Weights
 		wd: clamp01(p.wd, DEFAULT_WEIGHTS.wd),
 		ws: clamp01(p.ws, DEFAULT_WEIGHTS.ws),
 		gate: typeof p.gate === 'boolean' ? p.gate : DEFAULT_WEIGHTS.gate,
-		radius: p.radius === 400 ? 400 : 800
+		radius: p.radius === 400 ? 400 : 800,
+		source: p.source === 'mapid' ? 'mapid' : 'osm'
 	};
 }
