@@ -18,12 +18,22 @@ import type {
 	Weights
 } from '$lib/types';
 
+/**
+ * Dicocokkan berurutan, yang pertama cocok menang — jadi yang spesifik harus
+ * di atas yang umum. `boba` sebelum `minuman`, dan keduanya sebelum `warung`
+ * yang menangkap kata "makan": tanpa urutan itu "kedai minuman" akan terbaca
+ * warung karena pertanyaannya nyaris selalu memuat kata makan atau jajan.
+ */
 const KEYWORDS: Array<[RegExp, CategoryKey]> = [
-	[/kopi|coffee|kafe|cafe/i, 'kopi'],
-	[/warung|makan|nasi|soto|resto/i, 'warung'],
-	[/minimarket|kelontong|swalayan/i, 'minimarket'],
-	[/laundry|cuci/i, 'laundry'],
-	[/apotek|obat|farmasi/i, 'apotek']
+	[/kopi|coffee|kafe|cafe|espresso|latte/i, 'kopi'],
+	[/boba|milk ?tea|thai tea|jus|juice|es krim|ice cream|dessert|minuman|drink/i, 'minuman'],
+	[/roti|bakery|kue|donat|donut|pastri|pastry|cake/i, 'roti'],
+	[/apotek|obat|farmasi|pharmac/i, 'apotek'],
+	[/laundry|binatu|cuci baju/i, 'laundry'],
+	[/bengkel|servis motor|service motor|montir|repair/i, 'bengkel'],
+	[/kelontong|toko sembako|sembako|grocery/i, 'kelontong'],
+	[/minimarket|swalayan|indomaret|alfamart|convenience/i, 'minimarket'],
+	[/warung|makan|nasi|soto|resto|food/i, 'warung']
 ];
 
 /**

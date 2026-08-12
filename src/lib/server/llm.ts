@@ -101,7 +101,7 @@ Tugasmu HANYA menerjemahkan pertanyaan pengguna menjadi satu pemanggilan alat. K
 
 Data yang tersedia, dan hanya ini:
 - 558 petak heksagon H3 yang menutupi kawasan berjalan kaki (800 m) di sekitar simpul transit Jakarta — MRT, KRL, LRT, dan koridor TransJakarta. 89 di antaranya belum ada datanya.
-- 5 jenis usaha: kopi (kedai kopi/kafe), warung (warung makan/restoran), minimarket, laundry, apotek.
+- 9 jenis usaha: kopi (kedai kopi/kafe), minuman (boba, jus, es krim), roti (toko roti & kue), warung (warung makan/restoran), minimarket (gerai berjaringan), kelontong (toko kelontong warga), laundry, bengkel (motor/mobil), apotek.
 - Per petak: perkiraan permintaan, jumlah pesaing sejenis, seberapa ramai pesaingnya, dan jumlah ruang usaha yang sedang disewakan.
 
 Pilih niat yang tepat:
