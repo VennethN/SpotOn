@@ -1,10 +1,10 @@
 <script lang="ts">
 	/**
-	 * Maket jalan, dibungkus wadah adegan bersama.
+	 * The street diorama, wrapped in the shared scene host.
 	 *
-	 * Yang khas adegan ini tinggal dua: langit pada jam yang sama sebagai alas
-	 * sebelum WebGL siap (dan bila WebGL gagal), serta bidang fokus sempit yang
-	 * membuat mata membacanya sebagai maket di atas meja.
+	 * Only two things are specific to this scene: the sky at the same hour as a
+	 * backdrop before WebGL is ready (and if WebGL fails), and the narrow focal
+	 * plane that makes the eye read it as a model on a table.
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
 	import { daylightAt } from '$lib/scene/daylight';
@@ -16,11 +16,11 @@
 		category?: CategoryKey;
 		cameraT?: number;
 		nodata?: boolean;
-		/** Pesaing sejenis di kawasan ini. */
+		/** Competitors of the same kind in this area. */
 		rivals?: number;
-		/** Ruang usaha yang sedang disewakan. */
+		/** Commercial space currently up for rent. */
 		vacancies?: number;
-		/** Deskripsi adegan untuk pembaca layar — wajib, adegan ini membawa makna. */
+		/** A description of the scene for screen readers — required, this scene carries meaning. */
 		label: string;
 	}
 
@@ -51,8 +51,8 @@
 		state={{ hour, density, category, cameraT, nodata, rivals, vacancies }}
 	>
 		{#snippet overlay()}
-			<!-- Tilt-shift: bidang fokus sempit di tengah. Satu isyarat inilah yang membuat
-			     mata membaca adegan sebagai maket di atas meja, bukan kota sungguhan. -->
+			<!-- Tilt-shift: a narrow focal plane down the middle. This single cue is what
+			     makes the eye read the scene as a model on a table, not a real city. -->
 			<div class="tilt" aria-hidden="true"></div>
 		{/snippet}
 	</SceneCanvas>
@@ -62,7 +62,7 @@
 	.street {
 		position: absolute;
 		inset: 0;
-		/* Langit pada jam yang sama, terlihat sebelum WebGL siap dan bila WebGL gagal. */
+		/* The sky at the same hour, visible before WebGL is ready and if WebGL fails. */
 		background: linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-horizon) 78%);
 	}
 
@@ -91,8 +91,8 @@
 			#000 100%
 		);
 	}
-	/* Blur latar mahal di GPU lemah, dan pengguna yang menolak transparansi
-	   tidak sedang meminta efek lensa. */
+	/* A backdrop blur is expensive on weak GPUs, and a user who has opted out of
+	   transparency is not asking for a lens effect. */
 	@media (prefers-reduced-transparency: reduce) {
 		.tilt {
 			display: none;

@@ -1,36 +1,37 @@
 /**
- * Mengambil POI premium MAPID langsung dari katalog, lalu menyimpannya sebagai
- * satu berkas titik yang siap di-join ke kisi heksagon.
+ * Fetches MAPID premium POIs straight from the catalogue and stores them as a single
+ * point file, ready to be joined onto the hexagon grid.
  *
  *   node scripts/fetch-mapid.mjs
  *
- * Keluaran:
- *   src/lib/data/mapid-poi.json  — titik + deklarasi cakupan
- *   docs/mapid-layers.md         — daftar dataset yang dibaca, untuk disinkronkan
+ * Output:
+ *   src/lib/data/mapid-poi.json  — points + a coverage declaration
+ *   docs/mapid-layers.md         — the list of datasets read, for syncing by hand
  *
- * TIDAK ADA LAGI LANGKAH IMPOR MANUAL
+ * THERE IS NO MANUAL IMPORT STEP ANY MORE
  *
- * Versi sebelumnya hanya bisa membaca layer yang sudah diimpor tangan ke proyek
- * GEO MAPID, jadi menambah satu kota berarti membuka antarmuka dan menekan
- * Impor. Ternyata pembatasnya bukan kepemilikan layer melainkan `project_id`
- * yang dikirim — penjelasan lengkapnya di `scripts/lib/mapid.mjs`. Dengan
- * proyek sendiri sebagai tiket baca, seluruh katalog premium bisa dibaca
- * langsung dan skrip ini menemukan sendiri dataset yang dibutuhkan.
+ * The previous version could only read layers already imported by hand into the GEO
+ * MAPID project, so adding one city meant opening the interface and pressing Import.
+ * It turned out the limiting factor was not layer ownership but the `project_id`
+ * being sent — the full explanation lives in `scripts/lib/mapid.mjs`. With our own
+ * project as the read ticket, the whole premium catalogue can be read directly and
+ * this script finds the datasets it needs by itself.
  *
- * Proyek GEO MAPID tetap dibaca, karena dataset misi kompetisi akan datang
- * sebagai proyek terpisah yang dibagikan — bukan sebagai entri katalog.
+ * The GEO MAPID project is still read, because the competition's mission datasets
+ * will arrive as a separate shared project — never as a catalogue entry.
  *
- * CAKUPAN DIDEKLARASIKAN, BUKAN DISIMPULKAN DARI TITIK
+ * COVERAGE IS DECLARED, NOT INFERRED FROM POINTS
  *
- * Dulu daftar "kota mana yang sudah tercakup" dihitung mundur dari KABKOT titik
- * yang lolos klasifikasi. Itu mencampur dua hal yang justru menjadi inti janji
- * proyek ini: dataset yang TIDAK ADA, dan dataset yang ada tapi kebetulan nol
- * baris setelah disaring. Keduanya menghasilkan "tidak ada titik", padahal yang
- * pertama berarti "belum dicek" dan yang kedua "sudah dicek, memang kosong".
+ * The list of "which cities are covered" used to be worked backwards from the KABKOT
+ * of whichever points survived classification. That conflated two things which are
+ * the very heart of this project's promise: a dataset that DOES NOT EXIST, and a
+ * dataset that exists but happens to yield zero rows after filtering. Both produce
+ * "no points", yet the first means "not checked" and the second "checked, genuinely
+ * empty".
  *
- * Sekarang cakupan ditulis dari MANIFEST: begitu dataset sebuah kota berhasil
- * dibaca, kota itu tercakup untuk kategori yang dijanjikan dataset tersebut —
- * berapa pun titik yang akhirnya lolos.
+ * Coverage is now written from the MANIFEST: once a city's dataset has been read
+ * successfully, that city is covered for the categories that dataset promises — no
+ * matter how many points ultimately survive.
  */
 
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -39,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 import {
 	mapidKey,
 	matchesDataset,
-	normKota,
+	normCity,
 	projectId,
 	readLayer,
 	searchPremium,
@@ -64,36 +65,37 @@ const CATEGORIES = [
 	'apotek'
 ];
 
-/** Lima kota administrasi DKI. Katalog memberi satu dataset per kota. */
-const KOTA = ['JAKARTA PUSAT', 'JAKARTA BARAT', 'JAKARTA SELATAN', 'JAKARTA TIMUR', 'JAKARTA UTARA'];
+/** The five DKI administrative cities. The catalogue ships one dataset per city. */
+const CITIES = ['JAKARTA PUSAT', 'JAKARTA BARAT', 'JAKARTA SELATAN', 'JAKARTA TIMUR', 'JAKARTA UTARA'];
 
 /**
- * Dataset yang dicari, dan kategori SpotOn apa yang cakupannya dijamin oleh
- * masing-masing.
+ * The datasets to look for, and which SpotOn categories each one guarantees coverage
+ * for.
  *
- * `covers` bukan sama dengan hasil klasifikasi. Dataset MAKANAN DAN MINUMAN
- * memuat kedai kopi DAN rumah makan, jadi keberadaannya menutup dua kategori
- * sekaligus — sekalipun untuk kota tertentu isinya kebetulan tidak memuat satu
- * kedai kopi pun. Itulah bedanya "sudah diperiksa" dari "ada isinya".
+ * `covers` is not the same as the classification result. The MAKANAN DAN MINUMAN
+ * dataset holds coffee shops AND eating places, so its existence covers two
+ * categories at once — even if for a particular city its contents happen not to hold
+ * a single coffee shop. That is the difference between "has been checked" and "has
+ * something in it".
  *
- * `force` memakukan seluruh isi satu dataset ke satu kategori, melewati RULES.
- * Dipakai hanya untuk dataset yang memang berisi satu jenis usaha saja dan yang
- * taksonominya tidak bisa dibaca. BRAND COFFEE SHOP adalah kasusnya: TIPE_3-nya
- * berisi nama merek, dan "STARBUCKS" tidak memuat kata coffee maupun kopi. Tanpa
- * `force` ia jatuh ke TIPE_2 "MINUMAN" dan seluruh gerai Starbucks terhitung
- * sebagai kedai minuman, bukan kedai kopi. Jangan pakai `force` pada dataset
- * payung seperti MAKANAN DAN MINUMAN atau LAYANAN ATAU JASA — isinya campuran,
- * dan memakukannya justru membuang perbedaan yang mau kita lihat.
+ * `force` pins an entire dataset's contents to one category, bypassing RULES. Used
+ * only for datasets that genuinely hold a single business type and whose taxonomy
+ * cannot be read. BRAND COFFEE SHOP is the case: its TIPE_3 holds brand names, and
+ * "STARBUCKS" contains neither the word coffee nor kopi. Without `force` it falls
+ * through to TIPE_2 "MINUMAN" and every Starbucks counts as a drinks stall rather
+ * than a coffee shop. Do not use `force` on umbrella datasets like MAKANAN DAN
+ * MINUMAN or LAYANAN ATAU JASA — their contents are mixed, and pinning them throws
+ * away the very distinction we want to see.
  *
- * KENAPA LAUNDRY TIDAK PUNYA BARIS SENDIRI
+ * WHY LAUNDRY HAS NO ROW OF ITS OWN
  *
- * Sempat disimpulkan "laundry tidak ada di katalog premium" karena tidak ada
- * dataset yang bernama LAUNDRY. Yang dicari waktu itu hanya NAMA DATASET,
- * padahal laundry ada sebagai subtipe di dalam dataset lain: LAYANAN ATAU JASA
- * → TIPE_3 "BINATU (LAUNDRY)", 3.723 titik di kelima kota. Kekeliruan yang
- * sama sempat menyembunyikan SPBU, yang di katalog bernama PENGISIAN BAHAN
- * BAKAR. Pelajarannya: tidak ketemu lewat nama bukan tidak ada — periksa
- * taksonomi TIPE di dalam dataset payung sebelum menyimpulkan.
+ * It was once concluded that "laundry is not in the premium catalogue" because no
+ * dataset is named LAUNDRY. What was searched at the time was only the DATASET NAME,
+ * when laundry exists as a subtype inside another dataset: LAYANAN ATAU JASA →
+ * TIPE_3 "BINATU (LAUNDRY)", 3,723 points across all five cities. The same mistake
+ * once hid petrol stations, which the catalogue calls PENGISIAN BAHAN BAKAR. The
+ * lesson: not found by name is not the same as absent — check the TIPE taxonomy
+ * inside the umbrella datasets before concluding anything.
  */
 const MANIFEST = [
 	{ term: 'COFFEE SHOP', covers: ['kopi'] },
@@ -113,34 +115,33 @@ const MANIFEST = [
 ];
 
 /**
- * Taksonomi MAPID (TIPE_1 → TIPE_2 → TIPE_3) dipetakan ke tiga belas kategori SpotOn.
- * Dicocokkan dari yang paling spesifik ke paling umum: sebuah gerai bisa
- * bertipe "MAKANAN DAN MINUMAN / MINUMAN / COFFEESHOP", dan yang menentukan
- * kategorinya adalah TIPE_3, bukan TIPE_1.
+ * The MAPID taxonomy (TIPE_1 → TIPE_2 → TIPE_3) mapped onto SpotOn's thirteen
+ * categories. Matched from most specific to most general: an outlet can be typed
+ * "MAKANAN DAN MINUMAN / MINUMAN / COFFEESHOP", and what decides its category is
+ * TIPE_3, not TIPE_1.
  */
 const RULES = [
 	{ cat: 'kopi', re: /COFFEE|KOPI|KEDAI KOPI|CAFE|KAFE/i },
 	{ cat: 'apotek', re: /APOTEK|APOTIK|FARMASI|PHARMAC/i },
-	// Dulu memuat `CUCI` juga. Dibuang karena "CUCI MOBIL" adalah bengkel, bukan
-	// binatu — dan aturan ini diperiksa lebih dulu, jadi satu kata yang terlalu
-	// longgar akan merebutnya. Waktu itu tidak ketahuan sebab kategori laundry
-	// memang belum punya satu titik pun.
+	// This used to include `CUCI` as well. Dropped because "CUCI MOBIL" (car wash) is
+	// a garage, not a laundry — and this rule is checked first, so one over-loose word
+	// would steal it. It went unnoticed at the time because the laundry category did
+	// not have a single point yet.
 	{ cat: 'laundry', re: /LAUNDRY|BINATU/i },
 	{ cat: 'bengkel', re: /BENGKEL|PERBAIKAN OTOMOTIF|SERVIS (MOTOR|MOBIL)/i },
 	{ cat: 'roti', re: /ROTI|KUE|BAKERY|PASTRI|DONAT/i },
-	// `^MINUMAN$` diikat ke seluruh nilai, bukan potongan. TIPE_1 untuk SEMUA
-	// gerai makanan berbunyi "MAKANAN DAN MINUMAN", jadi pola yang longgar akan
-	// menyapu setiap restoran ke kategori minuman begitu TIPE_2 dan TIPE_3-nya
-	// kosong.
+	// `^MINUMAN$` is anchored to the whole value, not a fragment. TIPE_1 for EVERY
+	// food outlet reads "MAKANAN DAN MINUMAN", so a loose pattern would sweep every
+	// restaurant into the drinks category the moment its TIPE_2 and TIPE_3 are empty.
 	{ cat: 'minuman', re: /^MINUMAN$|BOBA|MILK ?TEA|THAI TEA|JUS$|JUICE|ES KRIM|DESSERT/i },
 	{ cat: 'kelontong', re: /KELONTONG|SEMBAKO/i },
-	// `KELONTONG` sudah dipindah ke kategorinya sendiri di atas.
+	// `KELONTONG` has already moved to its own category above.
 	{ cat: 'minimarket', re: /MINIMARKET|MART|SWALAYAN|SUPERMARKET|INDOMARET|ALFAMART/i },
 
-	// ── pecahan `warung` ──────────────────────────────────────────────────
-	// Dicocokkan ke TIPE_3, yang di dataset RESTORAN memang berisi jenisnya.
-	// Urutannya dari yang paling spesifik: `RESTORAN PADANG` harus tertangkap
-	// warteg sebelum aturan umum `RESTORAN` menyapunya.
+	// ── the `warung` splits ───────────────────────────────────────────────
+	// Matched against TIPE_3, which in the RESTORAN dataset does hold the type.
+	// Ordered most specific first: `RESTORAN PADANG` has to be caught by warteg
+	// before the general `RESTORAN` rule sweeps it up.
 	{ cat: 'cepatsaji', re: /CEPAT SAJI|FAST ?FOOD/i },
 	{ cat: 'mie', re: /\bMIE\b|BAKSO|RAMEN|BAKMI/i },
 	{ cat: 'seafood', re: /SEAFOOD|IKAN BAKAR/i },
@@ -149,18 +150,18 @@ const RULES = [
 		re: /KOREA|JEPANG|JAPAN|SUSHI|THAI|VIETNAM|CINA|CHINA|TIONGHOA|EROPA|MEKSIKO|AFRIKA|TIMUR TENGAH|PIZZA|STEAK|BBQ|BARAT|WESTERN|ITALIA/i
 	},
 	{ cat: 'warteg', re: /WARUNG TEGAL|WARTEG|NASI GORENG|PADANG|MELAYU|NUSANTARA|JAJANAN|AYAM|WARUNG|RUMAH MAKAN/i },
-	// Penampung terakhir. Gerai yang TIPE_3-nya kosong hanya diketahui sebagai
-	// "rumah makan" dan tidak lebih — warteg adalah tebakan paling masuk akal
-	// untuk itu di Jakarta, dan satu-satunya alternatif adalah membuangnya.
+	// The final catch-all. An outlet with an empty TIPE_3 is known only as an "eating
+	// place" and nothing more — warteg is the most sensible guess for that in Jakarta,
+	// and the only alternative is to throw it away.
 	{ cat: 'warteg', re: /RESTORAN|RESTAURANT|MAKANAN|KULINER/i }
 ];
 
 function classify(props = {}) {
-	// Sengaja HANYA membaca kolom TIPE, tidak pernah NAMA. Menebak dari nama
-	// pernah membuat satu halte TransJakarta terhitung sebagai minimarket
-	// hanya karena namanya memuat "MART" — dan pesaing palsu menekan skor
-	// petak yang sebenarnya kosong. Layer non-usaha (halte) tidak punya kolom
-	// TIPE sama sekali, jadi aturan ini sekaligus menyaringnya keluar.
+	// Deliberately reads ONLY the TIPE columns, never NAMA. Guessing from the name
+	// once counted a TransJakarta stop as a minimarket purely because its name
+	// contained "MART" — and a phantom competitor drags down the score of a cell
+	// that is in fact empty. Non-business layers (stops) carry no TIPE column at
+	// all, so this rule filters them out at the same time.
 	for (const src of [props.TIPE_3, props.TIPE_2, props.TIPE_1]) {
 		const s = String(src ?? '').trim();
 		if (!s || s === '-') continue;
@@ -169,11 +170,11 @@ function classify(props = {}) {
 	return null;
 }
 
-/** Pola penamaan terbitan resmi katalog MAPID. */
-const CANONICAL = /\bDI\s+(KOTA|KABUPATEN)\b.*\bTAHUN\s+\d{4}/i;
+/** The naming pattern of the MAPID catalogue's official publications. */
+const CANONICAL = /\bDI\s+(CITIES|KABUPATEN)\b.*\bTAHUN\s+\d{4}/i;
 
-/** Nama dataset tanpa jejak impor, supaya salinan di proyek bisa dikenali
-    sebagai dataset katalog yang sama dan tidak ditarik dua kali. */
+/** A dataset name with the import trace stripped, so a copy inside the project can
+    be recognised as the same catalogue dataset and not pulled in twice. */
 function canonicalName(name) {
 	return String(name ?? '')
 		.replace(/\s+IMPORTED AT.*$/i, '')
@@ -183,52 +184,50 @@ function canonicalName(name) {
 
 async function main() {
 	const key = mapidKey();
-	console.log(`Proyek ${projectId()} (dipakai sebagai tiket baca)\n`);
+	console.log(`Project ${projectId()} (used as the read ticket)\n`);
 
-	// ── 1. Temukan dataset yang dibutuhkan di katalog premium ──────────────
-	console.log('[1/3] Mencari dataset di katalog premium…');
+	// ── 1. Find the datasets we need in the premium catalogue ──────────────
+	console.log('[1/3] Searching the premium catalogue for datasets…');
 	const wanted = [];
 	const missing = [];
 
 	for (const { term, covers, force } of MANIFEST) {
-		for (const kota of KOTA) {
-			const hits = await searchPremium(`${term} ${kota}`);
-			// Pencocokan AND per kata membuat kueri sempit ini nyaris selalu
-			// tepat, tapi tetap diverifikasi: nama harus diawali istilahnya DAN
-			// memuat kotanya, supaya "MAKANAN DAN MINUMAN" tidak menyerap
-			// dataset lain yang kebetulan memuat kata "MAKANAN".
-			const cocok = hits.filter((l) => matchesDataset(l.name, term, kota));
-			// Kadang ada lebih dari satu yang cocok — Jakarta Selatan punya
-			// "APOTEK DI KOTA ADMINISTRASI …" sekaligus "Apotek - Jakarta
-			// Selatan". Mengambil yang pertama berarti menyerahkan pilihan pada
-			// urutan peringkat pencarian, yang bisa bergeser kapan saja dan
-			// menukar dataset lengkap dengan yang lebih kecil tanpa ada yang
-			// sadar. Terbitan resmi katalog selalu bernama menurut pola
-			// "<ISTILAH> DI KOTA/KABUPATEN <WILAYAH> TAHUN <TAHUN>", jadi itu
-			// yang didahulukan.
-			const hit = cocok.find((l) => CANONICAL.test(l.name ?? '')) ?? cocok[0];
+		for (const city of CITIES) {
+			const hits = await searchPremium(`${term} ${city}`);
+			// AND-per-word matching makes this narrow query almost always exact, but it
+			// is verified anyway: the name must start with the term AND contain the
+			// city, so "MAKANAN DAN MINUMAN" does not swallow another dataset that
+			// happens to contain the word "MAKANAN".
+			const matched = hits.filter((l) => matchesDataset(l.name, term, city));
+			// Sometimes more than one matches — Jakarta Selatan has both "APOTEK DI CITIES
+			// ADMINISTRASI …" and "Apotek - Jakarta Selatan". Taking the first would hand
+			// the choice to search ranking, which can shift at any time and swap a
+			// complete dataset for a smaller one without anyone noticing. The catalogue's
+			// official publications are always named to the pattern
+			// "<TERM> DI CITIES/KABUPATEN <AREA> TAHUN <YEAR>", so those come first.
+			const hit = matched.find((l) => CANONICAL.test(l.name ?? '')) ?? matched[0];
 			if (hit) {
 				wanted.push({
 					id: hit._id,
 					name: hit.name,
 					term,
-					kota,
+					city,
 					covers,
 					force: force ?? null,
-					origin: 'katalog'
+					origin: 'catalogue'
 				});
 			} else {
-				missing.push({ term, kota });
+				missing.push({ term, city });
 			}
 		}
 		const got = wanted.filter((w) => w.term === term).length;
-		console.log(`      ${term.padEnd(21)} ${got}/${KOTA.length} kota`);
+		console.log(`      ${term.padEnd(21)} ${got}/${CITIES.length} cities`);
 	}
 
-	// ── 2. Tambahkan layer yang ada di proyek dan bukan salinan katalog ────
-	// Inilah jalan masuk dataset misi kompetisi: ia hadir sebagai proyek
-	// terpisah yang dibagikan, tidak pernah sebagai entri katalog.
-	console.log('\n[2/3] Membaca daftar layer di proyek…');
+	// ── 2. Add layers that live in the project and are not catalogue copies ─
+	// This is the way in for the competition's mission datasets: they arrive as a
+	// separate shared project, never as a catalogue entry.
+	console.log('\n[2/3] Reading the layer list in the project…');
 	const known = new Set(wanted.map((w) => canonicalName(w.name)));
 	const projectLayers = await listProjectLayers(key);
 	let skipped = 0;
@@ -241,19 +240,19 @@ async function main() {
 			id: l._id,
 			name: l.name,
 			term: null,
-			kota: null,
+			city: null,
 			covers: [],
 			force: null,
-			origin: 'proyek'
+			origin: 'project'
 		});
 	}
 	console.log(
-		`      ${projectLayers.length} layer · ${skipped} salinan katalog dilewati · ` +
-			`${projectLayers.length - skipped} khas proyek`
+		`      ${projectLayers.length} layers · ${skipped} catalogue copies skipped · ` +
+			`${projectLayers.length - skipped} project-specific`
 	);
 
-	// ── 3. Ambil isinya ────────────────────────────────────────────────────
-	console.log(`\n[3/3] Mengambil isi ${wanted.length} layer…`);
+	// ── 3. Fetch the contents ──────────────────────────────────────────────
+	console.log(`\n[3/3] Fetching the contents of ${wanted.length} layers…`);
 	const points = [];
 	const perLayer = [];
 	const unmatched = new Map();
@@ -276,23 +275,23 @@ async function main() {
 				lat: Math.round(c[1] * 1e5) / 1e5,
 				lon: Math.round(c[0] * 1e5) / 1e5,
 				cat,
-				kabkot: f.properties?.KABKOT ?? null
+				city: f.properties?.KABKOT ?? null
 			});
 			kept++;
 		}
 
-		// Cakupan dari manifest: dataset berhasil dibaca ⇒ kotanya tercakup
-		// untuk kategori yang dijanjikan, berapa pun titik yang lolos.
-		for (const cat of w.covers) coverage[cat]?.add(normKota(w.kota));
+		// Coverage from the manifest: dataset read successfully ⇒ its city is covered
+		// for the categories promised, however many points survive.
+		for (const cat of w.covers) coverage[cat]?.add(normCity(w.city));
 
-		// Layer khas proyek tidak menjanjikan apa-apa, jadi cakupannya hanya
-		// bisa dibaca dari isinya — kembali ke penyimpulan, tapi terbatas di
-		// sini saja dan sudah cukup: yang dijanjikan manifest tidak ikut kena.
-		if (w.origin === 'proyek') {
+		// Project-specific layers promise nothing, so their coverage can only be read
+		// from their contents — back to inference, but confined to here and good
+		// enough: nothing the manifest promised is affected.
+		if (w.origin === 'project') {
 			for (const f of features) {
 				const cat = classify(f.properties);
 				const kab = f.properties?.KABKOT;
-				if (cat && kab) coverage[cat]?.add(normKota(kab));
+				if (cat && kab) coverage[cat]?.add(normCity(kab));
 			}
 		}
 
@@ -301,21 +300,21 @@ async function main() {
 			name: w.name,
 			origin: w.origin,
 			term: w.term,
-			kota: w.kota,
+			city: w.city,
 			covers: w.covers,
 			force: w.force,
 			features: features.length,
 			kept
 		});
 		console.log(
-			`  [${String(i + 1).padStart(2)}/${wanted.length}] ${String(features.length).padStart(5)} fitur → ` +
-				`${String(kept).padStart(5)} terpakai · ${w.name.slice(0, 58)}`
+			`  [${String(i + 1).padStart(2)}/${wanted.length}] ${String(features.length).padStart(5)} features → ` +
+				`${String(kept).padStart(5)} kept · ${w.name.slice(0, 58)}`
 		);
 	}
 
-	// Dedup: satu gerai bisa muncul di dua dataset (mis. COFFEE SHOP dan
-	// MAKANAN DAN MINUMAN untuk kota yang sama). Tanpa ini pesaing terhitung
-	// dobel dan petak yang ramai terlihat dua kali lebih ramai.
+	// Dedup: one outlet can appear in two datasets (e.g. COFFEE SHOP and MAKANAN DAN
+	// MINUMAN for the same city). Without this, competitors get double-counted and a
+	// busy cell looks twice as busy as it is.
 	const seen = new Set();
 	const unique = points.filter((p) => {
 		const k = `${p.cat}|${p.lat}|${p.lon}`;
@@ -325,22 +324,22 @@ async function main() {
 	});
 
 	const byCat = unique.reduce((a, p) => ((a[p.cat] = (a[p.cat] ?? 0) + 1), a), {});
-	const byKab = unique.reduce((a, p) => ((a[p.kabkot ?? '?'] = (a[p.kabkot ?? '?'] ?? 0) + 1), a), {});
+	const byCity = unique.reduce((a, p) => ((a[p.city ?? '?'] = (a[p.city ?? '?'] ?? 0) + 1), a), {});
 
 	const out = {
 		meta: {
 			source: 'MAPID premium data (Data Premium) via geoserver.mapid.io',
 			project_id: projectId(),
-			read: 'Langsung dari katalog premium — layer_id katalog + project_id milik sendiri. Tidak ada langkah impor manual.',
+			read: 'Straight from the premium catalogue — a catalogue layer_id + our own project_id. No manual import step.',
 			layers: perLayer,
 			missing,
 			total: unique.length,
 			duplicatesDropped: points.length - unique.length,
 			byCategory: byCat,
-			byKabkot: byKab,
+			byCity: byCity,
 			coverage: Object.fromEntries(CATEGORIES.map((c) => [c, [...coverage[c]].sort()])),
 			coverageRule:
-				'Ditulis dari dataset yang berhasil dibaca, bukan disimpulkan dari titik yang lolos klasifikasi. Kota yang tidak terdaftar berarti BELUM DICEK — bukan nol pesaing.',
+				'Written from the datasets that were read successfully, not inferred from the points that survived classification. A city not listed means NOT CHECKED — not zero competitors.',
 			regenerate: 'node scripts/fetch-mapid.mjs'
 		},
 		points: unique
@@ -352,26 +351,28 @@ async function main() {
 
 	writeFileSync(resolve(ROOT, 'docs/mapid-layers.md'), report(perLayer, missing, coverage, out.meta));
 
-	console.log(`\n${unique.length} titik unik (${points.length - unique.length} duplikat dibuang)`);
-	console.log('per kategori:', byCat);
-	console.log('per kota    :', byKab);
-	console.log('cakupan     :');
+	console.log(`\n${unique.length} unique points (${points.length - unique.length} duplicates dropped)`);
+	console.log('by category:', byCat);
+	console.log('by city    :', byCity);
+	console.log('coverage   :');
 	for (const c of CATEGORIES) {
 		const k = [...coverage[c]].sort();
-		console.log(`  ${c.padEnd(11)} ${k.length ? `${k.length}/5 · ${k.join(', ')}` : '(tidak ada dataset)'}`);
+		console.log(`  ${c.padEnd(11)} ${k.length ? `${k.length}/5 · ${k.join(', ')}` : '(no dataset)'}`);
 	}
 	if (unmatched.size) {
 		const top = [...unmatched.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
-		console.log('tipe tak terpetakan:', Object.fromEntries(top));
+		console.log('unmapped types:', Object.fromEntries(top));
 	}
 	console.log(`\n→ ${dest}`);
 	console.log('→ docs/mapid-layers.md');
 }
 
-/** Laporan Markdown: apa yang dibaca, dan apa yang perlu disinkronkan tangan. */
+/* The Markdown report below lands in docs/, so its content stays in Indonesian with
+   the rest of the project documentation. */
+/** Markdown report: what was read, and what needs syncing by hand. */
 function report(perLayer, missing, coverage, meta) {
-	const katalog = perLayer.filter((l) => l.origin === 'katalog');
-	const proyek = perLayer.filter((l) => l.origin === 'proyek');
+	const catalogue = perLayer.filter((l) => l.origin === 'catalogue');
+	const project = perLayer.filter((l) => l.origin === 'project');
 	const fmt = (n) => n.toLocaleString('id-ID');
 
 	const L = [
@@ -379,7 +380,7 @@ function report(perLayer, missing, coverage, meta) {
 		'',
 		'# Dataset MAPID yang dibaca SpotOn',
 		'',
-		`${katalog.length} dataset katalog premium + ${proyek.length} layer khas proyek · ` +
+		`${catalogue.length} dataset katalog premium + ${project.length} layer khas proyek · ` +
 			`${fmt(meta.total)} titik unik setelah ${fmt(meta.duplicatesDropped)} duplikat dibuang.`,
 		'',
 		'Semuanya dibaca **langsung dari katalog**, tanpa langkah impor. Yang dikirim ke',
@@ -401,7 +402,7 @@ function report(perLayer, missing, coverage, meta) {
 	];
 
 	const byTerm = new Map();
-	for (const l of katalog) {
+	for (const l of catalogue) {
 		if (!byTerm.has(l.term)) byTerm.set(l.term, []);
 		byTerm.get(l.term).push(l);
 	}
@@ -411,21 +412,21 @@ function report(perLayer, missing, coverage, meta) {
 		L.push('|---|---|--:|--:|---|');
 		for (const l of list) {
 			L.push(
-				`| ${l.kota} | \`${l.name}\` | ${fmt(l.features)} | ${fmt(l.kept)} | ` +
+				`| ${l.city} | \`${l.name}\` | ${fmt(l.features)} | ${fmt(l.kept)} | ` +
 					`[layer](https://geo.mapid.io/layer/${l.id}) |`
 			);
 		}
 		L.push('');
 	}
 
-	if (proyek.length) {
+	if (project.length) {
 		L.push('## Khas proyek', '');
 		L.push('Ada di proyek GEO MAPID tapi bukan salinan dataset katalog di atas. Inilah jalan');
 		L.push('masuk dataset misi kompetisi, yang datang sebagai proyek terpisah yang dibagikan.');
 		L.push('');
 		L.push('| Dataset | Fitur | Terpakai |');
 		L.push('|---|--:|--:|');
-		for (const l of proyek) L.push(`| \`${l.name}\` | ${fmt(l.features)} | ${fmt(l.kept)} |`);
+		for (const l of project) L.push(`| \`${l.name}\` | ${fmt(l.features)} | ${fmt(l.kept)} |`);
 		L.push('');
 	}
 
@@ -449,11 +450,11 @@ function report(perLayer, missing, coverage, meta) {
 		const byT = new Map();
 		for (const m of missing) {
 			if (!byT.has(m.term)) byT.set(m.term, []);
-			byT.get(m.term).push(m.kota);
+			byT.get(m.term).push(m.city);
 		}
 		L.push('## Dicari, tidak ketemu', '');
-		for (const [term, kotas] of byT) {
-			L.push(`- **${term}** — ${kotas.length === 5 ? 'kelima kota' : kotas.join(', ')}`);
+		for (const [term, cities] of byT) {
+			L.push(`- **${term}** — ${cities.length === 5 ? 'kelima kota' : cities.join(', ')}`);
 		}
 		L.push('');
 		L.push('Tetap dicari ulang setiap kali skrip jalan. Dibiarkan di manifest supaya');
@@ -466,6 +467,6 @@ function report(perLayer, missing, coverage, meta) {
 }
 
 main().catch((err) => {
-	console.error('Gagal:', err.message);
+	console.error('Failed:', err.message);
 	process.exit(1);
 });

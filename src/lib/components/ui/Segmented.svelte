@@ -22,8 +22,8 @@
 	let root = $state<HTMLDivElement | null>(null);
 	let buttons: HTMLButtonElement[] = $state([]);
 
-	// Pil penunjuk mengejar pilihan dengan pegas kritis: tanpa lonjakan, karena
-	// perpindahan ini tidak dipicu momentum gestur.
+	// The indicator pill chases the selection on a critically damped spring: no
+	// overshoot, because this move is not driven by gesture momentum.
 	const x = new SpringValue(0, { damping: 1, response: 0.32 });
 	const w = new SpringValue(0, { damping: 1, response: 0.32 });
 	let measured = $state(false);

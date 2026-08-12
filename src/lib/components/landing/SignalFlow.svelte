@@ -1,12 +1,12 @@
 <script lang="ts">
 	/**
-	 * Mekanismenya dalam satu bidang: dua sinyal saling mengurangi, lalu satu
-	 * syarat mengunci hasilnya.
+	 * The mechanism in a single field: two signals subtract from each other, then one
+	 * condition gates the result.
 	 *
-	 * Warnanya bertugas, bukan menghias — biru untuk yang menambah, jingga untuk
-	 * yang menekan, hijau untuk syarat yang harus terpenuhi. Setiap warna selalu
-	 * ditemani namanya sendiri, jadi bacaan ini tidak pernah bergantung pada
-	 * kemampuan membedakan warna.
+	 * Colour has a job here, it does not decorate — blue for what adds, orange for what
+	 * suppresses, green for the condition that has to be met. Every colour is always
+	 * accompanied by its own name, so this reading never depends on being able to tell
+	 * colours apart.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
 
@@ -123,7 +123,7 @@
 		font-size: 0.75rem;
 		color: var(--label-2);
 	}
-	/* Bentuk penanda ikut berbeda, tidak hanya warnanya. */
+	/* The marker shapes differ too, not just their colours. */
 	.st::before {
 		content: '';
 		width: 0.5rem;

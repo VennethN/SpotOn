@@ -9,7 +9,7 @@
 		children,
 		header
 	}: {
-		/** Tinggi tampak sebagai fraksi tinggi layar, dari terkecil ke terbesar. */
+		/** Visible heights as a fraction of the viewport height, smallest to largest. */
 		detents?: number[];
 		index?: number;
 		children: Snippet;
@@ -20,7 +20,7 @@
 	let sheet = $state<HTMLElement | null>(null);
 	let dragging = $state(false);
 
-	// y = jarak dari puncak layar. Detent besar → y kecil.
+	// y = distance from the top of the viewport. A large detent → a small y.
 	const y = new SpringValue(0, { damping: 1, response: 0.36 });
 	const tracker = new VelocityTracker();
 	const yFor = (i: number) => viewportH * (1 - detents[i]);
@@ -29,7 +29,7 @@
 	let started = false;
 
 	$effect(() => {
-		// Detent berubah dari luar (mis. tombol) → pegas menuju ke sana.
+		// The detent changed from outside (e.g. a button) → spring towards it.
 		const target = yFor(index);
 		if (!dragging) y.to(target);
 	});
@@ -38,7 +38,7 @@
 		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 		dragging = true;
 		started = false;
-		// Hormati titik pegang: sheet tidak boleh melompat ke bawah jari.
+		// Respect the grab point: the sheet must not jump under the finger.
 		grabOffset = e.clientY - y.current;
 		tracker.reset();
 		tracker.add(e.clientY, e.timeStamp);
@@ -48,14 +48,14 @@
 		if (!dragging) return;
 		tracker.add(e.clientY, e.timeStamp);
 		const raw = e.clientY - grabOffset;
-		// Histeresis kecil sebelum gestur dianggap seretan.
+		// A little hysteresis before a gesture counts as a drag.
 		if (!started && Math.abs(raw - y.current) < 6) return;
 		started = true;
 
 		const min = yFor(detents.length - 1);
 		const max = yFor(0);
 		let next = raw;
-		// Batas lunak: makin jauh melewati batas, makin berat — bukan berhenti mendadak.
+		// A soft limit: the further past the edge, the heavier — not an abrupt stop.
 		if (raw < min) next = min - rubberband(min - raw, viewportH);
 		else if (raw > max) next = max + rubberband(raw - max, viewportH);
 		y.snap(next);
@@ -66,7 +66,7 @@
 		(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
 		dragging = false;
 		const velocity = tracker.velocity();
-		// Mendarat ke arah lemparan, bukan ke titik lepas.
+		// Lands in the direction of the throw, not at the point of release.
 		const projected = y.current + project(velocity);
 		let best = 0;
 		let bestDist = Infinity;
@@ -78,7 +78,7 @@
 			}
 		});
 		index = best;
-		// Sedikit lonjakan hanya karena gestur ini memang membawa momentum.
+		// A touch of overshoot, purely because this gesture does carry momentum.
 		y.configure({ damping: Math.abs(velocity) > 120 ? 0.82 : 1, response: 0.34 });
 		y.to(yFor(best), velocity);
 	}
@@ -97,8 +97,8 @@
 	style:height={`${viewportH}px`}
 	aria-label={copy().app.sheet}
 >
-	<!-- Seluruh area pegangan menerima seretan; tombol di dalamnya tetap dapat difokus
-	     dan menggilir tinggi panel bagi pengguna papan tik. -->
+	<!-- The whole grab area accepts a drag; the button inside stays focusable and
+	     cycles the panel height for keyboard users. -->
 	<div
 		class="grab"
 		role="presentation"

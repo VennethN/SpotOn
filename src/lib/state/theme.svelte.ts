@@ -1,26 +1,27 @@
 import { browser } from '$app/environment';
 
 /**
- * Tema terang/gelap/ikut-sistem — satu tempat, dipakai landing maupun aplikasi.
+ * Light/dark/follow-the-system theme — one place, used by both the landing page and
+ * the app.
  *
- * Sebelumnya bilah navigasi landing dan `AppState` sama-sama menulis kunci
- * `spoton:theme` dan atribut `data-theme` dengan kodenya sendiri-sendiri. Dua
- * salinan aturan yang sama pada penyimpanan yang sama adalah cara paling mudah
- * membuat dua halaman berselisih soal tema yang sedang dipilih pengguna.
+ * The landing nav bar and `AppState` used to each write the `spoton:theme` key and
+ * the `data-theme` attribute with their own code. Two copies of the same rule over
+ * the same storage is the easiest way to get two pages disagreeing about which
+ * theme the user has chosen.
  */
 
 export type Theme = 'light' | 'dark' | 'system';
 
 const STORAGE = 'spoton:theme';
 
-/** Pilihan yang tersimpan; 'system' bila belum pernah memilih. */
+/** The stored choice; 'system' if nothing has ever been picked. */
 export function storedTheme(): Theme {
 	if (!browser) return 'system';
 	const v = localStorage.getItem(STORAGE);
 	return v === 'dark' || v === 'light' ? v : 'system';
 }
 
-/** Menerapkan pilihan ke dokumen dan menyimpannya. */
+/** Applies the choice to the document and stores it. */
 export function applyTheme(theme: Theme): void {
 	if (!browser) return;
 	if (theme === 'system') {
@@ -32,7 +33,7 @@ export function applyTheme(theme: Theme): void {
 	}
 }
 
-/** Urutan siklus tombol tema: sistem → terang → gelap → sistem. */
+/** The theme button's cycle order: system → light → dark → system. */
 export function nextTheme(theme: Theme): Theme {
 	return theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
 }
@@ -40,8 +41,8 @@ export function nextTheme(theme: Theme): Theme {
 
 
 /**
- * Memantau preferensi gelap sistem. Mengembalikan pembersihnya, dan memanggil
- * `onChange` sekali di awal supaya pemanggil tidak perlu membaca sendiri.
+ * Watches the system dark preference. Returns its cleanup, and calls `onChange`
+ * once up front so the caller does not have to read it themselves.
  */
 export function watchSystemDark(onChange: (dark: boolean) => void): () => void {
 	if (!browser) return () => {};

@@ -2,28 +2,28 @@ import { CATEGORY_KEYS, CATEGORY_MAP } from './categories';
 import type { Hex, CategoryKey, PoiSource, ScoredHex, Typology, Weights } from '$lib/types';
 
 /**
- * Mesin Opportunity Score — hitungan saja.
+ * The Opportunity Score engine — arithmetic only.
  *
- * Pemformat angka (`pct`, jam, warna skala) dan penyusun kalimat dulu ikut
- * tinggal di sini, sehingga modul yang jadi rujukan kebenaran angka juga jadi
- * tempat orang mengubah tampilan. Sekarang keduanya terpisah: yang di sini
- * menghitung, `utils/format` menampilkan, `domain/narrate` menceritakan.
+ * Number formatters (`pct`, hours, ramp colours) and sentence builders used to
+ * live here too, which made the module that is the source of truth for the numbers
+ * also the place people went to change the presentation. The two are now separate:
+ * this file computes, `utils/format` displays, `domain/narrate` narrates.
  */
 
 /**
- * Radius 400 m ≈ seperempat luas radius 800 m. Hitungan POI & listing diskalakan
- * proporsional terhadap luas, bukan terhadap jari-jari.
+ * A 400 m radius covers ≈ a quarter of the area of an 800 m one. POI and listing
+ * counts are scaled in proportion to area, not to the radius.
  */
 const areaFactor = (radius: number) => Math.pow(radius / 800, 2);
 
 /**
- * Cacah pesaing menurut sumber aktif. `null` berarti BELUM TERCAKUP — kota ini
- * belum disurvei sumber tersebut.
+ * Competitor count according to the active source. `null` means NOT YET COVERED —
+ * this city has not been surveyed by that source.
  *
- * Membedakan null dari 0 adalah inti kejujuran mesin ini. Nol pesaing membuat
- * penawaran jatuh dan skor melambung; kalau ketiadaan data ikut dibaca sebagai
- * nol, justru wilayah yang paling sedikit diperiksa yang dinobatkan sebagai
- * peluang terbaik — persis kebalikan dari yang dicari pengguna.
+ * Telling null apart from 0 is the heart of this engine's honesty. Zero
+ * competitors makes supply collapse and the score soar; if missing data were read
+ * as zero, the areas that have been examined least would be crowned the best
+ * opportunities — the exact opposite of what the user is looking for.
  */
 function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
 	if (c.nodata) return 0;
@@ -31,30 +31,29 @@ function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): 
 		if (!c.covered?.[cat]) return null;
 		return Math.round((c.mapid?.[cat] ?? 0) * areaFactor(radius));
 	}
-	// Sisi OSM juga bisa belum tercakup, dan dulu tidak bisa mengatakannya.
+	// The OSM side can be uncovered too, and it used to have no way of saying so.
 	//
-	// `?? 0` yang lama diam-diam mengarang nol untuk kategori yang memang belum
-	// pernah diambil dari OSM — dan itu bukan kemungkinan teoretis: menambah
-	// kategori baru berarti `hexes.json` yang belum dibangun ulang tidak punya
-	// kuncinya sama sekali. Akibatnya petak mana pun tampak tanpa pesaing, dan
-	// justru kategori yang paling sedikit datanya yang menang di seluruh peta.
+	// The old `?? 0` silently invented a zero for categories that had never been
+	// fetched from OSM at all — and that is not a theoretical possibility: adding a
+	// new category means a `hexes.json` that has not been rebuilt does not carry its
+	// key. The consequence is that every cell looks competitor-free, and the category
+	// with the least data wins across the whole map.
 	//
-	// Yang membedakan "nol" dari "belum diambil" adalah ADA TIDAKNYA KUNCI, bukan
-	// nilainya: `build-hexes.mjs` menulis 0 secara eksplisit untuk tiap kategori
-	// yang benar-benar diambil dan ternyata kosong.
+	// What separates "zero" from "never fetched" is WHETHER THE KEY EXISTS, not its
+	// value: `build-hexes.mjs` writes an explicit 0 for every category it genuinely
+	// fetched and found empty.
 	//
-	// Pemeriksaan `osmTag` di depannya bukan pengulangan. Yang satu membaca
-	// bentuk data, yang satu menyatakan niat: kategori tanpa tag OSM memang
-	// tidak akan pernah bisa dihitung dari OSM, dan itu keputusan yang diambil
-	// di `categories.ts` — bukan sesuatu yang harus disimpulkan dari kebetulan
-	// bahwa sebuah kunci tidak ada di berkas.
+	// The `osmTag` check in front of it is not a duplicate. One reads the shape of
+	// the data, the other states an intent: a category with no OSM tag can never be
+	// counted from OSM, and that is a decision taken in `categories.ts` — not
+	// something to be inferred from a key happening to be absent from a file.
 	if (!CATEGORY_MAP[cat]?.osmTag) return null;
 	const n = c.osm?.[cat];
 	return typeof n === 'number' ? Math.round(n * areaFactor(radius)) : null;
 }
 
-/** Skala normalisasi penawaran: catchment terpadat pada kategori ini. Petak yang
-    belum tercakup tidak boleh ikut menentukan skala. */
+/** Normalisation scale for supply: the densest catchment in this category. Cells
+    that are not yet covered must not get a say in setting the scale. */
 function maxPoi(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number): number {
 	const counts = all
 		.filter((c) => !c.nodata)
@@ -66,25 +65,25 @@ function maxPoi(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number)
 function typologyOf(
 	demand: number,
 	supply: number,
-	ramai: number,
+	busy: number,
 	listings: number
 ): Typology {
-	if (supply > 0.6 && ramai < 0.45) return 'Jenuh';
-	if (demand > 0.55 && supply < 0.32) return 'Underserved';
-	if (demand > 0.55 && listings === 0) return 'Ramai, ruang terbatas';
-	return 'Kompetitif';
+	if (supply > 0.6 && busy < 0.45) return 'saturated';
+	if (demand > 0.55 && supply < 0.32) return 'underserved';
+	if (demand > 0.55 && listings === 0) return 'busy-limited-space';
+	return 'competitive';
 }
 
 /**
- * Opportunity Score satu catchment untuk satu kategori.
+ * The Opportunity Score of one catchment for one category.
  *
- *   Gap  = (wd·permintaan − ws·penawaran) / (wd + ws)
- *   Skor = clamp(Gap + 0.5) × gerbang_ruang_usaha
+ *   Gap   = (wd·demand − ws·supply) / (wd + ws)
+ *   Score = clamp(Gap + 0.5) × commercial_space_gate
  *
- * Penawaran bukan sekadar cacah pesaing: kepadatan dibobot kondisi pembeli, jadi
- * pesaing yang ramai menekan peluang lebih keras daripada pesaing yang sepi.
- * Ketersediaan ruang usaha diperlakukan sebagai gerbang — tanpa ruang, peluang
- * tidak dapat dieksekusi, bukan sekadar lebih mahal.
+ * Supply is not merely a competitor count: density is weighted by how busy those
+ * competitors are, so busy competitors push the opportunity down harder than quiet
+ * ones. The availability of commercial space is treated as a gate — with no space
+ * the opportunity cannot be acted on at all, it is not just more expensive.
  */
 export function scoreOne(
 	c: Hex,
@@ -94,9 +93,9 @@ export function scoreOne(
 ): ScoredHex {
 	const base = {
 		id: c.id,
-		// Semua petak saat ini punya simpul transit bernama dalam jangkauan, tapi
-		// itu sifat data OSM hari ini — bukan jaminan. Penanda petak dipakai bila
-		// suatu saat tidak ada, supaya antarmuka tidak perlu menangani null.
+		// Every cell currently has a named transit node within range, but that is a
+		// property of today's OSM data — not a guarantee. A cell marker is used if
+		// one day there is none, so the interface never has to handle a null.
 		name: c.name ?? `Petak ${c.id.slice(-6)}`,
 		lat: c.lat,
 		lon: c.lon,
@@ -120,19 +119,19 @@ export function scoreOne(
 			score: null,
 			demand: null,
 			supply: null,
-			ramai: 0,
+			busy: 0,
 			listings: 0,
 			nTot: 0,
-			nontunai: 0,
-			jam: [],
-			puncak: -1,
-			typology: 'Belum terdata'
+			cashless: 0,
+			hourly: [],
+			peakHour: -1,
+			typology: 'no-data'
 		};
 	}
 
-	// Belum tercakup: petak ini nyata dan berpenghuni, hanya saja sumber aktif
-	// belum mensurvei kotanya. Menolak memberi skor adalah jawaban yang benar —
-	// angka apa pun di sini akan mengarang persaingan yang belum pernah dilihat.
+	// Not yet covered: this cell is real and inhabited, the active source simply has
+	// not surveyed its city. Refusing to give it a score is the correct answer — any
+	// number here would invent competition nobody has ever looked at.
 	if (count === null) {
 		return {
 			...base,
@@ -143,31 +142,31 @@ export function scoreOne(
 			score: null,
 			demand: c.d?.[cat] ?? 0,
 			supply: null,
-			ramai: c.ramai?.[cat] ?? 0,
+			busy: c.busy?.[cat] ?? 0,
 			listings: 0,
 			nTot: c.nStruk + c.nMenu + c.nProp,
-			nontunai: c.nontunai ?? 0,
-			jam: c.jam ?? [],
-			puncak: -1,
-			typology: 'Belum tercakup'
+			cashless: c.cashless ?? 0,
+			hourly: c.hourly ?? [],
+			peakHour: -1,
+			typology: 'not-covered'
 		};
 	}
 
 	const demand = c.d?.[cat] ?? 0;
-	const ramai = c.ramai?.[cat] ?? 0;
-	const supply = Math.min(1, (count / scale) * (0.55 + 0.9 * ramai));
+	const busy = c.busy?.[cat] ?? 0;
+	const supply = Math.min(1, (count / scale) * (0.55 + 0.9 * busy));
 	const listings = Math.round((c.listing?.[cat] ?? 0) * areaFactor(w.radius));
 	const gate = w.gate ? (listings > 0 ? 1 : 0.15) : 1;
-	// Akses transit adalah data NYATA (OSM), tidak seperti indikator misi yang
-	// masih contoh — jadi ia masuk sebagai pengali tersendiri, bukan dilebur ke
-	// dalam permintaan. Dengan begitu petak yang dilayani MRT sekaligus
-	// TransJakarta benar-benar bernilai lebih tinggi, dan sumbangannya bisa
-	// ditelusuri terpisah dari angka yang masih contoh.
+	// Transit access is REAL data (OSM), unlike the mission indicators which are
+	// still samples — so it enters as a multiplier of its own rather than being
+	// folded into demand. That way a cell served by both the MRT and TransJakarta
+	// really is worth more, and its contribution can be traced separately from the
+	// figures that are still samples.
 	const accessFactor = 0.6 + 0.4 * c.access;
 	const gap = (w.wd * demand - w.ws * supply) / Math.max(0.0001, w.wd + w.ws);
 	const score = Math.max(0, Math.min(1, gap + 0.5)) * gate * accessFactor;
-	const jam = c.jam ?? [];
-	const peak = jam.length ? jam.indexOf(Math.max(...jam)) : -1;
+	const hourly = c.hourly ?? [];
+	const peak = hourly.length ? hourly.indexOf(Math.max(...hourly)) : -1;
 
 	return {
 		...base,
@@ -178,23 +177,23 @@ export function scoreOne(
 		score,
 		demand,
 		supply,
-		ramai,
+		busy,
 		listings,
 		nTot: c.nStruk + c.nMenu + c.nProp,
-		nontunai: c.nontunai ?? 0,
-		jam,
-		puncak: peak,
-		typology: typologyOf(demand, supply, ramai, listings)
+		cashless: c.cashless ?? 0,
+		hourly,
+		peakHour: peak,
+		typology: typologyOf(demand, supply, busy, listings)
 	};
 }
 
-/** Skor seluruh catchment untuk satu kategori. */
+/** Score every catchment for one category. */
 export function scoreAll(all: Hex[], cat: CategoryKey, w: Weights): ScoredHex[] {
 	const scale = maxPoi(all, cat, w.source, w.radius);
 	return all.map((c) => scoreOne(c, cat, w, scale));
 }
 
-/** Skor satu catchment di seluruh kategori — untuk panel "peluang per jenis usaha". */
+/** Score one catchment across every category — for the "opportunity per business type" panel. */
 export function scoreAcrossCategories(
 	all: Hex[],
 	id: string,

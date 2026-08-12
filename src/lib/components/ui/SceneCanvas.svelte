@@ -1,26 +1,26 @@
 <script lang="ts">
 	/**
-	 * Wadah kanvas untuk adegan tiga dimensi.
+	 * The canvas host for a 3D scene.
 	 *
-	 * three.js dimuat dinamis — bundel awal halaman tidak ikut membengkak, dan
-	 * halaman tetap bisa dirender di server. Selama modulnya belum tiba (atau
-	 * WebGL tidak tersedia), yang tampil adalah apa pun yang dititipkan pemanggil
-	 * lewat snippet `fallback` — bukan kotak kosong.
+	 * three.js is loaded dynamically — the page's initial bundle does not swell,
+	 * and the page can still be server-rendered. Until the module arrives (or if
+	 * WebGL is unavailable), what shows is whatever the caller passed in through
+	 * the `fallback` snippet — not an empty box.
 	 *
-	 * Semua adegan berbagi urusan yang sama: berhenti saat digulir lewat atau saat
-	 * tabnya disembunyikan, ikut ukuran wadahnya, dan dibersihkan saat pergi.
-	 * Ditulis sekali di sini, bukan sekali per adegan.
+	 * Every scene shares the same chores: pausing when scrolled past or when its
+	 * tab is hidden, following its container's size, and cleaning up on the way out.
+	 * Written once here, rather than once per scene.
 	 */
 	import type { Snippet } from 'svelte';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import type { SceneWorld, WorldFactory } from '$lib/scene/world';
 
 	interface Props {
-		/** Impor dinamis yang mengembalikan pabrik adegannya. */
+		/** The dynamic import that returns the scene's factory. */
 		load: () => Promise<WorldFactory>;
-		/** Keadaan adegan; tiap perubahan diteruskan apa adanya. */
+		/** The scene's state; every change is passed straight through. */
 		state: Record<string, unknown>;
-		/** Deskripsi adegan untuk pembaca layar — wajib, adegan ini membawa makna. */
+		/** A description of the scene for screen readers — required, this scene carries meaning. */
 		label: string;
 		fallback?: Snippet;
 		overlay?: Snippet;
@@ -44,7 +44,7 @@
 				instance = create(canvas, { reducedMotion: prefersReducedMotion() });
 				world = instance;
 			} catch (e) {
-				console.error('[SpotOn] adegan gagal dimuat', e);
+				console.error('[SpotOn] scene failed to load', e);
 				failed = true;
 			}
 		})();
@@ -56,13 +56,13 @@
 		};
 	});
 
-	// Membaca `sceneState` di sini membuat efek ini ikut berjalan setiap kali
-	// salah satu isinya berubah.
+	// Reading `sceneState` here makes this effect re-run every time one of its
+	// fields changes.
 	$effect(() => {
 		world?.applyState({ ...sceneState });
 	});
 
-	// Hanya berjalan saat benar-benar terlihat — tab lain atau digulir lewat = diam.
+	// Only runs while genuinely visible — another tab or scrolled past = idle.
 	$effect(() => {
 		if (!world || !host) return;
 		const w = world;

@@ -1,31 +1,30 @@
 import type { Weights } from '$lib/types';
 
 /**
- * Bobot & gerbang: nilai bawaan dan satu-satunya tempat nilainya dibersihkan.
+ * Weights & gates: the default values, and the single place they are sanitised.
  *
- * Dulu ada dua penjaga yang berdiri sendiri — satu membaca query string, satu
- * membaca body JSON — dengan `clamp01` masing-masing. Dua salinan aturan yang
- * sama berarti cepat atau lambat keduanya berbeda, dan endpoint yang satu akan
- * menerima bobot yang ditolak endpoint lainnya.
+ * There used to be two independent guards — one reading the query string, one
+ * reading the JSON body — each with its own `clamp01`. Two copies of the same rule
+ * means sooner or later the two diverge, and one endpoint starts accepting weights
+ * the other rejects.
  */
 /**
- * `source` bawaan MAPID, bukan OSM.
+ * The default `source` is MAPID, not OSM.
  *
- * Dulu OSM, dan alasannya masuk akal waktu itu: MAPID baru mencakup satu kota
- * untuk satu kategori, jadi memakainya sebagai bawaan berarti menyambut
- * pengguna dengan peta yang sebagian besar kosong. Alasan itu sudah habis.
- * MAPID kini menutup ketiga belas kategori di kelima kota administrasi dan
- * lebih rapat daripada OSM di semuanya — pada laundry 16×, pada kedai minuman
- * 13×.
+ * It used to be OSM, and the reasoning held at the time: MAPID covered only one
+ * city for one category, so making it the default meant greeting the user with a
+ * mostly empty map. That reason has run out. MAPID now covers all thirteen
+ * categories across all five administrative cities, and is denser than OSM in every
+ * one of them — 16× on laundry, 13× on drinks stalls.
  *
- * Yang menentukan justru arah sebaliknya. Empat kategori makanan (warteg, mie,
- * seafood, resto asing) tidak punya sumber OSM sama sekali, karena penandaan
- * `cuisine` di Jakarta terlalu jarang dan tidak mengenal warteg maupun rumah
- * makan Padang. Dengan bawaan OSM, pengguna yang memilih Warteg — jenis usaha
- * yang paling mungkin ditanyakan orang di Jakarta — akan melihat seluruh peta
- * bertanda "belum tercakup" sebelum sempat menyentuh apa pun.
+ * What settles it points the other way entirely. Four food categories (warteg, mie,
+ * seafood, foreign restaurants) have no OSM source at all, because `cuisine` tagging
+ * in Jakarta is far too sparse and knows neither warteg nor Padang restaurants. With
+ * an OSM default, a user who picks Warteg — the business type people in Jakarta are
+ * most likely to ask about — would see the entire map marked "not covered" before
+ * touching anything.
  *
- * OSM tetap ada di saklar, dan tetap tidak pernah dicampur ke dalam satu skor.
+ * OSM is still on the switch, and is still never mixed into a single score.
  */
 export const DEFAULT_WEIGHTS: Weights = {
 	wd: 0.5,
@@ -39,11 +38,11 @@ const clamp01 = (v: unknown, fallback: number): number =>
 	typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
 
 /**
- * Bobot apa pun asalnya → bobot yang aman dipakai mesin skor.
+ * Weights from any origin → weights the scoring engine can safely use.
  *
- * Radius sengaja hanya menerima 400 atau 800: mesin skor cuma bisa menskalakan
- * hitungan yang sudah jadi ke dua nilai itu. Angka lain akan menghasilkan
- * bilangan yang tampak masuk akal padahal tidak berdasar.
+ * The radius deliberately accepts only 400 or 800: the engine can only rescale its
+ * precomputed counts to those two values. Any other number would produce figures
+ * that look plausible while resting on nothing.
  */
 export function normalizeWeights(partial: Partial<Weights> | undefined): Weights {
 	const p = partial ?? {};
@@ -52,10 +51,10 @@ export function normalizeWeights(partial: Partial<Weights> | undefined): Weights
 		ws: clamp01(p.ws, DEFAULT_WEIGHTS.ws),
 		gate: typeof p.gate === 'boolean' ? p.gate : DEFAULT_WEIGHTS.gate,
 		radius: p.radius === 400 ? 400 : 800,
-		// Nilai yang tidak dikenal jatuh ke bawaan, bukan ke 'osm' yang ditulis
-		// tangan. Dulu tertulis `? 'mapid' : 'osm'`, yang berarti bawaan sumber
-		// sebenarnya hidup di dua tempat — dan memindahkannya di DEFAULT_WEIGHTS
-		// tidak akan berpengaruh apa-apa di sini.
+		// An unrecognised value falls back to the default, not to a hand-written
+		// 'osm'. This once read `? 'mapid' : 'osm'`, which meant the real source
+		// default lived in two places — and moving it in DEFAULT_WEIGHTS would have
+		// had no effect here at all.
 		source: p.source === 'mapid' || p.source === 'osm' ? p.source : DEFAULT_WEIGHTS.source
 	};
 }

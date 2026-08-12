@@ -2,39 +2,38 @@ import type { CategoryKey } from '$lib/types';
 
 export interface CategoryDef {
 	key: CategoryKey;
-	/** Nama pendek untuk segmented control. */
+	/** Short name for the segmented control. */
 	short: string;
-	/** Nama lengkap untuk kalimat. */
+	/** Full name, for use in sentences. */
 	name: string;
 	/**
-	 * Tag OSM sumber hitungan pesaing — ditampilkan agar angka dapat ditelusuri.
+	 * The OSM tag the competitor count comes from — shown so the figure can be traced.
 	 *
-	 * `null` berarti OSM TIDAK BISA menghitung kategori ini, dan mesin skor
-	 * memperlakukan seluruh petak sebagai "belum tercakup" pada sumber OSM.
-	 * Bukan nol. Bedanya menentukan: nol pesaing adalah peluang terbaik yang
-	 * bisa dilaporkan peta ini, jadi kategori yang tidak punya sumber tetapi
-	 * dihitung nol akan menobatkan seluruh Jakarta sebagai lokasi ideal.
+	 * `null` means OSM CANNOT count this category, and the scoring engine treats
+	 * every cell as "not covered" on the OSM source. Not as zero. The difference is
+	 * decisive: zero competitors is the best opportunity this map can report, so a
+	 * category with no source but counted as zero would crown the whole of Jakarta
+	 * as the ideal location.
 	 */
 	osmTag: string | null;
-	/** Dataset MAPID sumber hitungan pesaing — ditampilkan agar angka dapat ditelusuri. */
+	/** The MAPID dataset the competitor count comes from — shown so the figure can be traced. */
 	mapidSet: string;
-	/** Kategori Properti Go yang dianggap cocok untuk usaha ini. */
-	propKat: string;
+	/** The Properti Go category considered a match for this kind of business. */
+	propertyCategory: string;
 }
 
 /**
- * Sembilan jenis usaha yang dinilai.
+ * The business types that get scored.
  *
- * Urutannya urutan tampil: makanan & minuman dulu, lalu ritel, lalu jasa.
- * Berbeda dari urutan di `scripts/build-hexes.mjs`, yang harus mempertahankan
- * lima kategori lama di depan — alasannya ada di sana.
+ * The order here is display order: food & drink first, then retail, then services.
+ * It differs from the order in `scripts/build-hexes.mjs`, which has to keep the
+ * five original categories up front — the reason for that lives over there.
  *
- * Tiap kategori wajib punya SUMBER DI KEDUA SISI, tag OSM dan dataset MAPID.
- * Saklar sumber di bilah atas memilih salah satunya, dan kategori yang hanya
- * punya satu sisi akan diam-diam bernilai nol di sisi yang lain — persis
- * kekeliruan yang paling dihindari proyek ini, karena nol pesaing membaca
- * sebagai peluang terbaik. Kalau sebuah jenis usaha tidak punya keduanya, ia
- * belum layak jadi kategori.
+ * Every category must have A SOURCE ON BOTH SIDES, an OSM tag and a MAPID dataset.
+ * The source switch in the top bar picks one of them, and a category with only one
+ * side would quietly read as zero on the other — precisely the mistake this project
+ * works hardest to avoid, because zero competitors reads as the best opportunity.
+ * If a business type does not have both, it is not yet fit to be a category.
  */
 export const CATEGORIES: CategoryDef[] = [
 	{
@@ -43,7 +42,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Kedai Kopi',
 		osmTag: 'amenity=cafe',
 		mapidSet: 'COFFEE SHOP + BRAND COFFEE SHOP',
-		propKat: 'Coffee Shop'
+		propertyCategory: 'Coffee Shop'
 	},
 	{
 		key: 'minuman',
@@ -51,7 +50,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Kedai Minuman',
 		osmTag: 'shop=beverages|bubble_tea, amenity=ice_cream',
 		mapidSet: 'MINUMAN',
-		propKat: 'Retail F&B'
+		propertyCategory: 'Retail F&B'
 	},
 	{
 		key: 'roti',
@@ -59,23 +58,22 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Toko Roti & Kue',
 		osmTag: 'shop=bakery|pastry',
 		mapidSet: 'ROTI DAN KUE',
-		propKat: 'Retail F&B'
+		propertyCategory: 'Retail F&B'
 	},
 	/**
-	 * `warung` dulu satu kategori berisi 6.094 titik: warteg, sushi, KFC, dan
-	 * rumah makan Padang dihitung sebagai pesaing yang sama. Untuk orang yang
-	 * sedang memilih lokasi itu angka yang menyesatkan — warteg tidak bersaing
-	 * dengan restoran Jepang, dan kepadatan gerai cepat saji tidak mengatakan
-	 * apa pun tentang peluang membuka warung nasi.
+	 * `warung` used to be one category holding 6,094 points: warteg, sushi, KFC, and
+	 * Padang restaurants counted as the same competitor. For someone choosing a
+	 * location that is a misleading figure — a warteg does not compete with a
+	 * Japanese restaurant, and the density of fast-food outlets says nothing about
+	 * the opportunity for opening a rice stall.
 	 *
-	 * Empat dari lima pecahannya ber-`osmTag: null`. OSM tidak punya penandaan
-	 * yang bisa dipakai: hanya 48,9% gerai makan di Jakarta Pusat punya tag
-	 * `cuisine` sama sekali, kosakata yang ada tidak mengenal warteg maupun
-	 * rumah makan Padang, dan `seafood` tidak muncul satu kali pun pada sampel.
-	 * Memaksakan pemetaan akan menghasilkan cacah yang terlalu rendah dan
-	 * berat sebelah — paling parah justru untuk warteg, yang paling jarang
-	 * ditandai. `cepat saji` selamat karena `amenity=fast_food` adalah tag
-	 * tersendiri yang tidak bergantung pada `cuisine`.
+	 * Four of its five splits carry `osmTag: null`. OSM has no usable tagging: only
+	 * 48.9% of eating places in Jakarta Pusat carry a `cuisine` tag at all, the
+	 * vocabulary that exists knows neither warteg nor Padang restaurants, and
+	 * `seafood` did not appear once in the sample. Forcing a mapping would produce
+	 * counts that are both too low and skewed — worst of all for warteg, the least
+	 * tagged of them. `cepat saji` survives because `amenity=fast_food` is a tag of
+	 * its own that does not depend on `cuisine`.
 	 */
 	{
 		key: 'warteg',
@@ -83,7 +81,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Warung & Rumah Makan',
 		osmTag: null,
 		mapidSet: 'RESTORAN → warteg, nasi goreng, padang, melayu, nusantara, ayam, jajanan',
-		propKat: 'Retail F&B'
+		propertyCategory: 'Retail F&B'
 	},
 	{
 		key: 'cepatsaji',
@@ -91,7 +89,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Gerai Cepat Saji',
 		osmTag: 'amenity=fast_food',
 		mapidSet: 'RESTORAN → cepat saji',
-		propKat: 'Retail F&B'
+		propertyCategory: 'Retail F&B'
 	},
 	{
 		key: 'mie',
@@ -99,7 +97,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Mie & Bakso',
 		osmTag: null,
 		mapidSet: 'RESTORAN → mie dan bakso, ramen',
-		propKat: 'Retail F&B'
+		propertyCategory: 'Retail F&B'
 	},
 	{
 		key: 'seafood',
@@ -107,7 +105,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Rumah Makan Seafood',
 		osmTag: null,
 		mapidSet: 'RESTORAN → seafood',
-		propKat: 'Retail F&B'
+		propertyCategory: 'Retail F&B'
 	},
 	{
 		key: 'restoasing',
@@ -115,7 +113,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Restoran Masakan Asing',
 		osmTag: null,
 		mapidSet: 'RESTORAN → korea, jepang, thailand, sushi, timur tengah, eropa, dll.',
-		propKat: 'Retail F&B'
+		propertyCategory: 'Retail F&B'
 	},
 	{
 		key: 'minimarket',
@@ -123,7 +121,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Minimarket',
 		osmTag: 'shop=convenience|supermarket',
 		mapidSet: 'MINIMARKET',
-		propKat: 'Minimarket'
+		propertyCategory: 'Minimarket'
 	},
 	{
 		key: 'kelontong',
@@ -131,7 +129,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Toko Kelontong',
 		osmTag: 'shop=grocery|general|kiosk',
 		mapidSet: 'TOKO KELONTONG',
-		propKat: 'Ruko'
+		propertyCategory: 'Ruko'
 	},
 	{
 		key: 'laundry',
@@ -139,7 +137,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Laundry',
 		osmTag: 'shop=laundry|dry_cleaning',
 		mapidSet: 'LAYANAN ATAU JASA → BINATU (LAUNDRY)',
-		propKat: 'Laundry'
+		propertyCategory: 'Laundry'
 	},
 	{
 		key: 'bengkel',
@@ -147,7 +145,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Bengkel Kendaraan',
 		osmTag: 'shop=car_repair|motorcycle_repair',
 		mapidSet: 'PERAWATAN DAN PERBAIKAN OTOMOTIF',
-		propKat: 'Ruko'
+		propertyCategory: 'Ruko'
 	},
 	{
 		key: 'apotek',
@@ -155,7 +153,7 @@ export const CATEGORIES: CategoryDef[] = [
 		name: 'Apotek',
 		osmTag: 'amenity=pharmacy',
 		mapidSet: 'APOTEK',
-		propKat: 'Ruko'
+		propertyCategory: 'Ruko'
 	}
 ];
 

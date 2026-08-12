@@ -1,23 +1,22 @@
 /**
- * Membaca `MAPID_API_KEY` untuk skrip-skrip MAPID.
+ * Reads `MAPID_API_KEY` for the MAPID scripts.
  *
- * Dulu blok ini disalin di fetch-mapid.mjs dan search-mapid.mjs, dan keduanya
- * hanya mau membaca dari berkas `.env`.
+ * This block used to be copied into fetch-mapid.mjs and search-mapid.mjs, and both
+ * would only read from the `.env` file.
  *
- * KENAPA LINGKUNGAN DIDAHULUKAN
+ * WHY THE ENVIRONMENT COMES FIRST
  *
- * `.env` adalah cara yang benar di mesin sendiri — berkasnya tidak ikut
- * ter-commit dan kuncinya tinggal di satu tempat. Tapi skrip ini juga dijalankan
- * di tempat yang tidak punya berkas itu sama sekali: CI, kontainer, sesi remote.
- * Di sana kunci datang sebagai variabel lingkungan, dan versi lama berhenti di
- * `readFileSync` dengan `ENOENT: no such file or directory, open '.env'` —
- * pesan yang menunjuk ke berkas yang hilang, padahal kuncinya sudah ada di
- * lingkungan dan tinggal dibaca. Yang gagal bukan kredensialnya, melainkan cara
- * mencarinya.
+ * `.env` is the right approach on your own machine — the file is not committed and
+ * the key lives in one place. But these scripts also run in places that have no
+ * such file at all: CI, containers, remote sessions. There the key arrives as an
+ * environment variable, and the old version stopped at `readFileSync` with
+ * `ENOENT: no such file or directory, open '.env'` — a message pointing at a
+ * missing file when the key was already in the environment, waiting to be read.
+ * What failed was not the credential but the way it was looked for.
  *
- * Urutannya: lingkungan dulu, `.env` sebagai cadangan. Dengan begitu satu
- * perintah `MAPID_API_KEY=… node scripts/fetch-mapid.mjs` bisa menimpa isi
- * `.env` tanpa menyunting berkasnya — berguna saat menguji kunci lain.
+ * The order: environment first, `.env` as the fallback. That way a single
+ * `MAPID_API_KEY=… node scripts/fetch-mapid.mjs` can override the contents of
+ * `.env` without editing the file — useful when testing a different key.
  */
 
 import { readFileSync } from 'node:fs';
@@ -27,16 +26,16 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /**
- * Mengambil satu nilai dari `.env` tanpa memasang pustaka pemuat apa pun.
- * Cukup untuk berkas sederhana `KUNCI=nilai` seperti punya proyek ini.
+ * Pulls a single value out of `.env` without pulling in a loader library.
+ * Enough for a plain `KEY=value` file like this project's.
  */
 function fromDotenv(name) {
 	let raw;
 	try {
 		raw = readFileSync(resolve(ROOT, '.env'), 'utf8');
 	} catch {
-		// Tidak ada `.env` bukan galat — pemanggilnya yang memutuskan itu fatal
-		// atau tidak, setelah lingkungan juga ternyata kosong.
+		// A missing `.env` is not an error — the caller decides whether that is fatal,
+		// once the environment has turned out to be empty too.
 		return '';
 	}
 	const m = raw.match(new RegExp(`^${name}=(.*)$`, 'm'));
@@ -44,15 +43,15 @@ function fromDotenv(name) {
 }
 
 /**
- * Kunci baca MAPID. Melempar dengan pesan yang menyebut kedua jalan bila tidak
- * ketemu di mana pun.
+ * The MAPID read key. Throws with a message naming both routes if it is not found
+ * anywhere.
  */
 export function mapidKey() {
 	const key = (process.env.MAPID_API_KEY ?? '').trim() || fromDotenv('MAPID_API_KEY');
 	if (!key) {
 		throw new Error(
-			'MAPID_API_KEY tidak ditemukan — isi di .env (lihat .env.example) ' +
-				'atau ekspor sebagai variabel lingkungan'
+			'MAPID_API_KEY not found — set it in .env (see .env.example) ' +
+				'or export it as an environment variable'
 		);
 	}
 	return key;

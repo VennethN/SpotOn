@@ -4,9 +4,9 @@ import type { RequestHandler } from './$types';
 
 /**
  * GET /api/catchments
- * Indikator mentah per catchment stasiun — bentuk yang nantinya dikembalikan
- * backend MAPID setelah spatial join. Skoring tidak dilakukan di sini karena
- * bobotnya diatur pengguna secara langsung di antarmuka.
+ * Raw indicators per station catchment — the shape the MAPID backend will
+ * eventually return after its spatial join. Scoring does not happen here, because
+ * its weights are set by the user directly in the interface.
  */
 export const GET: RequestHandler = () => {
 	const catchments = loadHexes();
@@ -16,7 +16,7 @@ export const GET: RequestHandler = () => {
 			provenance,
 			counts: {
 				total: catchments.length,
-				terdata: catchments.filter((c) => !c.nodata).length,
+				withData: catchments.filter((c) => !c.nodata).length,
 				titikMisi: catchments.reduce((a, c) => a + c.nStruk + c.nMenu + c.nProp, 0)
 			}
 		},

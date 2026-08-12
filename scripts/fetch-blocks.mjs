@@ -1,18 +1,18 @@
 /**
- * Mengunduh geometri nyata OSM di sekitar tiap stasiun, lalu menyimpannya sebagai
- * koordinat meter lokal siap-pakai untuk maket 3D.
+ * Downloads real OSM geometry around each station and stores it as ready-to-use
+ * local metre coordinates for the 3D diorama.
  *
- * Dijalankan manual saat data perlu disegarkan:
+ * Run by hand whenever the data needs refreshing:
  *   node scripts/fetch-blocks.mjs
  *
- * Keluarannya `src/lib/data/blocks.json`. Sengaja disimpan sebagai berkas, bukan
- * diambil saat runtime: Overpass punya batas laju dan tidak boleh berada di jalur
- * muat halaman pengguna.
+ * Output is `src/lib/data/blocks.json`. Deliberately kept as a file rather than
+ * fetched at runtime: Overpass is rate-limited and has no business sitting in the
+ * user's page-load path.
  *
- * Soal tinggi bangunan: hanya sebagian kecil bangunan di Jakarta yang punya tag
- * `height` atau `building:levels`. Yang tidak punya DIPERKIRAKAN dari jenis dan
- * luas tapaknya, dan ditandai `est: 1`. Penanda itu wajib ikut sampai ke antarmuka —
- * massa yang ditebak tidak boleh tampil seolah-olah terukur.
+ * On building heights: only a small share of Jakarta's buildings carry a `height`
+ * or `building:levels` tag. Those that don't are ESTIMATED from their type and
+ * footprint area, and flagged with `est: 1`. That flag has to survive all the way
+ * to the interface — a guessed mass must never be presented as a measured one.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -29,7 +29,7 @@ const ENDPOINTS = [
 const ROAD_CLASSES =
 	'motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street|pedestrian|footway|service';
 
-/** Lebar jalur per kelas, meter. Dipakai untuk menggambar pita jalan. */
+/** Lane width per class, in metres. Used to draw the road ribbons. */
 const ROAD_WIDTH = {
 	motorway: 16,
 	trunk: 15,
@@ -51,8 +51,8 @@ async function overpass(query) {
 	for (let attempt = 0; attempt < 4; attempt++) {
 		const url = ENDPOINTS[attempt % ENDPOINTS.length];
 		try {
-			// Overpass membalas 406 untuk permintaan tanpa User-Agent yang jelas —
-			// bukan soal isi kuerinya. Header ini yang membuatnya dilayani.
+			// Overpass answers 406 for requests without an explicit User-Agent —
+			// nothing to do with the query itself. This header is what gets it served.
 			const res = await fetch(url, {
 				method: 'POST',
 				headers: {
@@ -73,18 +73,18 @@ async function overpass(query) {
 			await sleep(4000 * (attempt + 1));
 		}
 	}
-	throw lastErr ?? new Error('Overpass gagal');
+	throw lastErr ?? new Error('Overpass failed');
 }
 
-/** Meter per derajat pada lintang tertentu — cukup akurat untuk radius ratusan meter. */
+/** Metres per degree at a given latitude — accurate enough for radii of a few hundred metres. */
 function projector(lat0, lon0) {
 	const mPerLat = 111132.92 - 559.82 * Math.cos((2 * lat0 * Math.PI) / 180);
 	const mPerLon = 111412.84 * Math.cos((lat0 * Math.PI) / 180);
-	// x ke timur, z ke selatan → utara berada di -Z, sesuai adegan Y-up dilihat dari atas
+	// x east, z south → north lands on -Z, matching a Y-up scene seen from above
 	return (lat, lon) => [(lon - lon0) * mPerLon, -(lat - lat0) * mPerLat];
 }
 
-/** Luas poligon (meter persegi) lewat rumus shoelace. */
+/** Polygon area (square metres) via the shoelace formula. */
 function area(ring) {
 	let a = 0;
 	for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -94,8 +94,8 @@ function area(ring) {
 }
 
 /**
- * Tinggi bangunan. Mengembalikan [meter, ditebak?].
- * Urutannya: tag height → tag levels → perkiraan dari jenis & luas tapak.
+ * Building height. Returns [metres, estimated?].
+ * Order: height tag → levels tag → estimate from type & footprint area.
  */
 function heightOf(tags = {}, footprint) {
 	const h = parseFloat(tags.height);
@@ -104,7 +104,7 @@ function heightOf(tags = {}, footprint) {
 	const lv = parseInt(tags['building:levels'], 10);
 	if (Number.isFinite(lv) && lv > 0 && lv < 120) return [lv * 3.2 + 1.2, 0];
 
-	// Tidak ada tag tinggi: diperkirakan. Ini yang ditandai est = 1.
+	// No height tag: estimate it. This is what gets flagged est = 1.
 	const t = tags.building ?? 'yes';
 	const tall = ['apartments', 'residential', 'hotel', 'office', 'commercial', 'retail', 'mall'];
 	let levels;
@@ -142,10 +142,10 @@ async function main() {
 
 			if (el.tags?.building) {
 				if (pts.length < 4) continue;
-				// buang simpul penutup; ring disimpan terbuka
+				// drop the closing node; the ring is stored open
 				const ring = pts.slice(0, -1);
 				const a = area(ring);
-				if (a < 12) continue; // gubuk kecil: hanya jadi derau di maket
+				if (a < 12) continue; // tiny shacks: nothing but noise in the diorama
 				const [h, est] = heightOf(el.tags, a);
 				buildings.push({
 					r: ring.flatMap(([x, z]) => [r1(x), r1(z)]),
@@ -164,18 +164,18 @@ async function main() {
 		}
 
 		out.push({ id: `S${i}`, name: st.name, buildings, roads });
-		console.log(`${buildings.length} bangunan, ${roads.length} ruas jalan`);
+		console.log(`${buildings.length} buildings, ${roads.length} road segments`);
 
-		// Overpass dipakai bersama-sama; jangan dihajar tanpa jeda.
+		// Overpass is a shared service; don't hammer it without a pause.
 		if (i < stations.length - 1) await sleep(2500);
 	}
 
 	const meta = {
 		radius: RADIUS,
 		source: 'OpenStreetMap contributors (ODbL) via Overpass API',
-		generated: 'jalankan ulang scripts/fetch-blocks.mjs untuk menyegarkan',
+		generated: 're-run scripts/fetch-blocks.mjs to refresh',
 		heightNote:
-			'Tinggi memakai tag height/building:levels bila ada. Sisanya diperkirakan dari jenis dan luas tapak, ditandai est = 1.',
+			'Heights use the height/building:levels tags where present. The rest are estimated from type and footprint area, flagged est = 1.',
 		buildings: totalB,
 		estimated: totalEst
 	};
@@ -186,12 +186,12 @@ async function main() {
 
 	const pctEst = Math.round((totalEst / totalB) * 100);
 	console.log(
-		`\n${totalB} bangunan tersimpan · ${pctEst}% tingginya diperkirakan (bukan dari tag OSM)`
+		`\n${totalB} buildings written · ${pctEst}% of heights estimated (not from OSM tags)`
 	);
 	console.log(`→ ${dest}`);
 }
 
 main().catch((err) => {
-	console.error('Gagal:', err.message);
+	console.error('Failed:', err.message);
 	process.exit(1);
 });

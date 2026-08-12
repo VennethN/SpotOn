@@ -1,11 +1,11 @@
-/* SpotOn — sistem desain.
-   Material tembus pandang, hierarki dari berat + ukuran + leading, gerak berbasis pegas.
-   Warna, radius, dan bayangan seluruhnya token; komponen tidak pernah menulis nilai mentah. */
+/* SpotOn — the design system.
+   Translucent materials, hierarchy from weight + size + leading, spring-based motion.
+   Colours, radii, and shadows are all tokens; components never write raw values. */
 
-/* Albert Sans variabel (wght 100–900), di-host sendiri.
-   Geometris: mangkuk huruf mendekati lingkaran penuh dan sambungannya mulus —
-   sepadan dengan maket putih yang presisi. Tidak ada sumbu lebar, dan memang
-   tidak dipakai: memampatkan huruf geometris justru merusak lingkarannya. */
+/* Albert Sans variable (wght 100–900), self-hosted.
+   Geometric: the letter bowls are close to full circles and the joins are smooth —
+   a match for the precise white model. There is no width axis, and none is wanted:
+   condensing a geometric face wrecks its circles. */
 @font-face {
 	font-family: 'Albert Sans';
 	src: url('/fonts/albert-latin.woff2') format('woff2');
@@ -32,13 +32,13 @@
 
 	color-scheme: light;
 
-	/* label — hierarki opasitas, bukan abu-abu datar (tetap terbaca di atas material) */
+	/* labels — an opacity hierarchy, not flat greys (stays legible over materials) */
 	--label-1: rgba(0, 0, 0, 0.88);
 	--label-2: rgba(0, 0, 0, 0.56);
 	--label-3: rgba(0, 0, 0, 0.36);
 	--label-4: rgba(0, 0, 0, 0.22);
 
-	/* permukaan */
+	/* surfaces */
 	--bg-base: #eceef1;
 	--bg-elevated: #ffffff;
 	--fill-1: rgba(120, 128, 140, 0.09);
@@ -47,7 +47,7 @@
 	--separator: rgba(0, 0, 0, 0.09);
 	--separator-strong: rgba(0, 0, 0, 0.16);
 
-	/* material — lapisan mengambang, konten mengalir di bawahnya */
+	/* materials — floating layers, with content flowing beneath them */
 	--mat-thick: rgba(252, 252, 253, 0.82);
 	--mat-regular: rgba(252, 252, 253, 0.72);
 	--mat-thin: rgba(255, 255, 255, 0.58);
@@ -56,7 +56,7 @@
 	--blur-regular: saturate(180%) blur(22px);
 	--blur-thin: saturate(160%) blur(14px);
 
-	/* aksen & semantik */
+	/* accent & semantics */
 	--accent: #0071e3;
 	--accent-ink: #ffffff;
 	--accent-soft: rgba(0, 113, 227, 0.12);
@@ -65,7 +65,7 @@
 	--critical: #d1352b;
 	--nodata: #9aa2ad;
 
-	/* skala peluang (rendah → tinggi) */
+	/* the opportunity ramp (low → high) */
 	--ramp-0: #dbe7f7;
 	--ramp-1: #b3cdf0;
 	--ramp-2: #86b0e6;
@@ -74,14 +74,14 @@
 	--ramp-5: #1c56a5;
 	--ramp-6: #143f7c;
 
-	/* jalur angkutan — empat rona yang jelas berbeda, dan sengaja bukan biru:
-	   petak peluang memakai skala biru, jadi jalur biru akan lenyap di atasnya */
+	/* transit lines — four clearly distinct hues, and deliberately not blue:
+	   the opportunity cells use a blue ramp, so a blue line would vanish over them */
 	--route-mrt: #ef8f3c;
 	--route-krl: #e05a5a;
 	--route-lrt: #46b077;
 	--route-brt: #c76bbe;
 
-	/* kedalaman — permukaan besar terbaca lebih tebal daripada chip kecil */
+	/* depth — a large surface reads heavier than a small chip */
 	--shadow-chip: 0 1px 2px rgba(15, 22, 36, 0.08);
 	--shadow-panel:
 		0 0.5px 1px rgba(15, 22, 36, 0.06), 0 6px 16px -6px rgba(15, 22, 36, 0.14),
@@ -90,23 +90,23 @@
 		0 0.5px 1px rgba(15, 22, 36, 0.08), 0 12px 32px -8px rgba(15, 22, 36, 0.2),
 		0 40px 80px -32px rgba(15, 22, 36, 0.34);
 
-	/* radius */
+	/* radii */
 	--r-xs: 6px;
 	--r-sm: 9px;
 	--r-md: 13px;
 	--r-lg: 18px;
 	--r-xl: 24px;
 
-	/* kertas: alas halaman di bawah panggung maket — sedikit hangat, bukan putih layar */
+	/* paper: the page ground below the model stage — slightly warm, not screen white */
 	--paper: #edebe6;
 	--paper-line: rgba(28, 26, 22, 0.14);
 
-	/* ── angkatan ──────────────────────────────────────────────────────────
-	   Bidang yang rata sempurna terbaca sebagai lubang, bukan sebagai benda.
-	   Yang mengangkatnya di sini bukan warna baru: cahaya datang dari atas,
-	   jadi tepi atas tiap bidang sedikit lebih terang daripada bawahnya —
-	   isyarat yang sama dengan yang dipakai maket. Selisihnya ditahan di
-	   bawah 5%; begitu terlihat sebagai gradasi, ia sudah terlalu jauh. */
+	/* ── lift ──────────────────────────────────────────────────────────────
+	   A perfectly flat field reads as a hole, not as an object. What lifts it
+	   here is not a new colour: the light comes from above, so the top edge of
+	   every field is slightly brighter than its bottom — the same cue the model
+	   uses. The difference is held under 5%; the moment it looks like a
+	   gradient, it has gone too far. */
 	--lift-paper: linear-gradient(
 		180deg,
 		color-mix(in srgb, var(--paper) 95%, white) 0%,
@@ -122,19 +122,19 @@
 		color-mix(in srgb, var(--bg-elevated) 93%, white) 0%,
 		var(--bg-elevated) 7rem
 	);
-	/* Garis cahaya setebal satu piksel di tepi atas — bukan gradasi, kilau. */
+	/* A one-pixel light line along the top edge — not a gradient, a glint. */
 	--lift-edge: rgba(255, 255, 255, 0.55);
-	/* Batang data: sedikit lebih terang di pangkal, seperti bidang yang miring. */
+	/* Data bars: slightly brighter at the foot, like a field seen at an angle. */
 	--lift-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
 
-	/* ruang — em/rem agar layout ikut membesar bersama teks pengguna */
+	/* spacing — em/rem so the layout grows with the user's text size */
 	--gap: 0.75rem;
 	--pad: 0.875rem;
 }
 
 :root[data-theme='dark'],
 :root:where(:not([data-theme='light'])) {
-	/* dark mode diterapkan lewat media query di bawah; blok ini hanya penampung */
+	/* dark mode is applied via the media query below; this block is just a holder */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -177,7 +177,7 @@
 		--route-brt: #de85d4;
 		--paper: #111316;
 		--paper-line: rgba(255, 255, 255, 0.13);
-		/* Gelap: cahayanya lebih pelit, tapi arahnya tetap dari atas. */
+		/* Dark: the light is stingier, but it still comes from above. */
 		--lift-edge: rgba(255, 255, 255, 0.14);
 		--lift-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
 	}
@@ -226,7 +226,7 @@
 	--lift-bar: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
 }
 
-/* transparansi & kontras: preferensi sistem menang atas estetika */
+/* transparency & contrast: the system preference beats the aesthetic */
 @media (prefers-reduced-transparency: reduce) {
 	:root {
 		--mat-thick: var(--bg-elevated);
@@ -243,8 +243,8 @@
 		--separator: var(--separator-strong);
 		--mat-thick: var(--bg-elevated);
 		--mat-regular: var(--bg-elevated);
-		/* Angkatan bekerja dengan selisih beberapa persen — persis yang diminta
-		   dihapus di sini. Bidangnya jadi rata, batasnya dibawa garis. */
+		/* The lift works on a few per cent of difference — exactly what is being asked
+		   to go away here. The fields go flat and their edges are carried by lines. */
 		--lift-paper: none;
 		--lift-panel: none;
 		--lift-surface: none;
@@ -283,11 +283,11 @@ h2,
 h3 {
 	margin: 0;
 	font-weight: 600;
-	line-height: 1.15; /* leading rapat untuk teks besar */
+	line-height: 1.15; /* tight leading for large text */
 }
 h1 {
 	font-size: 1.0625rem;
-	letter-spacing: -0.017em; /* tracking negatif saat ukuran naik */
+	letter-spacing: -0.017em; /* negative tracking as the size goes up */
 }
 h2 {
 	font-size: 0.9375rem;
@@ -325,9 +325,9 @@ code,
 	letter-spacing: 0;
 }
 
-/* ── primitif ─────────────────────────────────────────────────────────── */
+/* ── primitives ───────────────────────────────────────────────────────── */
 
-/* label bagian: kecil → tracking positif agar tetap terbaca */
+/* section labels: small → positive tracking so they stay legible */
 .eyebrow {
 	font-size: 0.625rem;
 	font-weight: 600;
@@ -344,7 +344,7 @@ code,
 	border: 1px solid var(--separator);
 	box-shadow: var(--shadow-panel);
 }
-/* tepi terang di atas = cahaya menimpa material */
+/* a bright top edge = light falling on the material */
 .material::before {
 	content: '';
 	position: absolute;
@@ -379,7 +379,7 @@ code,
 	color: var(--label-3);
 }
 
-/* tombol pil — umpan balik pada pointer-down, bukan saat lepas */
+/* pill buttons — feedback on pointer-down, not on release */
 .btn {
 	display: inline-flex;
 	align-items: center;
@@ -413,7 +413,7 @@ code,
 	filter: brightness(1.06);
 }
 
-/* scrollbar tipis agar panel padat tetap tenang */
+/* a thin scrollbar so dense panels stay calm */
 .scroll {
 	overflow: auto;
 	scrollbar-width: thin;

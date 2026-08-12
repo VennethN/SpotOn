@@ -6,18 +6,18 @@ import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
 import type { AiAnswer, Hex, CategoryKey, ScoredHex, Weights, PoiSource } from '$lib/types';
 
-export type LayerKey = 'score' | 'rute' | 'poi' | 'nodata' | 'label';
+export type LayerKey = 'score' | 'routes' | 'poi' | 'nodata' | 'label';
 export type { Theme };
 
 const KEY = Symbol('spoton');
 
 /**
- * Status antarmuka SpotOn.
+ * SpotOn's interface state.
  *
- * Skoring dihitung ulang di klien setiap kali bobot berubah supaya slider terasa
- * seketika — memutar bobot lewat jaringan akan memasang latensi tepat di jalur
- * masukan. Mesin skornya modul yang sama persis dengan yang dipakai server
- * (`$lib/scoring`), jadi tidak ada dua versi kebenaran.
+ * Scoring is recomputed on the client every time a weight changes so the sliders
+ * feel instant — routing weights through the network would put latency right in the
+ * input path. The scoring engine is the exact same module the server uses
+ * (`$lib/scoring`), so there are never two versions of the truth.
  */
 export class AppState {
 	catchments = $state<Hex[]>([]);
@@ -25,7 +25,7 @@ export class AppState {
 	weights = $state<Weights>({ ...DEFAULT_WEIGHTS });
 	layers = $state<Record<LayerKey, boolean>>({
 		score: true,
-		rute: true,
+		routes: true,
 		poi: false,
 		nodata: true,
 		label: true
@@ -36,10 +36,10 @@ export class AppState {
 	aiLoading = $state(false);
 	aiError = $state<string | null>(null);
 	theme = $state<Theme>('system');
-	/** Preferensi gelap sistem, dipantau agar tema efektif ikut reaktif. */
+	/** The system dark preference, watched so the effective theme stays reactive. */
 	systemDark = $state(false);
-	/** Panel yang sedang tampil pada tata letak ringkas. */
-	sheetTab = $state<'rekomendasi' | 'detail' | 'tabel' | 'kontrol'>('rekomendasi');
+	/** The panel currently on screen in the compact layout. */
+	sheetTab = $state<'recommendations' | 'detail' | 'table' | 'controls'>('recommendations');
 	tableOpen = $state(false);
 
 	constructor(catchments: Hex[]) {
@@ -50,7 +50,7 @@ export class AppState {
 		return CATEGORY_MAP[this.category];
 	}
 
-	/** Seluruh catchment yang sudah diskor untuk kategori aktif. */
+	/** Every catchment, scored for the active category. */
 	get rows(): ScoredHex[] {
 		return scoreAll(this.catchments, this.category, this.weights);
 	}
@@ -59,7 +59,7 @@ export class AppState {
 		return this.rows.find((r) => r.id === this.selectedId) ?? null;
 	}
 
-	/** Peluang catchment terpilih di seluruh kategori — untuk membandingkan format usaha. */
+	/** The selected catchment's opportunity across every category — for comparing business formats. */
 	get selectedAcrossCategories() {
 		if (!this.selectedId) return [];
 		return scoreAcrossCategories(this.catchments, this.selectedId, this.weights);
@@ -67,16 +67,16 @@ export class AppState {
 
 	get coverage() {
 		const rows = this.rows;
-		const terdata = rows.filter((r) => !r.nodata);
+		const withData = rows.filter((r) => !r.nodata);
 		return {
 			total: rows.length,
-			terdata: terdata.length,
-			belumTerdata: rows.length - terdata.length,
-			titikMisi: terdata.reduce((a, r) => a + r.nTot, 0),
+			withData: withData.length,
+			withoutData: rows.length - withData.length,
+			missionPoints: withData.reduce((a, r) => a + r.nTot, 0),
 			poi: rows.reduce((a, r) => a + r.osm, 0),
-			/** Petak nyata yang tidak dinilai karena sumber aktif belum mencakupnya. */
-			belumTercakup: rows.filter((r) => !r.nodata && r.score === null).length,
-			dinilai: rows.filter((r) => r.score !== null).length
+			/** Real cells left unscored because the active source does not cover them. */
+			notCovered: rows.filter((r) => !r.nodata && r.score === null).length,
+			scored: rows.filter((r) => r.score !== null).length
 		};
 	}
 
@@ -90,9 +90,9 @@ export class AppState {
 		this.highlight = [];
 	}
 
-	/** Ganti sumber cacah pesaing. Sorotan ikut dibersihkan: peringkat dihitung
-	    ulang dari data yang berbeda, jadi id yang tersorot tidak lagi berarti
-	    apa yang dimaksud pengguna saat menyorotnya. */
+	/** Switch the competitor-count source. The highlight is cleared with it: the
+	    ranking is recomputed from different data, so the highlighted ids no longer
+	    mean what the user meant when they highlighted them. */
 	setSource(source: PoiSource) {
 		this.weights.source = source;
 		this.highlight = [];
@@ -103,19 +103,19 @@ export class AppState {
 		applyTheme(theme);
 	}
 
-	/** Tema efektif setelah preferensi sistem diperhitungkan. */
+	/** The effective theme, once the system preference is taken into account. */
 	get resolvedTheme(): 'light' | 'dark' {
 		if (this.theme !== 'system') return this.theme;
 		return this.systemDark ? 'dark' : 'light';
 	}
 
-	/** Memulihkan pilihan tema dan memantau preferensi sistem. Mengembalikan pembersihnya. */
+	/** Restores the theme choice and watches the system preference. Returns its cleanup. */
 	initTheme(): () => void {
 		this.theme = storedTheme();
 		return watchSystemDark((dark) => (this.systemDark = dark));
 	}
 
-	/** Bertanya ke mesin rekomendasi (endpoint server). */
+	/** Ask the recommendation engine (the server endpoint). */
 	async ask(question: string) {
 		this.aiLoading = true;
 		this.aiError = null;
@@ -134,8 +134,8 @@ export class AppState {
 			const data: AiAnswer = await res.json();
 			this.ai = data;
 			this.highlight = data.highlight;
-			// Query hasil parsing boleh mengubah kategori aktif — peta harus ikut pindah
-			// ke kategori yang benar-benar dijawab, bukan tetap di kategori sebelumnya.
+			// The parsed query is allowed to change the active category — the map has to
+			// follow to the category that was actually answered, not stay on the old one.
 			if (data.query.kategori !== this.category) this.category = data.query.kategori;
 		} catch (err) {
 			this.aiError = err instanceof Error ? err.message : 'Terjadi kesalahan.';
