@@ -33,6 +33,15 @@ export interface Chip {
 }
 
 export interface Turn {
+	/**
+	 * A stable identity for one turn.
+	 *
+	 * Needed because `turns` is a `$state` proxy: the object pushed in is not the
+	 * same object that comes back out, so `indexOf(turn)` never matched and the
+	 * "thinking" bubble was never replaced by the answer. Every reply silently
+	 * stalled on "checking my notes".
+	 */
+	id: number;
 	who: 'tapak' | 'user';
 	text: string;
 	chips?: Chip[];
@@ -57,6 +66,7 @@ export class Tapak {
 	/** Small budget → results are filtered to areas where space is genuinely available. */
 	smallBudget = $state<boolean | null>(null);
 	#app: AppState;
+	#nextId = 0;
 	#greeted = false;
 	/** The last area commented on, so Tapak does not repeat itself. */
 	#lastRemarked: string | null = null;
@@ -70,7 +80,7 @@ export class Tapak {
 	}
 
 	#say(text: string, chips?: Chip[]) {
-		this.turns.push({ who: 'tapak', text, chips });
+		this.turns.push({ id: this.#nextId++, who: 'tapak', text, chips });
 	}
 
 	/** Clears the thread and greets again — used when the language is switched. */
@@ -103,7 +113,7 @@ export class Tapak {
 
 	tap(chip: Chip) {
 		this.#consume();
-		this.turns.push({ who: 'user', text: chip.label });
+		this.turns.push({ id: this.#nextId++, who: 'user', text: chip.label });
 		this.#run(chip.action);
 	}
 
@@ -112,7 +122,7 @@ export class Tapak {
 		const q = text.trim();
 		if (!q) return;
 		this.#consume();
-		this.turns.push({ who: 'user', text: q });
+		this.turns.push({ id: this.#nextId++, who: 'user', text: q });
 		void this.#ask(q);
 	}
 
@@ -152,17 +162,20 @@ export class Tapak {
 
 	async #ask(question: string, preface?: string) {
 		if (preface) this.#say(preface);
-		const turn: Turn = { who: 'tapak', text: copy().ai.thinking, pending: true };
-		this.turns.push(turn);
+		const id = this.#nextId++;
+		this.turns.push({ id, who: 'tapak', text: copy().ai.thinking, pending: true });
 
 		await this.#app.ask(question);
 
-		const idx = this.turns.indexOf(turn);
+		// Found by id, not by object identity: `turns` is a proxy, so `indexOf` on the
+		// raw object always misses and the reply is dropped on the floor.
+		const idx = this.turns.findIndex((t) => t.id === id);
 		if (idx === -1) return;
 
 		const c = copy();
 		if (this.#app.aiError) {
 			this.turns[idx] = {
+				id,
 				who: 'tapak',
 				text: c.tapak.failed(this.#app.aiError),
 				chips: [{ label: c.tapak.retry, action: { kind: 'ask', question } }]
@@ -172,11 +185,12 @@ export class Tapak {
 
 		const ans = this.#app.ai;
 		if (!ans) {
-			this.turns[idx] = { who: 'tapak', text: c.tapak.nothing };
+			this.turns[idx] = { id, who: 'tapak', text: c.tapak.nothing };
 			return;
 		}
 
 		this.turns[idx] = {
+			id,
 			who: 'tapak',
 			text: narrate(ans, c),
 			answer: ans,
