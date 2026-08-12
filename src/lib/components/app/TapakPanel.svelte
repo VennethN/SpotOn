@@ -1,43 +1,29 @@
 <script lang="ts">
 	/**
-	 * The conversation with Tapak — the app's primary surface.
+	 * The conversation with Tapak.
 	 *
 	 * Tapak opens and offers the next step, so a user who does not know what to ask
 	 * can still get moving just by tapping options. The text box stays for those who
 	 * already know what they want to ask.
+	 *
+	 * The instance is handed in by the page rather than created here: the question
+	 * box in the middle of the screen drives the same Tapak, and the thread has to
+	 * survive intact when that box turns into this panel. Greeting, the language
+	 * reset and the map-selection remark live with the instance, on the page.
 	 */
-	import { onMount } from 'svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
-	import { copy, lang } from '$lib/state/lang.svelte';
-	import { Tapak } from '$lib/state/tapak.svelte';
+	import { copy } from '$lib/state/lang.svelte';
+	import type { Tapak } from '$lib/state/tapak.svelte';
 	import { pct } from '$lib/utils/format';
+
+	let { tapak }: { tapak: Tapak } = $props();
 
 	const app = getAppState();
 	const c = $derived(copy());
-	const tapak = new Tapak(app);
 
 	let draft = $state('');
 	let log = $state<HTMLDivElement | null>(null);
-
-	onMount(() => tapak.greet());
-
-	/* Each turn stores a finished sentence rather than a key, so an old conversation
-	   does not switch language with it. Rather than leaving two languages in one
-	   thread, the thread restarts — it is short and the opening greeting is the same. */
-	let lastLang = lang();
-	$effect(() => {
-		const now = lang();
-		if (now === lastLang) return;
-		lastLang = now;
-		tapak.reset();
-	});
-
-	// Tapak turns to look when the user picks an area on the map themselves.
-	$effect(() => {
-		void app.selectedId;
-		tapak.remarkOnSelection();
-	});
 
 	// The scroll follows the newest turn rather than jumping: the user has to see
 	// the new message arrive, not suddenly find themselves at the bottom.
@@ -56,7 +42,7 @@
 
 <div class="tapak">
 	<div class="log scroll" bind:this={log}>
-		{#each tapak.turns as turn, i (i)}
+		{#each tapak.turns as turn (turn.id)}
 			{#if turn.who === 'tapak'}
 				<div class="row">
 					<span class="avatar"><TapakFigure size={26} /></span>
@@ -118,16 +104,19 @@
 
 <style>
 	.tapak {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
 		gap: 0.625rem;
 		min-height: 0;
 	}
+	/* No maximum height of its own: what bounds this is the surface holding it (the
+	   floating panel or the sheet), so there are never two rules fighting over it. */
 	.log {
 		display: flex;
 		flex-direction: column;
 		gap: 0.625rem;
-		max-height: min(58vh, 30rem);
+		min-height: 0;
 		padding-right: 0.25rem;
 	}
 

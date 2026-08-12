@@ -19,8 +19,10 @@
 	 * somewhere else that the legend never mentions.
 	 */
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
+	import Segmented from '$lib/components/ui/Segmented.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
+	import type { PoiSource } from '$lib/types';
 
 	const app = getAppState();
 	const c = $derived(copy());
@@ -104,6 +106,24 @@
 							: c.app.legendUncovered(uncovered, catName, srcName)}
 					</p>
 				{/if}
+
+				<!-- The competitor source used to sit in the title bar, three metres from
+				     anything it changed. It belongs here: it decides the numbers the ramp
+				     is drawn from, and the sentence directly above already names it as the
+				     reason some cells cannot be scored. Switching it is the fix for that
+				     sentence, so the fix sits next to the complaint. -->
+				<div class="source">
+					<span class="src-lbl">{c.app.sourceLabel}</span>
+					<Segmented
+						label={c.app.sourceLabel}
+						value={app.weights.source}
+						onchange={(v: PoiSource) => app.setSource(v)}
+						options={[
+							{ value: 'osm', label: 'OSM', hint: c.app.sourceOsm },
+							{ value: 'mapid', label: 'MAPID', hint: c.app.sourceMapid }
+						]}
+					/>
+				</div>
 
 				<button type="button" class="turn-off" onclick={() => (app.layers.score = false)}>
 					{c.app.heatmapHide}
@@ -202,6 +222,19 @@
 		font-size: 0.625rem;
 		line-height: 1.4;
 		color: var(--critical);
+	}
+
+	.source {
+		margin-top: 0.5rem;
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--separator);
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+	.src-lbl {
+		font-size: 0.625rem;
+		color: var(--label-3);
 	}
 
 	.turn-off {
