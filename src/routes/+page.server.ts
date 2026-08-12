@@ -88,7 +88,7 @@ function scriptFor(category: CategoryKey, smallBudget: boolean): Script {
 /** The small-budget branch alternates so both sides of the conversation are seen. */
 const SCRIPTS: Script[] = [
 	scriptFor('kopi', true),
-	scriptFor('warung', false),
+	scriptFor('warteg', false),
 	{
 		id: 'jenuh',
 		category: 'minimarket',

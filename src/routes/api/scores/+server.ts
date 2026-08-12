@@ -12,13 +12,13 @@ import type { RequestHandler } from './$types';
  * for every other consumer (export, testing, integration).
  */
 export const GET: RequestHandler = ({ url }) => {
-	const kategori = readCategory(url);
+	const category = readCategory(url);
 	const weights = readWeights(url);
-	const rows = scoreAll(loadHexes(), kategori, weights);
+	const rows = scoreAll(loadHexes(), category, weights);
 
 	return json({
-		kategori,
-		definisi: CATEGORY_MAP[kategori],
+		kategori: category,
+		definition: CATEGORY_MAP[category],
 		weights,
 		rows: [...rows].sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
 	});

@@ -1,6 +1,19 @@
 /** Keys of the business types SpotOn scores. Kept in Indonesian: they are the
     domain's own vocabulary and the values stored in the generated datasets. */
-export type CategoryKey = 'kopi' | 'warung' | 'minimarket' | 'laundry' | 'apotek';
+export type CategoryKey =
+	| 'kopi'
+	| 'minuman'
+	| 'roti'
+	| 'warteg'
+	| 'cepatsaji'
+	| 'mie'
+	| 'seafood'
+	| 'restoasing'
+	| 'minimarket'
+	| 'kelontong'
+	| 'laundry'
+	| 'bengkel'
+	| 'apotek';
 
 export type PerCategory<T> = Record<CategoryKey, T>;
 
