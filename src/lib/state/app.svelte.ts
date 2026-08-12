@@ -1,5 +1,7 @@
 import { getContext, setContext } from 'svelte';
+import { base } from '$app/paths';
 import { CATEGORY_KEYS, CATEGORY_MAP } from '$lib/domain/categories';
+import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
 import { lang } from './lang.svelte';
@@ -15,7 +17,7 @@ import type {
 	Weights
 } from '$lib/types';
 
-export type LayerKey = 'score' | 'routes' | 'poi' | 'nodata' | 'label';
+export type LayerKey = 'score' | 'routes' | 'poi' | 'nodata' | 'label' | 'stops';
 export type { Theme };
 
 const KEY = Symbol('spoton');
@@ -64,7 +66,13 @@ export class AppState {
 		routes: true,
 		poi: false,
 		nodata: true,
-		label: true
+		label: true,
+		/**
+		 * The transit nodes the SELECTED cell captures — never the whole city's 1,105.
+		 * On by default because it only ever draws once a cell is picked, and when it
+		 * does it is answering the question the reader just asked by picking it.
+		 */
+		stops: true
 	});
 	selectedId = $state<string | null>(null);
 	highlight = $state<string[]>([]);
@@ -90,8 +98,17 @@ export class AppState {
 	sheetTab = $state<'recommendations' | 'detail' | 'table' | 'controls'>('recommendations');
 	tableOpen = $state(false);
 
+	/**
+	 * Transit stops, for naming and drawing what a cell captures.
+	 *
+	 * 68 KB, and only ever needed once a cell is selected — so it is not in the page
+	 * load. Fetched on the first selection and kept.
+	 */
+	stops = $state<Omit<Stop, 'distance'>[] | null>(null);
+
 	/** In-flight requests, so two callers asking for the same category share one fetch. */
 	#inFlight = new Map<CategoryKey, Promise<void>>();
+	#stopsJob: Promise<void> | null = null;
 
 	constructor(base: HexBase[], initial?: CategorySlice) {
 		this.base = base;
@@ -262,6 +279,32 @@ export class AppState {
 		await Promise.all(CATEGORY_KEYS.map((key) => this.loadCategory(key)));
 	}
 
+	/**
+	 * Load the transit stops, once. Failure is silent on purpose: the stops enrich
+	 * the area panel, and losing them must not take the panel's other figures with
+	 * them — the counts it leads with come from the grid, which is already here.
+	 */
+	loadStops(): Promise<void> {
+		if (this.stops || this.#stopsJob) return this.#stopsJob ?? Promise.resolve();
+		this.#stopsJob = (async () => {
+			try {
+				const res = await fetch(`${base}/data/stops.json`);
+				if (!res.ok) return;
+				this.stops = parseStops(await res.json());
+			} catch {
+				/* the panel falls back to counts alone */
+			}
+		})();
+		return this.#stopsJob;
+	}
+
+	/** The stops the selected cell captures, nearest first. */
+	selectedStops = $derived.by(() => {
+		const cell = this.base.find((h) => h.id === this.selectedId);
+		if (!cell || !this.stops) return [];
+		return capturedStops(cell, this.stops, this.weights.radius);
+	});
+
 	/** Turn the heatmap on, fetching the active category's columns if they are not here yet. */
 	showHeatmap(): void {
 		this.layers.score = true;
@@ -271,9 +314,15 @@ export class AppState {
 	select(id: string | null) {
 		this.selectedId = id;
 		if (id) this.sheetTab = 'detail';
-		// Picking a cell is a request for its figures, heatmap or no heatmap — the
-		// detail panel and Tapak's remark both read the scored row.
-		if (id) void this.loadCategory(this.category);
+		if (id) {
+			// Picking a cell is a request for its figures, heatmap or no heatmap — the
+			// area panel and Tapak's remark both read the scored row.
+			void this.loadCategory(this.category);
+			// …and for the stations it captures, which the same panel names and the map
+			// draws. Both are cached after the first selection, so this is one cost paid
+			// once rather than per cell.
+			void this.loadStops();
+		}
 	}
 
 	setCategory(cat: CategoryKey) {
