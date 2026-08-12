@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { GeoJSONSource, Map as MapLibreMap, Marker, StyleSpecification } from 'maplibre-gl';
+	import type {
+		ExpressionSpecification,
+		GeoJSONSource,
+		Map as MapLibreMap,
+		Marker,
+		StyleSpecification
+	} from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	// The worker is bundled separately by Vite; left for maplibre to load on its own,
 	// the dev server touches the file and the worker dies without a sound.
@@ -9,10 +15,11 @@
 	import { boundsOf, emptyFC, scatterPoints } from '$lib/utils/geo';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import { pct, rampIndex } from '$lib/utils/format';
+	import { cellName } from '$lib/domain/scoring';
 	import { base } from '$app/paths';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
-	import type { ScoredHex } from '$lib/types';
+	import type { HexBase, ScoredHex } from '$lib/types';
 	import type { FeatureCollection } from 'geojson';
 
 	const app = getAppState();
@@ -24,6 +31,16 @@
 	let gl: typeof import('maplibre-gl') | null = null;
 	let markers = new Map<string, { marker: Marker; el: HTMLButtonElement; rank: number }>();
 	let labelFrame = 0;
+
+	/**
+	 * Is the heatmap actually being drawn right now?
+	 *
+	 * Both halves are needed. `layers.score` is the user's intent; `app.ready` is
+	 * whether the category's columns have arrived. Between the button press and the
+	 * response there is nothing to colour with, and colouring from nothing would
+	 * flash every cell through "no score" on its way to a real one.
+	 */
+	const heat = $derived(app.layers.score && app.ready);
 
 	/** Transit lines, drawn densest to sparsest so the few rail lines are not buried
 	    under the tightly packed bus corridors. */
@@ -37,7 +54,10 @@
 
 	/** The tooltip follows the pointer; its position is written straight to the DOM so no frame lags. */
 	let tipEl: HTMLDivElement;
-	let hovered = $state<ScoredHex | null>(null);
+	/* The name comes from the base grid and the figures from the scored row, so the
+	   tooltip still names a cell before any category has been loaded — rather than the
+	   map going quiet under the pointer until the heatmap is switched on. */
+	let hovered = $state<{ name: string; nodata: boolean; row: ScoredHex | null } | null>(null);
 
 	const cssVar = (name: string) =>
 		getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -86,48 +106,101 @@
 		return ctx.getImageData(0, 0, size, size);
 	}
 
-	function catchmentFC(rows: ScoredHex[]): FeatureCollection {
+	/**
+	 * The cell polygons.
+	 *
+	 * Built from the BASE grid, not from scored rows, so the map draws the moment the
+	 * page has its geometry — before any category has been chosen, and whether or not
+	 * the heatmap is on. Scores, when there are any, only decide the fill colour.
+	 *
+	 * Every colour is read once here rather than inside the loop. `cssVar` calls
+	 * `getComputedStyle(document.documentElement)`, and doing that per feature meant
+	 * 562 forced style recalculations for a palette of nine colours that is identical
+	 * on every one of them — on every weight change, every hover, every selection.
+	 */
+	function catchmentFC(): FeatureCollection {
+		const rows = heat ? app.rowById : null;
+		const colNodata = cssVar('--nodata');
+		const colIdle = cssVar('--cell-idle');
+		const ramp = Array.from({ length: 7 }, (_, i) => cssVar(`--ramp-${i}`));
+		const selectedId = app.selectedId;
+		const showNodata = app.layers.nodata;
+
 		return {
 			type: 'FeatureCollection',
-			features: rows
-				.filter((r) => !r.nodata || app.layers.nodata)
-				.map((r, i) => ({
-					type: 'Feature' as const,
-					// MapLibre's feature-state needs a numeric id; the row index is used because an
-					// H3 id is a hexadecimal string that cannot be turned into a number.
-					id: i,
-					geometry: {
-						type: 'Polygon' as const,
-						// Cell boundaries are computed once at build time, so the client never
-						// has to load the H3 library at all.
-						coordinates: [[...r.boundary, r.boundary[0]]]
-					},
-					properties: {
-						id: r.id,
-						name: r.name,
-						nodata: r.nodata,
-						// A real cell left unscored because the active source does not
-						// cover its city. Kept distinct from `nodata` so it does not look
-						// like an empty cell — and given no colour at all, because any
-						// colour would read as a score.
-						uncovered: !r.nodata && r.score === null,
-						color: r.nodata
-							? cssVar('--nodata')
-							: app.layers.score
-								? cssVar(`--ramp-${rampIndex(r.score ?? 0)}`)
-								: cssVar('--fill-2'),
-						saturated: r.typology === 'saturated',
-						selected: r.id === app.selectedId
-					}
-				}))
+			features: app.base
+				.filter((h) => !h.nodata || showNodata)
+				.map((h, i) => {
+					const row = rows?.get(h.id) ?? null;
+					const nodata = Boolean(h.nodata);
+					return {
+						type: 'Feature' as const,
+						// MapLibre's feature-state needs a numeric id; the row index is used because an
+						// H3 id is a hexadecimal string that cannot be turned into a number.
+						id: i,
+						geometry: {
+							type: 'Polygon' as const,
+							// Cell boundaries are computed once at build time, so the client never
+							// has to load the H3 library at all.
+							coordinates: [[...h.boundary, h.boundary[0]]]
+						},
+						properties: {
+							id: h.id,
+							name: cellName(h),
+							nodata,
+							// A real cell left unscored because the active source does not
+							// cover its city. Kept distinct from `nodata` so it does not look
+							// like an empty cell — and given no colour at all, because any
+							// colour would read as a score.
+							//
+							// Only ever claimed while the heatmap is on: with no category
+							// loaded nothing has been checked yet, and dashing every cell
+							// would report a coverage gap that has not been looked for.
+							uncovered: Boolean(row) && !nodata && row!.score === null,
+							color: nodata ? colNodata : row ? ramp[rampIndex(row.score ?? 0)] : colIdle,
+							// Carries a score right now, so the fill means something. An idle cell
+							// is drawn as structure instead: faint fill, crisper edge.
+							scored: Boolean(row) && !nodata && row!.score !== null,
+							saturated: row?.typology === 'saturated',
+							selected: h.id === selectedId
+						}
+					};
+				})
 		};
 	}
 
-	function poiFC(rows: ScoredHex[]): FeatureCollection {
-		if (!app.layers.poi) return emptyFC();
+	/**
+	 * The transit nodes the SELECTED cell captures — never the whole city's 1,105.
+	 *
+	 * This is the picture of the sentence the area panel just wrote. Drawing every
+	 * stop in Jakarta would answer a question nobody asked and bury the cell's own
+	 * under it; drawing only the captured ones makes "what this area reaches" a thing
+	 * you can see rather than a number you have to trust.
+	 */
+	function stopsFC(): FeatureCollection {
+		if (!app.layers.stops) return emptyFC();
 		return {
 			type: 'FeatureCollection',
-			features: rows
+			features: app.selectedStops.map((s) => ({
+				type: 'Feature' as const,
+				geometry: { type: 'Point' as const, coordinates: [s.lon, s.lat] },
+				properties: {
+					mode: s.mode,
+					name: s.name ?? '',
+					// Rail gets a bigger mark and its name on the map. A cell can capture
+					// twenty-odd bus stops, and twenty labels is not a map.
+					rail: s.mode !== 'brt'
+				}
+			}))
+		};
+	}
+
+	/** Competitor dots — real counts, so they need the active category's columns. */
+	function poiFC(): FeatureCollection {
+		if (!app.layers.poi || !app.ready) return emptyFC();
+		return {
+			type: 'FeatureCollection',
+			features: app.rows
 				.filter((r) => !r.nodata)
 				.flatMap((r) => scatterPoints(r.lon, r.lat, 430, r.osm, { id: r.id }))
 		};
@@ -136,8 +209,9 @@
 	function addLayers(m: MapLibreMap) {
 		if (!m.hasImage('hatch')) m.addImage('hatch', hatchImage());
 
-		m.addSource('catchments', { type: 'geojson', data: catchmentFC(app.rows) });
-		m.addSource('poi', { type: 'geojson', data: poiFC(app.rows) });
+		m.addSource('catchments', { type: 'geojson', data: catchmentFC() });
+		m.addSource('poi', { type: 'geojson', data: poiFC() });
+		m.addSource('stops', { type: 'geojson', data: stopsFC() });
 		// Fetched by URL rather than imported: MapLibre fetches the GeoJSON itself, so
 		// 441 KB of line geometry does not swell the JS bundle and can be cached by the
 		// browser like any other asset.
@@ -150,7 +224,24 @@
 			filter: ['all', ['!', ['get', 'nodata']], ['!', ['get', 'uncovered']]],
 			paint: {
 				'fill-color': ['get', 'color'],
-				'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.68, 0.5]
+				/**
+				 * A scored cell is filled, because the fill IS the reading. An idle one is
+				 * barely filled, because it has nothing to say and the reader is looking
+				 * through it at the streets and place names to work out where they are.
+				 *
+				 * Filled at the same strength as a scored cell, the idle grid became a flat
+				 * wash over the whole city — the basemap gone, every cell identical, and
+				 * nothing to look at. What makes the idle grid legible is its EDGES, below,
+				 * not its fill.
+				 */
+				'fill-opacity': [
+					'case',
+					['boolean', ['feature-state', 'hover'], false],
+					['case', ['get', 'scored'], 0.68, 0.4],
+					['get', 'scored'],
+					0.5,
+					0.16
+				]
 			}
 		});
 		m.addLayer({
@@ -180,15 +271,29 @@
 			type: 'line',
 			source: 'catchments',
 			paint: {
+				// With the heatmap off the edge is the only thing drawing the grid, so it
+				// gets a colour of its own rather than the panel hairline — which is tuned
+				// to separate list rows, not to hold a shape over a map.
 				'line-color': [
 					'case',
 					['get', 'selected'],
 					cssVar('--label-1'),
 					['get', 'saturated'],
 					cssVar('--critical'),
-					cssVar('--separator-strong')
+					['get', 'scored'],
+					cssVar('--separator-strong'),
+					cssVar('--cell-edge')
 				],
-				'line-width': ['case', ['get', 'selected'], 2.4, ['get', 'saturated'], 1.8, 1]
+				'line-width': [
+					'case',
+					['get', 'selected'],
+					2.4,
+					['get', 'saturated'],
+					1.8,
+					['get', 'scored'],
+					1,
+					1.1
+				]
 			}
 		});
 		m.addLayer({
@@ -218,6 +323,56 @@
 			});
 		}
 
+		// Above the route lines, so a station sits on its own corridor rather than
+		// under it.
+		const modeColour: ExpressionSpecification = [
+			'match',
+			['get', 'mode'],
+			'mrt',
+			cssVar('--route-mrt'),
+			'krl',
+			cssVar('--route-krl'),
+			'lrt',
+			cssVar('--route-lrt'),
+			cssVar('--route-brt')
+		];
+		m.addLayer({
+			id: 'stop-dots',
+			type: 'circle',
+			source: 'stops',
+			paint: {
+				'circle-radius': ['case', ['get', 'rail'], 6, 3.4],
+				'circle-color': modeColour,
+				'circle-stroke-width': ['case', ['get', 'rail'], 2, 1],
+				'circle-stroke-color': cssVar('--bg-elevated'),
+				'circle-opacity': 0.95
+			}
+		});
+		m.addLayer({
+			id: 'stop-labels',
+			type: 'symbol',
+			source: 'stops',
+			// Rail only: a cell can capture twenty-odd bus stops, and twenty labels is
+			// not a map. The bus stops keep their dots.
+			filter: ['get', 'rail'],
+			layout: {
+				'text-field': ['get', 'name'],
+				'text-size': 11,
+				'text-offset': [0, 1.1],
+				'text-anchor': 'top',
+				'text-font': ['Open Sans Regular'],
+				// A station whose label will not fit is still worth drawing as a dot, so
+				// the label is allowed to drop rather than the whole symbol.
+				'text-optional': true,
+				'text-allow-overlap': false
+			},
+			paint: {
+				'text-color': cssVar('--label-1'),
+				'text-halo-color': cssVar('--bg-elevated'),
+				'text-halo-width': 1.6
+			}
+		});
+
 		let hoverId: number | null = null;
 		m.on('mousemove', 'catchment-fill', (e) => {
 			m.getCanvas().style.cursor = 'pointer';
@@ -227,7 +382,17 @@
 				m.setFeatureState({ source: 'catchments', id: hoverId }, { hover: false });
 			hoverId = f.id as number;
 			m.setFeatureState({ source: 'catchments', id: hoverId }, { hover: true });
-			hovered = app.rows.find((r) => r.id === f.properties?.id) ?? null;
+			// A map lookup, not a scan. This runs on every pointer move, and reading
+			// `app.rows` here used to rescore all 562 cells each time — the single
+			// biggest reason moving the pointer over the map felt heavy.
+			const id = f.properties?.id as string | undefined;
+			hovered = id
+				? {
+						name: (f.properties?.name as string) ?? '',
+						nodata: Boolean(f.properties?.nodata),
+						row: app.rowById.get(id) ?? null
+					}
+				: null;
 			positionTip(e.point.x, e.point.y);
 		});
 		m.on('mouseleave', 'catchment-fill', () => {
@@ -259,27 +424,41 @@
 	    the ones that currently mean something to the user are marked. */
 	const MAX_MARKERS = 14;
 
-	/** Order matters: whichever comes first wins when two labels compete for space. */
-	function markerSet(rows: ScoredHex[]): Set<string> {
+	/**
+	 * Order matters: whichever comes first wins when two labels compete for space.
+	 *
+	 * With the heatmap on, the ranking is the opportunity score. With it off there are
+	 * no scores, so the cells are ranked by TRANSIT ACCESS — real OSM data that ships
+	 * with the base grid. The map therefore opens already naming its best-connected
+	 * stations instead of going blank until a category is picked, and it never invents
+	 * a ranking out of a score it does not have.
+	 */
+	function markerSet(): Set<string> {
 		const keep = new Set<string>();
 		if (app.selectedId) keep.add(app.selectedId);
 		for (const id of app.highlight) keep.add(id);
-		const top = rows
-			.filter((r) => !r.nodata)
+
+		const rows = heat ? app.rowById : null;
+		const top = app.base
+			.filter((h) => !h.nodata)
 			.slice()
-			.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-		for (const r of top) {
+			.sort((a, b) =>
+				rows
+					? (rows.get(b.id)?.score ?? 0) - (rows.get(a.id)?.score ?? 0)
+					: b.access - a.access
+			);
+		for (const h of top) {
 			if (keep.size >= MAX_MARKERS) break;
-			keep.add(r.id);
+			keep.add(h.id);
 		}
 		return keep;
 	}
 
 	/** Cell markers as HTML elements: the same typography & material as the panels. */
-	function syncMarkers(rows: ScoredHex[]) {
+	function syncMarkers(cells: HexBase[]) {
 		if (!map || !gl) return;
 
-		const keep = markerSet(rows);
+		const keep = markerSet();
 
 		// Markers that are no longer relevant are removed, not hidden — with display:none
 		// alone the nodes keep piling up as the user moves between selections.
@@ -290,35 +469,44 @@
 			}
 		}
 
-		for (const r of rows) {
-			if (!keep.has(r.id)) continue;
-			let entry = markers.get(r.id);
+		const order = [...keep];
+		for (const h of cells) {
+			if (!keep.has(h.id)) continue;
+			const name = cellName(h);
+			const nodata = Boolean(h.nodata);
+			let entry = markers.get(h.id);
 			if (!entry) {
 				const el = document.createElement('button');
 				el.type = 'button';
 				el.className = 'stn';
 				el.addEventListener('click', (ev) => {
 					ev.stopPropagation();
-					app.select(r.id);
+					app.select(h.id);
 				});
-				el.addEventListener('pointerenter', () => (hovered = r));
+				// Read at hover time rather than captured when the marker was made: a
+				// marker outlives many rescorings, and a captured row would keep showing
+				// the figures from whichever category was active when it was created.
+				el.addEventListener(
+					'pointerenter',
+					() => (hovered = { name, nodata, row: app.rowById.get(h.id) ?? null })
+				);
 				el.addEventListener('pointerleave', () => (hovered = null));
 				const marker = new gl.Marker({ element: el, anchor: 'center' })
-					.setLngLat([r.lon, r.lat])
+					.setLngLat([h.lon, h.lat])
 					.addTo(map);
 				entry = { marker, el, rank: 0 };
-				markers.set(r.id, entry);
+				markers.set(h.id, entry);
 			}
-			entry.rank = [...keep].indexOf(r.id);
-			const rank = app.highlight.indexOf(r.id);
-			const selected = app.selectedId === r.id;
-			entry.el.className = `stn${selected ? ' is-selected' : ''}${r.nodata ? ' is-nodata' : ''}`;
-			entry.el.setAttribute('aria-label', `${r.name}${r.nodata ? ' — belum terdata' : ''}`);
+			entry.rank = order.indexOf(h.id);
+			const rank = app.highlight.indexOf(h.id);
+			const selected = app.selectedId === h.id;
+			entry.el.className = `stn${selected ? ' is-selected' : ''}${nodata ? ' is-nodata' : ''}`;
+			entry.el.setAttribute('aria-label', `${name}${nodata ? ' — belum terdata' : ''}`);
 			entry.el.innerHTML =
 				`<span class="stn-dot"></span>` +
 				(rank > -1 ? `<span class="stn-rank">${rank + 1}</span>` : '') +
-				(app.layers.label || selected ? `<span class="stn-label">${shortName(r.name)}</span>` : '');
-			entry.el.style.display = r.nodata && !app.layers.nodata ? 'none' : '';
+				(app.layers.label || selected ? `<span class="stn-label">${shortName(name)}</span>` : '');
+			entry.el.style.display = nodata && !app.layers.nodata ? 'none' : '';
 		}
 
 		layoutLabels();
@@ -375,7 +563,7 @@
 
 	function fitAll(animate = true) {
 		if (!map) return;
-		map.fitBounds(boundsOf(app.rows), {
+		map.fitBounds(boundsOf(app.base), {
 			padding: { top: 90, bottom: 120, left: 60, right: 60 },
 			animate: animate && !prefersReducedMotion(),
 			duration: 700
@@ -392,7 +580,7 @@
 			const m = new gl.Map({
 				container,
 				style: basemapStyle(appliedTheme),
-				bounds: boundsOf(app.rows),
+				bounds: boundsOf(app.base),
 				fitBoundsOptions: { padding: { top: 90, bottom: 120, left: 60, right: 60 } },
 				attributionControl: false,
 				// Gestures must feel direct; rotation adds no meaning to this map.
@@ -444,11 +632,24 @@
 
 	// Sources & colours are refreshed whenever the scores, layers, or selection change.
 	$effect(() => {
-		const rows = app.rows;
+		// Named so the effect tracks them: the builders read `app.base` and `app.rowById`
+		// through helper functions, and an effect only re-runs for state it touched
+		// while it ran.
+		void app.base;
+		void app.rowById;
+		void heat;
+		void app.layers.nodata;
+		void app.layers.poi;
+		void app.layers.label;
+		void app.selectedId;
+		void app.highlight;
+		void app.selectedStops;
+		void app.layers.stops;
 		const m = map;
 		if (!m || !ready) return;
-		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC(rows));
-		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC(rows));
+		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC());
+		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC());
+		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC());
 		for (const mode of ROUTE_MODES) {
 			m.setLayoutProperty(`route-${mode.key}`, 'visibility', app.layers.routes ? 'visible' : 'none');
 		}
@@ -458,9 +659,11 @@
 			cssVar('--label-1'),
 			['get', 'saturated'],
 			cssVar('--critical'),
-			cssVar('--separator-strong')
+			['get', 'scored'],
+			cssVar('--separator-strong'),
+			cssVar('--cell-edge')
 		]);
-		syncMarkers(rows);
+		syncMarkers(app.base);
 	});
 
 	// Selecting a catchment pans the map to it — the spatial link between panel and map has to hold.
@@ -493,17 +696,21 @@
 		<strong>{hovered.name}</strong>
 		{#if hovered.nodata}
 			<span class="tip-sub">{c.app.tipNodata}</span>
-		{:else}
-			<span class="tip-score" style:color={`var(--ramp-${rampIndex(hovered.score ?? 0)})`}>
-				{pct(hovered.score)}
+		{:else if hovered.row}
+			{@const row = hovered.row}
+			<span class="tip-score" style:color={`var(--ramp-${rampIndex(row.score ?? 0)})`}>
+				{pct(row.score)}
 				<span class="tip-unit">{c.app.tipScore(c.category[app.category].name.toLowerCase())}</span>
 			</span>
 			<span class="tip-sub">
-				Permintaan {pct(hovered.demand)} · penawaran {pct(hovered.supply)}<br />
-				{hovered.osm} pesaing ({hovered.source === 'mapid' ? 'MAPID' : 'OSM'}, r={app.weights
-					.radius} m) · {hovered.listings} listing<br />
-				N misi = {hovered.nTot} titik
+				Permintaan {pct(row.demand)} · penawaran {pct(row.supply)}<br />
+				{row.osm} pesaing ({row.source === 'mapid' ? 'MAPID' : 'OSM'}, r={app.weights.radius} m) ·
+				{row.listings} listing<br />
+				N misi = {row.nTot} titik
 			</span>
+		{:else}
+			<!-- No category loaded yet: the cell is named and nothing more is claimed. -->
+			<span class="tip-sub">{c.app.tipNoCategory}</span>
 		{/if}
 	{/if}
 </div>

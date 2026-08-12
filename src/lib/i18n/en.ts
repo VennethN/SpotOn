@@ -332,7 +332,8 @@ export const en: Copy = {
 			routes: 'Transit lines',
 			poi: 'Competitor scatter',
 			nodata: 'Cells with no data',
-			label: 'Stop names'
+			label: 'Stop names',
+			stops: 'Transit nodes of the selected cell'
 		},
 		legend: 'Legend',
 		legendLow: 'Low',
@@ -377,6 +378,46 @@ export const en: Copy = {
 			space: 'Units for rent',
 			points: 'Data points'
 		},
+		/* ── Transit access ─────────────────────────────────────────────────
+		   Written for a reader who does not read index numbers. The station names
+		   lead: "Blok M" can be pictured, checked and argued with; "access 0.82"
+		   can do none of those. The figure is still there, behind the name. */
+		transit: 'What this area reaches',
+		transitNone: 'No transit node within walking range of this cell.',
+		transitLoading: 'Checking the transit nodes nearby…',
+		transitBand: {
+			strongest: 'Transit access here is among the strongest in Jakarta.',
+			strong: 'Transit access here is strong.',
+			fair: 'Transit access here is fair.',
+			thin: 'Transit access here is thin.'
+		},
+		transitModes: {
+			mrt: 'MRT',
+			krl: 'KRL',
+			lrt: 'LRT',
+			brt: 'TransJakarta'
+		},
+		transitModeLong: {
+			mrt: 'MRT stations',
+			krl: 'KRL stations',
+			lrt: 'LRT stations',
+			brt: 'TransJakarta stops'
+		},
+		/* Rail and bus are kept apart because the difference is real for someone
+		   opening a business: a rail station is one fixed doorway busy all day,
+		   while bus stops are many and spread out, so their crowd is divided. */
+		transitRail: 'Rail stations in range',
+		transitBus: (n: number) => `${n} TransJakarta stops within walking range`,
+		transitWalk: (m: number) => `${m} m`,
+		transitUplift: (persen: number) =>
+			`This access lifts the cell's opportunity score by roughly ${persen}% against a cell with no transit at all.`,
+		transitWhyRail:
+			'A rail station moves the same people past you at the same hours every working day — flow you can plan around, not passing traffic.',
+		transitWhyBus:
+			'TransJakarta stops are spread out, so the crowd is divided between many of them. Good for reach, not for one busy doorway.',
+		transitRadius: (m: number) => `Measured from the cell centre, ${m} m radius`,
+		transitShow: 'Show on map',
+		transitHide: 'Hide from map',
 		prov: 'Transactions & space: MAPID sample data. Competitors & stops: OSM.',
 		sceneLabel: (nama: string, jam: string, isi: string) => `Schematic of ${nama} at ${jam}. ${isi}`,
 		sceneNodata: 'There is no data for this area yet, so the street is shown empty.',
@@ -390,6 +431,10 @@ export const en: Copy = {
 		categoryLabel: 'Business type',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} cells · ${poi} competitors mapped`,
+		/* The competitor count only exists once a category's columns are loaded. Until
+		   then the sentence stops at the cells — writing "0 competitors mapped" claims
+		   to have counted and found nobody, when nothing has been counted at all. */
+		coverageCells: (terdata: number, total: number) => `${terdata}/${total} cells`,
 		coverageTitle: 'Cells that have data, and the number of similar businesses recorded in OpenStreetMap',
 		advanced: 'Advanced settings',
 		advancedClose: 'Close settings',
@@ -415,6 +460,18 @@ export const en: Copy = {
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} has no competitor data for ${cat}, so nothing can be scored. Try the ${other} source.`,
 		legendNodata: (n: number) => `${n} cells have no data, left unscored`,
+		/* The heatmap states an opinion — which cells are good for one kind of business.
+		   It appears when it is actually asked for: by this button, or by Tapak
+		   answering a question. */
+		heatmapShow: 'Show heatmap',
+		heatmapHide: 'Hide heatmap',
+		heatmapLoading: 'Loading category data…',
+		heatmapHint: (cat: string) => `Colour the cells by ${cat} opportunity score`,
+		heatmapAria: 'Opportunity score heatmap',
+		/* The map tooltip before any category is loaded: the cell is named, and nothing
+		   more is claimed. */
+		tipNoCategory: 'Turn the heatmap on to see its score',
+		needCategory: 'No category loaded yet. Turn the heatmap on, or ask Tapak.',
 		ask: 'Or ask your own…',
 		askAria: 'Ask Tapak',
 		askSend: 'Ask',
