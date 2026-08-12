@@ -1,5 +1,6 @@
 <script lang="ts">
 	import HourBars from '$lib/components/ui/HourBars.svelte';
+	import ScoreBreakdown from '$lib/components/app/ScoreBreakdown.svelte';
 	import { CATEGORY_MAP } from '$lib/domain/categories';
 	import { supplyPhrase } from '$lib/domain/narrate';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -101,6 +102,11 @@
 					<span class="sub">{c.detail.cashlessSub}</span>
 				</div>
 			</div>
+
+			<!-- Directly under the tiles, because it explains the first one. The six
+			     tiles state the inputs; this states what the engine did with them, and
+			     the reader who opened this panel opened it to ask exactly that. -->
+			<ScoreBreakdown />
 
 			<section>
 				<h3 class="eyebrow">
