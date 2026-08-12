@@ -8,6 +8,13 @@ import type { CategoryKey, Weights } from '$lib/types';
  * Hanya membaca dan mengubah bentuk; pembersihan nilainya satu pintu di
  * `domain/weights`, sama dengan yang dipakai endpoint yang menerima body JSON.
  */
+/** `?source=` bila dikenali; `undefined` supaya `normalizeWeights` yang memutus
+    bawaannya — berkas ini membaca, bukan menentukan. */
+function readSource(url: URL): Weights['source'] | undefined {
+	const raw = url.searchParams.get('source');
+	return raw === 'mapid' || raw === 'osm' ? raw : undefined;
+}
+
 export function readWeights(url: URL): Weights {
 	const num = (key: string, fallback: number) => {
 		const raw = url.searchParams.get(key);
@@ -19,10 +26,17 @@ export function readWeights(url: URL): Weights {
 		ws: num('ws', DEFAULT_WEIGHTS.ws),
 		gate: (url.searchParams.get('gate') ?? '1') !== '0',
 		radius: num('radius', DEFAULT_WEIGHTS.radius),
-		// Tanpa baris ini endpoint selalu menilai dengan OSM berapa pun nilai
-		// ?source= yang dikirim — dan hasilnya tetap terlihat wajar, jadi tidak
-		// ada yang menandakan bahwa saklarnya tidak berfungsi.
-		source: url.searchParams.get('source') === 'mapid' ? 'mapid' : 'osm'
+		// Tanpa baris ini endpoint mengabaikan `?source=` sepenuhnya — dan
+		// hasilnya tetap terlihat wajar, jadi tidak ada yang menandakan bahwa
+		// saklarnya tidak berfungsi.
+		//
+		// Bawaannya dibaca dari DEFAULT_WEIGHTS, bukan ditulis ulang di sini.
+		// Sempat tertulis `: 'osm'` langsung, dan itu menjadikan berkas ini
+		// penjaga kedua yang memutuskan hal yang sama dengan cara sendiri —
+		// persis pola yang sudah pernah menggigit modul bobot ini. Waktu bawaan
+		// dipindah ke MAPID, satu baris ini akan diam-diam mempertahankan OSM
+		// untuk seluruh endpoint sementara antarmuka sudah berpindah.
+		source: readSource(url)
 	});
 }
 
