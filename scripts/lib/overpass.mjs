@@ -140,14 +140,39 @@ export async function overpass(query, label, opts = {}) {
 			}
 			if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 			const data = await res.json();
+			// Overpass menjawab kueri yang kehabisan waktu dengan HTTP 200 dan
+			// badan `{"elements":[], "remark":"runtime error: Query timed out"}`.
+			// `res.ok` bernilai benar, jadi tanpa pemeriksaan ini jawaban kosong
+			// itu diterima sebagai hasil sah — dan `build-hexes.mjs` menuliskan
+			// nol EKSPLISIT untuk tiap kategori dalam kelompoknya. Nol eksplisit
+			// dibaca mesin skor sebagai "sudah disurvei, memang tidak ada", yang
+			// berarti seluruh Jakarta mendapat skor peluang tertinggi untuk
+			// kategori itu. Disinggahkan pula, jadi menjalankan ulang untuk
+			// memperbaikinya justru mengembalikan hasil yang sama tanpa menyentuh
+			// jaringan. Diperlakukan sebagai kegagalan yang layak diulang.
+			if (data?.remark) throw new Error(`Overpass remark: ${String(data.remark).slice(0, 120)}`);
 			writeCache(query, data);
 			return data;
 		} catch (err) {
 			lastErr = err;
-			dead.add(url);
 			const host = new URL(url).host;
-			console.log(`  (${label}) ${host}: ${err.message} — dicoret, ganti cermin…`);
-			await sleep(2000);
+			// Hanya kegagalan yang tidak akan pulih sendiri yang mencoret cermin.
+			//
+			// Versi pertama mencoret cermin pada SETIAP lemparan, dan itu terlalu
+			// keras: satu ECONNRESET, satu sertifikat yang sedang diperbarui, atau
+			// satu halaman galat HTML yang gagal di-`json()` sudah cukup untuk
+			// membunuh cermin yang sebenarnya sehat. Dengan tiga cermin, tiga
+			// gangguan sekejap yang tidak berhubungan menghabiskan seluruh daftar
+			// dalam hitungan detik — padahal versi sebelumnya memutari cermin yang
+			// sama sampai lima kali dan pulih.
+			const fatal = /certificate|ENOTFOUND|EAI_AGAIN|ERR_TLS|self-signed/i.test(err.message);
+			if (fatal) {
+				dead.add(url);
+				console.log(`  (${label}) ${host}: ${err.message} — dicoret, ganti cermin…`);
+			} else {
+				console.log(`  (${label}) ${host}: ${err.message} — coba lagi…`);
+			}
+			await sleep(5000 * (i + 1));
 		}
 	}
 
