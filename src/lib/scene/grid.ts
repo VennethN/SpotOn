@@ -9,8 +9,11 @@
  *
  * 1. **Isometrik.** Kamera ortografis dari atas-samping; hubungan antar petak
  *    yang dijual, bukan perspektifnya.
- * 2. **Serba putih.** Tidak ada warna jenuh pada bendanya. Satu-satunya warna
- *    datang dari aksen pada gizmo — dan itu pun tipis.
+ * 2. **Warnanya bertugas.** Beda dengan maket jalan yang serba putih, kisi ini
+ *    peta panas: tiap petak diberi warna dari skala peluang yang sama persis
+ *    dengan yang dipakai peta di dalam aplikasi. Tinggi dan warna membawa nilai
+ *    yang sama — sengaja, karena di sinilah pembaca belajar membaca legendanya
+ *    sebelum sampai ke petanya. Petak tanpa data tetap di luar skala.
  * 3. **Digerakkan gulir, bukan waktu.** Tidak ada rAF yang berputar sia-sia:
  *    bingkai hanya digambar saat keadaannya benar-benar berubah.
  *
@@ -26,9 +29,21 @@ export interface GridState {
 	/** Warna garis alat ukur, diambil dari token tema oleh pemanggil. */
 	ink: string;
 	accent: string;
+	/** Skala peluang tujuh langkah — token `--ramp-0..6` apa adanya. */
+	ramp: string[];
+	/** Warna petak yang belum terdata; sengaja di luar skala. */
+	nodata: string;
 }
 
-const DEFAULT_STATE: GridState = { progress: 0, ink: '#1c1a16', accent: '#0071e3' };
+const DEFAULT_RAMP = ['#dbe7f7', '#b3cdf0', '#86b0e6', '#5691dc', '#2f72cd', '#1c56a5', '#143f7c'];
+
+const DEFAULT_STATE: GridState = {
+	progress: 0,
+	ink: '#1c1a16',
+	accent: '#0071e3',
+	ramp: DEFAULT_RAMP,
+	nodata: '#9aa2ad'
+};
 
 /* Denah kisi. Ukurannya dipilih supaya seluruh bidang muat pada bingkai lebar
    tanpa petaknya mengecil jadi butiran. */
@@ -56,10 +71,15 @@ function axialToXZ(q: number, r: number): [number, number] {
 	return [CELL * 1.5 * q, CELL * Math.sqrt(3) * (r + q / 2)];
 }
 
+/** Tinggi petak paling berpeluang, dalam satuan adegan. */
+const MAX_H = 5.4;
+
 interface Cell {
 	x: number;
 	z: number;
-	/** Tinggi akhir petak; 0 berarti belum terdata. */
+	/** Skor 0..1. Warna dan tinggi sama-sama dibaca dari sini. */
+	score: number;
+	/** Tinggi akhir petak. */
 	h: number;
 	nodata: boolean;
 	/** Jarak dari petak pokok — dipakai sebagai urutan gelombang naiknya. */
@@ -86,6 +106,8 @@ export class GridWorld {
 	#accentMats: Array<THREE.LineBasicMaterial | THREE.MeshBasicMaterial> = [];
 
 	#state: GridState = { ...DEFAULT_STATE };
+	/** Skala yang sedang terpasang; dipakai agar petak tidak dicat ulang tiap bingkai. */
+	#paintedRamp = '';
 	#raf = 0;
 	#running = false;
 	#reduced: boolean;
@@ -109,7 +131,10 @@ export class GridWorld {
 		this.#renderer.setClearAlpha(0);
 		this.#renderer.shadowMap.enabled = true;
 		this.#renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-		this.#renderer.toneMapping = THREE.ACESFilmicToneMapping;
+		// Tanpa tone mapping film: adegan ini mengajarkan skala warna peta, jadi
+		// warnanya harus sampai apa adanya. ACES memang lebih sinematik, tapi ia
+		// menggeser langkah paling tua jadi kelabu dan legendanya berhenti cocok.
+		this.#renderer.toneMapping = THREE.NoToneMapping;
 
 		this.#camera = new THREE.OrthographicCamera(-30, 30, 22, -22, -200, 400);
 
@@ -138,13 +163,14 @@ export class GridWorld {
 				// "tiap petak punya angkanya sendiri", jadi bentuknya dibuat menurun
 				// dari tengah supaya bidangnya punya punggung, bukan gerigi acak.
 				const d = Math.hypot(x, z) / (CELL * RINGS * 1.8);
-				// Selisih tingginya harus terbaca dari jauh: pada rentang yang terlalu
-				// rapat, kisinya kembali jadi bidang rata dan pesannya hilang.
-				const h = Math.max(0.5, (1.1 - d * 0.8) * (0.4 + rnd())) * 5.4;
+				// Selisihnya harus terbaca dari jauh: pada rentang yang terlalu rapat,
+				// kisinya kembali jadi bidang rata dan pesannya hilang.
+				const score = Math.max(0.09, Math.min(1, (1.1 - d * 0.8) * (0.4 + rnd())));
 				this.#cells.push({
 					x,
 					z,
-					h,
+					score,
+					h: score * MAX_H,
 					nodata: rnd() < 0.14,
 					wave: Math.hypot(x - fx, z - fz)
 				});
@@ -265,7 +291,10 @@ export class GridWorld {
 		const ringMat = line(true);
 		this.#ring = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), ringMat);
 		this.#ring.computeLineDistances();
-		this.#accentMats.push(ringMat);
+		// Tinta, bukan aksen. Sejak petaknya diwarnai skala biru, garis biru di
+		// atasnya berhenti terbaca — dan alat ukur pada gambar kerja memang ditarik
+		// dengan tinta, bukan dengan warna data.
+		this.#gizmoMats.push(ringMat);
 		this.#ring.renderOrder = 10;
 		this.#scene.add(this.#ring);
 
@@ -299,7 +328,7 @@ export class GridWorld {
 		this.#cross.add(
 			new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(crossPts), crossMat)
 		);
-		this.#accentMats.push(crossMat);
+		this.#gizmoMats.push(crossMat);
 		this.#cross.renderOrder = 10;
 		this.#scene.add(this.#cross);
 
@@ -319,7 +348,9 @@ export class GridWorld {
 		const knob = new THREE.Mesh(new THREE.OctahedronGeometry(0.34), knobMat);
 		knob.position.set(fx, 1, fz);
 		this.#pin.add(knob);
-		this.#accentMats.push(pinMat, knobMat);
+		// Satu titik aksen saja, di ujung pin: penanda "yang sedang dibidik".
+		this.#gizmoMats.push(pinMat);
+		this.#accentMats.push(knobMat);
 		this.#pin.renderOrder = 10;
 		this.#scene.add(this.#pin);
 	}
@@ -334,6 +365,7 @@ export class GridWorld {
 		const e = p * p * (3 - 2 * p);
 
 		this.#paintGizmos();
+		this.#paintTiles();
 		this.#layoutTiles(e);
 		this.#updateCamera(e);
 		this.#dirty = true;
@@ -343,6 +375,36 @@ export class GridWorld {
 	#paintGizmos() {
 		for (const m of this.#gizmoMats) m.color.set(this.#state.ink);
 		for (const m of this.#accentMats) m.color.set(this.#state.accent);
+	}
+
+	/**
+	 * Warna petak menurut skornya, dari skala yang sama dengan peta.
+	 *
+	 * Dicampur sedikit ke arah putih karena bendanya tetap maket yang disinari,
+	 * bukan bidang cat: tanpa itu, langkah paling tua jadi lubang gelap yang
+	 * menelan bayangan dan bentuk heksagonnya hilang. Nilainya tetap terbaca —
+	 * yang dikurangi kejenuhannya, bukan urutannya.
+	 */
+	#paintTiles() {
+		const key = this.#state.ramp.join('|') + this.#state.nodata;
+		if (key === this.#paintedRamp) return;
+		this.#paintedRamp = key;
+
+		const steps = this.#state.ramp.length ? this.#state.ramp : DEFAULT_RAMP;
+		const white = new THREE.Color(0xffffff);
+		const solid = this.#cells.filter((c) => !c.nodata);
+
+		solid.forEach((c, i) => {
+			const step = Math.max(0, Math.min(steps.length - 1, Math.round(c.score * (steps.length - 1))));
+			this.#color.set(steps[step]).lerp(white, 0.1);
+			this.#tiles.setColorAt(i, this.#color);
+		});
+		if (this.#tiles.instanceColor) this.#tiles.instanceColor.needsUpdate = true;
+
+		// Belum terdata tidak pernah masuk skala: ia bukan nilai kecil, ia bukan nilai.
+		(this.#holes.material as THREE.MeshStandardMaterial).color
+			.set(this.#state.nodata)
+			.lerp(white, 0.3);
 	}
 
 	#layoutTiles(e: number) {
@@ -361,15 +423,8 @@ export class GridWorld {
 			this.#dummy.scale.set(1, h, 1);
 			this.#dummy.updateMatrix();
 			this.#tiles.setMatrixAt(i, this.#dummy.matrix);
-
-			// Nilai putihnya bergeser setipis mungkin menurut tinggi — cukup untuk
-			// memisahkan puncak dari lembah, tidak sampai jadi peta berwarna.
-			const v = 0.86 + (h / 5.4) * 0.12;
-			this.#color.setRGB(v, v * 0.995, v * 0.983);
-			this.#tiles.setColorAt(i, this.#color);
 		});
 		this.#tiles.instanceMatrix.needsUpdate = true;
-		if (this.#tiles.instanceColor) this.#tiles.instanceColor.needsUpdate = true;
 
 		// Alat ukur datang setelah petaknya berdiri, satu per satu — bukan
 		// serentak, supaya urutan membacanya jelas.
