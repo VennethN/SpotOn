@@ -182,11 +182,12 @@
 		white-space: nowrap;
 	}
 
-	/* Between the brand and the tools, which is all the room there is on a phone.
-	   A row of its own would land on the legend, and the map is what both are for. */
+	/* Between the brand and the tools, which is all the room there is on a phone. A
+	   row of its own would land on the legend, and the map is what both are for.
+	   17rem is those two plus a gap either side, measured rather than guessed. */
 	@media (max-width: 1023px) {
 		.cats {
-			max-width: calc(100vw - 15rem);
+			max-width: calc(100vw - 17rem);
 		}
 	}
 </style>
