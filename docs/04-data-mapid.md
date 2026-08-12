@@ -18,7 +18,7 @@ node scripts/join-mapid.mjs    # gabungkan ke kisi         → hexes.json
 ```
 
 `fetch-mapid.mjs` mencari sendiri dataset yang dibutuhkan di katalog premium,
-membacanya langsung, mengklasifikasikan tiap titik ke lima kategori SpotOn, lalu
+membacanya langsung, mengklasifikasikan tiap titik ke tiga belas kategori SpotOn, lalu
 menulis berkas titik beserta deklarasi cakupannya. Tidak ada id yang perlu
 disalin tangan dan tidak ada tombol yang perlu ditekan.
 
@@ -26,7 +26,7 @@ Dataset apa yang dicari ditentukan `MANIFEST` di dalam skrip itu. Untuk
 menjelajah katalog sebelum menambah entri baru ke manifest:
 
 ```bash
-node scripts/search-mapid.mjs                 # lima kategori SpotOn
+node scripts/search-mapid.mjs                 # tiga belas kategori SpotOn
 node scripts/search-mapid.mjs APOTEK ATM      # istilah bebas
 node scripts/search-mapid.mjs --kota "BANDUNG,SURABAYA" PASAR
 ```
@@ -115,15 +115,19 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://geoserver.mapid.io/
 
 ## 2. Cakupan sekarang
 
-55 dataset katalog premium, **24.614 titik unik** setelah 11.462 duplikat dibuang.
-**Kesembilan kategori tercakup penuh di kelima kota administrasi.**
+55 dataset katalog premium, **24.630 titik unik** setelah 11.446 duplikat dibuang.
+**Ketiga belas kategori tercakup penuh di kelima kota administrasi.**
 
 | Kategori SpotOn | Jakpus | Jakbar | Jaksel | Jaktim | Jakut | Titik | Dataset sumber |
 |---|:--:|:--:|:--:|:--:|:--:|--:|---|
 | kopi | ✅ | ✅ | ✅ | ✅ | ✅ | 2.351 | COFFEE SHOP + BRAND COFFEE SHOP |
 | minuman | ✅ | ✅ | ✅ | ✅ | ✅ | 858 | MINUMAN |
 | roti | ✅ | ✅ | ✅ | ✅ | ✅ | 1.869 | ROTI DAN KUE |
-| warung | ✅ | ✅ | ✅ | ✅ | ✅ | 6.094 | RESTORAN |
+| warteg | ✅ | ✅ | ✅ | ✅ | ✅ | 1.901 | RESTORAN → warteg, nasi goreng, padang… |
+| cepatsaji | ✅ | ✅ | ✅ | ✅ | ✅ | 1.411 | RESTORAN → cepat saji |
+| mie | ✅ | ✅ | ✅ | ✅ | ✅ | 580 | RESTORAN → mie dan bakso, ramen |
+| seafood | ✅ | ✅ | ✅ | ✅ | ✅ | 557 | RESTORAN → seafood |
+| restoasing | ✅ | ✅ | ✅ | ✅ | ✅ | 1.661 | RESTORAN → korea, jepang, sushi… |
 | minimarket | ✅ | ✅ | ✅ | ✅ | ✅ | 2.928 | MINIMARKET |
 | kelontong | ✅ | ✅ | ✅ | ✅ | ✅ | 2.698 | TOKO KELONTONG |
 | laundry | ✅ | ✅ | ✅ | ✅ | ✅ | 3.714 | LAYANAN ATAU JASA → BINATU |
@@ -138,11 +142,17 @@ itu terpisah dari `COFFEE SHOP` dan justru lebih besar — gerai berjaringan
 sekali. Selama ini dua pertiga kedai kopi Jakarta tidak terhitung sebagai
 pesaing.
 
-**`warung` turun 8.813 → 6.094**, dan itu perbaikan, bukan kehilangan. Selisih
-2.719 pindah ke `roti` dan `minuman`. Sebelum keduanya jadi kategori, seluruh
-toko roti, gerai boba, dan kedai es krim jatuh ke `warung` — karena `TIPE_1`
+**`warung` yang dulu satu kategori 8.813 titik kini terpecah tujuh.** Mula-mula
+`roti` (1.869) dan `minuman` (858) keluar — sebelum keduanya jadi kategori,
+seluruh toko roti, gerai boba, dan kedai es krim jatuh ke sana karena `TIPE_1`
 mereka berbunyi "MAKANAN DAN MINUMAN" dan tidak ada aturan yang lebih spesifik
-menangkapnya lebih dulu. Toko donat terhitung sebagai pesaing warteg.
+menangkapnya lebih dulu. Sisanya 6.094 lalu dibelah lima: warteg 1.901,
+restoasing 1.661, cepatsaji 1.411, mie 580, seafood 557.
+
+Alasannya sama untuk keduanya. Satu angka "pesaing warung" menyatukan warteg,
+sushi, KFC, dan rumah makan Padang menjadi satu — dan bagi orang yang sedang
+memilih lokasi itu bukan penyederhanaan, melainkan jawaban yang salah. Toko
+donat terhitung pesaing warteg.
 
 ### `force`: waktu taksonomi tidak bisa dibaca
 
@@ -199,19 +209,21 @@ sebuah kota berhasil dibaca, kota itu tercakup untuk kategori yang dijanjikan
 dataset tersebut — berapa pun titik yang akhirnya lolos. `join-mapid.mjs`
 membaca deklarasi itu apa adanya dan tidak menyimpulkan ulang.
 
-Perhatikan bahwa satu dataset bisa menutup dua kategori: `MAKANAN DAN MINUMAN`
-memuat kedai kopi **dan** rumah makan, jadi keberadaannya menutup `kopi` dan
-`warung` sekaligus.
+Perhatikan bahwa satu dataset bisa menutup banyak kategori sekaligus:
+`MAKANAN DAN MINUMAN` memuat kedai kopi, gerai minuman, toko roti, dan segala
+jenis rumah makan, jadi keberadaannya menutup delapan kategori sekaligus.
+`RESTORAN` menutup lima, `LAYANAN ATAU JASA` menutup `laundry` dan `bengkel`.
 
 ### Hasil penggabungan (`node scripts/join-mapid.mjs`)
 
-- 542 dari 562 petak berhasil ditentukan kotanya (20 sisanya di luar 14 wilayah
+- 537 dari 558 petak berhasil ditentukan kotanya (21 sisanya di luar 14 wilayah
   yang diambil — Bodetabek terluar).
-- **4.158** pasangan petak×kategori tercakup, 900 belum. Sebelum sesi ini: 515
+- **5.941** pasangan petak×kategori tercakup, 1.313 belum. Sebelum sesi ini: 515
   tercakup dari lima kategori.
-- Pesaing MAPID terhitung: warung 11.240, laundry 6.278, apotek 5.751,
-  minimarket 5.157, kopi 4.753, kelontong 4.597, roti 3.530, bengkel 1.397,
-  minuman 1.412 pengamatan.
+- Pesaing MAPID terhitung: laundry 6.255, apotek 5.720, minimarket 5.143,
+  kopi 4.737, kelontong 4.573, roti 3.521, warteg 3.405, restoasing 3.102,
+  cepatsaji 2.556, minuman 1.405, bengkel 1.394, mie 1.135, seafood 1.036
+  pengamatan.
 
 Pesaing dihitung dalam radius jalan kaki 800 m dari titik pusat petak. Total
 pengamatan lebih besar daripada jumlah titik karena satu gerai bisa berada dalam
@@ -241,13 +253,18 @@ putus-putus tanpa isi.
 
 ### Efek saklar sumber pada penilaian
 
-Dari 562 petak, 90 **belum terdata** dan tidak pernah dinilai sumber mana pun.
-Sisanya 472 dinilai OSM dan 385 dinilai MAPID, **sama untuk kesembilan
-kategori** — selisih 87 petak adalah Bodetabek, yang tidak punya dataset MAPID
-karena katalog memberi satu dataset per kota administrasi DKI. Itu cakupan yang
-tercermin apa adanya, bukan kerusakan.
+Dari 558 petak, 89 **belum terdata** dan tidak pernah dinilai sumber mana pun.
+Sisanya 382 dinilai MAPID pada ketiga belas kategori — selisih 87 petak dari 469
+adalah Bodetabek, yang tidak punya dataset MAPID karena katalog memberi satu
+dataset per kota administrasi DKI.
 
-Sebelum sesi ini kolom MAPID berbunyi kopi 382, warung 46, sisanya 0.
+Pada OSM angkanya 469 untuk sembilan kategori yang punya tag, dan **0 untuk
+warteg, mie, seafood, dan restoasing** — keempatnya tidak punya sumber OSM sama
+sekali (alasannya di §2 dan di `categories.ts`). Inilah sebab sumber bawaan
+dipindah ke MAPID: dengan bawaan OSM, memilih Warteg menyambut pengguna dengan
+peta yang seluruhnya belum tercakup.
+
+Sebelum sesi ini kolom MAPID berbunyi kopi 382, warung 46, sisanya 0 — dari lima kategori.
 
 ### Kepadatan kedua sumber tidak sebanding, dan itu perlu diketahui
 
@@ -255,18 +272,24 @@ Jumlah POI yang sama-sama mencakup Jakarta:
 
 | Kategori | OSM | MAPID | Rasio |
 |---|--:|--:|--:|
-| warung | 3.206 | 6.094 | 1,9× |
 | minimarket | 2.337 | 2.928 | 1,3× |
-| kopi | 1.170 | 2.351 | 2,0× |
-| apotek | 393 | 3.199 | 8,1× |
-| roti | 295 | 1.869 | 6,3× |
-| kelontong | 274 | 2.698 | 9,8× |
-| laundry | 231 | 3.714 | 16,1× |
-| bengkel | 187 | 903 | 4,8× |
-| **minuman** | **65** | **858** | **13,2×** |
+| kopi | 1.195 | 2.351 | 2,0× |
+| cepatsaji | 731 | 1.411 | 1,9× |
+| apotek | 399 | 3.199 | 8,0× |
+| roti | 286 | 1.869 | 6,5× |
+| kelontong | 276 | 2.698 | 9,8× |
+| laundry | 229 | 3.714 | 16,2× |
+| bengkel | 182 | 903 | 5,0× |
+| minuman | 66 | 858 | 13,0× |
+| warteg | — | 1.901 | tidak ada sumber OSM |
+| mie | — | 580 | tidak ada sumber OSM |
+| seafood | — | 557 | tidak ada sumber OSM |
+| restoasing | — | 1.661 | tidak ada sumber OSM |
 
-OSM masuk akal untuk warung dan minimarket. Untuk sisanya ia bukan sekadar
-lebih sedikit — 65 kedai minuman di seluruh Jakarta jelas bukan keadaan
+Empat baris terakhir bertanda **tidak ada sumber OSM**: `poiCount` mengembalikan null untuk keempatnya, jadi pada sumber OSM mereka "belum tercakup" dan tidak diperingkat sama sekali. Itu bukan nol pesaing.
+
+OSM masuk akal untuk minimarket dan gerai cepat saji. Untuk sisanya ia bukan sekadar
+lebih sedikit — 66 kedai minuman di seluruh Jakarta jelas bukan keadaan
 sebenarnya, melainkan lubang penandaan. Ini berbeda sifatnya dari "belum
 tercakup", dan lebih berbahaya: petak yang datanya tidak ada diberi nilai null
 dan tidak diperingkat, sedangkan petak yang datanya kurang **tetap diberi skor**
@@ -292,7 +315,7 @@ Putuskan itu dulu sebelum menukar bawaannya.
 
 ---
 
-## 3. Yang bisa didapat di luar sembilan kategori
+## 3. Yang bisa didapat di luar tiga belas kategori
 
 Katalog premium punya 16 kategori (~90.000 dataset). Semuanya kini terbaca lewat
 jalur yang sama — menambahkan satu jenis usaha berarti menambah satu baris ke

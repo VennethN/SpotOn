@@ -71,7 +71,7 @@ docs/            ketentuan kompetisi, proposal, dan status implementasi
 ## Data
 
 **Nyata (OSM).** 1.105 simpul transit empat moda (MRT 20, KRL 76, LRT 33, TransJakarta 976),
-geometri jalur keempatnya, dan 8.158 POI pesaing sembilan kategori — dari OpenStreetMap via
+geometri jalur keempatnya, dan 5.701 POI pesaing untuk sembilan kategori yang punya tag OSM — dari OpenStreetMap via
 Overpass API (ODbL). Akses transit tiap petak dihitung dari data ini.
 
 Satuan spasialnya **heksagon H3 resolusi 8** (sisi ±531 m), bukan catchment per halte:
@@ -87,8 +87,8 @@ node scripts/build-hexes.mjs    # kisi + akses transit + pesaing  → src/lib/da
 node scripts/build-routes.mjs   # geometri jalur 4 moda           → static/data/routes.json
 ```
 
-**Nyata (MAPID).** 24.614 POI pesaing dari 55 dataset katalog data premium MAPID —
-kesembilan kategori, lengkap untuk kelima kota administrasi DKI. Dibaca langsung dari
+**Nyata (MAPID).** 24.630 POI pesaing dari 55 dataset katalog data premium MAPID —
+ketiga belas kategori, lengkap untuk kelima kota administrasi DKI. Dibaca langsung dari
 katalog, tanpa langkah impor manual:
 
 ```bash
