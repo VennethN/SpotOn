@@ -11,6 +11,7 @@
 	 * figures are still there, one click below.
 	 */
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
+	import TransitPanel from '$lib/components/app/TransitPanel.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -149,6 +150,12 @@
 				<p class="prov">{c.mood.prov}</p>
 			</details>
 		{/if}
+
+		<!-- OUTSIDE the "no data" branch on purpose. Transit access is built from OSM,
+		     which is real, so it is the one thing this panel can still say about a cell
+		     whose mission data is missing — and for that cell it is the only thing there
+		     is to say. -->
+		<TransitPanel />
 	</div>
 {/if}
 

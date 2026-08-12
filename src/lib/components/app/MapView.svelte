@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { GeoJSONSource, Map as MapLibreMap, Marker, StyleSpecification } from 'maplibre-gl';
+	import type {
+		ExpressionSpecification,
+		GeoJSONSource,
+		Map as MapLibreMap,
+		Marker,
+		StyleSpecification
+	} from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
 	// The worker is bundled separately by Vite; left for maplibre to load on its own,
 	// the dev server touches the file and the worker dies without a sound.
@@ -163,6 +169,32 @@
 		};
 	}
 
+	/**
+	 * The transit nodes the SELECTED cell captures — never the whole city's 1,105.
+	 *
+	 * This is the picture of the sentence the area panel just wrote. Drawing every
+	 * stop in Jakarta would answer a question nobody asked and bury the cell's own
+	 * under it; drawing only the captured ones makes "what this area reaches" a thing
+	 * you can see rather than a number you have to trust.
+	 */
+	function stopsFC(): FeatureCollection {
+		if (!app.layers.stops) return emptyFC();
+		return {
+			type: 'FeatureCollection',
+			features: app.selectedStops.map((s) => ({
+				type: 'Feature' as const,
+				geometry: { type: 'Point' as const, coordinates: [s.lon, s.lat] },
+				properties: {
+					mode: s.mode,
+					name: s.name ?? '',
+					// Rail gets a bigger mark and its name on the map. A cell can capture
+					// twenty-odd bus stops, and twenty labels is not a map.
+					rail: s.mode !== 'brt'
+				}
+			}))
+		};
+	}
+
 	/** Competitor dots — real counts, so they need the active category's columns. */
 	function poiFC(): FeatureCollection {
 		if (!app.layers.poi || !app.ready) return emptyFC();
@@ -179,6 +211,7 @@
 
 		m.addSource('catchments', { type: 'geojson', data: catchmentFC() });
 		m.addSource('poi', { type: 'geojson', data: poiFC() });
+		m.addSource('stops', { type: 'geojson', data: stopsFC() });
 		// Fetched by URL rather than imported: MapLibre fetches the GeoJSON itself, so
 		// 441 KB of line geometry does not swell the JS bundle and can be cached by the
 		// browser like any other asset.
@@ -289,6 +322,56 @@
 				}
 			});
 		}
+
+		// Above the route lines, so a station sits on its own corridor rather than
+		// under it.
+		const modeColour: ExpressionSpecification = [
+			'match',
+			['get', 'mode'],
+			'mrt',
+			cssVar('--route-mrt'),
+			'krl',
+			cssVar('--route-krl'),
+			'lrt',
+			cssVar('--route-lrt'),
+			cssVar('--route-brt')
+		];
+		m.addLayer({
+			id: 'stop-dots',
+			type: 'circle',
+			source: 'stops',
+			paint: {
+				'circle-radius': ['case', ['get', 'rail'], 6, 3.4],
+				'circle-color': modeColour,
+				'circle-stroke-width': ['case', ['get', 'rail'], 2, 1],
+				'circle-stroke-color': cssVar('--bg-elevated'),
+				'circle-opacity': 0.95
+			}
+		});
+		m.addLayer({
+			id: 'stop-labels',
+			type: 'symbol',
+			source: 'stops',
+			// Rail only: a cell can capture twenty-odd bus stops, and twenty labels is
+			// not a map. The bus stops keep their dots.
+			filter: ['get', 'rail'],
+			layout: {
+				'text-field': ['get', 'name'],
+				'text-size': 11,
+				'text-offset': [0, 1.1],
+				'text-anchor': 'top',
+				'text-font': ['Open Sans Regular'],
+				// A station whose label will not fit is still worth drawing as a dot, so
+				// the label is allowed to drop rather than the whole symbol.
+				'text-optional': true,
+				'text-allow-overlap': false
+			},
+			paint: {
+				'text-color': cssVar('--label-1'),
+				'text-halo-color': cssVar('--bg-elevated'),
+				'text-halo-width': 1.6
+			}
+		});
 
 		let hoverId: number | null = null;
 		m.on('mousemove', 'catchment-fill', (e) => {
@@ -560,10 +643,13 @@
 		void app.layers.label;
 		void app.selectedId;
 		void app.highlight;
+		void app.selectedStops;
+		void app.layers.stops;
 		const m = map;
 		if (!m || !ready) return;
 		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC());
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC());
+		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC());
 		for (const mode of ROUTE_MODES) {
 			m.setLayoutProperty(`route-${mode.key}`, 'visibility', app.layers.routes ? 'visible' : 'none');
 		}
