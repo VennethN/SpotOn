@@ -298,9 +298,20 @@ export class AppState {
 		return this.#stopsJob;
 	}
 
+	/**
+	 * The selected cell as the GRID holds it.
+	 *
+	 * Not the same thing as `selected`, which is the scored row and stays null until
+	 * the active category's columns land. Everything built from real data — the cell's
+	 * transit counts, its access index, the stops it captures — is already here on the
+	 * first frame, and reading it through this rather than through the scored row is
+	 * what lets the map and the transit panel answer immediately.
+	 */
+	selectedCell = $derived(this.base.find((h) => h.id === this.selectedId) ?? null);
+
 	/** The stops the selected cell captures, nearest first. */
 	selectedStops = $derived.by(() => {
-		const cell = this.base.find((h) => h.id === this.selectedId);
+		const cell = this.selectedCell;
 		if (!cell || !this.stops) return [];
 		return capturedStops(cell, this.stops, this.weights.radius);
 	});

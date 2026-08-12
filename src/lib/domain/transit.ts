@@ -26,6 +26,15 @@ export type Mode = (typeof MODES)[number];
  */
 export const MODE_WEIGHT: Record<Mode, number> = { mrt: 1.0, krl: 0.9, lrt: 0.6, brt: 0.45 };
 
+/**
+ * The divisor in `access = min(1, √weighted ÷ 3.2)`, also from `build-hexes.mjs`.
+ *
+ * Carried here for the same reason as the weights: so the breakdown can PRINT the
+ * formula that produced the index instead of describing it in prose that can drift
+ * away from the arithmetic. Nothing reads it to recompute an access value.
+ */
+export const ACCESS_DIVISOR = 3.2;
+
 /** Rail modes. Kept apart from BRT because they behave differently for a business:
     a rail station is a single fixed doorway with all-day, all-week footfall, while
     bus stops are many and spread out, so their crowd is thinner at any one of them. */
@@ -128,4 +137,70 @@ export function accessUplift(access: number): number {
 /** Modes actually present in this cell, densest-last order, with their counts. */
 export function presentModes(transit: TransitCounts): Array<{ mode: Mode; n: number }> {
 	return MODES.map((mode) => ({ mode, n: transit[mode] })).filter((m) => m.n > 0);
+}
+
+/**
+ * Every transit node the cell captures, and the rail half of it.
+ *
+ * Read from the GRID's counts rather than from the stop list, so both are right on
+ * the first frame — before `stops.json` has been fetched, and even if it never
+ * arrives. This is also the count the score was computed from, which is the whole
+ * reason it is the one on display.
+ */
+export const stopTotal = (t: TransitCounts): number => MODES.reduce((a, m) => a + t[m], 0);
+export const railTotal = (t: TransitCounts): number => RAIL.reduce((a, m) => a + t[m], 0);
+
+/** One mode's part of the weighted sum the access index was built from. */
+export interface ModeShare {
+	mode: Mode;
+	/** Nodes of this mode inside the walking range. */
+	n: number;
+	weight: number;
+	/** n × weight. */
+	weighted: number;
+	/** Its share of the whole weighted sum, 0..1. */
+	share: number;
+}
+
+/**
+ * Where a cell's access index comes from, mode by mode.
+ *
+ * Access is `min(1, √(Σ n×w) ÷ 3.2)` — a single number in which one MRT station and
+ * two TransJakarta stops are indistinguishable. This splits the sum back up so the
+ * reader can see which mode is actually carrying the cell, which is a different
+ * question from how many stops there are.
+ */
+export function modeShares(transit: TransitCounts): ModeShare[] {
+	const rows = MODES.map((mode) => ({
+		mode,
+		n: transit[mode],
+		weight: MODE_WEIGHT[mode],
+		weighted: transit[mode] * MODE_WEIGHT[mode]
+	})).filter((r) => r.n > 0);
+	const sum = rows.reduce((a, r) => a + r.weighted, 0);
+	return rows.map((r) => ({ ...r, share: sum > 0 ? r.weighted / sum : 0 }));
+}
+
+/** The nodes of one mode: how many the grid counted, and which of them have names. */
+export interface ModeStops {
+	mode: Mode;
+	/** Nodes counted by the grid — what the access index was computed from. */
+	nodes: number;
+	/** Distinct named stations among them, nearest first. */
+	named: Stop[];
+	/**
+	 * Nodes with no name of their own. Platforms of one station are separate OSM
+	 * nodes and a stop can simply be untagged, so this is nearly always > 0 — stating
+	 * it is what keeps a list of four names under a count of nine from reading as a
+	 * bug.
+	 */
+	unnamed: number;
+}
+
+/** The captured stops grouped by mode, densest-last, for the audit list. */
+export function stopsByMode(transit: TransitCounts, stops: Stop[]): ModeStops[] {
+	return MODES.filter((mode) => transit[mode] > 0).map((mode) => {
+		const named = namedStops(stops, [mode]);
+		return { mode, nodes: transit[mode], named, unnamed: Math.max(0, transit[mode] - named.length) };
+	});
 }

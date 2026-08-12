@@ -38,6 +38,8 @@ src/lib/
   data/          hexagon grid + transit nodes
   domain/        pure business rules — no DOM, used by server and client alike
     scoring.ts     the Opportunity Score engine
+    composition.ts the same score taken apart again, step by step, for the panel
+    transit.ts     what a cell reaches: stops, modes, and the access index explained
     weights.ts     default weights + value sanitiser (a single way in)
     nlq.ts         question → structured query → answer
     narrate.ts     scoring-engine output → human sentences
