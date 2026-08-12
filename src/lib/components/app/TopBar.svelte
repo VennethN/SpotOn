@@ -1,11 +1,14 @@
 <script lang="ts">
+	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import Segmented from '$lib/components/ui/Segmented.svelte';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import { CATEGORIES } from '$lib/domain/categories';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 	import type { CategoryKey } from '$lib/types';
 
 	const app = getAppState();
+	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
 
 	/* Laci pengaturan lanjutan dibuka dari sini, bukan dari tombol mengambang di
@@ -17,22 +20,26 @@
 <header class="bar material">
 	<div class="brand">
 		<span class="mark" aria-hidden="true"></span>
-		<span class="name">SpotOn</span>
-		<span class="tagline">Rekomendasi <em>site-selection</em> kawasan transit Jakarta</span>
+		<span class="name">{c.brand.name}</span>
+		<span class="tagline">{c.brand.appTagline}</span>
 	</div>
 
 	<div class="cats">
 		<Segmented
-			label="Jenis usaha"
+			label={c.app.categoryLabel}
 			value={app.category}
 			onchange={(v: CategoryKey) => app.setCategory(v)}
-			options={CATEGORIES.map((c) => ({ value: c.key, label: c.short, hint: c.name }))}
+			options={CATEGORIES.map((def) => ({
+				value: def.key,
+				label: c.category[def.key].short,
+				hint: c.category[def.key].name
+			}))}
 		/>
 	</div>
 
 	<div class="right">
-		<span class="pill" title="Petak yang sudah ada datanya, dan jumlah pesaing sejenis yang terdata di OpenStreetMap">
-			{coverage.terdata}/{coverage.total} petak · {coverage.poi} pesaing terdata
+		<span class="pill" title={c.app.coverageTitle}>
+			{c.app.coverage(coverage.terdata, coverage.total, coverage.poi)}
 		</span>
 		<button
 			type="button"
@@ -51,8 +58,9 @@
 					<circle cx="5" cy="11.5" r="1.7" />
 				</g>
 			</svg>
-			<span class="adv-text">Pengaturan lanjutan</span>
+			<span class="adv-text">{advanced ? c.app.advancedClose : c.app.advanced}</span>
 		</button>
+		<LangToggle />
 		<ThemeToggle theme={app.theme} onchange={(t) => app.setTheme(t)} />
 	</div>
 </header>

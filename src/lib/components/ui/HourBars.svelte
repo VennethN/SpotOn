@@ -11,17 +11,21 @@
 	 * memberi angka pada 24 batang membuat tidak satu pun terbaca. Angka
 	 * lengkapnya disediakan pemanggil, di tabel yang dilipat.
 	 */
+	import { copy } from '$lib/state/lang.svelte';
 	import { formatHour, num } from '$lib/utils/format';
 
 	interface Props {
 		/** 24 nilai, indeks = jam. */
 		jam: number[];
-		/** Satuan untuk pembaca layar dan tooltip, mis. "struk". */
+		/** Satuan untuk pembaca layar dan tooltip. Kosong = satuan aplikasi. */
 		unit?: string;
 		/** Ringkas: tinggi kecil untuk panel sempit, tanpa sumbu dan tooltip. */
 		dense?: boolean;
 	}
-	let { jam, unit = 'transaksi', dense = false }: Props = $props();
+	let { jam, unit, dense = false }: Props = $props();
+
+	const c = $derived(copy());
+	const u = $derived(unit ?? c.hourChart.unitApp);
 
 	const peak = $derived(Math.max(1, ...jam));
 	const peakHour = $derived(jam.indexOf(Math.max(...jam)));
@@ -44,9 +48,7 @@
 	<div
 		class="plot"
 		role="img"
-		aria-label={`Profil 24 jam: total ${num(total)} ${unit}, paling ramai pukul ${formatHour(
-			peakHour
-		)} dengan ${num(peak)} ${unit}.`}
+		aria-label={c.hourChart.label(num(total), formatHour(peakHour), num(peak), u)}
 		onpointerleave={() => (hover = null)}
 	>
 		{#each jam as v, h (h)}
@@ -55,7 +57,7 @@
 				class="col"
 				class:on={h === peakHour}
 				class:hot={hover === h}
-				aria-label={`Pukul ${formatHour(h)}: ${num(v)} ${unit}`}
+				aria-label={c.hourChart.bar(formatHour(h), num(v), u)}
 				onpointerenter={() => (hover = h)}
 				onfocus={() => (hover = h)}
 				onblur={() => (hover = null)}
@@ -67,7 +69,7 @@
 		{#if hover !== null && !dense}
 			<span class="tip" style:left={`${at(hover)}%`}>
 				<b>{num(jam[hover])}</b>
-				{unit} · {formatHour(hover)}
+				{u} · {formatHour(hover)}
 			</span>
 		{/if}
 	</div>
@@ -77,7 +79,7 @@
 			<span style:left={`${at(h)}%`} style:--anchor={anchor(h)}>{formatHour(h)}</span>
 		{/each}
 		<span class="peak" style:left={`${at(peakHour)}%`} style:--anchor={anchor(peakHour)}>
-			puncak {formatHour(peakHour)}
+			{c.hourChart.peak} {formatHour(peakHour)}
 		</span>
 	</div>
 </div>

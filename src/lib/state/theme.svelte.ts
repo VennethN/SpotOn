@@ -37,9 +37,7 @@ export function nextTheme(theme: Theme): Theme {
 	return theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system';
 }
 
-export function themeLabel(theme: Theme): string {
-	return theme === 'system' ? 'Tema sistem' : theme === 'dark' ? 'Tema gelap' : 'Tema terang';
-}
+
 
 /**
  * Memantau preferensi gelap sistem. Mengembalikan pembersihnya, dan memanggil

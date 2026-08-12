@@ -2,87 +2,83 @@
 	import HourBars from '$lib/components/ui/HourBars.svelte';
 	import { CATEGORY_MAP } from '$lib/domain/categories';
 	import { supplyPhrase } from '$lib/domain/narrate';
-	import { formatHour, pct, rampIndex } from '$lib/utils/format';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { copy } from '$lib/state/lang.svelte';
+	import { formatHour, pct, rampIndex } from '$lib/utils/format';
 
 	const app = getAppState();
+	const c = $derived(copy());
 	const row = $derived(app.selected);
-	const def = $derived(app.definition);
+	const def = $derived(CATEGORY_MAP[app.category]);
+	const name = $derived(c.category[app.category].name);
 	const across = $derived(app.selectedAcrossCategories);
 </script>
 
 {#if !row}
-	<p class="empty">
-		Pilih satu catchment di peta atau pada tabel atribut untuk melihat permintaan, persaingan, dan
-		ketersediaan ruang usahanya.
-	</p>
+	<p class="empty">{c.detail.empty}</p>
 {:else}
 	<div class="detail">
 		<header>
 			<h2>{row.name}</h2>
 			<p class="coords mono">
-				{row.lat.toFixed(5)}, {row.lon.toFixed(5)} · catchment {app.weights.radius} m
+				{row.lat.toFixed(5)}, {row.lon.toFixed(5)} · {c.detail.catchment(app.weights.radius)}
 			</p>
 		</header>
 
 		{#if row.nodata}
 			<div class="note warn">
-				<strong>Data misi MAPID belum tersedia (N = 0).</strong> Tidak ada titik Struk Go, Menu Go,
-				maupun Properti Go di dalam catchment ini. Skor <strong>tidak diinterpolasi</strong> —
-				kawasan ditampilkan apa adanya dan masuk daftar prioritas
-				<em>survey activities</em>. Ketiadaan data bukan bukti ketiadaan usaha: OSM mencatat
-				<strong>{row.osm}</strong> {def.name.toLowerCase()} di radius {app.weights.radius} m.
+				{c.detail.nodata(row.osm, name.toLowerCase(), app.weights.radius)}
 			</div>
 		{:else}
 			<div class="tiles">
 				<div class="tile">
-					<span class="eyebrow">Skor {def.name}</span>
+					<span class="eyebrow">{c.detail.score(name)}</span>
 					<span class="val" style:color={`var(--ramp-${rampIndex(row.score ?? 0)})`}>
 						{pct(row.score)}
 					</span>
-					<span class="sub">{row.typology}</span>
+					<span class="sub">{c.typology[row.typology]}</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow">Permintaan <span class="tag mock">MOCK</span></span>
+					<span class="eyebrow">{c.detail.demand} <span class="tag mock">MOCK</span></span>
 					<span class="val">{pct(row.demand)}</span>
-					<span class="sub">N struk = {row.nStruk}</span>
+					<span class="sub">{c.detail.nStruk(row.nStruk)}</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow">Pesaing <span class="tag real">OSM</span></span>
+					<span class="eyebrow">{c.detail.rivals} <span class="tag real">OSM</span></span>
 					<span class="val">{row.osm}</span>
 					<span class="sub mono">{def.osmTag}</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow">Penawaran efektif</span>
+					<span class="eyebrow">{c.detail.supplyEff}</span>
 					<span class="val">{pct(row.supply)}</span>
-					<span class="sub">{pct(row.ramai)}% ramai</span>
+					<span class="sub">{c.detail.busyPct(pct(row.ramai))}</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow">Ruang usaha <span class="tag mock">MOCK</span></span>
+					<span class="eyebrow">{c.detail.space} <span class="tag mock">MOCK</span></span>
 					<span class="val">{row.listings}</span>
-					<span class="sub">listing dari {row.nProp}</span>
+					<span class="sub">{c.detail.listingOf(row.nProp)}</span>
 				</div>
 				<div class="tile">
-					<span class="eyebrow">Non-tunai <span class="tag mock">MOCK</span></span>
+					<span class="eyebrow">{c.detail.cashless} <span class="tag mock">MOCK</span></span>
 					<span class="val">{pct(row.nontunai)}%</span>
-					<span class="sub">proksi daya beli</span>
+					<span class="sub">{c.detail.cashlessSub}</span>
 				</div>
 			</div>
 
 			<section>
 				<h3 class="eyebrow">
-					Profil jam transaksi — Struk Go · <code>Waktu Transaksi</code> · N = {row.nStruk}
+					{c.detail.hourTitle(row.nStruk)}
 					<span class="tag mock">MOCK</span>
 				</h3>
 				<HourBars jam={row.jam} dense />
 			</section>
 
 			<section>
-				<h3 class="eyebrow">Peluang per jenis usaha — bobot saat ini</h3>
+				<h3 class="eyebrow">{c.detail.acrossTitle}</h3>
 				<div class="bars">
 					{#each across as item (item.key)}
 						<div class="hbar" class:active={item.key === app.category}>
-							<span class="lbl">{CATEGORY_MAP[item.key].name}</span>
+							<span class="lbl">{c.category[item.key].name}</span>
 							<span class="track">
 								<span
 									class="fill"
@@ -97,14 +93,17 @@
 			</section>
 
 			<div class="note">
-				<strong>Ringkasan AI.</strong> Hex memuncak pukul <strong>{formatHour(row.puncak)}</strong>.
-				Untuk <strong>{def.name}</strong>, OSM mencatat <strong>{row.osm} pesaing</strong> dalam
-				radius {app.weights.radius} m — {supplyPhrase(row)}; tersedia
-				<strong>{row.listings} listing</strong> berkategori {def.propKat}.
-				<span class="muted">
-					Angka pesaing berasal dari OSM (nyata); atribut misi MAPID masih contoh. N ditampilkan agar
-					dapat diaudit.
-				</span>
+				<strong>{c.detail.summaryLead}</strong>
+				{c.detail.summary(
+					formatHour(row.puncak),
+					name,
+					row.osm,
+					app.weights.radius,
+					supplyPhrase(row, c),
+					row.listings,
+					def.propKat
+				)}
+				<span class="muted">{c.detail.summaryNote}</span>
 			</div>
 		{/if}
 	</div>
@@ -162,9 +161,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.375rem;
-	}
-	section h3 code {
-		color: var(--label-2);
 	}
 
 	.bars {

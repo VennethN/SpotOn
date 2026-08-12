@@ -1,14 +1,11 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 	import { applyTheme, storedTheme, type Theme } from '$lib/state/theme.svelte';
 
-	const LINKS = [
-		{ href: '#masalah', label: 'Masalah' },
-		{ href: '#cara-kerja', label: 'Cara kerja' },
-		{ href: '#ai', label: 'AI' },
-		{ href: '#data', label: 'Data' }
-	];
+	const c = $derived(copy());
 
 	let scrolled = $state(false);
 	let theme = $state<Theme>('system');
@@ -45,18 +42,19 @@
 <header class="nav" class:scrolled>
 	<a class="brand" href="#top">
 		<span class="mark" aria-hidden="true"></span>
-		SpotOn
+		{c.brand.name}
 	</a>
 
-	<nav aria-label="Bagian halaman">
-		{#each LINKS as l (l.href)}
+	<nav aria-label={c.nav.aria}>
+		{#each c.nav.sections as l (l.href)}
 			<a href={l.href}>{l.label}</a>
 		{/each}
 	</nav>
 
 	<div class="actions">
+		<LangToggle ghost />
 		<ThemeToggle {theme} onchange={pickTheme} ghost />
-		<a class="cta" href="/app">Buka SpotOn</a>
+		<a class="cta" href="/app">{c.brand.open}</a>
 	</div>
 </header>
 

@@ -1,7 +1,13 @@
+import { id as ID } from '$lib/i18n/id';
 import { formatHour, pct } from '$lib/utils/format';
 import { CATEGORY_MAP } from './categories';
 import { supplyPhrase } from './narrate';
 import { scoreAll } from './scoring';
+
+/* Teks di berkas ini adalah keluaran API — `headline`, `why`, `evidence`, dan
+   provenans. Antarmuka tidak menampilkannya apa adanya; yang dibaca pengguna
+   disusun ulang oleh `narrate` dalam bahasa yang sedang dipilih. Jadi kalimat di
+   sini dipatok bahasa Indonesia, satu kontrak yang stabil untuk pemakai API. */
 import type {
 	AiAnswer,
 	Hex,
@@ -216,7 +222,7 @@ export function runQuery(
 			id: r.id,
 			name: r.name,
 			value: r.score,
-			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.puncak)}, non-tunai ${pct(r.nontunai)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.ramai)}% ramai — ${supplyPhrase(r)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propKat}.`,
+			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.puncak)}, non-tunai ${pct(r.nontunai)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.ramai)}% ramai — ${supplyPhrase(r, ID)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propKat}.`,
 			evidence: evidence(r)
 		})),
 		highlight: cands.map((r) => r.id),

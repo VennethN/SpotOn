@@ -1,5 +1,6 @@
-import { CATEGORIES, CATEGORY_MAP } from '$lib/domain/categories';
+import { CATEGORIES } from '$lib/domain/categories';
 import { narrate } from '$lib/domain/narrate';
+import { copy } from '$lib/state/lang.svelte';
 import { pct } from '$lib/utils/format';
 import type { AppState } from '$lib/state/app.svelte';
 import type { AiAnswer, CategoryKey } from '$lib/types';
@@ -41,10 +42,15 @@ export interface Turn {
 	pending?: boolean;
 }
 
-const CATEGORY_CHIPS: Chip[] = CATEGORIES.map((c) => ({
-	label: c.name,
-	action: { kind: 'category', value: c.key }
-}));
+/* Chip dibangun saat dibutuhkan, bukan sekali di tingkat modul: labelnya ikut
+   bahasa yang sedang dipilih, dan bahasa bisa diganti di tengah percakapan. */
+function categoryChips(): Chip[] {
+	const c = copy();
+	return CATEGORIES.map((def) => ({
+		label: c.category[def.key].name,
+		action: { kind: 'category', value: def.key }
+	}));
+}
 
 export class Tapak {
 	turns = $state<Turn[]>([]);
@@ -67,16 +73,22 @@ export class Tapak {
 		this.turns.push({ who: 'tapak', text, chips });
 	}
 
+	/** Mengosongkan utas dan menyapa lagi — dipakai saat bahasa diganti. */
+	reset() {
+		this.turns = [];
+		this.smallBudget = null;
+		this.#greeted = false;
+		this.#lastRemarked = null;
+		this.greet();
+	}
+
 	greet() {
 		if (this.#greeted) return;
 		this.#greeted = true;
 		// Angkanya dibaca dari data, bukan ditulis tangan — begitu kisinya dibangun
 		// ulang, sapaan Tapak ikut benar tanpa ada yang perlu ingat memperbaruinya.
 		const { terdata, total } = this.#app.coverage;
-		this.#say(
-			`Halo. Saya Tapak. Saya sudah keliling ${total} petak kawasan di sekitar MRT, KRL, LRT, dan koridor TransJakarta — ${terdata} di antaranya sudah ada datanya. Anda lagi kepikiran buka usaha apa?`,
-			CATEGORY_CHIPS
-		);
+		this.#say(copy().tapak.greet(total, terdata), categoryChips());
 	}
 
 	/** Menutup chip pada giliran terakhir supaya pilihan lama tidak bisa ditekan ulang. */
@@ -105,33 +117,33 @@ export class Tapak {
 	}
 
 	#run(action: ChipAction) {
+		const c = copy();
+
 		if (action.kind === 'restart') {
 			this.smallBudget = null;
-			this.#say('Boleh. Mau lihat usaha apa sekarang?', CATEGORY_CHIPS);
+			this.#say(c.tapak.restart, categoryChips());
 			return;
 		}
 
 		if (action.kind === 'category') {
 			this.#app.setCategory(action.value);
-			const name = CATEGORY_MAP[action.value].name.toLowerCase();
-			this.#say(`Oke, ${name}. Modalnya kira-kira bagaimana?`, [
-				{ label: 'Pas-pasan', action: { kind: 'budget', small: true } },
-				{ label: 'Agak longgar', action: { kind: 'budget', small: false } }
+			const name = c.category[action.value].name.toLowerCase();
+			this.#say(c.tapak.budgetAsk(name), [
+				{ label: c.tapak.budgetTight, action: { kind: 'budget', small: true } },
+				{ label: c.tapak.budgetLoose, action: { kind: 'budget', small: false } }
 			]);
 			return;
 		}
 
 		if (action.kind === 'budget') {
 			this.smallBudget = action.small;
-			const cat = CATEGORY_MAP[this.#app.category].name.toLowerCase();
+			const cat = c.category[this.#app.category].name.toLowerCase();
 			// Frasa "modal kecil" inilah yang membuat mesin menyaring ke kawasan yang
 			// ruang usahanya benar-benar tersedia — bukan sekadar basa-basi.
 			const q = action.small
 				? `Di mana buka ${cat} modal kecil dekat MRT?`
 				: `Di mana buka ${cat} dekat MRT?`;
-			void this.#ask(q, action.small
-				? 'Saya carikan yang ruangnya benar-benar sedang disewakan, ya.'
-				: 'Baik, saya lihat semuanya dulu.');
+			void this.#ask(q, action.small ? c.tapak.prefaceTight : c.tapak.prefaceLoose);
 			return;
 		}
 
@@ -140,7 +152,7 @@ export class Tapak {
 
 	async #ask(question: string, preface?: string) {
 		if (preface) this.#say(preface);
-		const turn: Turn = { who: 'tapak', text: 'Sebentar, saya cek catatan saya…', pending: true };
+		const turn: Turn = { who: 'tapak', text: copy().ai.thinking, pending: true };
 		this.turns.push(turn);
 
 		await this.#app.ask(question);
@@ -148,24 +160,25 @@ export class Tapak {
 		const idx = this.turns.indexOf(turn);
 		if (idx === -1) return;
 
+		const c = copy();
 		if (this.#app.aiError) {
 			this.turns[idx] = {
 				who: 'tapak',
-				text: `Maaf, catatan saya tidak terbuka barusan. ${this.#app.aiError} Coba tanya lagi?`,
-				chips: [{ label: 'Coba lagi', action: { kind: 'ask', question } }]
+				text: c.tapak.failed(this.#app.aiError),
+				chips: [{ label: c.tapak.retry, action: { kind: 'ask', question } }]
 			};
 			return;
 		}
 
 		const ans = this.#app.ai;
 		if (!ans) {
-			this.turns[idx] = { who: 'tapak', text: 'Saya belum menemukan apa-apa untuk itu.' };
+			this.turns[idx] = { who: 'tapak', text: c.tapak.nothing };
 			return;
 		}
 
 		this.turns[idx] = {
 			who: 'tapak',
-			text: narrate(ans),
+			text: narrate(ans, c),
 			answer: ans,
 			chips: this.#followUps(ans)
 		};
@@ -174,24 +187,22 @@ export class Tapak {
 	#followUps(ans: AiAnswer): Chip[] {
 		// Tidak paham berarti tidak ada hasil untuk ditindaklanjuti; yang berguna
 		// justru menawarkan jalan yang memang bisa dijawab.
-		if (ans.notUnderstood) return CATEGORY_CHIPS;
+		if (ans.notUnderstood) return categoryChips();
 
-		const cat = CATEGORY_MAP[this.#app.category].name.toLowerCase();
+		const c = copy();
+		const cat = c.category[this.#app.category].name.toLowerCase();
 		const chips: Chip[] = [];
 
 		if (ans.query.intent !== 'FLAG_SATURATED') {
-			chips.push({
-				label: 'Mana yang sebaiknya dihindari?',
-				action: { kind: 'ask', question: `Kawasan mana yang sudah jenuh untuk ${cat}?` }
-			});
+			chips.push({ label: c.tapak.avoid, action: { kind: 'ask', question: c.tapak.avoidQ(cat) } });
 		}
 		if (ans.query.intent !== 'COVERAGE') {
 			chips.push({
-				label: 'Mana yang belum ada datanya?',
-				action: { kind: 'ask', question: 'Kawasan mana yang belum terdata?' }
+				label: c.tapak.coverage,
+				action: { kind: 'ask', question: c.tapak.coverageQ }
 			});
 		}
-		chips.push({ label: 'Coba usaha lain', action: { kind: 'restart' } });
+		chips.push({ label: c.tapak.tryOther, action: { kind: 'restart' } });
 		return chips;
 	}
 
@@ -205,25 +216,28 @@ export class Tapak {
 		if (!this.#greeted) return;
 		this.#lastRemarked = row.name;
 
-		const def = CATEGORY_MAP[this.#app.category];
+		const c = copy();
+		const def = c.category[this.#app.category];
+		const cat = def.name.toLowerCase();
 		if (row.nodata) {
-			this.#say(
-				`${row.name} — kawasan ini belum ada datanya, jadi saya tidak berani menilai. Yang saya tahu cuma ada ${row.osm} ${def.name.toLowerCase()} di sekitarnya menurut peta terbuka.`
-			);
+			this.#say(c.narrate.remarkNodata(row.name, row.osm, def.many));
 			return;
 		}
 		const verdict =
 			(row.score ?? 0) >= 0.66
-				? 'Ini termasuk yang bagus'
+				? c.narrate.verdictGood
 				: (row.score ?? 0) >= 0.4
-					? 'Ini menengah'
-					: 'Terus terang ini kurang menjanjikan';
+					? c.narrate.verdictMid
+					: c.narrate.verdictLow;
 		this.#say(
-			`${row.name} — ${verdict.toLowerCase()} untuk ${def.name.toLowerCase()}, nilainya ${pct(
-				row.score
-			)}. Ada ${row.osm} pesaing sejenis, dan ${
-				row.listings > 0 ? `${row.listings} tempat sedang disewakan` : 'tidak ada tempat yang sedang disewakan'
-			}.`
+			c.narrate.remark(
+				row.name,
+				verdict,
+				cat,
+				pct(row.score),
+				row.osm,
+				row.listings > 0 ? c.narrate.listingSome(row.listings) : c.narrate.listingNone
+			)
 		);
 	}
 }

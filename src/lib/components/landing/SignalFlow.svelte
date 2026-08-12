@@ -8,22 +8,13 @@
 	 * ditemani namanya sendiri, jadi bacaan ini tidak pernah bergantung pada
 	 * kemampuan membedakan warna.
 	 */
-	const SIGNALS = [
-		{
-			k: 'demand',
-			nm: 'Permintaan',
-			src: 'Struk Go',
-			d: 'Berapa banyak orang di sana membelanjakan uangnya.',
-			w: 82
-		},
-		{
-			k: 'supply',
-			nm: 'Pesaing',
-			src: 'Menu Go',
-			d: 'Bukan cuma jumlahnya — yang selalu penuh menekan lebih keras.',
-			w: 54
-		}
-	];
+	import { copy } from '$lib/state/lang.svelte';
+
+	const c = $derived(copy());
+	const SIGNALS = $derived([
+		{ k: 'demand', ...c.signal.demand, w: 82 },
+		{ k: 'supply', ...c.signal.supply, w: 54 }
+	]);
 </script>
 
 <div class="flow">
@@ -42,14 +33,14 @@
 
 	<div class="gate">
 		<div class="hd">
-			<span class="nm">Ruang usaha</span>
-			<span class="src">Properti Go</span>
+			<span class="nm">{c.signal.gate.nm}</span>
+			<span class="src">{c.signal.gate.src}</span>
 		</div>
 		<div class="states">
-			<span class="st ok">ada yang disewakan → peluang berlaku</span>
-			<span class="st no">tidak ada → peluang nyaris nol</span>
+			<span class="st ok">{c.signal.gate.ok}</span>
+			<span class="st no">{c.signal.gate.no}</span>
 		</div>
-		<p>Syarat, bukan bonus: peluang yang tidak bisa ditempati bukan peluang.</p>
+		<p>{c.signal.gate.d}</p>
 	</div>
 </div>
 
