@@ -1,29 +1,29 @@
-# Konteks proyek SpotOn
+# SpotOn project context
 
-Berkas rujukan yang menjadi dasar produk ini. Semuanya disalin dari repositori
-penyusunan proposal (`MapID/`) agar konteksnya hidup berdampingan dengan kodenya.
+The reference files this product is built on. All of them were copied over from the
+proposal-drafting repository (`MapID/`) so that the context lives alongside the code.
 
-| Berkas | Isi |
+| File | Contents |
 |---|---|
-| [00-ketentuan-kompetisi.md](00-ketentuan-kompetisi.md) | Salinan verbatim panduan resmi panitia: ketentuan data, komponen wajib WebGIS, peran AI, penilaian, dan larangan. **Sumber kebenaran untuk semua keputusan produk.** |
-| [01-proposal-spoton.md](01-proposal-spoton.md) | Proposal SpotOn yang diajukan (versi final). Berisi masalah, metode, indikator, peran AI, dan kelayakan teknis. |
-| [02-konteks-eksplorasi.md](02-konteks-eksplorasi.md) | Catatan eksplorasi ide: realitas dataset MAPID, enam konsep yang dipertimbangkan, dan alasan SpotOn dipilih. |
-| [03-status-implementasi.md](03-status-implementasi.md) | Pemetaan tiap komponen wajib panitia ke bagian kode yang mengimplementasikannya, beserta yang belum dikerjakan. |
-| [04-data-mapid.md](04-data-mapid.md) | Cara data MAPID diambil, endpoint yang sudah terverifikasi, cakupan sekarang, dan apa lagi yang tersedia di katalog premium. |
-| [mapid-layers.md](mapid-layers.md) | Daftar dataset MAPID yang dibaca SpotOn, beserta tautan tiap layer. **Dihasilkan skrip** — jangan disunting tangan. |
+| [00-ketentuan-kompetisi.md](00-ketentuan-kompetisi.md) | Verbatim copy of the organisers' official guidance: data rules, mandatory WebGIS components, the role of AI, judging, and prohibitions. **The source of truth for every product decision.** |
+| [01-proposal-spoton.md](01-proposal-spoton.md) | The SpotOn proposal as submitted (final version). Covers the problem, the method, the indicators, the role of AI, and technical feasibility. |
+| [02-konteks-eksplorasi.md](02-konteks-eksplorasi.md) | Idea-exploration notes: the reality of the MAPID datasets, the six concepts considered, and why SpotOn was chosen. |
+| [03-status-implementasi.md](03-status-implementasi.md) | Each mandatory component mapped to the part of the code that implements it, along with what is still outstanding. |
+| [04-data-mapid.md](04-data-mapid.md) | How MAPID data is fetched, which endpoints have been verified, how far coverage reaches today, and what else the premium catalogue holds. |
+| [mapid-layers.md](mapid-layers.md) | The list of MAPID datasets SpotOn reads, with a link to each layer. **Script-generated** — do not edit by hand. |
 
-## Aset
+## Assets
 
-| Berkas | Isi |
+| File | Contents |
 |---|---|
-| `assets/Proposal_SpotOn.pdf` | Proposal versi PDF yang dikirim ke panitia. |
-| `assets/fig1_peta.png` … `fig4_pipeline.png` | Gambar yang dipakai di proposal (peta, panel AI, panel detail, alur end-to-end). |
-| `assets/mockup-proposal.html` | Mockup satu berkas yang dibuat untuk proposal. Mesin skor dan dataset contoh pada aplikasi ini berasal dari sini. |
+| `assets/Proposal_SpotOn.pdf` | The PDF version of the proposal sent to the organisers. |
+| `assets/fig1_peta.png` … `fig4_pipeline.png` | The figures used in the proposal (map, AI panel, detail panel, end-to-end flow). |
+| `assets/mockup-proposal.html` | The single-file mockup built for the proposal. This application's scoring engine and sample dataset originate here. |
 
-## Yang sengaja tidak disalin
+## Deliberately not copied
 
-- **`datas.txt`** — memuat NIK, nomor telepon, dan alamat rumah anggota tim.
-- **Surat pernyataan yang sudah ditandatangani** (`Surat Pernyataan … FILLED.pdf`) — memuat tanda tangan dan data pribadi.
+- **`datas.txt`** — contains team members' national ID numbers, phone numbers, and home addresses.
+- **The signed declaration** (`Surat Pernyataan … FILLED.pdf`) — contains signatures and personal data.
 
-Keduanya data pribadi yang tidak boleh ikut ke repositori kode, apalagi kalau
-repositori ini nantinya publik. Simpan tetap di `MapID/`.
+Both are personal data that must not travel into a code repository, least of all if
+this repository is ever made public. Leave them where they are, in `MapID/`.

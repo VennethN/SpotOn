@@ -1,207 +1,207 @@
 # SpotOn
 
-WebGIS rekomendasi *site-selection* berbasis AI untuk ritel & F&B di kawasan transit Jakarta.
-Dibuat untuk **MAPID WebGIS Competition 2026 — Maps That Think!** oleh tim **Triple T**
+An AI-driven *site-selection* WebGIS for retail & F&B around Jakarta's transit network.
+Built for the **MAPID WebGIS Competition 2026 — Maps That Think!** by team **Triple T**
 (Universitas Bina Nusantara).
 
-> Jangan tebak lokasi usaha. Tanya petanya.
+> Don't guess where to open. Ask the map.
 
-Untuk setiap catchment berjalan kaki di sekitar stasiun transit, SpotOn membaca tiga sinyal
-yang biasanya terserak — **permintaan** (Struk Go), **persaingan** (Menu Go), dan
-**ketersediaan ruang usaha** (Properti Go) — lalu menghitung *Opportunity Score* per jenis
-usaha dan menjelaskan alasannya dalam bahasa manusia.
+For every walking catchment around a transit station, SpotOn reads three signals that are
+normally scattered — **demand** (Struk Go), **competition** (Menu Go), and **available
+commercial space** (Properti Go) — then computes an *Opportunity Score* per business
+category and explains its reasoning in human language.
 
-## Menjalankan
+## Running it
 
 ```bash
 npm install
 npm run dev
 ```
 
-| Rute | Isi |
+| Route | Contents |
 |---|---|
 | `/` | Landing page |
-| `/app` | WebGIS: peta, panel kontrol, rekomendasi AI, tabel atribut |
-| `/api/catchments` | Indikator mentah per catchment |
-| `/api/scores?kategori=kopi&wd=0.5&ws=0.5&gate=1&radius=800` | Opportunity Score terhitung |
-| `/api/meta` | Kategori usaha, cakupan data, provenans, dan model bahasa yang sedang aktif |
-| `/api/ai/query` | `POST { question, kategori, weights }` → rekomendasi ter-ranking |
+| `/app` | The WebGIS: map, control panel, AI recommendations, attribute table |
+| `/api/catchments` | Raw indicators per catchment |
+| `/api/scores?kategori=kopi&wd=0.5&ws=0.5&gate=1&radius=800` | Computed Opportunity Score |
+| `/api/meta` | Business categories, data coverage, provenance, and the language model currently active |
+| `/api/ai/query` | `POST { question, kategori, weights }` → ranked recommendations |
 
-## Struktur
+## Structure
 
-Berkas dikelompokkan menurut perannya, jadi tempat mencarinya bisa ditebak dari
-apa yang mau diubah.
+Files are grouped by the role they play, so where to look follows from what you
+want to change.
 
 ```
 src/lib/
-  types.ts       bentuk data yang dipakai semua lapisan
-  data/          kisi heksagon + simpul transit
-  domain/        aturan bisnis murni — tanpa DOM, dipakai server maupun klien
-    scoring.ts     mesin Opportunity Score
-    weights.ts     bobot bawaan + pembersih nilai (satu pintu)
-    nlq.ts         pertanyaan → query terstruktur → jawaban
-    narrate.ts     hasil mesin skor → kalimat manusia
-    categories.ts  tiga belas jenis usaha, tag OSM dan dataset MAPID-nya
-  server/        hanya berjalan di server (dijaga SvelteKit)
-    source.ts      satu-satunya tempat sumber data ditentukan  ← tukar di sini saat API MAPID siap
-    llm.ts         lapisan pemahaman bahasa (OpenRouter)
-    params.ts      query string → argumen mesin skor
-  state/         rune yang hidup selama sesi
-    app.svelte.ts    status antarmuka, disebar lewat context
-    tapak.svelte.ts  percakapan pemandu
-    theme.svelte.ts  terang/gelap/ikut-sistem
+  types.ts       the data shapes every layer uses
+  data/          hexagon grid + transit nodes
+  domain/        pure business rules — no DOM, used by server and client alike
+    scoring.ts     the Opportunity Score engine
+    weights.ts     default weights + value sanitiser (a single way in)
+    nlq.ts         question → structured query → answer
+    narrate.ts     scoring-engine output → human sentences
+    categories.ts  thirteen business categories, their OSM tags and MAPID datasets
+  server/        server-only (enforced by SvelteKit)
+    source.ts      the one place the data source is decided  ← swap here when the MAPID API is ready
+    llm.ts         the language-understanding layer (OpenRouter)
+    params.ts      query string → scoring-engine arguments
+  state/         runes that live for the length of a session
+    app.svelte.ts    interface state, distributed via context
+    tapak.svelte.ts  the guide's conversation
+    theme.svelte.ts  light/dark/follow-system
     lang.svelte.ts   Bahasa Indonesia / English
-  i18n/          naskah dua bahasa: id.ts menentukan bentuknya, en.ts mengisinya
-  utils/         pembantu murni: format.ts (angka, jam, warna skala), geo.ts, motion.svelte.ts
-  scene/         maket isometrik: street.ts (blok jalan) + grid.ts (kisi heksagon)
-                 + daylight.ts (model cahaya 24 jam) + world.ts (kontrak adegan)
+  i18n/          the bilingual script: id.ts defines the shape, en.ts fills it
+  utils/         pure helpers: format.ts (numbers, hours, scale colours), geo.ts, motion.svelte.ts
+  scene/         the isometric maquette: street.ts (street block) + grid.ts (hexagon grid)
+                 + daylight.ts (a 24-hour light model) + world.ts (the scene contract)
   components/
-    app/           permukaan WebGIS — komponen yang membaca AppState
-    landing/       susunan khas halaman depan
-    ui/            komponen tanpa status, dipakai kedua permukaan
+    app/           the WebGIS surface — components that read AppState
+    landing/       the landing page's own composition
+    ui/            stateless components, used by both surfaces
 src/routes/
   +page.svelte     landing
-  +page.server.ts  angka & percakapan contoh landing, dihitung mesin skor
+  +page.server.ts  the landing page's figures and sample conversation, computed by the scoring engine
   app/             WebGIS
-  api/             endpoint
-scripts/         pembangun data (Overpass + MAPID); helper bersamanya di scripts/lib/
-docs/            ketentuan kompetisi, proposal, dan status implementasi
+  api/             endpoints
+scripts/         data builders (Overpass + MAPID); their helpers live in scripts/lib/
+docs/            competition rules, the proposal, and implementation status
 ```
 
 ## Data
 
-**Nyata (OSM).** 1.105 simpul transit empat moda (MRT 20, KRL 76, LRT 33, TransJakarta 976),
-geometri jalur keempatnya, dan 8.158 POI pesaing sembilan kategori — dari OpenStreetMap via
-Overpass API (ODbL). Akses transit tiap petak dihitung dari data ini.
+**Real (OSM).** 1,105 transit nodes across four modes (MRT 20, KRL 76, LRT 33,
+TransJakarta 976), the geometry of all four networks, and 8,158 competitor POIs across nine
+categories — from OpenStreetMap via the Overpass API (ODbL). Each cell's transit access is
+computed from this.
 
-Satuan spasialnya **heksagon H3 resolusi 8** (sisi ±531 m), bukan catchment per halte:
-halte TransJakarta berjarak 400–500 m sedangkan jangkauan jalan kaki 800 m, sehingga
-catchment per halte akan bertumpuk dan menghitung pembeli yang sama berulang kali. Pada
-kisi, tiap petak dihitung sekali dan akses transit jadi sifat petak — lokasi yang dilayani
-MRT sekaligus TransJakarta memang bernilai lebih tinggi.
+The spatial unit is an **H3 hexagon at resolution 8** (±531 m edge), not a per-stop
+catchment: TransJakarta stops sit 400–500 m apart while the walking range is 800 m, so
+per-stop catchments would overlap and count the same shoppers over and over. On a grid each
+cell is counted once and transit access becomes a property of the cell — a location served by
+both MRT and TransJakarta genuinely is worth more.
 
-Bangun ulang datanya:
+Rebuild the data:
 
 ```bash
-node scripts/build-hexes.mjs    # kisi + akses transit + pesaing  → src/lib/data/hexes.json
-node scripts/build-routes.mjs   # geometri jalur 4 moda           → static/data/routes.json
+node scripts/build-hexes.mjs    # grid + transit access + competitors  → src/lib/data/hexes.json
+node scripts/build-routes.mjs   # route geometry for 4 modes           → static/data/routes.json
 ```
 
-**Nyata (MAPID).** 24.614 POI pesaing dari 55 dataset katalog data premium MAPID —
-kesembilan kategori, lengkap untuk kelima kota administrasi DKI. Dibaca langsung dari
-katalog, tanpa langkah impor manual:
+**Real (MAPID).** 24,614 competitor POIs from 55 datasets in the MAPID premium data
+catalogue — all nine categories, complete for all five administrative cities of DKI. Read
+straight from the catalogue, with no manual import step:
 
 ```bash
-node scripts/fetch-mapid.mjs    # cari + baca dari katalog  → src/lib/data/mapid-poi.json
-node scripts/join-mapid.mjs     # gabungkan ke kisi         → src/lib/data/hexes.json
+node scripts/fetch-mapid.mjs    # search + read from the catalogue  → src/lib/data/mapid-poi.json
+node scripts/join-mapid.mjs     # join onto the grid                → src/lib/data/hexes.json
 ```
 
-Saklar **OSM | MAPID** di bilah atas memilih sumber mana yang menilai; keduanya lepas
-dan tidak pernah dicampur dalam satu skor. Kepadatannya jauh berbeda — OSM mencatat 65
-kedai minuman di seluruh Jakarta, MAPID 858 — jadi angka pesaing tidak boleh
-dibandingkan lintas sumber. Perbandingan lengkapnya ada di
-[`docs/04-data-mapid.md`](docs/04-data-mapid.md), daftar datasetnya di
-[`docs/mapid-layers.md`](docs/mapid-layers.md).
+The **OSM | MAPID** switch in the top bar picks which source does the scoring; the two are
+kept separate and never mixed into one score. Their densities differ enormously — OSM records
+65 drinks stalls across all of Jakarta, MAPID 858 — so competitor counts must not be compared
+across sources. The full comparison is in [`docs/04-data-mapid.md`](docs/04-data-mapid.md),
+and the dataset list in [`docs/mapid-layers.md`](docs/mapid-layers.md).
 
-**Contoh (mock).** Atribut khas dataset misi MAPID (Struk Go, Menu Go, Properti Go) karena
-datasetnya baru dibuka untuk 50 tim terkurasi. Strukturnya mengikuti kolom asli, dan seluruh
-akses data melewati `src/lib/server/source.ts` — jadi penggantian ke API MAPID tidak menyentuh UI.
+**Sample (mock).** The attributes specific to the MAPID mission datasets (Struk Go, Menu Go,
+Properti Go), because those datasets have only just been opened to 50 curated teams. Their
+structure follows the real columns, and all data access goes through
+`src/lib/server/source.ts` — so switching to the MAPID API does not touch the UI.
 
-Pembacanya sudah siap. Ketiga dataset itu tidak ada di katalog premium maupun indeks layer
-publik — sudah diuji sepanjang tiap jalan yang bisa dijangkau kunci API, dan pengujiannya
-diulang tiap kali skrip di bawah dijalankan tanpa argumen:
+The reader for them is ready. None of the three are in the premium catalogue or the public
+layer index — that has been tested along every route the API key can reach, and the test is
+repeated every time the script below runs without arguments:
 
 ```bash
-node scripts/fetch-mission.mjs             # jalan mana yang sudah terbuka?
-node scripts/fetch-mission.mjs --selftest  # uji pengurai kolom, tanpa jaringan
-
+node scripts/fetch-mission.mjs             # which routes are open yet?
+node scripts/fetch-mission.mjs --selftest  # exercise the column parser, no network
 MAPID_STRUK_LAYER=<id> MAPID_MENU_LAYER=<id> MAPID_PROP_LAYER=<id> \
   node scripts/fetch-mission.mjs           # → src/lib/data/mission-poi.json
 ```
 
-Yang dibutuhkan hanya `layer_id`, **bukan** kepemilikan proyek: `project_id` yang dikirim
-berfungsi sebagai karcis baca milik sendiri, sehingga layer publik siapa pun bisa dibaca.
-Sebaliknya, isi proyek orang lain tidak bisa didaftar (403 `Not owner`) — jadi mengarahkan
-`MAPID_PROJECT_ID` ke proyek berbagi tidak akan berhasil. Rinciannya di
+All it needs is a `layer_id`, **not** ownership of a project: the `project_id` sent acts as
+your own read ticket, so anyone's public layer can be read. The reverse does not hold — the
+contents of someone else's project cannot be listed (403 `Not owner`), so pointing
+`MAPID_PROJECT_ID` at a shared project will not work. Details in
 [`docs/04-data-mapid.md`](docs/04-data-mapid.md) §4.
 
-Catchment tanpa data ditampilkan sebagai **"belum terdata"**, tidak pernah diinterpolasi.
-Setiap skor disertai N titik data di baliknya.
+A catchment with no data is shown as **"belum terdata"** (not yet surveyed) and is never
+interpolated. Every score comes with the N data points behind it.
 
-## Bahasa
+## Language
 
-Antarmuka tersedia dalam Bahasa Indonesia (bawaan) dan English; tombol ID/EN ada
-di bilah atas kedua halaman dan pilihannya disimpan di peramban. Naskahnya ada di
-`src/lib/i18n/`: `id.ts` yang menentukan bentuk kamusnya, `en.ts` mengisi bentuk
-yang sama, dan TypeScript menolak build kalau ada kalimat yang tertinggal.
+The interface is available in Bahasa Indonesia (the default) and English; the ID/EN button
+sits in the top bar of both pages and the choice is stored in the browser. The script lives in
+`src/lib/i18n/`: `id.ts` defines the shape of the dictionary, `en.ts` fills that same shape,
+and TypeScript refuses to build if a single sentence is left behind.
 
-Yang ikut berganti: seluruh halaman depan, seluruh antarmuka aplikasi, kalimat
-Tapak, dan instruksi bahasa untuk model (jadi kalimat "tidak paham" keluar dalam
-bahasa pembacanya). Yang tetap Bahasa Indonesia: keluaran API (`headline`, `why`,
-`evidence`, provenans) — itu kontrak untuk pemakai API, bukan teks yang dibaca
-pengguna.
+What switches: the whole landing page, the whole application interface, Tapak's sentences, and
+the language instruction given to the model (so the "I don't understand" reply comes back in
+the reader's language). What stays in Bahasa Indonesia: the API output (`headline`, `why`,
+`evidence`, provenance) — that is a contract for API consumers, not text a user reads.
 
-## Konfigurasi
+## Configuration
 
-Salin `.env.example` menjadi `.env`, lalu isi.
+Copy `.env.example` to `.env`, then fill it in.
 
-| Variabel | Isi |
+| Variable | Contents |
 |---|---|
-| `OPENROUTER_API_KEY` | Kunci OpenRouter untuk lapisan pemahaman bahasa. **Boleh kosong** — tanpa kunci, pertanyaan diurai pengurai aturan cadangan dan aplikasi tetap berjalan. |
-| `OPENROUTER_MODEL` | Opsional — nama model apa pun yang dilayani OpenRouter, mis. `anthropic/claude-sonnet-5` atau `openai/gpt-5`. Dibaca saat runtime, jadi menggantinya di Vercel tidak perlu build ulang. Kosong → default `anthropic/claude-sonnet-5`. Model yang sedang aktif dapat diperiksa di `GET /api/meta` (kuncinya sendiri tidak pernah ikut). |
-| `PUBLIC_MAPID_STYLE_URL` | URL gaya MAPID MAPS. Bila kosong, dipakai basemap raster terbuka (OpenStreetMap/CARTO) — **wajib diisi untuk produk final.** |
-| `MAPID_API_KEY` | Kunci API MAPID (baca saja) — dipakai **skrip data**, bukan aplikasinya. Boleh diberikan lewat variabel lingkungan, dan yang dari lingkungan menang atas `.env`. Beda dari kunci Map Service untuk `PUBLIC_MAPID_STYLE_URL`. Lihat [`docs/04-data-mapid.md`](docs/04-data-mapid.md). |
-| `MAPID_PROJECT_ID` | Opsional — proyek GEO MAPID yang dibaca skrip. Kosong → proyek bawaan. |
+| `OPENROUTER_API_KEY` | OpenRouter key for the language-understanding layer. **May be left empty** — without a key, questions are parsed by the fallback rule parser and the application still runs. |
+| `OPENROUTER_MODEL` | Optional — any model name OpenRouter serves, e.g. `anthropic/claude-sonnet-5` or `openai/gpt-5`. Read at runtime, so changing it on Vercel needs no rebuild. Empty → defaults to `anthropic/claude-sonnet-5`. Whichever is active can be checked at `GET /api/meta` (the key itself is never included). |
+| `PUBLIC_MAPID_STYLE_URL` | The MAPID MAPS style URL. If empty, an open raster basemap is used (OpenStreetMap/CARTO) — **mandatory for the final product.** |
+| `MAPID_API_KEY` | The MAPID API key (read-only) — used by the **data scripts**, not by the application. It may also be supplied as an environment variable, and the environment wins over `.env`. Different from the Map Service key for `PUBLIC_MAPID_STYLE_URL`. See [`docs/04-data-mapid.md`](docs/04-data-mapid.md). |
+| `MAPID_PROJECT_ID` | Optional — the GEO MAPID project the scripts read. Empty → the default project. |
+| `MAPID_STRUK_LAYER`, `MAPID_MENU_LAYER`, `MAPID_PROP_LAYER` | Optional — the layer ids of the mission datasets, read by `scripts/fetch-mission.mjs`. Empty → the script probes instead and reports which routes have opened up. |
 
-### Pembagian tugas model dan mesin skor
+### The division of labour between model and scoring engine
 
-Model **hanya memahami** pertanyaan: ia memilih operasi dan mengisi argumennya lewat
-function-calling, lalu berhenti. Seluruh angka — skor, permintaan, cacah pesaing, N —
-dihitung `src/lib/domain/scoring.ts` dari data, sama persis dengan yang dipakai peta dan tabel.
-Karena itu tidak ada nilai yang bisa dikarang model.
+The model **only understands** the question: it picks an operation and fills in its arguments
+through function-calling, then stops. Every figure — score, demand, competitor count, N — is
+computed by `src/lib/domain/scoring.ts` from the data, exactly the same figures the map and
+the table use. That is why there is no value the model could invent.
 
-Bila pertanyaannya di luar jangkauan data, model memanggil `tidak_dimengerti` dan
-antarmuka mengakuinya, bukan menjawab pertanyaan yang salah ditafsirkan. Setiap respons
-menyertakan `parsedBy` (`model` atau `aturan`) supaya jalur yang dipakai tidak disamarkan.
+If a question falls outside the reach of the data, the model calls `tidak_dimengerti` and the
+interface admits it, rather than answering a misread question. Every response carries
+`parsedBy` (`model` or `aturan`) so the path taken is never disguised.
 
 ## Deploy (Vercel)
 
-Sudah memakai `@sveltejs/adapter-vercel`. Manual:
+`@sveltejs/adapter-vercel` is already in use. Manually:
 
 ```bash
 npx vercel deploy
 ```
 
-### Otomatis lewat GitHub Actions
+### Automatically via GitHub Actions
 
-`.github/workflows/ci.yml` menjalankan typecheck dan build pada tiap pull request
-dan tiap push. Khusus push ke `main`, setelah pemeriksaan itu lulus, hasilnya
-langsung dideploy ke produksi. Kalau typecheck atau build gagal, tidak ada yang
-naik — itu sebabnya keduanya satu alur, bukan dua yang berjalan sendiri-sendiri.
+`.github/workflows/ci.yml` runs typecheck and build on every pull request and every
+push. On a push to `main` specifically, once those checks pass, the result is deployed
+straight to production. If typecheck or build fails, nothing ships — which is why the two
+are one pipeline rather than two that run independently.
 
-Isi tiga secret di **Settings → Secrets and variables → Actions**:
+Fill in three secrets under **Settings → Secrets and variables → Actions**:
 
-| Secret | Dari mana |
+| Secret | Where from |
 |---|---|
 | `VERCEL_TOKEN` | Vercel → Account Settings → Tokens |
-| `VERCEL_ORG_ID` | `.vercel/project.json` setelah `npx vercel link` (atau Team Settings → General) |
-| `VERCEL_PROJECT_ID` | sumber yang sama, `.vercel/project.json` |
+| `VERCEL_ORG_ID` | `.vercel/project.json` after `npx vercel link` (or Team Settings → General) |
+| `VERCEL_PROJECT_ID` | the same source, `.vercel/project.json` |
 
-Sebelum ketiganya terisi, job deploy berhenti dengan tenang dan menyebutkan apa
-yang kurang — bukan gagal merah.
+Until all three are filled in, the deploy job stops quietly and names what is missing —
+it does not fail red.
 
-Environment Variables aplikasi (`PUBLIC_MAPID_STYLE_URL`, `OPENROUTER_API_KEY`,
-`OPENROUTER_MODEL`) tetap tinggal di Vercel, bukan di GitHub. Alur ini menariknya
-sendiri lewat `vercel pull`, jadi tidak ada kunci yang perlu disalin dua tempat.
+The application's Environment Variables (`PUBLIC_MAPID_STYLE_URL`, `OPENROUTER_API_KEY`,
+`OPENROUTER_MODEL`) stay on Vercel, not on GitHub. This pipeline pulls them itself via
+`vercel pull`, so there is no key that needs copying into two places.
 
-> **Pilih satu.** Kalau repositori ini juga tersambung ke Vercel lewat Git
-> integration bawaannya, tiap push akan dideploy dua kali. Matikan *Connected Git
-> Repository* di Vercel, atau hapus job `deploy` dan biarkan Vercel yang mengurus.
+> **Pick one.** If this repository is also connected to Vercel through its built-in Git
+> integration, every push will be deployed twice. Either turn off *Connected Git
+> Repository* on Vercel, or delete the `deploy` job and let Vercel handle it.
 
-## Perintah lain
+## Other commands
 
 ```bash
 npm run check    # typecheck + a11y
-npm run build    # build produksi
-npm run preview  # jalankan hasil build
+npm run build    # production build
+npm run preview  # run the build
 ```
