@@ -50,6 +50,8 @@ src/lib/
     app.svelte.ts    status antarmuka, disebar lewat context
     tapak.svelte.ts  percakapan pemandu
     theme.svelte.ts  terang/gelap/ikut-sistem
+    lang.svelte.ts   Bahasa Indonesia / English
+  i18n/          naskah dua bahasa: id.ts menentukan bentuknya, en.ts mengisinya
   utils/         pembantu murni: format.ts (angka, jam, warna skala), geo.ts, motion.svelte.ts
   scene/         maket isometrik: street.ts (blok jalan) + grid.ts (kisi heksagon)
                  + daylight.ts (model cahaya 24 jam) + world.ts (kontrak adegan)
@@ -91,6 +93,19 @@ akses data melewati `src/lib/server/source.ts` — jadi penggantian ke API MAPID
 
 Catchment tanpa data ditampilkan sebagai **"belum terdata"**, tidak pernah diinterpolasi.
 Setiap skor disertai N titik data di baliknya.
+
+## Bahasa
+
+Antarmuka tersedia dalam Bahasa Indonesia (bawaan) dan English; tombol ID/EN ada
+di bilah atas kedua halaman dan pilihannya disimpan di peramban. Naskahnya ada di
+`src/lib/i18n/`: `id.ts` yang menentukan bentuk kamusnya, `en.ts` mengisi bentuk
+yang sama, dan TypeScript menolak build kalau ada kalimat yang tertinggal.
+
+Yang ikut berganti: seluruh halaman depan, seluruh antarmuka aplikasi, kalimat
+Tapak, dan instruksi bahasa untuk model (jadi kalimat "tidak paham" keluar dalam
+bahasa pembacanya). Yang tetap Bahasa Indonesia: keluaran API (`headline`, `why`,
+`evidence`, provenans) — itu kontrak untuk pemakai API, bukan teks yang dibaca
+pengguna.
 
 ## Konfigurasi
 

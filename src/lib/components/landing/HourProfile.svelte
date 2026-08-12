@@ -6,26 +6,29 @@
 	 * pernah jadi satu-satunya jalan ke datanya.
 	 */
 	import HourBars from '$lib/components/ui/HourBars.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 	import { formatHour, num } from '$lib/utils/format';
 
 	let { jam, caption }: { jam: number[]; caption?: string } = $props();
+
+	const c = $derived(copy());
 </script>
 
 <div class="prof">
 	<figure>
-		<HourBars {jam} unit="struk" />
+		<HourBars {jam} unit={c.hourChart.unit} />
 		<figcaption>
-			{caption ?? 'Transaksi per jam, seluruh kawasan terdata.'}
+			{caption ?? c.hourChart.caption}
 			<span class="tag mock">MOCK</span>
 		</figcaption>
 	</figure>
 
 	<details>
-		<summary>Angka per jamnya</summary>
+		<summary>{c.hourChart.table}</summary>
 		<table>
-			<caption class="sr">Jumlah struk per jam</caption>
+			<caption class="sr">{c.hourChart.tableCaption}</caption>
 			<thead>
-				<tr><th scope="col">Jam</th><th scope="col">Struk</th></tr>
+				<tr><th scope="col">{c.hourChart.colHour}</th><th scope="col">{c.hourChart.colValue}</th></tr>
 			</thead>
 			<tbody>
 				{#each jam as v, h (h)}

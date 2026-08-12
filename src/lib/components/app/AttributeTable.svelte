@@ -1,21 +1,23 @@
 <script lang="ts">
-	import { pct, rampVar } from '$lib/utils/format';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { copy, lang } from '$lib/state/lang.svelte';
+	import { pct, rampVar } from '$lib/utils/format';
 	import type { ScoredHex } from '$lib/types';
 
 	const app = getAppState();
+	const c = $derived(copy());
 
 	type SortKey = 'name' | 'score' | 'demand' | 'supply' | 'osm' | 'listings' | 'nTot' | 'typology';
 
-	const COLUMNS: Array<{ key: SortKey; label: string; num?: boolean }> = [
-		{ key: 'name', label: 'Hex' },
-		{ key: 'score', label: 'Skor', num: true },
-		{ key: 'demand', label: 'Permintaan', num: true },
-		{ key: 'supply', label: 'Penawaran', num: true },
-		{ key: 'osm', label: 'Pesaing (OSM)', num: true },
-		{ key: 'listings', label: 'Listing', num: true },
-		{ key: 'nTot', label: 'N misi', num: true },
-		{ key: 'typology', label: 'Tipologi' }
+	const COLUMNS: Array<{ key: SortKey; num?: boolean }> = [
+		{ key: 'name' },
+		{ key: 'score', num: true },
+		{ key: 'demand', num: true },
+		{ key: 'supply', num: true },
+		{ key: 'osm', num: true },
+		{ key: 'listings', num: true },
+		{ key: 'nTot', num: true },
+		{ key: 'typology' }
 	];
 
 	let sortKey = $state<SortKey>('score');
@@ -37,7 +39,7 @@
 			if (va === null) return 1;
 			if (vb === null) return -1;
 			return typeof va === 'string' && typeof vb === 'string'
-				? sortDir * va.localeCompare(vb, 'id')
+				? sortDir * va.localeCompare(vb, lang())
 				: sortDir * ((va as number) - (vb as number));
 		})
 	);
@@ -47,7 +49,7 @@
 			case 'name':
 				return r.name;
 			case 'typology':
-				return r.typology;
+				return c.typology[r.typology];
 			case 'score':
 			case 'demand':
 			case 'supply':
@@ -68,7 +70,7 @@
 						aria-sort={sortKey === col.key ? (sortDir === 1 ? 'ascending' : 'descending') : 'none'}
 					>
 						<button type="button" onclick={() => toggleSort(col.key)}>
-							{col.label}{#if sortKey === col.key}<span class="caret">{sortDir === 1 ? '↑' : '↓'}</span>{/if}
+							{c.table.cols[col.key]}{#if sortKey === col.key}<span class="caret">{sortDir === 1 ? '↑' : '↓'}</span>{/if}
 						</button>
 					</th>
 				{/each}

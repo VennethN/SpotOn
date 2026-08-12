@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { copy } from '$lib/state/lang.svelte';
 	import type { Snippet } from 'svelte';
 	import { SpringValue, VelocityTracker, project, rubberband } from '$lib/utils/motion.svelte';
 
@@ -94,7 +95,7 @@
 	bind:this={sheet}
 	style:transform={`translate3d(0, ${y.current}px, 0)`}
 	style:height={`${viewportH}px`}
-	aria-label="Panel informasi"
+	aria-label={copy().app.sheet}
 >
 	<!-- Seluruh area pegangan menerima seretan; tombol di dalamnya tetap dapat difokus
 	     dan menggilir tinggi panel bagi pengguna papan tik. -->
@@ -110,7 +111,7 @@
 			type="button"
 			class="handle"
 			onclick={cycle}
-			aria-label="Ubah tinggi panel"
+			aria-label={copy().app.sheetGrip}
 			aria-expanded={index === detents.length - 1}
 		></button>
 		{#if header}

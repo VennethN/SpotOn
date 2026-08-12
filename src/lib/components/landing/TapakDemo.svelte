@@ -17,6 +17,7 @@
 	 *   percakapan tampil sekaligus dan tidak ada yang berjalan sendiri.
 	 */
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import { pct } from '$lib/utils/format';
 	import type { CategoryKey } from '$lib/types';
@@ -24,7 +25,6 @@
 	export interface DemoResult {
 		name: string;
 		value: number | null;
-		why: string;
 	}
 	export interface DemoSet {
 		id: string;
@@ -41,6 +41,8 @@
 	}
 
 	let { sets, sapaan }: { sets: DemoSet[]; sapaan: string } = $props();
+
+	const c = $derived(copy());
 
 	/* Langkah percakapan. Nol berarti baru sapaan; enam berarti jawabannya sudah
 	   lengkap dan tinggal ditahan sebentar sebelum pindah. */
@@ -97,7 +99,7 @@
 
 <div class="demo" bind:this={host}>
 	<div class="bar">
-		<span class="who"><TapakFigure size={18} walking={false} /> Tapak</span>
+		<span class="who"><TapakFigure size={18} walking={false} /> {c.app.tapak}</span>
 		<ul class="jump">
 			{#each sets as s, n (s.id)}
 				<li>
@@ -117,7 +119,7 @@
 				type="button"
 				class="pp"
 				onclick={() => (playing = !playing)}
-				aria-label={playing ? 'Jeda percakapan' : 'Jalankan percakapan'}
+				aria-label={playing ? c.ai.pause : c.ai.play}
 			>
 				{#if playing}
 					<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"
@@ -167,7 +169,7 @@
 					<!-- Apa yang ditangkap peta, sebelum satu angka pun dihitung. Ini yang
 					     membuat salah tangkap ketahuan oleh penanya, bukan disembunyikan. -->
 					<div class="caught">
-						<span class="cap">Yang ditangkap peta</span>
+						<span class="cap">{c.ai.caught}</span>
 						<ul>
 							{#each set.tangkap as t (t)}
 								<li>{t}</li>
@@ -180,7 +182,7 @@
 		{#if step === 5}
 			<div class="turn tapak">
 				<span class="av"><TapakFigure size={22} walking={false} /></span>
-				<p class="bub think">Sebentar, saya cek catatan saya…</p>
+				<p class="bub think">{c.ai.thinking}</p>
 			</div>
 		{/if}
 		{#if step >= LAST}
@@ -203,7 +205,7 @@
 							{/each}
 						</ol>
 						{#if set.sisa > 0}
-							<p class="more">+{set.sisa} lagi di dalam aplikasi</p>
+							<p class="more">{c.ai.more(set.sisa)}</p>
 						{/if}
 					{/if}
 				</div>
@@ -212,8 +214,9 @@
 	</div>
 
 	<p class="foot">
-		Pertanyaannya contoh; jawabannya dihitung mesin skor yang sama dengan aplikasinya.
-		<span class="tag mock">MOCK</span> atribut misi masih data contoh.
+		{c.ai.foot}
+		<span class="tag mock">MOCK</span>
+		{c.ai.footMock}
 	</p>
 </div>
 

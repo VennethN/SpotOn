@@ -13,9 +13,11 @@
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import type { WorldFactory } from '$lib/scene/world';
 
+	const c = $derived(copy());
 	let host = $state<HTMLElement | null>(null);
 	let ink = $state('#1c1a16');
 	let accent = $state('#0071e3');
@@ -83,19 +85,18 @@
 		<SceneCanvas
 			{load}
 			state={{ progress: spring.current, ink, accent, ramp, nodata }}
-			label="Maket kisi heksagon: tiap petak satu heksagon, tinggi dan warnanya mewakili skor peluang pada skala yang sama dengan peta, dan petak yang belum terdata dibiarkan cekung tanpa warna. Lingkaran putus-putus menandai jangkauan berjalan kaki dari petak yang sedang dibidik."
+			label={c.grid.label}
 		/>
-		<span class="mark">skema · bukan kawasan tertentu</span>
+		<span class="mark">{c.grid.mark}</span>
 	</div>
 	<figcaption>
 		<p>
-			Satu heksagon, satu petak. <strong>Tinggi dan warnanya sama-sama skor peluang</strong>, pada
-			skala yang sama persis dengan peta di dalam aplikasi. Yang cekung dan tak berwarna belum ada
-			datanya. Lingkaran putus-putus itu jangkauan jalan kaki yang dipakai saat kisinya dibangun.
+			{c.grid.caption.lead}
+			<strong>{c.grid.caption.strong}</strong>{c.grid.caption.rest}
 		</p>
 		<!-- Legendanya duduk tepat di bawah bidang yang memakainya: kalau skala harus
 		     dicari di tempat lain, warnanya berhenti jadi keterangan. -->
-		<div class="legend"><ScoreRamp dense nodata="belum terdata — di luar skala" /></div>
+		<div class="legend"><ScoreRamp dense nodata={c.grid.outOfScale} /></div>
 	</figcaption>
 </figure>
 

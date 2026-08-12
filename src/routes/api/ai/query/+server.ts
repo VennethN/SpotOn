@@ -11,6 +11,8 @@ interface Body {
 	question?: string;
 	kategori?: string;
 	weights?: Partial<Weights>;
+	/** Bahasa pembaca; hanya mempengaruhi kalimat "tidak paham" dari model. */
+	lang?: string;
 }
 
 /**
@@ -45,7 +47,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const weights: Weights = normalizeWeights(body.weights);
 
 	const catchments = loadHexes();
-	const parsed = await parseWithLLM(question, weights, fallback);
+	const parsed = await parseWithLLM(question, weights, fallback, body.lang === 'en' ? 'en' : 'id');
 
 	// Model mengaku tidak paham. Ini hasil yang sah, bukan kegagalan — dan jauh
 	// lebih baik daripada menjawab pertanyaan yang salah ditafsirkan.

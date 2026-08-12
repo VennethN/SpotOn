@@ -1,7 +1,8 @@
-import { CATEGORIES, CATEGORY_MAP } from '$lib/domain/categories';
+import { CATEGORIES } from '$lib/domain/categories';
 import { describeQuery, narrate } from '$lib/domain/narrate';
 import { runQuery } from '$lib/domain/nlq';
 import { DEFAULT_WEIGHTS } from '$lib/domain/weights';
+import { DICT, LANGS, type Copy, type Lang } from '$lib/i18n';
 import { grid, loadHexes } from '$lib/server/source';
 import type { CategoryKey, StructuredQuery } from '$lib/types';
 import type { PageServerLoad } from './$types';
@@ -23,23 +24,37 @@ import type { PageServerLoad } from './$types';
  * Atribut misinya sendiri masih CONTOH, dan penandanya ikut sampai ke layar.
  */
 
-/** Sepasang pertanyaan yang sudah ditentukan — jawabannya tetap dihitung mesin. */
+/**
+ * Sepasang pertanyaan yang sudah ditentukan — jawabannya tetap dihitung mesin.
+ *
+ * Teksnya tidak disimpan di sini melainkan diambil dari kamus per bahasa, jadi
+ * satu skrip menghasilkan percakapan Indonesia dan Inggris dari hitungan yang
+ * sama persis. Keduanya dihitung saat build dan dikirim bersama; halaman ini
+ * statis, jadi tidak ada permintaan kedua saat pembaca mengganti bahasa.
+ */
 interface Script {
 	id: string;
 	kategori: CategoryKey;
-	/** Yang ditekan pengguna pada langkah pertama. */
-	pilih: string;
-	/** Label pendek untuk bilah lompat — kalimat panjang merusak barisnya. */
-	chip: string;
-	/** Pertanyaan lanjutan dari Tapak, lalu jawaban yang ditekan pengguna. */
-	tanya: string;
-	jawab: string;
-	/** Kalimat pengantar Tapak sebelum menghitung. */
-	preface: string;
+	/** Mengambil teks percakapan dari kamus bahasa yang diminta. */
+	lines: (c: Copy) => { pilih: string; chip: string; tanya: string; jawab: string; preface: string };
 	query: StructuredQuery;
 }
 
 const W = DEFAULT_WEIGHTS;
+
+export interface DemoSet {
+	id: string;
+	kategori: CategoryKey;
+	pilih: string;
+	chip: string;
+	tanya: string;
+	jawab: string;
+	preface: string;
+	tangkap: string[];
+	kalimat: string;
+	hasil: Array<{ name: string; value: number | null }>;
+	sisa: number;
+}
 
 const rank = (kategori: CategoryKey, modalKecil: boolean): StructuredQuery => ({
 	intent: 'RANK',
@@ -55,17 +70,16 @@ const rank = (kategori: CategoryKey, modalKecil: boolean): StructuredQuery => ({
 });
 
 function scriptFor(kategori: CategoryKey, modalKecil: boolean): Script {
-	const nama = CATEGORY_MAP[kategori].name.toLowerCase();
 	return {
 		id: kategori,
 		kategori,
-		pilih: CATEGORY_MAP[kategori].name,
-		chip: CATEGORY_MAP[kategori].short,
-		tanya: `Oke, ${nama}. Modalnya kira-kira bagaimana?`,
-		jawab: modalKecil ? 'Pas-pasan' : 'Agak longgar',
-		preface: modalKecil
-			? 'Saya carikan yang ruangnya benar-benar sedang disewakan, ya.'
-			: 'Baik, saya lihat semuanya dulu.',
+		lines: (c) => ({
+			pilih: c.category[kategori].name,
+			chip: c.category[kategori].short,
+			tanya: c.tapak.budgetAsk(c.category[kategori].name.toLowerCase()),
+			jawab: modalKecil ? c.tapak.budgetTight : c.tapak.budgetLoose,
+			preface: modalKecil ? c.tapak.prefaceTight : c.tapak.prefaceLoose
+		}),
 		query: rank(kategori, modalKecil)
 	};
 }
@@ -77,11 +91,13 @@ const SCRIPTS: Script[] = [
 	{
 		id: 'jenuh',
 		kategori: 'minimarket',
-		pilih: 'Minimarket',
-		chip: 'Yang jenuh',
-		tanya: 'Oke, minimarket. Mau saya carikan yang bagus, atau yang sebaiknya dihindari?',
-		jawab: 'Yang sebaiknya dihindari',
-		preface: 'Boleh. Ini yang pesaingnya paling rapat.',
+		lines: (c) => ({
+			pilih: c.category.minimarket.name,
+			chip: c.demo.saturatedChip,
+			tanya: c.demo.saturatedAsk,
+			jawab: c.demo.saturatedYes,
+			preface: c.demo.saturatedPreface
+		}),
 		query: {
 			intent: 'FLAG_SATURATED',
 			metrik: 'penawaran efektif (pesaing × keramaian)',
@@ -96,11 +112,13 @@ const SCRIPTS: Script[] = [
 	{
 		id: 'cakupan',
 		kategori: 'kopi',
-		pilih: 'Sebentar — datanya lengkap?',
-		chip: 'Cakupan data',
-		tanya: 'Tidak semuanya. Mau saya tunjukkan yang mana saja yang belum?',
-		jawab: 'Tunjukkan',
-		preface: 'Ini yang belum saya punya datanya.',
+		lines: (c) => ({
+			pilih: c.demo.coverageAsk,
+			chip: c.demo.coverageChip,
+			tanya: c.demo.coverageReply,
+			jawab: c.demo.coverageYes,
+			preface: c.demo.coveragePreface
+		}),
 		query: {
 			intent: 'COVERAGE',
 			metrik: 'N titik data misi per catchment',
@@ -130,27 +148,28 @@ export const load: PageServerLoad = () => {
 		terdata.reduce((a, r) => a + (r.jam?.[h] ?? 0), 0)
 	);
 
-	const percakapan = SCRIPTS.map((s) => {
-		const ans = runQuery(s.query, s.pilih, hexes, W);
-		return {
-			id: s.id,
-			kategori: s.kategori,
-			pilih: s.pilih,
-			chip: s.chip,
-			tanya: s.tanya,
-			jawab: s.jawab,
-			preface: s.preface,
-			tangkap: describeQuery(ans.query),
-			kalimat: narrate(ans),
-			// Tiga teratas saja: halaman depan menjanjikan bacaan, bukan tabel.
-			hasil: ans.items.slice(0, 3).map((i) => ({
-				name: i.name,
-				value: i.value,
-				why: i.why
-			})),
-			sisa: Math.max(0, ans.items.length - 3)
-		};
-	});
+	// Satu hitungan per skrip, dua naskah. Angkanya identik lintas bahasa karena
+	// memang berasal dari `runQuery` yang sama.
+	const percakapan = Object.fromEntries(
+		LANGS.map((l) => [
+			l,
+			SCRIPTS.map((s) => {
+				const c = DICT[l];
+				const lines = s.lines(c);
+				const ans = runQuery(s.query, lines.pilih, hexes, W);
+				return {
+					id: s.id,
+					kategori: s.kategori,
+					...lines,
+					tangkap: describeQuery(ans.query, c),
+					kalimat: narrate(ans, c),
+					// Tiga teratas saja: halaman depan menjanjikan bacaan, bukan tabel.
+					hasil: ans.items.slice(0, 3).map((i) => ({ name: i.name, value: i.value })),
+					sisa: Math.max(0, ans.items.length - 3)
+				};
+			})
+		])
+	) as Record<Lang, DemoSet[]>;
 
 	return {
 		kisi: {

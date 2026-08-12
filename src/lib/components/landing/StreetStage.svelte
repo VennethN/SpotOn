@@ -24,6 +24,7 @@
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
 	import { formatHour } from '$lib/utils/format';
+	import { copy } from '$lib/state/lang.svelte';
 	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import stations from '$lib/data/stations.json';
 	import type { CategoryKey } from '$lib/types';
@@ -33,6 +34,7 @@
 	}
 	let { category = 'kopi' as CategoryKey }: Props = $props();
 
+	const c = $derived(copy());
 	const STATION = stations[0];
 	/** Hex tanpa profil jam memang tidak punya data — bukan nol yang dikarang. */
 	const JAM: number[] = STATION?.jam ?? [];
@@ -149,7 +151,7 @@
 			{density}
 			{category}
 			cameraT={camSpring.current}
-			label={`Blok jalan di sekitar stasiun ${STATION.name} pada pukul ${formatHour(hour)}. Kepadatan pejalan kaki mengikuti profil transaksi 24 jam catchment ini: ${strukAt(hour)} struk pada jam tersebut.`}
+			label={c.stage.sceneLabel(STATION.name, formatHour(hour), String(strukAt(hour)))}
 		/>
 
 		<div class="scrim" style:--scrim={day.scrim}></div>
@@ -157,46 +159,35 @@
 		<!-- jam berjalan: satu-satunya elemen yang selalu ada, karena ia yang menjelaskan adegannya -->
 		<div class="clock">
 			<span class="time">{formatHour(hour)}</span>
-			<span class="phase">{day.phase}</span>
+			<span class="phase">{c.phase[day.phase]}</span>
 			<span class="reading">
 				{#if density > 0}
-					{strukAt(hour)} struk · {Math.round(density * 100)}% dari jam puncak
+					{c.stage.reading(String(strukAt(hour)), Math.round(density * 100))}
 				{:else}
-					belum ada transaksi pada jam ini
+					{c.stage.noReading}
 				{/if}
 			</span>
-			<span class="tag">data contoh</span>
+			<span class="tag">{c.stage.sample}</span>
 		</div>
 
 		<div class="copy hero" style:opacity={showHero} aria-hidden={showHero < 0.5}>
-			<h1>Tanya jalannya<br />sebelum Anda menyewa.</h1>
-			<p>
-				Satu blok di sekitar stasiun transit Jakarta, pada jam yang sedang berjalan. Ramai dan
-				sepinya trotoar mengikuti profil transaksi 24 jam catchment — di halaman ini memakai
-				data contoh. Angka sungguhan dihitung di dalam aplikasi.
-			</p>
+			<h1>{c.stage.heroTitle}</h1>
+			<p>{c.stage.heroBody}</p>
 			<div class="cta">
-				<a class="go" href="/app" style:--btn-ink={day.inkInverse}>Buka SpotOn</a>
-				<span class="hint">gulir untuk melihat satu hari penuh</span>
+				<a class="go" href="/app" style:--btn-ink={day.inkInverse}>{c.brand.open}</a>
+				<span class="hint">{c.stage.heroHint}</span>
 			</div>
 		</div>
 
 		<div class="copy mid" style:opacity={showDay} aria-hidden={showDay < 0.5}>
-			<h2>Satu lokasi bukan satu angka. Ia berubah sepanjang hari.</h2>
-			<p>
-				Trotoar yang sepi pukul 10 pagi bisa penuh pukul 7 malam. Sewa dibayar untuk 24 jam,
-				jadi jam mana yang ramai menentukan usaha apa yang masuk akal di sana.
-			</p>
+			<h2>{c.stage.dayTitle}</h2>
+			<p>{c.stage.dayBody}</p>
 		</div>
 
 		<div class="copy mid" style:opacity={showLot} aria-hidden={showLot < 0.5}>
-			<h2>Petak bergaris putih itu masih kosong.</h2>
-			<p>
-				Volume tembus pandang di atasnya bukan bangunan yang ada — itu usaha yang bisa Anda
-				buka di sana. Permintaan tanpa ruang yang bisa ditempati bukan peluang, jadi SpotOn
-				memperlakukan ketersediaan ruang sebagai gerbang, bukan nilai tambah.
-			</p>
-			<span class="prov">Struk Go, Menu Go, Properti Go: contoh · Stasiun &amp; pesaing: OSM</span>
+			<h2>{c.stage.lotTitle}</h2>
+			<p>{c.stage.lotBody}</p>
+			<span class="prov">{c.stage.lotProv}</span>
 		</div>
 	</div>
 </section>
@@ -293,7 +284,7 @@
 		position: absolute;
 		left: clamp(1rem, 5vw, 4.5rem);
 		bottom: clamp(2.5rem, 9vh, 5.5rem);
-		max-width: min(30rem, 74vw);
+		max-width: min(33rem, 76vw);
 		color: var(--ink);
 		transition: opacity 220ms ease-out;
 	}
@@ -306,6 +297,9 @@
 	}
 
 	h1 {
+		/* Judulnya dipatah sendiri lewat baris baru di naskah, bukan lewat <br>:
+		   titik patahnya berbeda antar bahasa. */
+		white-space: pre-line;
 		font-family: var(--font-display);
 		font-size: clamp(2.25rem, 5.6vw, 4.5rem);
 		font-weight: 620;
