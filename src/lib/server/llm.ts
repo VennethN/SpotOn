@@ -23,22 +23,43 @@ import type { CategoryKey, StructuredQuery, Weights } from '$lib/types';
 const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 /**
- * Router gratis OpenRouter. Ia mendukung function calling — syarat mati di sini,
- * karena lapisan ini tidak pernah meminta prosa, hanya pemilihan alat.
+ * Rantai model gratis, dicoba berurutan sampai ada yang menjawab.
+ *
+ * Semuanya wajib mendukung function calling — syarat mati di sini, karena
+ * lapisan ini tidak pernah meminta prosa, hanya pemilihan alat. Model gratis
+ * dipakai bergiliran oleh banyak orang, jadi kegagalan yang lumrah bukan
+ * "model salah" melainkan "sedang penuh": 429, 503, atau jawaban yang datang
+ * terlalu lambat. Satu nama model saja berarti satu titik gagal; berurutan
+ * begini, penuhnya satu model cuma menggeser giliran ke model berikutnya.
+ *
+ * Urutannya dari yang paling ringan-cepat ke yang paling besar: yang pertama
+ * menjawab paling sering, yang di bawah menangkap sisanya.
  */
-const DEFAULT_MODEL = 'openrouter/free';
+const MODEL_CHAIN = [
+	'nvidia/nemotron-3.5-lightning:free',
+	'nvidia/nemotron-3-ultra-550b-a55b:free',
+	'inclusionai/ling-3.0-tiny:free',
+	'google/gemma-4-31b-it:free',
+	'openai/gpt-oss-20b:free'
+];
+
+const DEFAULT_MODEL = MODEL_CHAIN[0];
 
 /**
- * Anggaran waktu satu panggilan.
+ * Anggaran waktu satu percobaan, dan anggaran seluruh rantai.
  *
- * Sempat 12 detik, dan itu terlalu ketat untuk model gratis: giliran di antrean
- * bersama membuat jawaban wajar datang di detik ke-14, jadi permintaan yang
- * sebenarnya baik-baik saja dibatalkan tepat sebelum tiba. Yang terlihat oleh
- * pengguna cuma Tapak yang diam-diam kembali memakai pengurai aturan, tanpa
- * sebab yang kelihatan. Gagal karena kehabisan waktu tetap ditanggung dengan
- * anggun — tapi jangan sampai kita sendiri yang memanggil kegagalan itu.
+ * Per percobaan sempat 12 detik, dan itu terlalu ketat untuk model gratis:
+ * giliran di antrean bersama membuat jawaban wajar datang di detik ke-14, jadi
+ * permintaan yang sebenarnya baik-baik saja dibatalkan tepat sebelum tiba. Yang
+ * terlihat pengguna cuma Tapak diam-diam kembali ke pengurai aturan, tanpa sebab
+ * yang kelihatan.
+ *
+ * Batas totalnya ada supaya rantai tidak menjumlahkan keterlambatan: lima model
+ * × 60 detik akan membuat pengguna menunggu lima menit demi jawaban yang toh
+ * ada versi aturannya dalam sekejap. Habis anggaran total → langsung ke aturan.
  */
-const TIMEOUT_MS = 60_000;
+const ATTEMPT_MS = 60_000;
+const TOTAL_MS = 90_000;
 
 /**
  * Model yang dipakai lapisan pemahaman, dari `OPENROUTER_MODEL`.
@@ -50,6 +71,16 @@ const TIMEOUT_MS = 60_000;
  */
 export function activeModel(): string {
 	return env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
+}
+
+/**
+ * Urutan model yang akan dicoba. `OPENROUTER_MODEL` yang diisi tangan berarti
+ * pilihan sadar seseorang — dihormati apa adanya, tidak diam-diam dilengkapi
+ * cadangan yang tidak ia minta.
+ */
+function modelChain(): string[] {
+	const pinned = env.OPENROUTER_MODEL?.trim();
+	return pinned ? [pinned] : MODEL_CHAIN;
 }
 
 /** Apakah lapisan model benar-benar bisa dipakai (kunci terpasang). */
@@ -172,63 +203,93 @@ export async function parseWithLLM(
 ): Promise<ParseResult> {
 	const key = env.OPENROUTER_API_KEY?.trim();
 	if (!key) return null;
-	const model = activeModel();
 
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+	const body = {
+		messages: [
+			{ role: 'system', content: `${SYSTEM}\n\n${LANG_RULE[lang] ?? LANG_RULE.id}` },
+			{
+				role: 'user',
+				content: `Kategori yang sedang aktif: ${fallbackCategory}.\nPertanyaan: ${question}`
+			}
+		],
+		tools: TOOLS,
+		// Model wajib memilih salah satu alat — termasuk alat "tidak paham".
+		tool_choice: 'required',
+		// Wajib diisi, dan bukan sekadar penghematan. Tanpa baris ini OpenRouter
+		// memesan seluruh jendela keluaran model (puluhan ribu token) di muka,
+		// lalu menolak permintaan dengan 402 bila sisa kredit kunci tidak sanggup
+		// menanggung pesanan sebesar itu — padahal yang benar-benar dipakai cuma
+		// puluhan token. Jawaban di sini selalu satu panggilan alat dengan argumen
+		// pendek, tidak pernah prosa, jadi 1.024 sudah sangat lapang.
+		max_tokens: 1024
+	};
 
-	try {
-		const res = await fetch(ENDPOINT, {
-			method: 'POST',
-			signal: controller.signal,
-			headers: {
-				authorization: `Bearer ${key}`,
-				'content-type': 'application/json',
-				// Dipakai OpenRouter untuk atribusi; tidak wajib, tapi sopan.
-				'x-title': 'SpotOn'
-			},
-			body: JSON.stringify({
-				model,
-				messages: [
-					{ role: 'system', content: `${SYSTEM}\n\n${LANG_RULE[lang] ?? LANG_RULE.id}` },
-					{
-						role: 'user',
-						content: `Kategori yang sedang aktif: ${fallbackCategory}.\nPertanyaan: ${question}`
-					}
-				],
-				tools: TOOLS,
-				// Model wajib memilih salah satu alat — termasuk alat "tidak paham".
-				tool_choice: 'required',
-				// Wajib diisi, dan bukan sekadar penghematan. Tanpa baris ini
-				// OpenRouter memesan seluruh jendela keluaran model (65.536 token)
-				// di muka, lalu menolak permintaan dengan 402 bila sisa kredit
-				// kunci tidak sanggup menanggung pesanan sebesar itu — padahal
-				// yang benar-benar dipakai cuma puluhan token. Jawaban di sini
-				// selalu satu panggilan alat dengan argumen pendek, tidak pernah
-				// prosa, jadi 1.024 sudah sangat lapang.
-				max_tokens: 1024
-			})
-		});
+	const chain = modelChain();
+	const deadline = Date.now() + TOTAL_MS;
+	let call: ToolCall | undefined;
 
-		if (!res.ok) {
-			// Nama model yang salah ketik jatuh persis di sini; tanpa menyebutnya,
-			// yang terlihat cuma "jawaban jadi pakai aturan" tanpa alasan.
-			console.error(
-				`[SpotOn] OpenRouter menolak permintaan (model ${model}):`,
-				res.status,
-				await res.text()
-			);
-			return null;
+	for (const [i, model] of chain.entries()) {
+		const left = deadline - Date.now();
+		if (left <= 0) {
+			console.error('[SpotOn] Anggaran waktu rantai model habis, memakai pengurai aturan.');
+			break;
 		}
 
-		const data = await res.json();
-		const call: ToolCall | undefined = data?.choices?.[0]?.message?.tool_calls?.[0];
-		const name = call?.function?.name;
+		const controller = new AbortController();
+		const timer = setTimeout(() => controller.abort(), Math.min(ATTEMPT_MS, left));
+		try {
+			const res = await fetch(ENDPOINT, {
+				method: 'POST',
+				signal: controller.signal,
+				headers: {
+					authorization: `Bearer ${key}`,
+					'content-type': 'application/json',
+					// Dipakai OpenRouter untuk atribusi; tidak wajib, tapi sopan.
+					'x-title': 'SpotOn'
+				},
+				body: JSON.stringify({ model, ...body })
+			});
+
+			if (!res.ok) {
+				// Nama model yang salah ketik jatuh persis di sini; tanpa menyebutnya,
+				// yang terlihat cuma "jawaban jadi pakai aturan" tanpa alasan.
+				console.error(
+					`[SpotOn] ${model} menolak (${res.status}):`,
+					(await res.text()).slice(0, 200)
+				);
+				continue;
+			}
+
+			const data = await res.json();
+			const got: ToolCall | undefined = data?.choices?.[0]?.message?.tool_calls?.[0];
+			if (!got?.function?.name) {
+				// Model menjawab, tapi berprosa alih-alih memanggil alat. Untuk
+				// lapisan ini itu sama tak terpakainya dengan galat jaringan.
+				console.error(`[SpotOn] ${model} tidak memanggil alat; lanjut ke model berikutnya.`);
+				continue;
+			}
+
+			if (i > 0) console.error(`[SpotOn] Dijawab model cadangan: ${model}`);
+			call = got;
+			break;
+		} catch (err) {
+			// Termasuk timeout (AbortError). Bukan alasan menggagalkan permintaan.
+			console.error(`[SpotOn] ${model} gagal:`, (err as Error).message);
+		} finally {
+			clearTimeout(timer);
+		}
+	}
+
+	// Seluruh rantai habis tanpa satu pun panggilan alat → pengurai aturan.
+	if (!call) return null;
+
+	try {
+		const name = call.function?.name;
 		if (!name) return null;
 
 		let args: Record<string, unknown> = {};
 		try {
-			args = JSON.parse(call?.function?.arguments ?? '{}');
+			args = JSON.parse(call.function?.arguments ?? '{}');
 		} catch {
 			return null;
 		}
@@ -282,10 +343,9 @@ export async function parseWithLLM(
 
 		return { ok: true, query };
 	} catch (err) {
-		// Termasuk timeout (AbortError). Bukan alasan untuk menggagalkan permintaan.
-		console.error('[SpotOn] Lapisan model tidak terpakai:', (err as Error).message);
+		// Bentuk argumen yang tak terduga dari model. Sama seperti kegagalan lain
+		// di lapisan ini: turun ke pengurai aturan, jangan gagalkan permintaan.
+		console.error('[SpotOn] Panggilan alat tidak terbaca:', (err as Error).message);
 		return null;
-	} finally {
-		clearTimeout(timer);
 	}
 }
