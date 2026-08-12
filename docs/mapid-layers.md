@@ -2,7 +2,7 @@
 
 # Dataset MAPID yang dibaca SpotOn
 
-55 dataset katalog premium + 5 layer khas proyek · 24.614 titik unik setelah 11.462 duplikat dibuang.
+55 dataset katalog premium + 5 layer khas proyek · 24.630 titik unik setelah 11.446 duplikat dibuang.
 
 Semuanya dibaca **langsung dari katalog**, tanpa langkah impor. Yang dikirim ke
 `get_layer` adalah `layer_id` katalog beserta `project_id` proyek kita sendiri —
@@ -60,7 +60,7 @@ lengkap beserta tautannya ada di bawah; tekan **Impor** di masing-masing.
 | JAKARTA TIMUR | `ROTI DAN KUE DI KOTA ADMINISTRASI JAKARTA TIMUR TAHUN 2026` | 342 | 342 | [layer](https://geo.mapid.io/layer/69d8a5cb9bfe4509be033c19) |
 | JAKARTA UTARA | `ROTI DAN KUE DI KOTA ADMINISTRASI JAKARTA UTARA TAHUN 2026` | 302 | 302 | [layer](https://geo.mapid.io/layer/69d8a5d31adb68b4b71e7935) |
 
-### RESTORAN — menutup `warung`
+### RESTORAN — menutup `warteg`, `cepatsaji`, `mie`, `seafood`, `restoasing`
 
 | Kota | Dataset | Fitur | Terpakai | Buka |
 |---|---|--:|--:|---|
@@ -70,7 +70,7 @@ lengkap beserta tautannya ada di bawah; tekan **Impor** di masing-masing.
 | JAKARTA TIMUR | `RESTORAN DI KOTA ADMINISTRASI JAKARTA TIMUR TAHUN 2025` | 1.387 | 1.387 | [layer](https://geo.mapid.io/layer/67dd5d5e5b1d342645b9c28a) |
 | JAKARTA UTARA | `RESTORAN DI KOTA ADMINISTRASI JAKARTA UTARA TAHUN 2025` | 1.080 | 1.080 | [layer](https://geo.mapid.io/layer/67dd5d700468ddc2b8e71594) |
 
-### MAKANAN DAN MINUMAN — menutup `kopi`, `minuman`, `roti`, `warung`
+### MAKANAN DAN MINUMAN — menutup `kopi`, `minuman`, `roti`, `warteg`, `cepatsaji`, `mie`, `seafood`, `restoasing`
 
 | Kota | Dataset | Fitur | Terpakai | Buka |
 |---|---|--:|--:|---|
@@ -150,7 +150,11 @@ masuk dataset misi kompetisi, yang datang sebagai proyek terpisah yang dibagikan
 | kopi | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
 | minuman | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
 | roti | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
-| warung | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
+| warteg | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
+| cepatsaji | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
+| mie | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
+| seafood | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
+| restoasing | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
 | minimarket | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
 | kelontong | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
 | laundry | 5/5 | JAKARTABARAT, JAKARTAPUSAT, JAKARTASELATAN, JAKARTATIMUR, JAKARTAUTARA |
