@@ -16,47 +16,11 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { overpass, sleep } from './lib/overpass.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BBOX = '-6.45,106.6,-6.02,107.1';
 
-const ENDPOINTS = [
-	'https://overpass-api.de/api/interpreter',
-	'https://overpass.kumi.systems/api/interpreter'
-];
-const UA = 'SpotOn/0.1 (MAPID WebGIS Competition 2026; github.com/SpotOn)';
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function overpass(query, label) {
-	let lastErr;
-	for (let attempt = 0; attempt < 5; attempt++) {
-		const url = ENDPOINTS[attempt % ENDPOINTS.length];
-		try {
-			const res = await fetch(url, {
-				method: 'POST',
-				headers: {
-					'content-type': 'application/x-www-form-urlencoded',
-					'user-agent': UA,
-					accept: 'application/json'
-				},
-				body: new URLSearchParams({ data: query })
-			});
-			if (res.status === 429 || res.status === 504) {
-				const wait = 8000 * (attempt + 1);
-				console.log(`  (${label}) dibatasi laju, tunggu ${wait / 1000}s…`);
-				await sleep(wait);
-				continue;
-			}
-			if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-			return await res.json();
-		} catch (err) {
-			lastErr = err;
-			await sleep(5000 * (attempt + 1));
-		}
-	}
-	throw lastErr ?? new Error(`Overpass gagal: ${label}`);
-}
 
 /** Urutan penting: yang digambar belakangan berada di atas. BRT paling padat,
     jadi ia digambar paling bawah supaya rel tidak tertutup. */

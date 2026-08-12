@@ -24,25 +24,48 @@ npm run dev
 | `/app` | WebGIS: peta, panel kontrol, rekomendasi AI, tabel atribut |
 | `/api/catchments` | Indikator mentah per catchment |
 | `/api/scores?kategori=kopi&wd=0.5&ws=0.5&gate=1&radius=800` | Opportunity Score terhitung |
-| `/api/meta` | Kategori usaha, cakupan data, provenans |
+| `/api/meta` | Kategori usaha, cakupan data, provenans, dan model bahasa yang sedang aktif |
 | `/api/ai/query` | `POST { question, kategori, weights }` → rekomendasi ter-ranking |
 
 ## Struktur
 
+Berkas dikelompokkan menurut perannya, jadi tempat mencarinya bisa ditebak dari
+apa yang mau diubah.
+
 ```
 src/lib/
-  data/            dataset contoh (stasiun + geometri jalur MRT)
-  server/source.ts satu-satunya tempat sumber data ditentukan  ← tukar di sini saat API MAPID siap
-  scoring.ts       mesin Opportunity Score (dipakai server dan klien)
-  nlq.ts           pertanyaan bahasa natural → query terstruktur → jawaban
-  motion.svelte.ts pegas, proyeksi momentum, rubber-banding
-  state.svelte.ts  status antarmuka (rune, disebar lewat context)
-  components/      panel WebGIS + komponen landing
+  types.ts       bentuk data yang dipakai semua lapisan
+  data/          kisi heksagon + simpul transit
+  domain/        aturan bisnis murni — tanpa DOM, dipakai server maupun klien
+    scoring.ts     mesin Opportunity Score
+    weights.ts     bobot bawaan + pembersih nilai (satu pintu)
+    nlq.ts         pertanyaan → query terstruktur → jawaban
+    narrate.ts     hasil mesin skor → kalimat manusia
+    categories.ts  lima jenis usaha dan tag OSM-nya
+  server/        hanya berjalan di server (dijaga SvelteKit)
+    source.ts      satu-satunya tempat sumber data ditentukan  ← tukar di sini saat API MAPID siap
+    llm.ts         lapisan pemahaman bahasa (OpenRouter)
+    params.ts      query string → argumen mesin skor
+  state/         rune yang hidup selama sesi
+    app.svelte.ts    status antarmuka, disebar lewat context
+    tapak.svelte.ts  percakapan pemandu
+    theme.svelte.ts  terang/gelap/ikut-sistem
+    lang.svelte.ts   Bahasa Indonesia / English
+  i18n/          naskah dua bahasa: id.ts menentukan bentuknya, en.ts mengisinya
+  utils/         pembantu murni: format.ts (angka, jam, warna skala), geo.ts, motion.svelte.ts
+  scene/         maket isometrik: street.ts (blok jalan) + grid.ts (kisi heksagon)
+                 + daylight.ts (model cahaya 24 jam) + world.ts (kontrak adegan)
+  components/
+    app/           permukaan WebGIS — komponen yang membaca AppState
+    landing/       susunan khas halaman depan
+    ui/            komponen tanpa status, dipakai kedua permukaan
 src/routes/
   +page.svelte     landing
+  +page.server.ts  angka & percakapan contoh landing, dihitung mesin skor
   app/             WebGIS
   api/             endpoint
-docs/              ketentuan kompetisi, proposal, dan status implementasi
+scripts/         pembangun data (Overpass); helper bersamanya di scripts/lib/
+docs/            ketentuan kompetisi, proposal, dan status implementasi
 ```
 
 ## Data
@@ -71,6 +94,19 @@ akses data melewati `src/lib/server/source.ts` — jadi penggantian ke API MAPID
 Catchment tanpa data ditampilkan sebagai **"belum terdata"**, tidak pernah diinterpolasi.
 Setiap skor disertai N titik data di baliknya.
 
+## Bahasa
+
+Antarmuka tersedia dalam Bahasa Indonesia (bawaan) dan English; tombol ID/EN ada
+di bilah atas kedua halaman dan pilihannya disimpan di peramban. Naskahnya ada di
+`src/lib/i18n/`: `id.ts` yang menentukan bentuk kamusnya, `en.ts` mengisi bentuk
+yang sama, dan TypeScript menolak build kalau ada kalimat yang tertinggal.
+
+Yang ikut berganti: seluruh halaman depan, seluruh antarmuka aplikasi, kalimat
+Tapak, dan instruksi bahasa untuk model (jadi kalimat "tidak paham" keluar dalam
+bahasa pembacanya). Yang tetap Bahasa Indonesia: keluaran API (`headline`, `why`,
+`evidence`, provenans) — itu kontrak untuk pemakai API, bukan teks yang dibaca
+pengguna.
+
 ## Konfigurasi
 
 Salin `.env.example` menjadi `.env`, lalu isi.
@@ -78,14 +114,14 @@ Salin `.env.example` menjadi `.env`, lalu isi.
 | Variabel | Isi |
 |---|---|
 | `OPENROUTER_API_KEY` | Kunci OpenRouter untuk lapisan pemahaman bahasa. **Boleh kosong** — tanpa kunci, pertanyaan diurai pengurai aturan cadangan dan aplikasi tetap berjalan. |
-| `OPENROUTER_MODEL` | Opsional. Default `anthropic/claude-sonnet-5`. |
+| `OPENROUTER_MODEL` | Opsional — nama model apa pun yang dilayani OpenRouter, mis. `anthropic/claude-sonnet-5` atau `openai/gpt-5`. Dibaca saat runtime, jadi menggantinya di Vercel tidak perlu build ulang. Kosong → default `anthropic/claude-sonnet-5`. Model yang sedang aktif dapat diperiksa di `GET /api/meta` (kuncinya sendiri tidak pernah ikut). |
 | `PUBLIC_MAPID_STYLE_URL` | URL gaya MAPID MAPS. Bila kosong, dipakai basemap raster terbuka (OpenStreetMap/CARTO) — **wajib diisi untuk produk final.** |
 
 ### Pembagian tugas model dan mesin skor
 
 Model **hanya memahami** pertanyaan: ia memilih operasi dan mengisi argumennya lewat
 function-calling, lalu berhenti. Seluruh angka — skor, permintaan, cacah pesaing, N —
-dihitung `src/lib/scoring.ts` dari data, sama persis dengan yang dipakai peta dan tabel.
+dihitung `src/lib/domain/scoring.ts` dari data, sama persis dengan yang dipakai peta dan tabel.
 Karena itu tidak ada nilai yang bisa dikarang model.
 
 Bila pertanyaannya di luar jangkauan data, model memanggil `tidak_dimengerti` dan
@@ -94,14 +130,37 @@ menyertakan `parsedBy` (`model` atau `aturan`) supaya jalur yang dipakai tidak d
 
 ## Deploy (Vercel)
 
-Sudah memakai `@sveltejs/adapter-vercel`.
+Sudah memakai `@sveltejs/adapter-vercel`. Manual:
 
 ```bash
 npx vercel deploy
 ```
 
-Atau hubungkan repositori ini ke Vercel: framework SvelteKit terdeteksi otomatis, tanpa
-konfigurasi build tambahan. Isi `PUBLIC_MAPID_STYLE_URL` di Environment Variables.
+### Otomatis lewat GitHub Actions
+
+`.github/workflows/ci.yml` menjalankan typecheck dan build pada tiap pull request
+dan tiap push. Khusus push ke `main`, setelah pemeriksaan itu lulus, hasilnya
+langsung dideploy ke produksi. Kalau typecheck atau build gagal, tidak ada yang
+naik — itu sebabnya keduanya satu alur, bukan dua yang berjalan sendiri-sendiri.
+
+Isi tiga secret di **Settings → Secrets and variables → Actions**:
+
+| Secret | Dari mana |
+|---|---|
+| `VERCEL_TOKEN` | Vercel → Account Settings → Tokens |
+| `VERCEL_ORG_ID` | `.vercel/project.json` setelah `npx vercel link` (atau Team Settings → General) |
+| `VERCEL_PROJECT_ID` | sumber yang sama, `.vercel/project.json` |
+
+Sebelum ketiganya terisi, job deploy berhenti dengan tenang dan menyebutkan apa
+yang kurang — bukan gagal merah.
+
+Environment Variables aplikasi (`PUBLIC_MAPID_STYLE_URL`, `OPENROUTER_API_KEY`,
+`OPENROUTER_MODEL`) tetap tinggal di Vercel, bukan di GitHub. Alur ini menariknya
+sendiri lewat `vercel pull`, jadi tidak ada kunci yang perlu disalin dua tempat.
+
+> **Pilih satu.** Kalau repositori ini juga tersambung ke Vercel lewat Git
+> integration bawaannya, tiap push akan dideploy dua kali. Matikan *Connected Git
+> Repository* di Vercel, atau hapus job `deploy` dan biarkan Vercel yang mengurus.
 
 ## Perintah lain
 

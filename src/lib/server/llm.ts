@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { CATEGORY_KEYS } from '$lib/categories';
+import { CATEGORY_KEYS } from '$lib/domain/categories';
 import type { CategoryKey, StructuredQuery, Weights } from '$lib/types';
 
 /**
@@ -24,6 +24,23 @@ const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'anthropic/claude-sonnet-5';
 const TIMEOUT_MS = 12_000;
 
+/**
+ * Model yang dipakai lapisan pemahaman, dari `OPENROUTER_MODEL`.
+ *
+ * Dibaca lewat `$env/dynamic/private`, jadi mengganti model di Vercel cukup
+ * mengubah Environment Variable — tidak perlu build ulang. Nilai kosong atau
+ * berisi spasi diperlakukan sebagai "tidak diisi", bukan sebagai nama model
+ * kosong yang akan ditolak OpenRouter dengan 400 yang membingungkan.
+ */
+export function activeModel(): string {
+	return env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
+}
+
+/** Apakah lapisan model benar-benar bisa dipakai (kunci terpasang). */
+export function llmEnabled(): boolean {
+	return Boolean(env.OPENROUTER_API_KEY?.trim());
+}
+
 export type ParseResult =
 	| { ok: true; query: StructuredQuery }
 	/** Model mengerti bahasanya tapi tahu pertanyaannya di luar jangkauan data. */
@@ -36,9 +53,9 @@ const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta rekomendasi lokasi usa
 Tugasmu HANYA menerjemahkan pertanyaan pengguna menjadi satu pemanggilan alat. Kamu tidak menghitung apa pun dan tidak menulis jawaban — mesin skor yang melakukannya dari data asli.
 
 Data yang tersedia, dan hanya ini:
-- 13 kawasan stasiun MRT jalur Utara–Selatan Jakarta.
+- 558 petak heksagon H3 yang menutupi kawasan berjalan kaki (800 m) di sekitar simpul transit Jakarta — MRT, KRL, LRT, dan koridor TransJakarta. 89 di antaranya belum ada datanya.
 - 5 jenis usaha: kopi (kedai kopi/kafe), warung (warung makan/restoran), minimarket, laundry, apotek.
-- Per kawasan: perkiraan permintaan, jumlah pesaing sejenis, seberapa ramai pesaingnya, dan jumlah ruang usaha yang sedang disewakan.
+- Per petak: perkiraan permintaan, jumlah pesaing sejenis, seberapa ramai pesaingnya, dan jumlah ruang usaha yang sedang disewakan.
 
 Pilih niat yang tepat:
 - RANK — "di mana sebaiknya buka X", "lokasi terbaik untuk X". Ini yang paling umum.
@@ -47,6 +64,14 @@ Pilih niat yang tepat:
 - COVERAGE — "mana yang belum ada datanya", pertanyaan soal cakupan data.
 
 Panggil tidak_dimengerti bila pertanyaannya di luar jangkauan di atas — misalnya kota selain Jakarta, jenis usaha yang tidak ada dalam daftar, pertanyaan soal modal/perizinan/pajak, atau kalimat yang tidak jelas maksudnya. Jangan menebak jenis usaha terdekat hanya supaya bisa menjawab; lebih baik mengaku tidak paham.`;
+
+/* Satu-satunya kalimat yang benar-benar ditulis model dan dibaca pengguna adalah
+   `alasan` pada tidak_dimengerti. Ia harus keluar dalam bahasa yang sedang
+   dipilih pembaca, bukan bahasa prompt-nya. */
+const LANG_RULE: Record<string, string> = {
+	id: 'Tulis argumen `alasan` dalam bahasa Indonesia.',
+	en: 'Write the `alasan` argument in English.'
+};
 
 const TOOLS = [
 	{
@@ -126,10 +151,12 @@ function isCat(v: unknown): v is CategoryKey {
 export async function parseWithLLM(
 	question: string,
 	w: Weights,
-	fallbackCategory: CategoryKey
+	fallbackCategory: CategoryKey,
+	lang = 'id'
 ): Promise<ParseResult> {
-	const key = env.OPENROUTER_API_KEY;
+	const key = env.OPENROUTER_API_KEY?.trim();
 	if (!key) return null;
+	const model = activeModel();
 
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -145,9 +172,9 @@ export async function parseWithLLM(
 				'x-title': 'SpotOn'
 			},
 			body: JSON.stringify({
-				model: env.OPENROUTER_MODEL || DEFAULT_MODEL,
+				model,
 				messages: [
-					{ role: 'system', content: SYSTEM },
+					{ role: 'system', content: `${SYSTEM}\n\n${LANG_RULE[lang] ?? LANG_RULE.id}` },
 					{
 						role: 'user',
 						content: `Kategori yang sedang aktif: ${fallbackCategory}.\nPertanyaan: ${question}`
@@ -160,7 +187,13 @@ export async function parseWithLLM(
 		});
 
 		if (!res.ok) {
-			console.error('[SpotOn] OpenRouter menolak permintaan:', res.status, await res.text());
+			// Nama model yang salah ketik jatuh persis di sini; tanpa menyebutnya,
+			// yang terlihat cuma "jawaban jadi pakai aturan" tanpa alasan.
+			console.error(
+				`[SpotOn] OpenRouter menolak permintaan (model ${model}):`,
+				res.status,
+				await res.text()
+			);
 			return null;
 		}
 
