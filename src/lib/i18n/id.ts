@@ -425,6 +425,18 @@ export const id = {
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} tidak punya data pesaing untuk ${cat}, jadi tidak ada petak yang bisa dinilai. Coba sumber ${other}.`,
 		legendNodata: (n: number) => `${n} petak belum terdata, tidak dinilai`,
+		/* Peta panas menyatakan pendapat: petak mana yang bagus untuk satu jenis usaha.
+		   Ia baru muncul kalau memang diminta — lewat tombol ini, atau lewat Tapak yang
+		   menjawab pertanyaan. */
+		heatmapShow: 'Tampilkan peta panas',
+		heatmapHide: 'Sembunyikan peta panas',
+		heatmapLoading: 'Memuat data kategori…',
+		heatmapHint: (cat: string) => `Warnai petak menurut skor peluang ${cat}`,
+		heatmapAria: 'Peta panas skor peluang',
+		/* Tooltip peta sebelum ada kategori yang dimuat: petaknya dinamai, tidak ada
+		   angka yang diklaim. */
+		tipNoCategory: 'Nyalakan peta panas untuk melihat skornya',
+		needCategory: 'Belum ada kategori yang dimuat. Nyalakan peta panas atau tanya Tapak.',
 		ask: 'Atau tanya sendiri…',
 		askAria: 'Tanya Tapak',
 		askSend: 'Tanya',

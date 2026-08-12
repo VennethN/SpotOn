@@ -415,6 +415,18 @@ export const en: Copy = {
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} has no competitor data for ${cat}, so nothing can be scored. Try the ${other} source.`,
 		legendNodata: (n: number) => `${n} cells have no data, left unscored`,
+		/* The heatmap states an opinion — which cells are good for one kind of business.
+		   It appears when it is actually asked for: by this button, or by Tapak
+		   answering a question. */
+		heatmapShow: 'Show heatmap',
+		heatmapHide: 'Hide heatmap',
+		heatmapLoading: 'Loading category data…',
+		heatmapHint: (cat: string) => `Colour the cells by ${cat} opportunity score`,
+		heatmapAria: 'Opportunity score heatmap',
+		/* The map tooltip before any category is loaded: the cell is named, and nothing
+		   more is claimed. */
+		tipNoCategory: 'Turn the heatmap on to see its score',
+		needCategory: 'No category loaded yet. Turn the heatmap on, or ask Tapak.',
 		ask: 'Or ask your own…',
 		askAria: 'Ask Tapak',
 		askSend: 'Ask',
