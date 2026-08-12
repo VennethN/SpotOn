@@ -1,4 +1,5 @@
-/** Kunci jenis usaha yang dinilai SpotOn. */
+/** Keys of the business types SpotOn scores. Kept in Indonesian: they are the
+    domain's own vocabulary and the values stored in the generated datasets. */
 export type CategoryKey =
 	| 'kopi'
 	| 'minuman'
@@ -17,11 +18,11 @@ export type CategoryKey =
 export type PerCategory<T> = Record<CategoryKey, T>;
 
 /**
- * Satu catchment stasiun beserta indikator mentahnya — bentuk persis yang
- * dikembalikan API. Kolomnya sengaja mengikuti dataset misi MAPID agar sumber
- * mock bisa ditukar dengan API MAPID tanpa menyentuh UI.
+ * One station catchment with its raw indicators — exactly the shape the API
+ * returns. The columns deliberately follow the MAPID mission datasets so the mock
+ * source can be swapped for the MAPID API without touching the UI.
  */
-/** Cacah simpul transit dalam jangkauan jalan kaki, per moda. */
+/** Count of transit nodes within walking range, per mode. */
 export interface TransitCounts {
 	mrt: number;
 	krl: number;
@@ -30,119 +31,128 @@ export interface TransitCounts {
 }
 
 export interface Hex {
-	/** Indeks sel H3 (resolusi 8). */
+	/** H3 cell index (resolution 8). */
 	id: string;
-	/** Nama simpul transit terdekat yang bernama; null bila tidak ada. */
+	/** Name of the nearest named transit node; null if there is none. */
 	name: string | null;
 	lat: number;
 	lon: number;
-	/** Cincin batas heksagon, [lon, lat] — dihitung sekali saat build. */
+	/** The hexagon's boundary ring, [lon, lat] — computed once at build time. */
 	boundary: [number, number][];
-	/** Simpul transit dalam jangkauan jalan kaki (OSM, nyata). */
+	/** Transit nodes within walking range (OSM, real). */
 	transit: TransitCounts;
-	/** Akses transit 0..1 — jumlah berbobot moda, diredam akar. */
+	/** Transit access 0..1 — a weighted count of modes, damped by a square root. */
 	access: number;
-	/** Jumlah POI pesaing per kategori dalam radius 800 m (OSM/Overpass). */
+	/** Number of competitor POIs per category within a 800 m radius (OSM/Overpass). */
 	osm: PerCategory<number>;
-	/** N titik Struk Go dalam catchment. */
+	/** Number of Struk Go points in the catchment. */
 	nStruk: number;
-	/** N titik Menu Go. */
+	/** Number of Menu Go points. */
 	nMenu: number;
-	/** N titik Properti Go. */
+	/** Number of Properti Go points. */
 	nProp: number;
-	/** Tidak ada satu pun titik misi di catchment ini — skor tidak diinterpolasi. */
+	/** Not a single mission point in this catchment — the score is not interpolated. */
 	nodata?: boolean;
-	/** Rasio transaksi non-tunai (Struk Go, proksi daya beli). */
-	nontunai?: number;
-	/** Profil 24 jam transaksi (Struk Go, kolom `Waktu Transaksi`). */
-	jam?: number[];
-	/** Rasio pesaing berkondisi ramai (Menu Go, kolom `Kondisi Pembeli`). */
-	ramai?: PerCategory<number>;
-	/** Listing komersial cocok kategori (Properti Go, kolom `Kategori Properti`). */
+	/** Share of cashless transactions (Struk Go, a proxy for spending power). */
+	cashless?: number;
+	/** 24-hour transaction profile (Struk Go, the `Waktu Transaksi` column). */
+	hourly?: number[];
+	/** Share of competitors in a busy state (Menu Go, the `Kondisi Pembeli` column). */
+	busy?: PerCategory<number>;
+	/** Commercial listings matching the category (Properti Go, `Kategori Properti` column). */
 	listing?: PerCategory<number>;
-	/** Sinyal permintaan ter-normalisasi per kategori (Struk Go). */
+	/** Normalised demand signal per category (Struk Go). */
 	d?: PerCategory<number>;
-	/** Kota administrasi petak ini (batas OSM admin_level=5); null bila di luar. */
-	kota?: string | null;
-	/** Cacah pesaing MAPID per kategori; null berarti belum tercakup. */
+	/** The administrative city this cell falls in (OSM admin_level=5 boundaries); null if outside. */
+	city?: string | null;
+	/** MAPID competitor counts per category; null means not yet covered. */
 	mapid?: PerCategory<number | null>;
-	/** Per kategori: apakah dataset MAPID kota ini sudah diimpor. */
+	/** Per category: has this city's MAPID dataset been imported. */
 	covered?: PerCategory<boolean>;
 }
 
 /**
- * Sumber data pesaing. Keduanya sengaja lepas, tidak pernah dicampur dalam satu
- * skor: OSM sukarela dan merata tapi tak seragam, MAPID tersurvei dan seragam
- * tapi baru sebagian kota. Menggabungkannya akan menghasilkan angka yang tidak
- * bisa dipertanggungjawabkan asalnya.
+ * The competitor data source. The two are deliberately kept apart and never mixed
+ * into one score: OSM is volunteered and widespread but uneven, MAPID is surveyed
+ * and uniform but covers only some cities so far. Merging them would produce a
+ * number whose provenance nobody could account for.
  */
 export type PoiSource = 'osm' | 'mapid';
 
+/** Opportunity profile of a cell. These are internal keys — the label the reader
+    sees comes from the `typology` dictionary in the locale files. */
 export type Typology =
-	| 'Underserved'
-	| 'Kompetitif'
-	| 'Jenuh'
-	| 'Ramai, ruang terbatas'
-	/** Tidak ada titik misi di petak ini. */
-	| 'Belum terdata'
-	/** Sumber aktif belum mensurvei kota ini — beda dari "tidak ada pesaing". */
-	| 'Belum tercakup';
+	| 'underserved'
+	| 'competitive'
+	| 'saturated'
+	| 'busy-limited-space'
+	/** No mission points in this cell. */
+	| 'no-data'
+	/** The active source has not surveyed this city — different from "no competitors". */
+	| 'not-covered';
 
-/** Bobot & gerbang yang bisa diatur pengguna langsung di antarmuka. */
+/** Weights & gates the user can set directly in the interface. */
 export interface Weights {
-	/** Bobot permintaan, 0..1. */
+	/** Demand weight, 0..1. */
 	wd: number;
-	/** Bobot persaingan, 0..1. */
+	/** Competition weight, 0..1. */
 	ws: number;
-	/** Wajibkan tersedianya listing ruang usaha. */
+	/** Require commercial space to actually be listed. */
 	gate: boolean;
-	/** Radius catchment dalam meter. */
+	/** Catchment radius in metres. */
 	radius: number;
-	/** Sumber cacah pesaing yang sedang dipakai. */
+	/** The competitor-count source currently in use. */
 	source: PoiSource;
 }
 
-/** Hasil skoring satu catchment untuk satu kategori usaha. */
+/** The scoring result for one catchment and one business category. */
 export interface ScoredHex {
 	id: string;
-	/** Selalu terisi: nama simpul transit terdekat, atau penanda petak bila tak ada. */
+	/** Always filled in: the nearest transit node's name, or a cell marker if there is none. */
 	name: string;
 	lat: number;
 	lon: number;
 	boundary: [number, number][];
 	transit: TransitCounts;
-	/** Akses transit 0..1 (OSM, nyata) — pengali pada skor akhir. */
+	/** Transit access 0..1 (OSM, real) — a multiplier on the final score. */
 	access: number;
 	nodata: boolean;
-	/** 0..1 — null bila belum terdata. */
+	/** 0..1 — null when there is no data yet. */
 	score: number | null;
 	demand: number | null;
 	supply: number | null;
-	/** Rasio pesaing ramai, 0..1. */
-	ramai: number;
-	/** Sumber yang dipakai untuk angka `osm` di atas. */
+	/** Share of competitors that are busy, 0..1. */
+	busy: number;
+	/** The source used for the `osm` figure above. */
 	source?: PoiSource;
-	/** Apakah petak ini tercakup sumber aktif; false → skor null. */
+	/** Whether this cell is covered by the active source; false → score is null. */
 	covered?: boolean;
-	/** Jumlah pesaing pada radius aktif, menurut sumber aktif. */
+	/** Number of competitors at the active radius, according to the active source. */
 	osm: number;
-	/** Listing ruang usaha cocok kategori pada radius aktif. */
+	/** Commercial listings matching the category at the active radius. */
 	listings: number;
-	/** Total titik data misi (struk + menu + properti). */
+	/** Total mission data points (receipts + menus + properties). */
 	nTot: number;
 	nStruk: number;
 	nMenu: number;
 	nProp: number;
-	nontunai: number;
-	jam: number[];
-	/** Jam puncak transaksi, -1 bila tidak ada data. */
-	puncak: number;
+	cashless: number;
+	hourly: number[];
+	/** Peak transaction hour, -1 when there is no data. */
+	peakHour: number;
 	typology: Typology;
 }
 
 export type Intent = 'RANK' | 'FLAG_SATURATED' | 'COMPARE' | 'COVERAGE';
 
-/** Query terstruktur hasil parsing — ditampilkan apa adanya agar dapat diaudit. */
+/**
+ * The structured query a question parses into — shown verbatim so it can be
+ * audited.
+ *
+ * The field names stay in Indonesian: this object is both the LLM tool schema and
+ * the documented API contract (intent, metrik, kategori, radius, filter) described
+ * in the proposal.
+ */
 export interface StructuredQuery {
 	intent: Intent;
 	metrik: string;
@@ -158,11 +168,11 @@ export interface StructuredQuery {
 	limit: number;
 }
 
-/** Satu baris rekomendasi: klaim + angka pendukung + N di baliknya. */
+/** One recommendation row: the claim + its supporting figures + the N behind them. */
 export interface Recommendation {
 	id: string;
 	name: string;
-	/** Nilai yang diperingkat (skor untuk RANK, penawaran untuk FLAG_SATURATED). */
+	/** The ranked value (score for RANK, supply for FLAG_SATURATED). */
 	value: number | null;
 	why: string;
 	evidence: string;
@@ -170,13 +180,13 @@ export interface Recommendation {
 
 export interface AiAnswer {
 	query: StructuredQuery;
-	/** Siapa yang menerjemahkan pertanyaannya — model, atau pengurai aturan cadangan. */
-	parsedBy?: 'model' | 'aturan';
-	/** Terisi bila model mengaku tidak paham; tidak ada hasil yang perlu ditampilkan. */
+	/** Who translated the question — the model, or the fallback rule parser. */
+	parsedBy?: 'model' | 'rules';
+	/** Filled in when the model admits it did not understand; there are no results to show. */
 	notUnderstood?: string;
 	headline: string;
 	items: Recommendation[];
-	/** Id catchment yang di-highlight di peta. */
+	/** Ids of the catchments highlighted on the map. */
 	highlight: string[];
 	provenance: string[];
 }

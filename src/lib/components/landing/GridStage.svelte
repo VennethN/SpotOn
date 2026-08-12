@@ -1,15 +1,15 @@
 <script lang="ts">
 	/**
-	 * Kisi heksagon yang dinilai sambil digulir.
+	 * The hexagon grid being scored as you scroll.
 	 *
-	 * Gerakannya sama dengan panggung maket di atas — digerakkan posisi gulir,
-	 * bukan waktu — tapi ia tidak menempel (sticky) dan tidak menambah tinggi
-	 * halaman. Lintasannya dibaca dari posisi elemen ini sendiri di layar: nol
-	 * saat baru muncul dari bawah, satu saat hampir lewat di atas. Dengan begitu
-	 * pembaca tidak pernah merasa gulirnya dibajak untuk kedua kalinya.
+	 * It moves like the diorama stage above — driven by scroll position rather than
+	 * by time — but it is not sticky and adds no height to the page. Its track is read
+	 * from this element's own position on screen: zero as it first appears from below,
+	 * one as it is about to pass out the top. That way the reader never feels their
+	 * scroll has been hijacked a second time.
 	 *
-	 * Isinya sengaja tidak akurat, dan dikatakan begitu di layarnya: yang
-	 * ditunjukkan cara membaca kisi, bukan kawasan tertentu.
+	 * Its contents are deliberately not accurate, and it says so on screen: what it
+	 * shows is how to read a grid, not any particular area.
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
@@ -25,7 +25,7 @@
 	let nodata = $state('#9aa2ad');
 
 	const reduced = prefersReducedMotion();
-	// Pegas: gulir mentah terasa gugup, pegas memberi massa pada kisinya.
+	// A spring: raw scroll feels jittery, and a spring gives the grid some mass.
 	const spring = new SpringValue(reduced ? 0.75 : 0, { damping: 1, response: 0.7 });
 
 	const load = async (): Promise<WorldFactory> => {
@@ -39,8 +39,8 @@
 
 		const onScroll = () => {
 			const rect = el.getBoundingClientRect();
-			// Nol saat tepi atasnya baru menyentuh dasar layar, satu saat tepi
-			// bawahnya sudah melewati sepertiga atas.
+			// Zero when its top edge first touches the bottom of the viewport, one when
+			// its bottom edge has passed the top third.
 			const span = window.innerHeight + rect.height * 0.55;
 			const seen = window.innerHeight - rect.top;
 			spring.to(Math.max(0, Math.min(1, seen / span)));
@@ -55,9 +55,9 @@
 		};
 	});
 
-	// Warna adegan diambil dari token tema, bukan dipatok di dalam adegan: skala
-	// peluangnya harus persis skala yang dipakai peta, dan kertasnya bisa terang
-	// atau gelap. Dibaca ulang saat temanya berganti.
+	// The scene's colours come from theme tokens rather than being pinned inside the
+	// scene: its opportunity ramp has to be exactly the map's ramp, and the paper can
+	// be light or dark. Re-read whenever the theme changes.
 	$effect(() => {
 		const read = () => {
 			const cs = getComputedStyle(document.documentElement);
@@ -94,8 +94,8 @@
 			{c.grid.caption.lead}
 			<strong>{c.grid.caption.strong}</strong>{c.grid.caption.rest}
 		</p>
-		<!-- Legendanya duduk tepat di bawah bidang yang memakainya: kalau skala harus
-		     dicari di tempat lain, warnanya berhenti jadi keterangan. -->
+		<!-- The legend sits directly under the field that uses it: if the ramp has to be
+		     hunted down elsewhere, the colour stops being an explanation. -->
 		<div class="legend"><ScoreRamp dense nodata={c.grid.outOfScale} /></div>
 	</figcaption>
 </figure>
@@ -113,11 +113,11 @@
 		border: 1px solid var(--paper-line);
 		border-radius: var(--r-md);
 		overflow: hidden;
-		/* Alas yang sedikit terangkat di tepi atas — cahaya yang sama dengan
-		   yang menyinari maketnya, bukan bidang rata. */
+		/* A base lifted slightly at its top edge — the same light that falls on
+		   the model, rather than a flat field. */
 		background: var(--lift-panel, var(--paper));
 	}
-	/* Penanda permanen: adegan ini skema, dan tidak boleh dikira peta. */
+	/* A permanent marker: this scene is schematic and must not be taken for a map. */
 	.mark {
 		position: absolute;
 		left: 0.625rem;

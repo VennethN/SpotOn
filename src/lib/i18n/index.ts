@@ -2,16 +2,17 @@ import { en } from './en';
 import { id, type Copy } from './id';
 
 /**
- * Dua bahasa, satu bentuk.
+ * Two languages, one shape.
  *
- * `id.ts` yang menentukan bentuk kamusnya; `en.ts` mengisi bentuk yang sama dan
- * TypeScript yang memastikan tidak ada yang tertinggal. Jadi tidak mungkin ada
- * satu kalimat yang cuma punya versi Indonesia lalu muncul sebagai kunci mentah
- * di layar orang yang memilih Inggris.
+ * `id.ts` defines the shape of the dictionary; `en.ts` fills in that same shape and
+ * TypeScript makes sure nothing is left out. So it is impossible for a sentence to
+ * exist only in Indonesian and then show up as a raw key on the screen of someone
+ * who picked English.
  *
- * Kalimat yang menyisipkan angka ditulis sebagai fungsi, bukan potongan yang
- * disambung di komponen: urutan kata tiap bahasa berbeda, dan potongan yang
- * disambung memaksa keduanya memakai urutan bahasa yang menulisnya duluan.
+ * Sentences that interpolate numbers are written as functions rather than as
+ * fragments concatenated in the component: word order differs per language, and
+ * concatenated fragments force both languages into the word order of whichever was
+ * written first.
  */
 export type Lang = 'id' | 'en';
 export type { Copy };

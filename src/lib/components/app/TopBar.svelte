@@ -11,8 +11,8 @@
 	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
 
-	/* Laci pengaturan lanjutan dibuka dari sini, bukan dari tombol mengambang di
-	   pojok kiri bawah — di sana ia menumpuk dengan skala peta dan legenda. */
+	/* The advanced-settings drawer opens from here, not from a floating button in the
+	   bottom-left corner — down there it collides with the map scale and the legend. */
 	let { advanced = $bindable(false) }: { advanced?: boolean } = $props();
 
 </script>
@@ -51,7 +51,7 @@
 
 	<div class="right">
 		<span class="pill" title={c.app.coverageTitle}>
-			{c.app.coverage(coverage.terdata, coverage.total, coverage.poi)}
+			{c.app.coverage(coverage.withData, coverage.total, coverage.poi)}
 		</span>
 		<button
 			type="button"
@@ -121,11 +121,10 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	/* Sembilan kategori tidak muat di layar sempit mana pun, dan pada layar lebar
-	   pun mereka mendesak keluar bilah judul kalau dibiarkan. Digulir mendatar
-	   saja — mengecilkan tulisannya sampai muat justru membuat labelnya tidak
-	   terbaca, dan menyembunyikan sebagian di balik menu membuat kategori yang
-	   ada terlihat seperti tidak ada. */
+	/* Nine categories fit on no narrow screen, and even on a wide one they push the
+	   title bar apart if left alone. So they scroll horizontally — shrinking the type
+	   until it fits just makes the labels unreadable, and hiding some behind a menu
+	   makes categories that exist look like they do not. */
 	.cats {
 		margin-inline: auto;
 		min-width: 0;
@@ -143,8 +142,8 @@
 	.adv.on {
 		background: var(--fill-3);
 	}
-	/* Pada tata letak ringkas, pengaturan lanjutan sudah punya tabnya sendiri di
-	   dalam sheet — tombol ini di sana hanya akan jadi tombol yang tidak berbuat apa-apa. */
+	/* In the compact layout, advanced settings already has its own tab inside the
+	   sheet — this button there would just be a button that does nothing. */
 	@media (max-width: 1023px) {
 		.adv {
 			display: none;

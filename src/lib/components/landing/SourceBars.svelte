@@ -1,11 +1,11 @@
 <script lang="ts">
 	/**
-	 * Apa yang benar-benar terdata, per moda dan per jenis usaha.
+	 * What is actually on record, per mode and per business type.
 	 *
-	 * Sengaja bukan satu batang bertumpuk empat warna: TransJakarta memegang
-	 * hampir sembilan persepuluh simpul, jadi tiga moda lainnya akan mengecil
-	 * jadi sliver tak terbaca. Empat baris berlabel jujur soal timpangnya, dan
-	 * tidak menuntut mata membedakan empat warna berdampingan.
+	 * Deliberately not one bar stacked in four colours: TransJakarta holds almost
+	 * nine tenths of the nodes, so the other three modes would shrink to unreadable
+	 * slivers. Four labelled rows are honest about that imbalance, and do not demand
+	 * that the eye separate four adjacent colours.
 	 */
 	interface Row {
 		nm: string;

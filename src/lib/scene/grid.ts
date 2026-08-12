@@ -1,37 +1,37 @@
 /**
- * Kisi heksagon sebagai maket — adegan kedua di halaman depan.
+ * The hexagon grid as a physical model — the landing page's second scene.
  *
- * Ini bukan peta. Petaknya tidak berada di koordinat mana pun dan tingginya
- * bukan skor kawasan mana pun; yang ditunjukkan adalah *cara membacanya*: satu
- * petak satu heksagon, tingginya peluang, yang belum terdata dibiarkan berlubang,
- * dan alat ukur digambar di atasnya seperti pada gambar kerja. Karena itu ia
- * memakai bahasa bentuk yang sama dengan maket jalan di atasnya:
+ * This is not a map. Its cells sit at no coordinates and their heights are no
+ * area's score; what it shows is *how to read one*: one cell per hexagon, height is
+ * opportunity, cells with no data are left as holes, and measuring marks are drawn
+ * over the top the way they are on a working drawing. It therefore speaks the same
+ * visual language as the street diorama above it:
  *
- * 1. **Isometrik.** Kamera ortografis dari atas-samping; hubungan antar petak
- *    yang dijual, bukan perspektifnya.
- * 2. **Warnanya bertugas.** Beda dengan maket jalan yang serba putih, kisi ini
- *    peta panas: tiap petak diberi warna dari skala peluang yang sama persis
- *    dengan yang dipakai peta di dalam aplikasi. Tinggi dan warna membawa nilai
- *    yang sama — sengaja, karena di sinilah pembaca belajar membaca legendanya
- *    sebelum sampai ke petanya. Petak tanpa data tetap di luar skala.
- * 3. **Digerakkan gulir, bukan waktu.** Tidak ada rAF yang berputar sia-sia:
- *    bingkai hanya digambar saat keadaannya benar-benar berubah.
+ * 1. **Isometric.** An orthographic camera from above and to the side; what is on
+ *    offer is the relationship between cells, not the perspective.
+ * 2. **Colour has a job.** Unlike the all-white street diorama, this grid is a heat
+ *    map: every cell is coloured from exactly the same opportunity ramp the map
+ *    inside the app uses. Height and colour carry the same value — deliberately, as
+ *    this is where the reader learns to read the legend before reaching the map.
+ *    Cells with no data stay off the ramp entirely.
+ * 3. **Driven by scroll, not by time.** No rAF spinning for nothing: a frame is
+ *    only drawn when the state actually changes.
  *
- * Gizmonya memakai konvensi yang sudah dipakai maket jalan: garis penuh untuk
- * yang terukur, garis putus-putus untuk yang masih usulan atau jangkauan.
+ * The gizmos follow the convention the street diorama already established: solid
+ * lines for what is measured, dashed lines for what is proposed or a range.
  */
 
 import * as THREE from 'three';
 
 export interface GridState {
-	/** 0..1 — posisi pada lintasan gulir. */
+	/** 0..1 — position along the scroll track. */
 	progress: number;
-	/** Warna garis alat ukur, diambil dari token tema oleh pemanggil. */
+	/** Colour of the measuring lines, taken from theme tokens by the caller. */
 	ink: string;
 	accent: string;
-	/** Skala peluang tujuh langkah — token `--ramp-0..6` apa adanya. */
+	/** The seven-step opportunity ramp — the `--ramp-0..6` tokens verbatim. */
 	ramp: string[];
-	/** Warna petak yang belum terdata; sengaja di luar skala. */
+	/** Colour for cells with no data; deliberately off the ramp. */
 	nodata: string;
 }
 
@@ -45,15 +45,15 @@ const DEFAULT_STATE: GridState = {
 	nodata: '#9aa2ad'
 };
 
-/* Denah kisi. Ukurannya dipilih supaya seluruh bidang muat pada bingkai lebar
-   tanpa petaknya mengecil jadi butiran. */
+/* The grid's plan. Sized so the whole field fits a wide frame without its cells
+   shrinking to grains. */
 const RINGS = 5;
 const CELL = 3.15;
-/** Jari-jari badan petak; sedikit lebih kecil dari jarak antar petak → ada sela. */
+/** Radius of a cell's body; slightly less than the cell pitch → there is a gap. */
 const BODY = CELL * 0.93;
 const BASE_R = CELL * (RINGS + 0.95) * 1.732;
 
-/** Petak yang jadi pokok: tempat alat ukur dipasang. */
+/** The focus cell: where the measuring marks are attached. */
 const FOCUS = { q: 1, r: -1 };
 
 function mulberry32(seed: number) {
@@ -66,23 +66,23 @@ function mulberry32(seed: number) {
 	};
 }
 
-/** Koordinat aksial → posisi datar, susunan flat-top. */
+/** Axial coordinates → a flat position, flat-top layout. */
 function axialToXZ(q: number, r: number): [number, number] {
 	return [CELL * 1.5 * q, CELL * Math.sqrt(3) * (r + q / 2)];
 }
 
-/** Tinggi petak paling berpeluang, dalam satuan adegan. */
+/** Height of the highest-opportunity cell, in scene units. */
 const MAX_H = 5.4;
 
 interface Cell {
 	x: number;
 	z: number;
-	/** Skor 0..1. Warna dan tinggi sama-sama dibaca dari sini. */
+	/** Score 0..1. Both colour and height are read from this. */
 	score: number;
-	/** Tinggi akhir petak. */
+	/** The cell's final height. */
 	h: number;
 	nodata: boolean;
-	/** Jarak dari petak pokok — dipakai sebagai urutan gelombang naiknya. */
+	/** Distance from the focus cell — used as the order of the rising wave. */
 	wave: number;
 }
 
@@ -106,7 +106,7 @@ export class GridWorld {
 	#accentMats: Array<THREE.LineBasicMaterial | THREE.MeshBasicMaterial> = [];
 
 	#state: GridState = { ...DEFAULT_STATE };
-	/** Skala yang sedang terpasang; dipakai agar petak tidak dicat ulang tiap bingkai. */
+	/** The ramp currently applied; used so cells are not repainted every frame. */
 	#paintedRamp = '';
 	#raf = 0;
 	#running = false;
@@ -131,9 +131,9 @@ export class GridWorld {
 		this.#renderer.setClearAlpha(0);
 		this.#renderer.shadowMap.enabled = true;
 		this.#renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-		// Tanpa tone mapping film: adegan ini mengajarkan skala warna peta, jadi
-		// warnanya harus sampai apa adanya. ACES memang lebih sinematik, tapi ia
-		// menggeser langkah paling tua jadi kelabu dan legendanya berhenti cocok.
+		// No filmic tone mapping: this scene teaches the map's colour ramp, so the
+		// colours have to arrive as they are. ACES is more cinematic, but it pushes the
+		// darkest step towards grey and the legend stops matching.
 		this.#renderer.toneMapping = THREE.NoToneMapping;
 
 		this.#camera = new THREE.OrthographicCamera(-30, 30, 22, -22, -200, 400);
@@ -148,7 +148,7 @@ export class GridWorld {
 		this.resize();
 	}
 
-	/* ── denah ────────────────────────────────────────────────────────────── */
+	/* ── plan ─────────────────────────────────────────────────────────────── */
 
 	#layout() {
 		const rnd = mulberry32(60413);
@@ -159,12 +159,12 @@ export class GridWorld {
 			const hi = Math.min(RINGS, -q + RINGS);
 			for (let r = lo; r <= hi; r++) {
 				const [x, z] = axialToXZ(q, r);
-				// Nilainya tidak mewakili kawasan mana pun: yang perlu terbaca cuma
-				// "tiap petak punya angkanya sendiri", jadi bentuknya dibuat menurun
-				// dari tengah supaya bidangnya punya punggung, bukan gerigi acak.
+				// The values represent no real area: all that needs to read is "every
+				// cell has its own figure", so the shape falls away from the centre and
+				// the field has a ridge rather than a random sawtooth.
 				const d = Math.hypot(x, z) / (CELL * RINGS * 1.8);
-				// Selisihnya harus terbaca dari jauh: pada rentang yang terlalu rapat,
-				// kisinya kembali jadi bidang rata dan pesannya hilang.
+				// The differences have to read from a distance: on too tight a range the
+				// grid flattens back into a plane and the point is lost.
 				const score = Math.max(0.09, Math.min(1, (1.1 - d * 0.8) * (0.4 + rnd())));
 				this.#cells.push({
 					x,
@@ -181,7 +181,7 @@ export class GridWorld {
 		for (const c of this.#cells) c.wave /= maxWave;
 	}
 
-	/* ── cahaya & alas ────────────────────────────────────────────────────── */
+	/* ── light & base ─────────────────────────────────────────────────────── */
 
 	#buildLights(shadowSize: number) {
 		this.#sun.castShadow = true;
@@ -195,14 +195,14 @@ export class GridWorld {
 		s.far = 200;
 		this.#sun.shadow.bias = -0.0007;
 		this.#sun.shadow.normalBias = 0.02;
-		// Cahaya studio yang tetap: adegan ini soal kisinya, bukan soal jam.
+		// Fixed studio lighting: this scene is about the grid, not about the hour.
 		this.#sun.position.set(-38, 62, 34);
 		this.#scene.add(this.#sun, this.#sun.target, this.#hemi);
 	}
 
 	#buildBase() {
-		// Pelat alas dengan tebal yang terlihat — isyarat yang sama dengan maket
-		// jalan: ini benda di atas meja, bukan peta yang membentang tanpa tepi.
+		// A base slab with visible thickness — the same cue the street diorama uses:
+		// this is an object on a table, not a map stretching on without an edge.
 		const slab = new THREE.Mesh(
 			new THREE.CylinderGeometry(BASE_R, BASE_R, 1.5, 6),
 			new THREE.MeshStandardMaterial({ color: 0xdedad3, roughness: 0.96 })
@@ -213,12 +213,12 @@ export class GridWorld {
 		this.#scene.add(slab);
 	}
 
-	/* ── petak ────────────────────────────────────────────────────────────── */
+	/* ── cells ────────────────────────────────────────────────────────────── */
 
 	#buildTiles() {
 		const geo = new THREE.CylinderGeometry(BODY, BODY, 1, 6);
-		// Tinggi diskalakan dari alasnya, bukan dari tengahnya, supaya petak
-		// tumbuh ke atas seperti balok yang diletakkan — bukan mengembang ke dua arah.
+		// Height is scaled from the base rather than the centre, so a cell grows upward
+		// like a block being set down — not outward in both directions.
 		geo.translate(0, 0.5, 0);
 		geo.rotateY(Math.PI / 6);
 
@@ -232,8 +232,8 @@ export class GridWorld {
 		this.#tiles.receiveShadow = true;
 		this.#scene.add(this.#tiles);
 
-		// Petak tanpa data: cekungan tipis, bukan balok pendek. Balok pendek tetap
-		// terbaca sebagai "nilainya kecil"; cekungan terbaca sebagai tidak tahu.
+		// Cells with no data: a shallow recess, not a short block. A short block still
+		// reads as "a small value"; a recess reads as not knowing.
 		const holeGeo = new THREE.CylinderGeometry(BODY, BODY, 0.28, 6);
 		holeGeo.rotateY(Math.PI / 6);
 		const holes = this.#cells.filter((c) => c.nodata);
@@ -253,14 +253,13 @@ export class GridWorld {
 		this.#scene.add(this.#holes);
 	}
 
-	/* ── alat ukur ────────────────────────────────────────────────────────── */
+	/* ── measuring marks ──────────────────────────────────────────────────── */
 
 	#buildGizmos() {
-		/* Alat ukur digambar menembus benda — memang begitulah alat ukur bekerja
-		   pada gambar kerja, dan tanpa itu seluruhnya terkubur di bawah petak yang
-		   berdiri setinggi tiga meter. `depthTest: false` plus urutan gambar paling
-		   belakang membuatnya selalu terbaca, seperti garis yang ditarik di atas
-		   cetakan. */
+		/* The marks are drawn straight through the objects — that is exactly how
+		   measuring marks work on a working drawing, and without it they would all be
+		   buried under cells standing three metres tall. `depthTest: false` plus the
+		   last render order keeps them always legible, like lines drawn over a print. */
 		const overlay = <T extends THREE.Material>(m: T): T => {
 			m.depthTest = false;
 			m.depthWrite = false;
@@ -281,7 +280,7 @@ export class GridWorld {
 
 		const [fx, fz] = axialToXZ(FOCUS.q, FOCUS.r);
 
-		// 1. Cincin jangkauan jalan kaki — garis putus-putus: ini jangkauan, bukan benda.
+		// 1. The walking-range ring — dashed: this is a range, not an object.
 		const R = CELL * 3.4;
 		const pts: THREE.Vector3[] = [];
 		for (let i = 0; i <= 96; i++) {
@@ -291,14 +290,14 @@ export class GridWorld {
 		const ringMat = line(true);
 		this.#ring = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), ringMat);
 		this.#ring.computeLineDistances();
-		// Tinta, bukan aksen. Sejak petaknya diwarnai skala biru, garis biru di
-		// atasnya berhenti terbaca — dan alat ukur pada gambar kerja memang ditarik
-		// dengan tinta, bukan dengan warna data.
+		// Ink, not accent. Ever since the cells were coloured with the blue ramp, a blue
+		// line over them stopped reading — and on a working drawing the measuring marks
+		// are drawn in ink anyway, not in the data's colour.
 		this.#gizmoMats.push(ringMat);
 		this.#ring.renderOrder = 10;
 		this.#scene.add(this.#ring);
 
-		// 2. Garis ukur dengan dua sengkang di ujungnya — cara baku menuliskan jarak.
+		// 2. A dimension line with a tick at each end — the standard way to write a distance.
 		const dimMat = line(false);
 		const t = 0.62;
 		const dimPts = [
@@ -316,7 +315,7 @@ export class GridWorld {
 		this.#dim.renderOrder = 10;
 		this.#scene.add(this.#dim);
 
-		// 3. Bidik pada petak pokok: silang dan satu petak kecil.
+		// 3. A sight on the focus cell: a crosshair.
 		const crossMat = line(false);
 		const c = 1.5;
 		const crossPts = [
@@ -332,8 +331,8 @@ export class GridWorld {
 		this.#cross.renderOrder = 10;
 		this.#scene.add(this.#cross);
 
-		// 4. Pin tegak: menandai petak pokok sampai ke puncaknya, dengan simpul kecil
-		//    di ujung — sama seperti penanda ketinggian pada gambar potongan.
+		// 4. An upright pin: marks the focus cell up to its top, with a small knob at
+		//    the end — just like a height marker on a section drawing.
 		const pinMat = line(false);
 		this.#pin.add(
 			new THREE.LineSegments(
@@ -348,20 +347,20 @@ export class GridWorld {
 		const knob = new THREE.Mesh(new THREE.OctahedronGeometry(0.34), knobMat);
 		knob.position.set(fx, 1, fz);
 		this.#pin.add(knob);
-		// Satu titik aksen saja, di ujung pin: penanda "yang sedang dibidik".
+		// A single accent point, at the pin's tip: the marker for "this is what is targeted".
 		this.#gizmoMats.push(pinMat);
 		this.#accentMats.push(knobMat);
 		this.#pin.renderOrder = 10;
 		this.#scene.add(this.#pin);
 	}
 
-	/* ── keadaan ──────────────────────────────────────────────────────────── */
+	/* ── state ────────────────────────────────────────────────────────────── */
 
 	applyState(partial: Partial<GridState>) {
 		this.#state = { ...this.#state, ...partial };
 		const p = Math.max(0, Math.min(1, this.#state.progress));
-		// Gulir yang mentah terasa kaku pada awal dan akhir; kurva ini yang
-		// membuat kisinya seolah punya massa.
+		// Raw scroll feels stiff at the start and the end; this curve is what gives the
+		// grid the sense of having mass.
 		const e = p * p * (3 - 2 * p);
 
 		this.#paintGizmos();
@@ -371,19 +370,19 @@ export class GridWorld {
 		this.#dirty = true;
 	}
 
-	/** Tinta gizmo diambil dari tema halaman, bukan dipatok putih. */
+	/** Gizmo ink comes from the page theme rather than being pinned to white. */
 	#paintGizmos() {
 		for (const m of this.#gizmoMats) m.color.set(this.#state.ink);
 		for (const m of this.#accentMats) m.color.set(this.#state.accent);
 	}
 
 	/**
-	 * Warna petak menurut skornya, dari skala yang sama dengan peta.
+	 * Cell colour by score, from the same ramp the map uses.
 	 *
-	 * Dicampur sedikit ke arah putih karena bendanya tetap maket yang disinari,
-	 * bukan bidang cat: tanpa itu, langkah paling tua jadi lubang gelap yang
-	 * menelan bayangan dan bentuk heksagonnya hilang. Nilainya tetap terbaca —
-	 * yang dikurangi kejenuhannya, bukan urutannya.
+	 * Mixed slightly towards white because the object is still a lit model, not a
+	 * painted surface: without it the darkest step becomes a black hole that swallows
+	 * the shadow and the hexagon's shape disappears. The value still reads — what is
+	 * reduced is the saturation, not the ordering.
 	 */
 	#paintTiles() {
 		const key = this.#state.ramp.join('|') + this.#state.nodata;
@@ -401,7 +400,7 @@ export class GridWorld {
 		});
 		if (this.#tiles.instanceColor) this.#tiles.instanceColor.needsUpdate = true;
 
-		// Belum terdata tidak pernah masuk skala: ia bukan nilai kecil, ia bukan nilai.
+		// No-data never joins the ramp: it is not a small value, it is not a value.
 		(this.#holes.material as THREE.MeshStandardMaterial).color
 			.set(this.#state.nodata)
 			.lerp(white, 0.3);
@@ -411,9 +410,9 @@ export class GridWorld {
 		const solid = this.#cells.filter((c) => !c.nodata);
 
 		solid.forEach((c, i) => {
-			// Gelombang berangkat dari petak pokok ke tepi: yang dekat lebih dulu
-			// berdiri. Inilah yang membuat kisinya terbaca "sedang dinilai", bukan
-			// sekadar muncul.
+			// The wave sets off from the focus cell towards the edge: the near ones stand
+			// up first. This is what makes the grid read as "being scored" rather than
+			// simply appearing.
 			const local = Math.max(0, Math.min(1, (e * 1.75 - c.wave * 0.75) / 1));
 			const grow = local * local * (3 - 2 * local);
 			const h = Math.max(0.06, c.h * grow);
@@ -426,8 +425,8 @@ export class GridWorld {
 		});
 		this.#tiles.instanceMatrix.needsUpdate = true;
 
-		// Alat ukur datang setelah petaknya berdiri, satu per satu — bukan
-		// serentak, supaya urutan membacanya jelas.
+		// The measuring marks arrive after the cells have stood up, one at a time —
+		// not all at once, so the reading order is clear.
 		const focus = solid.find((c) => Math.abs(c.wave) < 0.001);
 		const at = (a: number, b: number) => Math.max(0, Math.min(1, (e - a) / (b - a)));
 
@@ -451,8 +450,8 @@ export class GridWorld {
 	}
 
 	#updateCamera(e: number) {
-		// Orbit isometrik pendek. Sudut yang berubah drastis merusak bacaan denah,
-		// jadi yang bergerak hanya belasan derajat — cukup untuk terasa hidup.
+		// A short isometric orbit. A drastically changing angle wrecks the reading of
+		// the plan, so it only moves a dozen or so degrees — enough to feel alive.
 		const azim = Math.PI * (0.68 + e * 0.16);
 		const elev = 0.66 - e * 0.06;
 		const dist = 60;
@@ -464,8 +463,8 @@ export class GridWorld {
 		);
 		this.#camera.lookAt(0, 1.2, 0);
 
-		// Dibuka cukup lebar supaya tepi pelat terlihat — itu yang memberi tahu mata
-		// bahwa ini benda di atas meja — lalu merapat sedikit saja.
+		// Opened wide enough that the slab's edge is visible — that is what tells the
+		// eye this is an object on a table — then closing in just slightly.
 		this.#viewWidth = 104 - e * 16;
 		this.#applyFrustum();
 	}
@@ -475,13 +474,13 @@ export class GridWorld {
 		const h = this.#canvas.clientHeight || 1;
 		const aspect = w / h;
 
-		// Layar sempit memberi bingkai yang kecil; kalau bentangnya tetap, maketnya
-		// menyusut jadi butiran di tengah kartu. Dirapatkan sedikit, bukan dibiarkan.
+		// A narrow screen gives a small frame; with a fixed span the model shrinks to a
+		// grain in the middle of the card. Tightened a little rather than left alone.
 		const view = this.#viewWidth * (w < 520 ? 0.84 : 1);
 		let halfW = view / 2;
 		let halfH = halfW / aspect;
-		// Pada layar potret, bentang tegak yang mengikuti rasio membuat kisinya
-		// menyusut jadi pita di tengah. Dibatasi, lalu layar sempit merapat.
+		// On a portrait screen, a vertical span that follows the aspect ratio shrinks
+		// the grid into a strip down the middle. Capped, then narrow screens tighten in.
 		const maxHalfH = view * 0.5;
 		if (halfH > maxHalfH) {
 			halfH = maxHalfH;
@@ -495,7 +494,7 @@ export class GridWorld {
 		this.#camera.updateProjectionMatrix();
 	}
 
-	/* ── siklus hidup ─────────────────────────────────────────────────────── */
+	/* ── lifecycle ────────────────────────────────────────────────────────── */
 
 	resize() {
 		const w = this.#canvas.clientWidth || 1;
@@ -518,9 +517,9 @@ export class GridWorld {
 			return;
 		}
 		this.#running = true;
-		// Satu bingkai langsung, tanpa menunggu rAF: kanvas yang lama di luar layar
-		// bisa dikosongkan kompositor, dan adegan yang keadaannya tidak berubah
-		// tidak akan pernah menggambar ulang untuk mengisinya.
+		// One frame immediately, without waiting for rAF: a canvas that has been off
+		// screen for a while can be cleared by the compositor, and a scene whose state
+		// has not changed would never redraw to fill it back in.
 		this.renderOnce();
 		const loop = () => {
 			this.#raf = requestAnimationFrame(loop);

@@ -31,7 +31,7 @@
 		}
 	}
 
-	// Hex tanpa data selalu di bawah: nilainya tidak ada, bukan nol.
+	// Hexes with no data always sort last: their value is absent, not zero.
 	const rows = $derived(
 		[...app.rows].sort((a, b) => {
 			const va = a[sortKey] as string | number | null;

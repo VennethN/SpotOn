@@ -1,35 +1,33 @@
 /**
- * Klien MAPID bersama untuk skrip data.
+ * The shared MAPID client for the data scripts.
  *
- * KENAPA IMPOR MANUAL TERNYATA TIDAK WAJIB
+ * WHY A MANUAL IMPORT TURNS OUT NOT TO BE REQUIRED
  *
- * Dokumen ini sempat menyimpulkan sebaliknya: bahwa isi layer premium hanya
- * bisa dibaca setelah dataset-nya diimpor ke proyek sendiri lewat antarmuka
- * GEO MAPID, karena `get_layer` menolak layer milik orang lain dengan
+ * The docs once concluded the opposite: that a premium layer's contents could only
+ * be read after the dataset had been imported into your own project through the GEO
+ * MAPID interface, because `get_layer` rejects someone else's layer with
  * `{"is_owner_project": false, "is_owner_layer": false}`.
  *
- * Yang terlewat: penolakan itu datang dari `project_id` yang dikirim, bukan
- * dari `layer_id`. Waktu itu yang dicoba adalah `project_id` milik MAPID
- * Database — proyek yang memang bukan milik kita, jadi wajar ditolak. Server
- * memeriksa "apakah pemanggil memiliki proyek ini", lalu menyajikan layer yang
- * diminta; ia tidak pernah memeriksa apakah layer itu benar-benar anggota
- * proyek tersebut.
+ * What was missed: that rejection comes from the `project_id` being sent, not from
+ * the `layer_id`. What was tried at the time was MAPID Database's own `project_id` —
+ * a project that genuinely is not ours, so of course it was refused. The server
+ * checks "does the caller own this project", then serves the layer requested; it
+ * never checks whether that layer is actually a member of that project.
  *
- * Maka `layer_id` katalog + `project_id` KITA SENDIRI = 200 dengan isi lengkap,
- * tanpa impor sama sekali. Kekeliruan lamanya bukan pada endpoint, melainkan
- * pada menyimpulkan "tidak boleh" dari satu percobaan yang salah parameter.
+ * So a catalogue `layer_id` + OUR OWN `project_id` = 200 with the full contents, no
+ * import at all. The old mistake was not in the endpoint but in concluding "not
+ * allowed" from a single attempt with the wrong parameter.
  *
- * DUA JEBAKAN YANG SUDAH KENA SEKALI, JANGAN DIULANG
+ * TWO TRAPS ALREADY SPRUNG ONCE — DO NOT REPEAT THEM
  *
- * 1. `get_layer` memotong di 200 fitur tanpa penanda apa pun — respons yang
- *    terpotong terlihat sukses sempurna. RESTORAN Jakarta Barat sebenarnya
- *    1.246 titik; tanpa `limit` eksplisit 84% hilang diam-diam. Karena itu
- *    `readLayer` selalu memasang `limit` dan tidak menerima nilai bawaan.
+ * 1. `get_layer` truncates at 200 features with no marker of any kind — a truncated
+ *    response looks perfectly successful. RESTORAN Jakarta Barat is really 1,246
+ *    points; without an explicit `limit`, 84% vanishes silently. That is why
+ *    `readLayer` always sets `limit` and never accepts the default.
  *
- * 2. Pencarian katalog premium memakai nama parameter `search_params` —
- *    bukan `search`, `q`, atau `keyword`. Parameter yang tidak dikenal
- *    diabaikan diam-diam, jadi tiap tebakan mengembalikan halaman pertama
- *    tanpa filter dan tampak seperti "pencarian tidak didukung".
+ * 2. Searching the premium catalogue uses the parameter name `search_params` — not
+ *    `search`, `q`, or `keyword`. Unknown parameters are silently ignored, so every
+ *    guess returns the first unfiltered page and looks like "search is unsupported".
  */
 
 import { mapidKey } from './mapid-key.mjs';
@@ -39,34 +37,34 @@ export { mapidKey };
 export const GEOSERVER = 'https://geoserver.mapid.io';
 export const BUN_SERVER = 'https://server.mapid.io';
 
-const UA = 'SpotOn/0.1 (MAPID WebGIS Competition 2026; kontak lewat repo)';
+const UA = 'SpotOn/0.1 (MAPID WebGIS Competition 2026; contact via repo)';
 
-/** Pemilik resmi katalog data premium. */
+/** The official publisher of the premium data catalogue. */
 const PUBLISHER = /mapid\.database|MAPID Database/i;
 
 /**
- * Jauh di atas layer terbesar yang pernah ditemui (MAKANAN DAN MINUMAN Jakarta
- * Pusat, 1.714 fitur). Naikkan bila suatu saat ada yang menyentuhnya — dan
- * perhatikan bahwa yang menyentuh batas TIDAK akan memberi tahu.
+ * Far above the largest layer ever encountered (MAKANAN DAN MINUMAN Jakarta Pusat,
+ * 1,714 features). Raise it if one ever reaches it — and note that whatever hits the
+ * limit will NOT tell you.
  */
 export const FEATURE_LIMIT = 100000;
 
-/** Proyek GEO MAPID milik kita. Dipakai sebagai "tiket baca", lihat catatan di atas. */
+/** Our own GEO MAPID project. Used as a "read ticket", see the note above. */
 export function projectId() {
 	return process.env.MAPID_PROJECT_ID || '6a7c1672fb8d434002151fa7';
 }
 
 /**
- * Normalisasi nama kota supaya "KOTA ADM. JAKARTA PUSAT", "Kota Administrasi
- * Jakarta Pusat", dan "JAKARTA PUSAT" jadi kunci yang sama.
+ * Normalises a city name so that "KOTA ADM. JAKARTA PUSAT", "Kota Administrasi
+ * Jakarta Pusat", and "JAKARTA PUSAT" all become the same key.
  *
- * Tinggal di sini, bukan disalin ke tiap skrip, karena dipakai di dua sisi
- * timbangan yang harus cocok persis: `fetch-mapid.mjs` menulis daftar kota
- * tercakup, `join-mapid.mjs` mencocokkan nama kota dari OSM ke daftar itu.
- * Kalau keduanya menormalkan sedikit berbeda, tidak ada galat yang muncul —
- * yang terjadi cuma seluruh petak sunyi ditandai "belum tercakup".
+ * It lives here rather than being copied into each script because it is used on both
+ * sides of a balance that has to match exactly: `fetch-mapid.mjs` writes the list of
+ * covered cities, `join-mapid.mjs` matches city names from OSM against that list. If
+ * the two normalised even slightly differently, no error would surface — all that
+ * would happen is every cell quietly being marked "not covered".
  */
-export function normKota(s) {
+export function normCity(s) {
 	return String(s ?? '')
 		.toUpperCase()
 		.replace(/KOTA ADMINISTRASI|KOTA ADM\.?|KABUPATEN|KOTA/g, '')
@@ -74,35 +72,33 @@ export function normKota(s) {
 }
 
 /**
- * Mencocokkan nama dataset ke istilah pencarian dan kota.
+ * Matches a dataset name against a search term and a city.
  *
- * Dipakai `fetch-mapid.mjs` dan `search-mapid.mjs` supaya keduanya menilai
- * "ini dataset yang dicari" dengan cara yang sama persis — kalau berbeda,
- * penjelajah bisa melaporkan sebuah dataset ada padahal pengambilnya
- * melewatinya, dan sebaliknya.
+ * Used by `fetch-mapid.mjs` and `search-mapid.mjs` so both judge "this is the
+ * dataset we were looking for" in exactly the same way — if they differed, the
+ * explorer could report a dataset as present while the fetcher skipped it, and vice
+ * versa.
  *
- * Istilahnya di-escape sebelum jadi RegExp. `search-mapid.mjs` menerima istilah
- * bebas dari argumen baris perintah, jadi tanpa ini satu tanda kurung sudah
- * cukup untuk menjatuhkan skrip dengan pesan galat tentang sintaks regex —
- * galat yang tidak ada hubungannya dengan apa pun yang sedang dikerjakan
- * penggunanya.
+ * The term is escaped before becoming a RegExp. `search-mapid.mjs` takes free-form
+ * terms from the command line, so without this a single parenthesis is enough to
+ * bring the script down with an error about regex syntax — an error with nothing to
+ * do with anything the user was actually working on.
  */
-export function matchesDataset(name, term, kota) {
+export function matchesDataset(name, term, city) {
 	const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const n = String(name ?? '');
-	// `\b` hanya berlaku bila istilahnya berakhir dengan karakter kata. Setelah
-	// tanda kurung atau tanda baca, tidak pernah ada batas kata di depan spasi,
-	// sehingga `\b` yang dipasang tanpa syarat justru membuang kecocokan yang
-	// benar. Batasnya memang dibutuhkan — tanpa itu "APOTEK" ikut mencomot
-	// "APOTEKER SEJAHTERA".
+	// `\b` only applies when the term ends in a word character. After a parenthesis
+	// or punctuation there is never a word boundary before a space, so a `\b` applied
+	// unconditionally would throw away correct matches. The boundary genuinely is
+	// needed — without it "APOTEK" also grabs "APOTEKER SEJAHTERA".
 	const boundary = /\w$/.test(term) ? '\\b' : '';
 	return (
 		new RegExp(`^${esc(term)}${boundary}`, 'i').test(n) &&
-		new RegExp(esc(kota).replace(/\s+/g, '\\s+'), 'i').test(n)
+		new RegExp(esc(city).replace(/\s+/g, '\\s+'), 'i').test(n)
 	);
 }
 
-/** GET JSON dengan percobaan ulang berjenjang. */
+/** GET JSON with staged retries. */
 export async function getJSON(url, label) {
 	for (let attempt = 0; attempt < 4; attempt++) {
 		try {
@@ -117,32 +113,32 @@ export async function getJSON(url, label) {
 }
 
 /**
- * Menelusuri KATALOG PREMIUM.
+ * Searches the PREMIUM CATALOGUE.
  *
- *   GET server.mapid.io/moneys_bun/search_data_premium_v2?search_params=<istilah>
+ *   GET server.mapid.io/moneys_bun/search_data_premium_v2?search_params=<term>
  *
- * Berbeda dari `layers_new/search_layers_public`, yang hanya mengindeks layer
- * publik dan karena itu memberi jawaban menyesatkan: APOTEK dan LAUNDRY pernah
- * disimpulkan "tidak terlihat, perlu cek manual" padahal APOTEK ada lengkap
- * untuk kelima kota di katalog premium. Endpoint ini yang benar untuk
- * pertanyaan "apakah dataset X ada".
+ * Unlike `layers_new/search_layers_public`, which only indexes public layers and
+ * therefore gives misleading answers: APOTEK and LAUNDRY were once concluded to be
+ * "not visible, check by hand" when APOTEK is in fact complete for all five cities
+ * in the premium catalogue. This is the right endpoint for the question "does
+ * dataset X exist".
  *
- * Pencocokannya AND per kata, jadi kueri sempit seperti "APOTEK JAKARTA PUSAT"
- * mengembalikan tepat satu dataset. `skip` diterima tapi diabaikan server —
- * jangan andalkan paginasi; persempit kuerinya.
+ * Its matching is AND per word, so a narrow query like "APOTEK JAKARTA PUSAT"
+ * returns exactly one dataset. `skip` is accepted but ignored by the server — do not
+ * rely on pagination; narrow the query instead.
  *
- * Hasil disaring ke terbitan MAPID Database supaya salinan "IMPORT" milik
- * pengguna lain yang namanya mirip tidak ikut terbawa.
+ * Results are filtered to MAPID Database's publications so that "IMPORT" copies made
+ * by other users with similar names are not swept up.
  */
 export async function searchPremium(term) {
 	const q = new URLSearchParams({ search_params: term });
-	const j = await getJSON(`${BUN_SERVER}/moneys_bun/search_data_premium_v2?${q}`, `cari "${term}"`);
+	const j = await getJSON(`${BUN_SERVER}/moneys_bun/search_data_premium_v2?${q}`, `search "${term}"`);
 	return (j?.layers ?? []).filter((l) => PUBLISHER.test(`${l.user?.name ?? ''} ${l.user?.full_name ?? ''}`));
 }
 
 /**
- * Membaca isi satu layer. `layerId` boleh milik siapa pun selama layer-nya
- * publik; `project_id` yang dikirim adalah proyek kita sendiri.
+ * Reads one layer's contents. `layerId` may belong to anyone as long as the layer is
+ * public; the `project_id` sent is our own project.
  */
 export async function readLayer(layerId, key, label = layerId) {
 	const q = new URLSearchParams({
@@ -154,12 +150,12 @@ export async function readLayer(layerId, key, label = layerId) {
 	const j = await getJSON(`${GEOSERVER}/layers_new/get_layer?${q}`, label);
 	const features = j?.features ?? [];
 	if (features.length >= FEATURE_LIMIT) {
-		throw new Error(`${label}: menyentuh FEATURE_LIMIT (${FEATURE_LIMIT}) — data mungkin terpotong, naikkan batasnya`);
+		throw new Error(`${label}: hit FEATURE_LIMIT (${FEATURE_LIMIT}) — the data may be truncated, raise the limit`);
 	}
 	return { name: j?.layer_name ?? label, features };
 }
 
-/** Daftar layer di dalam sebuah proyek milik kita. */
+/** Lists the layers inside one of our own projects. */
 export async function listProjectLayers(key) {
 	const q = new URLSearchParams({ api_key: key, project_id: projectId() });
 	const listed = await getJSON(`${GEOSERVER}/layers_new/get_layer_list?${q}`, 'get_layer_list');
