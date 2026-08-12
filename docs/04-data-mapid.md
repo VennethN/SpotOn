@@ -1,439 +1,426 @@
-# Data MAPID — status, cakupan, dan cara mengambilnya
+# MAPID data — status, coverage, and how it is fetched
 
-Bagaimana data MAPID masuk ke SpotOn, endpoint apa saja yang sudah terverifikasi,
-sejauh mana cakupannya sekarang, dan apa lagi yang tersedia di katalog premium.
+How MAPID data gets into SpotOn, which endpoints have been verified, how far coverage
+reaches today, and what else the premium catalogue holds.
 
-Daftar dataset yang benar-benar dibaca ada di
-[`mapid-layers.md`](mapid-layers.md) — dihasilkan skrip, selalu mutakhir.
+The list of datasets actually read lives in [`mapid-layers.md`](mapid-layers.md) —
+script-generated, always current.
 
 ---
 
-## 1. Cara kerjanya
+## 1. How it works
 
-Satu perintah, tanpa langkah manual:
+One command, no manual steps:
 
 ```bash
-node scripts/fetch-mapid.mjs   # cari + baca dari katalog  → mapid-poi.json, mapid-layers.md
-node scripts/join-mapid.mjs    # gabungkan ke kisi         → hexes.json
+node scripts/fetch-mapid.mjs   # search + read from the catalogue  → mapid-poi.json, mapid-layers.md
+node scripts/join-mapid.mjs    # join onto the grid                → hexes.json
 ```
 
-`fetch-mapid.mjs` mencari sendiri dataset yang dibutuhkan di katalog premium,
-membacanya langsung, mengklasifikasikan tiap titik ke lima kategori SpotOn, lalu
-menulis berkas titik beserta deklarasi cakupannya. Tidak ada id yang perlu
-disalin tangan dan tidak ada tombol yang perlu ditekan.
+`fetch-mapid.mjs` finds the datasets it needs in the premium catalogue by itself, reads
+them directly, classifies every point into SpotOn's categories, then writes the point file
+along with its coverage declaration. There is no id to copy by hand and no button to press.
 
-Dataset apa yang dicari ditentukan `MANIFEST` di dalam skrip itu. Untuk
-menjelajah katalog sebelum menambah entri baru ke manifest:
+Which datasets it looks for is decided by the `MANIFEST` inside that script. To explore
+the catalogue before adding a new entry to the manifest:
 
 ```bash
-node scripts/search-mapid.mjs                 # lima kategori SpotOn
-node scripts/search-mapid.mjs APOTEK ATM      # istilah bebas
+node scripts/search-mapid.mjs                 # SpotOn's own categories
+node scripts/search-mapid.mjs APOTEK ATM      # free-form terms
 node scripts/search-mapid.mjs --kota "BANDUNG,SURABAYA" PASAR
 ```
 
-### Koreksi: impor manual ternyata tidak pernah wajib
+### Correction: a manual import was never required after all
 
-Dokumen ini sempat menyatakan sebaliknya, dengan yakin, dan itu keliru — layak
-dicatat karena kekeliruannya bukan pada endpoint melainkan pada cara
-menyimpulkan.
+This document once stated the opposite, confidently, and it was wrong — worth recording,
+because the mistake was not in the endpoint but in the way the conclusion was drawn.
 
-Kesimpulan lamanya: isi layer premium hanya bisa dibaca setelah datasetnya
-diimpor ke proyek sendiri lewat antarmuka GEO MAPID, karena `get_layer` menolak
-layer milik orang lain dengan `{"is_owner_project": false, "is_owner_layer":
-false}`. Bunyi penolakannya memang mengesankan pemeriksaan kepemilikan layer.
+The old conclusion: the contents of a premium layer could only be read once the dataset
+had been imported into your own project through the GEO MAPID interface, because
+`get_layer` rejects someone else's layer with `{"is_owner_project": false,
+"is_owner_layer": false}`. The wording of that rejection does suggest a check on layer
+ownership.
 
-Yang terlewat: penolakan itu datang dari **`project_id`** yang dikirim, bukan
-dari `layer_id`. Percobaan waktu itu memakai `project_id` milik MAPID Database —
-proyek yang memang bukan milik kita, jadi wajar ditolak. Server memeriksa
-"apakah pemanggil memiliki proyek ini", lalu menyajikan layer yang diminta; ia
-tidak pernah memeriksa apakah layer itu benar-benar anggota proyek tersebut.
+What was missed: the rejection comes from the **`project_id`** being sent, not from the
+`layer_id`. The attempt at the time used MAPID Database's own `project_id` — a project
+that genuinely is not ours, so of course it was refused. The server checks "does the
+caller own this project", then serves the layer requested; it never checks whether that
+layer is actually a member of that project.
 
-`layer_id` katalog + `project_id` **milik sendiri** = 200 dengan isi lengkap.
+A catalogue `layer_id` + **our own** `project_id` = 200 with the full contents.
 
-Satu percobaan yang salah parameter menghasilkan "tidak boleh" yang bertahan
-berminggu-minggu dan memaksa tiap penambahan kota lewat antarmuka. Pelajarannya
-sama dengan `admin_level=6` yang diam-diam mengembalikan kecamatan: hasil yang
-masuk akal bukan bukti pemanggilannya benar.
+One attempt with the wrong parameter produced a "not allowed" that survived for weeks and
+forced every new city through the interface. The lesson is the same one as `admin_level=6`
+quietly returning districts: a plausible-looking result is not evidence that the call was
+correct.
 
-### Proyek GEO MAPID masih dibaca
+### The GEO MAPID project is still read
 
-Bukan lagi sebagai sumber utama, melainkan karena **dataset misi kompetisi akan
-datang sebagai proyek terpisah yang dibagikan** — bukan sebagai entri katalog.
-Layer di proyek yang ternyata salinan dataset katalog dikenali dari namanya
-(akhiran `IMPORTED AT …`) dan dilewati supaya tidak ditarik dua kali.
+No longer as the primary source, but because **the competition's mission datasets will
+arrive as a separate shared project** — never as a catalogue entry. Layers in the project
+that turn out to be copies of catalogue datasets are recognised by their name (the
+`IMPORTED AT …` suffix) and skipped, so nothing is pulled in twice.
 
-Proyek: `6a7c1672fb8d434002151fa7`, diubah lewat `MAPID_PROJECT_ID`. Perhatikan
-bahwa nilai ini kini punya dua peran sekaligus: ia menentukan proyek mana yang
-dipindai **dan** menjadi tiket baca ke katalog. Isi dengan proyek yang benar-benar
-milik akun pemegang `MAPID_API_KEY`.
+The project: `6a7c1672fb8d434002151fa7`, changed via `MAPID_PROJECT_ID`. Note that this
+value now plays two roles at once: it decides which project gets scanned **and** it is the
+read ticket into the catalogue. Set it to a project genuinely owned by the account holding
+`MAPID_API_KEY`.
 
-### Tiga jebakan yang sudah kena sekali
+### Three traps, each already sprung once
 
-**`get_layer` memotong di 200 fitur tanpa memberi tahu.** Tidak ada penanda
-"masih ada lagi" pada responsnya, jadi pengambilan yang terpotong terlihat
-sukses sempurna. RESTORAN Jakarta Barat sebenarnya 1.246 titik; tanpa `&limit=`
-eksplisit 84% hilang diam-diam. Sudah diperbaiki, dan `readLayer` sekarang
-**melempar galat** bila hasilnya menyentuh batas — supaya pemotongan berikutnya
-tidak bisa lewat tanpa suara.
+**`get_layer` truncates at 200 features without saying so.** There is no "there is more"
+marker anywhere in the response, so a truncated fetch looks perfectly successful. RESTORAN
+Jakarta Barat is really 1,246 points; without an explicit `&limit=`, 84% vanishes
+silently. This is fixed, and `readLayer` now **throws** when a result touches the limit —
+so the next truncation cannot pass unnoticed.
 
-**Jangan menebak kategori dari kolom `NAMA`.** Satu halte TransJakarta pernah
-terhitung sebagai minimarket karena namanya memuat "MART". Pesaing palsu menekan
-skor petak yang sebenarnya kosong — persis kebalikan dari yang dicari.
-Klasifikasi hanya membaca `TIPE_1/2/3`.
+**Do not guess the category from the `NAMA` column.** A TransJakarta stop was once counted
+as a minimarket because its name contained "MART". A phantom competitor drags down the
+score of a cell that is in fact empty — precisely the opposite of what we are looking for.
+Classification reads `TIPE_1/2/3` and nothing else.
 
-**Pencarian katalog memakai `search_params`,** bukan `search`, `q`, atau
-`keyword`. Parameter yang tidak dikenal diabaikan diam-diam, jadi tiap tebakan
-mengembalikan halaman pertama tanpa filter dan tampak seperti "pencarian tidak
-didukung". Ini sebab kesimpulan lama bahwa katalog tidak bisa ditelusuri dari
-skrip.
+**Catalogue search uses `search_params`,** not `search`, `q`, or `keyword`. Unknown
+parameters are silently ignored, so every guess returns the first unfiltered page and looks
+like "search is not supported". This is the source of the old conclusion that the catalogue
+could not be searched from a script.
 
-### Prasyarat menjalankan skrip
+### Prerequisites for running the scripts
 
-**Kunci.** `MAPID_API_KEY` dibaca dari variabel lingkungan lebih dulu, baru dari
-`.env` (lihat `.env.example`). Yang dari lingkungan menang, jadi kunci lain bisa
-diuji sekali jalan tanpa menyunting berkas:
+**The key.** `MAPID_API_KEY` is read from the environment first, then from `.env` (see
+`.env.example`). The environment wins, so a different key can be tried for a single run
+without editing the file:
 
 ```bash
-MAPID_API_KEY=<kunci lain> node scripts/fetch-mapid.mjs
+MAPID_API_KEY=<another key> node scripts/fetch-mapid.mjs
 ```
 
-**Jaringan.** Skrip perlu akses keluar ke `geoserver.mapid.io` dan
-`server.mapid.io`; `join-mapid.mjs` juga ke cermin Overpass (`overpass-api.de`
-dan kawan-kawan) untuk batas administrasi. Keduanya sering diblokir di
-lingkungan berpagar — kontainer CI, sesi remote, jaringan kantor dengan proksi.
+**The network.** The scripts need outbound access to `geoserver.mapid.io` and
+`server.mapid.io`; `join-mapid.mjs` also needs the Overpass mirrors (`overpass-api.de` and
+friends) for administrative boundaries. Both are frequently blocked in walled environments
+— CI containers, remote sessions, office networks behind a proxy.
 
-Perlu diwaspadai karena mudah salah baca: bila proksi menolak, yang muncul
-adalah `Gagal: get_layer_list: 403 Forbidden` — persis seperti kunci ditolak.
-Bedakan sebelum mengganti kunci:
+Worth watching for, because it is easy to misread: when the proxy refuses, what surfaces is
+`Failed: get_layer_list: 403 Forbidden` — exactly as though the key had been rejected. Tell
+the two apart before replacing the key:
 
 ```bash
 curl -sS -o /dev/null -w '%{http_code}\n' https://geoserver.mapid.io/
-# "CONNECT tunnel failed, response 403" = jaringan, bukan kunci.
+# "CONNECT tunnel failed, response 403" = the network, not the key.
 ```
 
 ---
 
-## 2. Cakupan sekarang
+## 2. Coverage today
 
-55 dataset katalog premium, **24.614 titik unik** setelah 11.462 duplikat dibuang.
-**Kesembilan kategori tercakup penuh di kelima kota administrasi.**
+55 premium catalogue datasets, **24,614 unique points** after 11,462 duplicates were
+dropped. **All nine categories are fully covered across all five administrative cities.**
 
-| Kategori SpotOn | Jakpus | Jakbar | Jaksel | Jaktim | Jakut | Titik | Dataset sumber |
+| SpotOn category | Central | West | South | East | North | Points | Source dataset |
 |---|:--:|:--:|:--:|:--:|:--:|--:|---|
-| kopi | ✅ | ✅ | ✅ | ✅ | ✅ | 2.351 | COFFEE SHOP + BRAND COFFEE SHOP |
+| kopi | ✅ | ✅ | ✅ | ✅ | ✅ | 2,351 | COFFEE SHOP + BRAND COFFEE SHOP |
 | minuman | ✅ | ✅ | ✅ | ✅ | ✅ | 858 | MINUMAN |
-| roti | ✅ | ✅ | ✅ | ✅ | ✅ | 1.869 | ROTI DAN KUE |
-| warung | ✅ | ✅ | ✅ | ✅ | ✅ | 6.094 | RESTORAN |
-| minimarket | ✅ | ✅ | ✅ | ✅ | ✅ | 2.928 | MINIMARKET |
-| kelontong | ✅ | ✅ | ✅ | ✅ | ✅ | 2.698 | TOKO KELONTONG |
-| laundry | ✅ | ✅ | ✅ | ✅ | ✅ | 3.714 | LAYANAN ATAU JASA → BINATU |
+| roti | ✅ | ✅ | ✅ | ✅ | ✅ | 1,869 | ROTI DAN KUE |
+| warung | ✅ | ✅ | ✅ | ✅ | ✅ | 6,094 | RESTORAN |
+| minimarket | ✅ | ✅ | ✅ | ✅ | ✅ | 2,928 | MINIMARKET |
+| kelontong | ✅ | ✅ | ✅ | ✅ | ✅ | 2,698 | TOKO KELONTONG |
+| laundry | ✅ | ✅ | ✅ | ✅ | ✅ | 3,714 | LAYANAN ATAU JASA → BINATU |
 | bengkel | ✅ | ✅ | ✅ | ✅ | ✅ | 903 | PERAWATAN DAN PERBAIKAN OTOMOTIF |
-| apotek | ✅ | ✅ | ✅ | ✅ | ✅ | 3.199 | APOTEK |
+| apotek | ✅ | ✅ | ✅ | ✅ | ✅ | 3,199 | APOTEK |
 
-Dua angka yang layak diperhatikan karena keduanya bergerak tanpa data baru:
+Two figures deserve attention, because both moved without a single new data point:
 
-**`kopi` naik 895 → 2.351** setelah `BRAND COFFEE SHOP` masuk manifest. Dataset
-itu terpisah dari `COFFEE SHOP` dan justru lebih besar — gerai berjaringan
-(Kopi Kenangan, Starbucks, Tomoro, Fore) tidak ada di dalam `COFFEE SHOP` sama
-sekali. Selama ini dua pertiga kedai kopi Jakarta tidak terhitung sebagai
-pesaing.
+**`kopi` rose 895 → 2,351** once `BRAND COFFEE SHOP` entered the manifest. That dataset is
+separate from `COFFEE SHOP` and is in fact the larger of the two — chain outlets (Kopi
+Kenangan, Starbucks, Tomoro, Fore) are not in `COFFEE SHOP` at all. Two thirds of Jakarta's
+coffee shops had not been counted as competitors.
 
-**`warung` turun 8.813 → 6.094**, dan itu perbaikan, bukan kehilangan. Selisih
-2.719 pindah ke `roti` dan `minuman`. Sebelum keduanya jadi kategori, seluruh
-toko roti, gerai boba, dan kedai es krim jatuh ke `warung` — karena `TIPE_1`
-mereka berbunyi "MAKANAN DAN MINUMAN" dan tidak ada aturan yang lebih spesifik
-menangkapnya lebih dulu. Toko donat terhitung sebagai pesaing warteg.
+**`warung` fell 8,813 → 6,094**, and that is an improvement, not a loss. The difference of
+2,719 moved to `roti` and `minuman`. Before those two became categories, every bakery, boba
+outlet, and ice-cream parlour fell into `warung` — because their `TIPE_1` reads "MAKANAN
+DAN MINUMAN" and no more specific rule caught them first. Doughnut shops counted as warteg
+competitors.
 
-### `force`: waktu taksonomi tidak bisa dibaca
+### `force`: for when the taxonomy cannot be read
 
-`BRAND COFFEE SHOP` menyimpan **nama merek** di `TIPE_3` — "STARBUCKS",
-"KOPI KENANGAN", "TOMORO COFFEE". Aturan klasifikasi mencari kata seperti COFFEE
-atau KOPI, dan "STARBUCKS" tidak memuat keduanya; yang tersisa `TIPE_2` =
-"MINUMAN", sehingga seluruh gerai Starbucks akan terhitung kedai minuman.
+`BRAND COFFEE SHOP` stores **brand names** in `TIPE_3` — "STARBUCKS", "KOPI KENANGAN",
+"TOMORO COFFEE". The classification rules look for words like COFFEE or KOPI, and
+"STARBUCKS" contains neither; what remains is `TIPE_2` = "MINUMAN", so every Starbucks
+would be counted as a drinks stall.
 
-Karena itu entri manifest boleh membawa `force`, yang memakukan seluruh isi satu
-dataset ke satu kategori. Dipakai hanya untuk dataset berisi satu jenis usaha
-saja. Dataset payung seperti `MAKANAN DAN MINUMAN` atau `LAYANAN ATAU JASA`
-justru tidak boleh dipakukan — isinya campuran, dan memakukannya membuang
-perbedaan yang mau dilihat.
+A manifest entry may therefore carry `force`, which pins an entire dataset's contents to
+one category. It is used only for datasets holding a single kind of business. Umbrella
+datasets such as `MAKANAN DAN MINUMAN` or `LAYANAN ATAU JASA` must specifically not be
+pinned — their contents are mixed, and pinning them throws away the very distinction we
+want to see.
 
-### Koreksi kedua: `laundry` ada, dan sempat dinyatakan tidak
+### Second correction: `laundry` does exist, and was once declared absent
 
-Dokumen ini pernah menyatakan dengan yakin bahwa `laundry` tidak ada di katalog
-premium. Itu keliru, dan kekeliruannya berjenis sama dengan yang di §1 —
-menyimpulkan terlalu jauh dari satu cara mencari.
+This document once stated confidently that `laundry` was not in the premium catalogue. That
+was wrong, and the mistake is the same species as the one in §1 — concluding too much from
+a single way of searching.
 
-Yang dicari waktu itu hanya **nama dataset**. Tidak ada dataset bernama LAUNDRY,
-jadi kesimpulannya "tidak ada". Padahal laundry tersimpan sebagai **subtipe di
-dalam dataset lain**: `LAYANAN ATAU JASA` → `TIPE_3` = "BINATU (LAUNDRY)",
-3.723 titik di kelima kota. Bukan sedikit, dan bukan tersembunyi — cuma tidak
-bernama seperti yang ditebak.
+What was searched at the time was only the **dataset name**. There is no dataset called
+LAUNDRY, so the conclusion was "it does not exist". In fact laundry is held as a **subtype
+inside another dataset**: `LAYANAN ATAU JASA` → `TIPE_3` = "BINATU (LAUNDRY)", 3,723 points
+across all five cities. Not a small number, and not hidden — simply not named the way it
+was guessed to be.
 
-Kekeliruan yang sama sempat menyembunyikan SPBU, yang di katalog bernama
-`PENGISIAN BAHAN BAKAR`, dan tukang jahit (`JAHIT`), pijat (`PIJAT`), serta
-depot air (`ISI AIR GALON`) — semuanya subtipe di dalam dataset payung.
+The same mistake once hid petrol stations, which the catalogue calls `PENGISIAN BAHAN
+BAKAR`, along with tailors (`JAHIT`), massage (`PIJAT`), and water depots (`ISI AIR GALON`)
+— all of them subtypes inside umbrella datasets.
 
-Aturan yang sekarang dipegang: **tidak ketemu lewat nama bukan tidak ada.**
-Sebelum menyatakan sesuatu tidak tersedia, buka taksonomi `TIPE_1/2/3` dataset
-payung yang relevan. Dan kalaupun sudah, sebut apa yang sudah diperiksa —
-bukan "tidak ada", melainkan "tidak ada di antara yang saya periksa".
+The rule now held to: **not found by name is not the same as absent.** Before declaring
+something unavailable, open the `TIPE_1/2/3` taxonomy of the relevant umbrella datasets.
+And even then, say what was checked — not "it does not exist", but "it is not among the
+things I checked".
 
-Sel bertanda **—** diperlakukan sebagai **belum tercakup**, bukan nol pesaing.
-Ini konsekuensi langsung dari prinsip proyek: ketiadaan data bukan bukti
-ketiadaan usaha. Petak tidak boleh mendapat skor tinggi hanya karena pesaingnya
-belum terdata.
+Cells marked **—** are treated as **not yet covered**, not as zero competitors. This
+follows directly from the project's principle: absence of data is not evidence of absence
+of business. A cell must not score highly merely because its competitors have not been
+surveyed.
 
-Layer HALTE (606 titik, khas proyek) sengaja tidak dipakai — akses transit sudah
-dihitung dari OSM untuk empat moda, dan HALTE MAPID hanya mencakup sebagian kota.
+The HALTE layer (606 points, project-specific) is deliberately unused — transit access is
+already computed from OSM across four modes, and MAPID's HALTE covers only some cities.
 
-### Cakupan dideklarasikan, bukan disimpulkan dari titik
+### Coverage is declared, not inferred from points
 
-Dulu daftar "kota mana yang tercakup" dihitung mundur dari `KABKOT` titik yang
-lolos klasifikasi. Itu mencampur dua hal yang justru menjadi inti janji proyek
-ini: dataset yang **tidak ada**, dan dataset yang **ada tapi kebetulan nol baris**
-setelah disaring. Keduanya menghasilkan nol titik, padahal yang pertama berarti
-"belum dicek" dan yang kedua "sudah dicek, memang kosong".
+The list of "which cities are covered" used to be worked backwards from the `KABKOT` of
+whichever points survived classification. That conflated two things which are the very
+heart of this project's promise: a dataset that **does not exist**, and a dataset that
+**exists but happens to yield zero rows** after filtering. Both produce zero points, yet
+the first means "not checked" and the second "checked, genuinely empty".
 
-Sekarang `fetch-mapid.mjs` menuliskan cakupan dari manifest: begitu dataset
-sebuah kota berhasil dibaca, kota itu tercakup untuk kategori yang dijanjikan
-dataset tersebut — berapa pun titik yang akhirnya lolos. `join-mapid.mjs`
-membaca deklarasi itu apa adanya dan tidak menyimpulkan ulang.
+`fetch-mapid.mjs` now writes coverage from the manifest: once a city's dataset has been
+read successfully, that city is covered for the categories that dataset promises — however
+many points ultimately survive. `join-mapid.mjs` reads that declaration as it stands and
+does not re-derive it.
 
-Perhatikan bahwa satu dataset bisa menutup dua kategori: `MAKANAN DAN MINUMAN`
-memuat kedai kopi **dan** rumah makan, jadi keberadaannya menutup `kopi` dan
-`warung` sekaligus.
+Note that one dataset can cover two categories: `MAKANAN DAN MINUMAN` holds coffee shops
+**and** eating places, so its existence covers `kopi` and `warung` at once.
 
-### Hasil penggabungan (`node scripts/join-mapid.mjs`)
+### Join results (`node scripts/join-mapid.mjs`)
 
-- 542 dari 562 petak berhasil ditentukan kotanya (20 sisanya di luar 14 wilayah
-  yang diambil — Bodetabek terluar).
-- **4.158** pasangan petak×kategori tercakup, 900 belum. Sebelum sesi ini: 515
-  tercakup dari lima kategori.
-- Pesaing MAPID terhitung: warung 11.240, laundry 6.278, apotek 5.751,
-  minimarket 5.157, kopi 4.753, kelontong 4.597, roti 3.530, bengkel 1.397,
-  minuman 1.412 pengamatan.
+- 542 of 562 cells had their city determined (the remaining 20 lie outside the 14 areas
+  fetched — the outer Bodetabek fringe).
+- **4,158** cell×category pairs covered, 900 not. Before this session: 515 covered, across
+  five categories.
+- MAPID competitors counted: warung 11,240, laundry 6,278, apotek 5,751, minimarket 5,157,
+  kopi 4,753, kelontong 4,597, roti 3,530, bengkel 1,397, minuman 1,412 observations.
 
-Pesaing dihitung dalam radius jalan kaki 800 m dari titik pusat petak. Total
-pengamatan lebih besar daripada jumlah titik karena satu gerai bisa berada dalam
-jangkauan beberapa petak sekaligus — memang begitu definisinya ("pesaing dalam
-jarak jalan kaki dari petak ini"), bukan pembagian wilayah.
+Competitors are counted within an 800 m walking radius of the cell's centre point. The
+total number of observations exceeds the number of points because one outlet can sit within
+range of several cells at once — that is exactly what the definition says ("competitors
+within walking distance of this cell"), not a partition of territory.
 
-Cakupan ditentukan **per kota administrasi** memakai batas OSM `admin_level=5`,
-bukan dari kedekatan POI. Sempat memakai `admin_level=6` dan yang kembali justru
-kecamatan (Kebon Jeruk, Cilincing, Pulo Gadung) — tidak ada yang cocok dengan
-`KABKOT`, sehingga seluruh petak salah ditandai "belum tercakup" tanpa satu pun
-galat muncul. Perlu diperiksa hasilnya, bukan hanya status keluarannya.
+Coverage is decided **per administrative city** using OSM `admin_level=5` boundaries, not
+from POI proximity. `admin_level=6` was used at one point and what came back was districts
+(Kebon Jeruk, Cilincing, Pulo Gadung) — none of which matched `KABKOT`, so every cell was
+wrongly marked "not covered" without a single error surfacing. The result has to be
+inspected, not just the exit status.
 
-**Penetapan kota dipakai ulang.** Petak mana ada di kota mana hanya berubah
-kalau kisinya berubah, sedangkan skrip ini jalan tiap kali data MAPID
-diperbarui. Menarik ulang batas tiap kali menggantungkan seluruh penggabungan
-pada layanan paling rapuh di jalur ini — satu putaran pernah habis tujuh menit
-lalu gagal `503` karena semua cermin Overpass penuh, padahal jawabannya sudah
-tersimpan di `hexes.json` dan tidak berubah sedikit pun. Tarik ulang dengan:
+**City assignment is reused.** Which cell sits in which city only changes when the grid
+changes, whereas this script runs every time the MAPID data is refreshed. Re-fetching the
+boundaries each time would hang the entire join on the most fragile service in the chain —
+one round once burned seven minutes and then failed with `503` because every Overpass
+mirror was full, while the answer was already stored in `hexes.json` and had not changed at
+all. Re-fetch deliberately with:
 
 ```bash
-node scripts/join-mapid.mjs --refresh-kota   # setelah build-hexes.mjs
+node scripts/join-mapid.mjs --refresh-kota   # after build-hexes.mjs
 ```
 
-Di peta, tiga keadaan dibedakan: petak bernilai diwarnai skala peluang, petak
-**belum terdata** diarsir, dan petak **belum tercakup** hanya digariskan
-putus-putus tanpa isi.
+On the map, three states are distinguished: a cell with a value is coloured on the
+opportunity scale, a **not yet surveyed** cell is hatched, and a **not covered** cell is
+merely outlined with a dashed stroke and left unfilled.
 
-### Efek saklar sumber pada penilaian
+### What the source switch does to scoring
 
-Dari 562 petak, 90 **belum terdata** dan tidak pernah dinilai sumber mana pun.
-Sisanya 472 dinilai OSM dan 385 dinilai MAPID, **sama untuk kesembilan
-kategori** — selisih 87 petak adalah Bodetabek, yang tidak punya dataset MAPID
-karena katalog memberi satu dataset per kota administrasi DKI. Itu cakupan yang
-tercermin apa adanya, bukan kerusakan.
+Of 562 cells, 90 are **not yet surveyed** and are never scored by either source. The
+remaining 472 are scored by OSM and 385 by MAPID, **identically across all nine categories**
+— the 87-cell difference is Bodetabek, which has no MAPID dataset because the catalogue
+ships one dataset per DKI administrative city. That is coverage reflected faithfully, not
+breakage.
 
-Sebelum sesi ini kolom MAPID berbunyi kopi 382, warung 46, sisanya 0.
+Before this session the MAPID column read kopi 382, warung 46, and 0 for the rest.
 
-### Kepadatan kedua sumber tidak sebanding, dan itu perlu diketahui
+### The two sources are not comparable in density, and that needs saying
 
-Jumlah POI yang sama-sama mencakup Jakarta:
+POI counts where both cover Jakarta:
 
-| Kategori | OSM | MAPID | Rasio |
+| Category | OSM | MAPID | Ratio |
 |---|--:|--:|--:|
-| warung | 3.206 | 6.094 | 1,9× |
-| minimarket | 2.337 | 2.928 | 1,3× |
-| kopi | 1.170 | 2.351 | 2,0× |
-| apotek | 393 | 3.199 | 8,1× |
-| roti | 295 | 1.869 | 6,3× |
-| kelontong | 274 | 2.698 | 9,8× |
-| laundry | 231 | 3.714 | 16,1× |
-| bengkel | 187 | 903 | 4,8× |
-| **minuman** | **65** | **858** | **13,2×** |
+| warung | 3,206 | 6,094 | 1.9× |
+| minimarket | 2,337 | 2,928 | 1.3× |
+| kopi | 1,170 | 2,351 | 2.0× |
+| apotek | 393 | 3,199 | 8.1× |
+| roti | 295 | 1,869 | 6.3× |
+| kelontong | 274 | 2,698 | 9.8× |
+| laundry | 231 | 3,714 | 16.1× |
+| bengkel | 187 | 903 | 4.8× |
+| **minuman** | **65** | **858** | **13.2×** |
 
-OSM masuk akal untuk warung dan minimarket. Untuk sisanya ia bukan sekadar
-lebih sedikit — 65 kedai minuman di seluruh Jakarta jelas bukan keadaan
-sebenarnya, melainkan lubang penandaan. Ini berbeda sifatnya dari "belum
-tercakup", dan lebih berbahaya: petak yang datanya tidak ada diberi nilai null
-dan tidak diperingkat, sedangkan petak yang datanya kurang **tetap diberi skor**
-— dengan persaingan yang terlalu rendah, sehingga terlihat lebih lapang
-daripada kenyataannya.
+OSM is reasonable for warung and minimarket. For the rest it is not merely smaller — 65
+drinks stalls across the whole of Jakarta is plainly not the real state of affairs but a
+tagging hole. This differs in kind from "not covered", and is more dangerous: a cell with
+no data is given a null value and left unranked, whereas a cell with *thin* data **still
+gets a score** — with competition set too low, so it looks roomier than it really is.
 
-Skor dinormalisasi terhadap petak terpadat dalam sumber yang sama, jadi
-peringkat antar-petak masih terbaca. Yang tidak boleh dilakukan adalah
-membandingkan angka pesaing lintas sumber, atau memperlakukan angka OSM untuk
-kategori bertanda rasio besar sebagai cacah yang mendekati lengkap.
+Scores are normalised against the densest cell within the same source, so the ranking
+between cells still reads. What must not be done is comparing competitor counts across
+sources, or treating the OSM figure for a category with a large ratio as anything close to
+a complete count.
 
-### Belum tersambung ke skor
+### Not yet wired into the score
 
-Data MAPID sudah menempel di `hexes.json` sebagai `mapid` dan `covered`, dan
-saklar **OSM | MAPID** di bilah atas sudah memilih di antara keduanya —
-keduanya lepas, tidak pernah dicampur dalam satu skor.
+The MAPID data is already attached to `hexes.json` as `mapid` and `covered`, and the
+**OSM | MAPID** switch in the top bar already chooses between them — the two are kept
+separate and never mixed into one score.
 
-Yang masih terbuka: **mana yang jadi bawaan.** Alasan lama untuk bertahan di OSM
-sudah hilang — cakupan MAPID tidak lagi timpang satu kota, melainkan penuh di
-empat dari lima kategori, dan lebih rapat daripada OSM di semuanya. Yang tersisa
-tinggal `laundry`, yang akan tampil sebagai kolom kosong pada sumber MAPID.
-Putuskan itu dulu sebelum menukar bawaannya.
+What remains open: **which one is the default.** The old reason for staying on OSM has
+gone — MAPID coverage is no longer lopsided towards one city but complete across four of
+five categories, and denser than OSM in all of them. All that is left is `laundry`, which
+would show as an empty column on the MAPID source. Settle that before switching the
+default.
 
 ---
 
-## 3. Yang bisa didapat di luar sembilan kategori
+## 3. What is available beyond the nine categories
 
-Katalog premium punya 16 kategori (~90.000 dataset). Semuanya kini terbaca lewat
-jalur yang sama — menambahkan satu jenis usaha berarti menambah satu baris ke
-`MANIFEST`, bukan sesi impor manual.
+The premium catalogue has 16 categories (~90,000 datasets). All of them are now readable
+through the same path — adding a business type means adding one row to `MANIFEST`, not a
+manual import session.
 
-Yang menarik bukan lagi menambah jenis usaha, melainkan **menambal permintaan** —
-satu-satunya sinyal yang masih sepenuhnya contoh.
+What is interesting is no longer adding business types, but **patching demand** — the only
+signal that is still entirely mock.
 
-### Cara mencarinya, setelah dua kali salah
+### How to search, after getting it wrong twice
 
-Dua kesimpulan "tidak ada" di dokumen ini ternyata keliru, dan keduanya karena
-pencarian berhenti di nama dataset. Urutan yang benar:
+Two "it does not exist" conclusions in this document turned out to be wrong, and both
+because the search stopped at the dataset name. The correct order:
 
-1. `node scripts/search-mapid.mjs <ISTILAH>` — apakah ada dataset dengan nama itu.
-2. Kalau tidak ada, **buka dataset payung yang relevan dan baca `TIPE_1/2/3`-nya.**
-   Payung yang sudah diketahui gemuk: `LAYANAN ATAU JASA` (2.528 titik di Jakpus,
-   ±22 jenis jasa), `MAKANAN DAN MINUMAN`, `PERAWATAN DAN PERBAIKAN OTOMOTIF`.
-3. Baru setelah keduanya kosong, tulis "tidak ada" — dan sebut apa yang diperiksa.
+1. `node scripts/search-mapid.mjs <TERM>` — is there a dataset by that name.
+2. If not, **open the relevant umbrella dataset and read its `TIPE_1/2/3`.**
+   Umbrellas already known to be fat: `LAYANAN ATAU JASA` (2,528 points in Central Jakarta,
+   ±22 kinds of service), `MAKANAN DAN MINUMAN`, `PERAWATAN DAN PERBAIKAN OTOMOTIF`.
+3. Only once both come back empty, write "it does not exist" — and say what was checked.
 
-### Sisi permintaan, sudah diverifikasi kelima kota DKI
+### The demand side, verified across all five DKI cities
 
-| Dataset | Buat SpotOn |
+| Dataset | For SpotOn |
 |---|---|
-| `DEMOGRAFI` | 44 poligon per kota. **Kandidat terkuat** untuk mengganti `d` (permintaan) yang sekarang dikarang. |
-| `HARGA PROPERTI` | 1.398 titik per kota, dengan harga per m². Sinyal daya beli sekaligus biaya sewa. |
-| `PROPERTI RUKO` | 399 per kota, lengkap dengan `HARGA`, `LUAS TANAH/BANGUNAN`, `JUMLAH LANTAI`, `LEBAR JALAN`. Kandidat pengganti gerbang ruang usaha yang sekarang contoh — perhatikan semuanya `TIPE_3 = JUAL`, bukan sewa. |
-| `APARTEMEN`, `KOS`, `PROPERTI KOST` | Kepadatan hunian = pembeli yang tinggal di sana. |
-| `PUSAT PERBELANJAAN`, `PASAR` | Penarik kunjungan; menjelaskan keramaian yang bukan dari penduduk setempat. |
-| `ATM DAN BANK` | 840 per kota. Proksi aktivitas komersial dan ekonomi tunai. |
-| `RUMAH SAKIT`, `KLINIK`, `LABORATORIUM MEDIS` | Penghasil permintaan sekaligus pelengkap kategori apotek. |
-| `SEKOLAH`, `KURSUS BAHASA` | Populasi harian yang berulang dan mudah diprediksi. |
-| `HOTEL`, `AGEN PERJALANAN` | Kunjungan non-penduduk. |
+| `DEMOGRAFI` | 44 polygons per city. **The strongest candidate** for replacing `d` (demand), which is currently invented. |
+| `HARGA PROPERTI` | 1,398 points per city, with a price per m². A signal of both purchasing power and rental cost. |
+| `PROPERTI RUKO` | 399 per city, complete with `HARGA`, `LUAS TANAH/BANGUNAN`, `JUMLAH LANTAI`, `LEBAR JALAN`. A candidate to replace the commercial-space gate, which is currently mock — note that all of them are `TIPE_3 = JUAL`, for sale, not for rent. |
+| `APARTEMEN`, `KOS`, `PROPERTI KOST` | Residential density = the buyers who live there. |
+| `PUSAT PERBELANJAAN`, `PASAR` | Visit attractors; they explain busyness that does not come from local residents. |
+| `ATM DAN BANK` | 840 per city. A proxy for commercial activity and the cash economy. |
+| `RUMAH SAKIT`, `KLINIK`, `LABORATORIUM MEDIS` | Demand generators, and complements to the apotek category. |
+| `SEKOLAH`, `KURSUS BAHASA` | A recurring, easily predicted daytime population. |
+| `HOTEL`, `AGEN PERJALANAN` | Non-resident visits. |
 
-### Jenis usaha lain yang tersedia tapi belum jadi kategori
+### Other business types available but not yet categories
 
-`LAYANAN LOGISTIK` (agen JNE/J&T/Kantor Pos, 355 per kota) · `PENGISIAN BAHAN
-BAKAR` · `DEALER MOTOR` · `TOKO PAKAIAN` · `TOKO ELEKTRONIK` · `TOKO HEWAN
-PELIHARAAN` · `TOKO BUNGA DAN TANAMAN` · `BIOSKOP` · `KATERING` · `LAPANGAN
-PADEL`. Dari dalam `LAYANAN ATAU JASA`: `KONTRAKTOR`, `KANTOR PENGACARA`,
-`PEGADAIAN`, `NOTARIS`, `AGEN PROPERTI`, `SERVICE LAPTOP/KOMPUTER`, `JAHIT`,
-`PIJAT`, `ISI AIR GALON`.
+`LAYANAN LOGISTIK` (JNE/J&T/post office agents, 355 per city) · `PENGISIAN BAHAN BAKAR` ·
+`DEALER MOTOR` · `TOKO PAKAIAN` · `TOKO ELEKTRONIK` · `TOKO HEWAN PELIHARAAN` · `TOKO
+BUNGA DAN TANAMAN` · `BIOSKOP` · `KATERING` · `LAPANGAN PADEL`. From inside `LAYANAN ATAU
+JASA`: `KONTRAKTOR`, `KANTOR PENGACARA`, `PEGADAIAN`, `NOTARIS`, `AGEN PROPERTI`, `SERVICE
+LAPTOP/KOMPUTER`, `JAHIT`, `PIJAT`, `ISI AIR GALON`.
 
-Semuanya punya dataset MAPID, tetapi **belum tentu punya padanan tag OSM yang
-layak** — dan tanpa keduanya sebuah kategori akan bernilai nol diam-diam pada
-sumber yang tidak punya datanya. Syarat itu dijelaskan di
-[`categories.ts`](../src/lib/domain/categories.ts).
+All of them have a MAPID dataset, but **not necessarily a workable OSM tag equivalent** —
+and without both, a category would quietly read as zero on the source that lacks the data.
+That requirement is explained in [`categories.ts`](../src/lib/domain/categories.ts).
 
-Yang dicari dan tidak ketemu, baik lewat nama maupun di dalam payung yang sudah
-dibuka: barbershop/salon, warnet, toko emas, optik, toko buku, konter pulsa,
-fotokopi, toko bangunan, karaoke, tambal ban, cuci mobil. Perlu dicatat 221
-titik di `LAYANAN ATAU JASA` bertipe `LAINNYA` dan belum dibuka isinya — jadi
-daftar ini "belum ketemu", bukan "tidak ada".
+Searched for and not found, either by name or inside the umbrellas already opened:
+barbershop/salon, internet cafés, gold shops, opticians, bookshops, phone-credit kiosks,
+photocopying, hardware shops, karaoke, tyre repair, car washes. Worth noting that 221
+points in `LAYANAN ATAU JASA` carry the type `LAINNYA` and their contents have not been
+opened — so this list is "not found yet", not "does not exist".
 
-Kategori katalog yang belum ditelusuri per dataset, dan kandidat terkuatnya:
+Catalogue categories not yet explored dataset by dataset, and their strongest candidates:
 
-| Kategori katalog | Jumlah | Buat SpotOn |
+| Catalogue category | Count | For SpotOn |
 |---|--:|---|
-| Sosial | 23.254 | **Statistik demografi.** Kandidat terkuat untuk mengganti `d` (permintaan) yang sekarang dikarang. |
-| Retail | 19.980 | Minimarket tingkat merek (`ALFAMART`, `212 MART`) — lebih tajam daripada satu kelas "minimarket". |
-| Kesehatan | 7.206 | Sudah dipakai untuk apotek; rumah sakit juga penghasil permintaan. |
-| Transportasi | 5.599 | Sudah tertutup OSM untuk empat moda; nilai tambahnya kecil. |
-| Lingkungan | 4.770 | Indikator kesejahteraan; relevansinya tidak langsung. |
-| Penelitian | 4.134 | `NIGHT TIME LIGHT` — proksi aktivitas ekonomi dari citra malam, mapan di literatur, dan ada persis di tempat data survei tidak ada. |
-| Perumahan | 4.063 | Sisi penduduk dari permintaan. |
-| Pemerintah | 3.966 | Kantor = populasi pekerja siang hari. |
-| Layanan TI | 2.649 | `ATM` sebagai proksi aktivitas ekonomi. |
-| Pariwisata | 1.936 | Penarik kunjungan. |
-| Perencanaan Kota | 719 | Batas administrasi rapi — berguna untuk pelabelan petak dan agregasi per kecamatan. |
-| Manufaktur / Energi / Iklim / Barang Konsumsi | — | Belum ada kaitan jelas dengan pemilihan lokasi ritel. |
+| Social | 23,254 | **Demographic statistics.** The strongest candidate for replacing `d` (demand), which is currently invented. |
+| Retail | 19,980 | Brand-level minimarkets (`ALFAMART`, `212 MART`) — sharper than a single "minimarket" class. |
+| Health | 7,206 | Already used for apotek; hospitals are demand generators too. |
+| Transportation | 5,599 | Already covered by OSM across four modes; little to add. |
+| Environment | 4,770 | A welfare indicator; only indirectly relevant. |
+| Research | 4,134 | `NIGHT TIME LIGHT` — a proxy for economic activity from night-time imagery, well established in the literature, and present exactly where survey data is not. |
+| Real Estate | 4,063 | The resident side of demand. |
+| Government | 3,966 | Offices = a daytime working population. |
+| IT & Services | 2,649 | `ATM` as a proxy for economic activity. |
+| Tourism | 1,936 | A visit attractor. |
+| City Planning | 719 | Clean administrative boundaries — useful for labelling cells and aggregating by district. |
+| Manufacturing / Energy / Climate / Consumer Goods | — | No clear connection to retail site selection yet. |
 
-### Kalau harus memilih tiga
+### If three had to be chosen
 
-1. **Sosial** — demografi. Ini yang membuat `permintaan` berhenti jadi karangan.
-2. **Penelitian → NIGHT TIME LIGHT** — proksi aktivitas yang tersedia merata,
-   termasuk di petak yang tidak punya data survei sama sekali.
-3. **Perumahan → APARTEMEN** — sisi penduduk dari permintaan, melengkapi (1).
+1. **Social** — demographics. This is what stops `demand` being an invention.
+2. **Research → NIGHT TIME LIGHT** — an activity proxy available evenly, including in cells
+   with no survey data at all.
+3. **Real Estate → APARTEMEN** — the resident side of demand, completing (1).
 
-Catatan penting: begitu permintaan berasal dari data nyata, penandaan **MOCK**
-di antarmuka wajib ikut berubah per sinyal — jangan sampai satu label lama
-menutupi campuran data nyata dan contoh.
+An important note: as soon as demand comes from real data, the **MOCK** marking in the
+interface has to become per-signal — one stale label must not end up covering a mixture of
+real and sample data.
 
 ---
 
-## 4. Yang tetap tidak tersedia
+## 4. What remains unavailable
 
-Struk Go, Menu Go, dan Properti Go adalah dataset misi kompetisi, bukan bagian
-katalog premium. Selama belum ada:
+Struk Go, Menu Go, and Properti Go are the competition's mission datasets, not part of the
+premium catalogue. For as long as they are absent:
 
-- **Kondisi pembeli** (seberapa ramai pesaing) — tetap contoh.
-- **Ruang usaha yang disewakan** — tetap contoh; gerbang ketersediaan ruang
-  masih berjalan sebagai penampung yang ditandai jelas.
+- **Buyer conditions** (how busy competitors are) — stays mock.
+- **Commercial space for rent** — stays mock; the space-availability gate still runs as a
+  clearly marked placeholder.
 
-### Sudah ditelusuri, dan hasilnya nihil
+### Already investigated, and the result was nothing
 
-Setiap jalan yang bisa dijangkau `MAPID_API_KEY` sudah diuji, bukan diasumsikan:
+Every route `MAPID_API_KEY` can reach has been tested, not assumed:
 
-| Jalan | Hasil |
+| Route | Result |
 |---|---|
-| `search_data_premium_v2` — `STRUK GO`, `MENU GO`, `PROPERTI GO`, `MISSION`, `CATALYST` | tidak ada satu pun dataset misi |
-| `search_layers_public` — ketiga nama | tidak ada satu pun dataset misi |
-| `get_layer_list` proyek sendiri | 12 layer, semuanya salinan katalog |
-| `missions/*`, `activities/*`, `forms/*`, daftar proyek | seluruhnya 404 — endpoint-nya memang tidak ada |
+| `search_data_premium_v2` — `STRUK GO`, `MENU GO`, `PROPERTI GO`, `MISSION`, `CATALYST` | not one mission dataset |
+| `search_layers_public` — all three names | not one mission dataset |
+| `get_layer_list` on our own project | 12 layers, all catalogue copies |
+| `missions/*`, `activities/*`, `forms/*`, project listings | all 404 — the endpoints simply do not exist |
 
-Pemeriksaan ini bukan catatan sekali jalan: `node scripts/fetch-mission.mjs`
-tanpa argumen mengulanginya setiap kali dijalankan, supaya ketiadaannya terus
-diuji dan tidak pelan-pelan berubah jadi asumsi — pola yang sama dengan
-`missing` di `fetch-mapid.mjs`.
+This check is not a one-off note: `node scripts/fetch-mission.mjs` with no arguments
+repeats it on every run, so the absence keeps being tested rather than quietly turning into
+an assumption — the same pattern as `missing` in `fetch-mapid.mjs`.
 
-> **Jebakan penamaan.** Katalog menjawab `STRUK` dengan sembilan belas dataset
-> `KONSTRUKSI` — kata "STRUK" ada di dalamnya. `PROPERTI GO` menarik
-> `HARGA PROPERTI DI KABUPATEN GOWA`. Penyaring nama di skrip karena itu
-> mewajibkan `GO` menempel dan memakai batas kata; keduanya dikunci di
-> `--selftest`.
+> **The naming trap.** The catalogue answers `STRUK` with nineteen `KONSTRUKSI` datasets —
+> the word "STRUK" sits inside it. `PROPERTI GO` pulls in `HARGA PROPERTI DI KABUPATEN
+> GOWA`. The name filter in the script therefore requires `GO` to be adjacent and uses a
+> word boundary; both are locked down in `--selftest`.
 
-### Koreksi: `MAPID_PROJECT_ID=<proyek berbagi>` tidak akan berhasil
+### Correction: `MAPID_PROJECT_ID=<shared project>` will not work
 
-Edisi sebelumnya menganjurkan: buka proyek misi di editor, ambil `project_id`
-dari URL, jalankan skrip dengan `MAPID_PROJECT_ID=<id>`. **Cara itu gagal**, dan
-gagalnya diam-diam merusak yang lain juga:
+An earlier edition advised: open the mission project in the editor, take the `project_id`
+from the URL, run the script with `MAPID_PROJECT_ID=<id>`. **That procedure fails**, and it
+fails in a way that quietly breaks something else too:
 
 ```
-get_layer_list(project_id milik orang lain)   → 403 {"message":"Not owner"}
-get_layer(layer_id orang lain, project_id kita) → 200, isi lengkap
-get_layer(layer_id orang lain, project_id mereka) → 404 is_owner_project:false
+get_layer_list(someone else's project_id)          → 403 {"message":"Not owner"}
+get_layer(their layer_id, our project_id)          → 200, full contents
+get_layer(their layer_id, their project_id)        → 404 is_owner_project:false
 ```
 
-Dua hal yang terbaca dari situ:
+Two things follow from that:
 
-1. **Proyek milik orang lain tidak bisa didaftar isinya.** Berbagi proyek di GEO
-   MAPID bersifat *viewer mode* lewat tautan; `get_layer_list` tetap menolak.
-2. **"Karcis baca" di `lib/mapid.mjs` ternyata bukan trik khusus katalog
-   premium.** Layer apa pun bisa dibaca asal `project_id` yang dikirim milik
-   sendiri. Yang membatasi bukan izin, melainkan **penemuan**: kita perlu
-   `layer_id`-nya, bukan kepemilikannya.
+1. **The contents of someone else's project cannot be listed.** Sharing a project in GEO
+   MAPID is *viewer mode* over a link; `get_layer_list` still refuses.
+2. **The "read ticket" in `lib/mapid.mjs` turns out not to be a premium-catalogue trick at
+   all.** Any layer can be read as long as the `project_id` sent is one we own. The limit is
+   not permission but **discovery**: what we need is the `layer_id`, not ownership.
 
-Mengisi `MAPID_PROJECT_ID` dengan proyek orang lain justru menjatuhkan pembacaan
-katalog premium sekalian, karena karcis itu harus proyek sendiri.
+Setting `MAPID_PROJECT_ID` to someone else's project would in fact take the premium
+catalogue reads down with it, because that ticket has to be a project of our own.
 
-### Cara yang benar, begitu datanya ada
+### The right way, once the data exists
 
-Yang dibutuhkan hanya `layer_id` tiap dataset — segmen terakhir URL layer,
+All that is needed is each dataset's `layer_id` — the last segment of a layer URL,
 `https://geo.mapid.io/layer/<LAYER_ID>`:
 
 ```bash
@@ -441,89 +428,72 @@ MAPID_STRUK_LAYER=<id> MAPID_MENU_LAYER=<id> MAPID_PROP_LAYER=<id> \
   node scripts/fetch-mission.mjs
 ```
 
-Skrip juga memungut sendiri layer bernama `STRUK GO` / `MENU GO` / `PROPERTI GO`
-bila kebetulan sudah diimpor ke proyek kita, jadi jalur impor manual tetap
-bekerja tanpa variabel lingkungan.
+The script also picks up layers named `STRUK GO` / `MENU GO` / `PROPERTI GO` by itself if
+they happen to have been imported into our own project, so the manual import route still
+works with no environment variables at all.
 
-Skemanya sudah ditranskrip dari [§A.4 ketentuan](00-ketentuan-kompetisi.md) dan
-nama kolomnya dicocokkan longgar lewat daftar alias. Kolom yang tidak ketemu
-**dilaporkan**, tidak dibaca sebagai nol — bagian pembayaran yang berganti nama
-akan terlihat sebagai "kolom tidak ketemu", bukan sebagai catchment yang membayar
-tunai. `node scripts/fetch-mission.mjs --selftest` menguji pengurainya tanpa
-jaringan.
+The schemas are transcribed from [§A.4 of the rules](00-ketentuan-kompetisi.md) and column
+names are matched loosely through a list of aliases. A column that does not resolve is
+**reported**, never read as zero — a renamed payment column will show up as "column not
+found", not as a catchment that pays in cash. `node scripts/fetch-mission.mjs --selftest`
+exercises the parser without touching the network.
 
-### Contoh 15 titik dari panitia
+### The organisers' 15-point samples
 
-Ketentuan mencantumkan tautan contoh per dataset (`mapid.co.id/SampleStrukGo`,
-`SampleMenuGo`, `SamplePropertiGo`). Isinya belum sempat diperiksa dari sesi ini
-— host `mapid.co.id` diblokir kebijakan egress lingkungan kerja, sementara
-`geoserver.mapid.io` dan `server.mapid.io` terbuka. Bila tautan itu bermuara ke
-sebuah layer GEO MAPID, `layer_id`-nya sudah cukup untuk dipakai di perintah di
-atas.
+The rules list a sample link per dataset (`mapid.co.id/SampleStrukGo`, `SampleMenuGo`,
+`SamplePropertiGo`). Their contents have not been inspected from this session — the
+`mapid.co.id` host is blocked by the working environment's egress policy, while
+`geoserver.mapid.io` and `server.mapid.io` are open. If those links resolve to a GEO MAPID
+layer, the `layer_id` alone is enough for the command above.
 
 ---
 
-## 5. Endpoint yang sudah terverifikasi
+## 5. Verified endpoints
 
 ```
-# menelusuri KATALOG PREMIUM — tanpa autentikasi, cocok AND per kata
+# search the PREMIUM CATALOGUE — no authentication, matches AND per word
 GET https://server.mapid.io/moneys_bun/search_data_premium_v2
-      ?search_params=<istilah>[&category_id=<id>]
+      ?search_params=<term>[&category_id=<id>]
 
-# isi satu layer — layer_id boleh milik siapa pun selama layer-nya publik,
-# project_id WAJIB milik sendiri, limit WAJIB eksplisit (lihat §1)
+# the contents of one layer — layer_id may belong to anyone as long as the layer is
+# public, project_id MUST be your own, limit MUST be explicit (see §1)
 GET https://geoserver.mapid.io/layers_new/get_layer
-      ?api_key=<KEY>&layer_id=<LAYER_ID>&project_id=<PROJECT_ID_SENDIRI>&limit=100000
+      ?api_key=<KEY>&layer_id=<LAYER_ID>&project_id=<YOUR_OWN_PROJECT_ID>&limit=100000
 
-# daftar layer dalam satu proyek milik sendiri
+# list the layers inside a project you own
 GET https://geoserver.mapid.io/layers_new/get_layer_list
       ?api_key=<KEY>&project_id=<PROJECT_ID>
 
-# metadata satu layer tanpa isi — termasuk category_id, is_premium, dan
-# geo_project pemiliknya. Boleh untuk layer milik siapa pun.
+# one layer's metadata without its contents — including category_id, is_premium, and
+# the owning geo_project. Allowed for anyone's layer.
 GET https://geoserver.mapid.io/layers/get_detail_wo_geojson_by_link/<LAYER_ID>
       ?api_key=<KEY>
 
-# jumlah dataset per kategori katalog, beserta category_id tiap kategori
+# the number of datasets per catalogue category, with each category's category_id
 GET https://server.mapid.io/moneys_bun/get_data_premium_count
 
-# daftar dataset premium satu kategori, 20 baris per halaman
+# the premium datasets in one category, 20 rows per page
 GET https://server.mapid.io/moneys_bun/get_data_premium_by_category_id
       ?category_id=<id>&skip=<n>
 ```
 
-Aturan kepemilikan yang berlaku di ketiga endpoint layer, sudah diuji satu per
-satu (lihat §4):
+The ownership rules that apply across the three layer endpoints, each tested individually
+(see §4):
 
-| Panggilan | Jawaban |
+| Call | Answer |
 |---|---|
-| `get_layer` layer orang lain + `project_id` **sendiri** | 200, isi lengkap |
-| `get_layer` layer orang lain + `project_id` **mereka** | 404, `is_owner_project:false` |
-| `get_layer_list` proyek orang lain | 403 `{"message":"Not owner"}` |
-| `get_detail_wo_geojson_by_link` layer siapa pun | 200 |
+| `get_layer` someone else's layer + **your own** `project_id` | 200, full contents |
+| `get_layer` someone else's layer + **their** `project_id` | 404, `is_owner_project:false` |
+| `get_layer_list` on someone else's project | 403 `{"message":"Not owner"}` |
+| `get_detail_wo_geojson_by_link` on anyone's layer | 200 |
 
-Ringkasnya: `project_id` yang dikirim adalah **karcis baca milik sendiri**, bukan
-petunjuk tempat layer itu tinggal. Karena itu satu `layer_id` sudah cukup untuk
-membaca dataset apa pun yang publik — dan karena itu pula isi proyek orang lain
-tidak bisa didaftar.
+In short: the `project_id` sent is **your own read ticket**, not a pointer to where the
+layer lives. That is why one `layer_id` is enough to read any public dataset — and equally
+why the contents of someone else's project cannot be listed.
 
-Yang **tidak** dipakai lagi:
+No longer used:
 
-- `layers_new/search_layers_public/<istilah>?skip=<n>` — hanya mengindeks layer
-  publik, tidak memuat katalog premium, dan mengembalikan proyek tugas kuliah
-  orang lain yang namanya kebetulan mirip. Inilah sumber laporan palsu "APOTEK
-  tidak terlihat".
-- `layers_new/get_layer_point` — menjawab `"No token"`; perlu sesi login.
-
-Nama parameter di atas dibaca dari kode sumber antarmuka GEO MAPID sendiri
-(`https://geo.mapid.io/static/js/main.*.js`) — cara yang jauh lebih murah
-daripada menebak, dan satu-satunya yang menemukan `search_params`.
-
-`skip` diterima `search_data_premium_v2` tetapi **diabaikan** — jangan andalkan
-paginasi di sana, persempit kuerinya. Karena pencocokannya AND per kata, kueri
-seperti `APOTEK JAKARTA PUSAT` mengembalikan tepat satu dataset.
-
-Basemap MAPID MAPS memerlukan kunci **Map Service** yang berbeda (Dashboard →
-Map Services → API Keys); `MAPID_API_KEY` ditolak 401 di `basemap.mapid.io`.
-Format gayanya: `https://basemap.mapid.io/styles/street-2d-building/style.json?key=…`
-(juga `street`, `satellite`, `dark`, `light`) → isi ke `PUBLIC_MAPID_STYLE_URL`.
+- `layers_new/search_layers_public/<term>?skip=<n>` — indexes public layers only, does not
+  include the premium catalogue, and returns other people's coursework projects whose names
+  happen to look similar. This is the source of the false report that "APOTEK is not
+  visible".
