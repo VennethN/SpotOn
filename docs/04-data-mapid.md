@@ -438,13 +438,65 @@ names are matched loosely through a list of aliases. A column that does not reso
 found", not as a catchment that pays in cash. `node scripts/fetch-mission.mjs --selftest`
 exercises the parser without touching the network.
 
-### The organisers' 15-point samples
+### The organisers' samples — read, and the reader verified against them
 
-The rules list a sample link per dataset (`mapid.co.id/SampleStrukGo`, `SampleMenuGo`,
-`SamplePropertiGo`). Their contents have not been inspected from this session — the
-`mapid.co.id` host is blocked by the working environment's egress policy, while
-`geoserver.mapid.io` and `server.mapid.io` are open. If those links resolve to a GEO MAPID
-layer, the `layer_id` alone is enough for the command above.
+The rules list a sample link per dataset. Each one redirects to a **Google Drive folder**,
+not a GEO MAPID layer — so there is no `layer_id` to lift from them, and no API path to the
+mission data. It is a hand-distributed drop:
+
+| Link | Drive folder |
+|---|---|
+| `mapid.co.id/SampleStrukGo` | `1Bg0RrMyuCTOjv3szQ6UaU2BtytsScgYj` |
+| `mapid.co.id/SampleMenuGo` | `1Mu2dAI6J7FgytYFBH1BpT9ON1r8P6SZr` |
+| `mapid.co.id/SamplePropertiGo` | `16pzCdSrZnKDxyCXENYSpv9hQlD-cLcDk` |
+| `mapid.co.id/SampleActivityMAPIDAPPS` | `1LmV72E5refgS5w-oJklMFm8BWiWQnoIi` |
+
+Each folder holds the same 15 rows as CSV, GeoJSON, GeoPackage, and a full shapefile
+bundle. The Properti Go folder also contains **`Properti Go Bandung.geojson`, 590 real
+points** — not a sample, and the only mission data at real volume anyone outside the
+curated set has seen.
+
+**The data is Bandung, not Jakarta** (and one Menu Go point near Depok). It is good for
+confirming the schema and nothing else — none of it can be scored by SpotOn.
+
+Run the reader over them with:
+
+```bash
+node scripts/fetch-mission.mjs --verify <paths to the .geojson files>
+```
+
+All 635 features across the four files normalise with **zero unresolved columns**. Two
+columns only resolved because of the alias list, and would have broken an exact-name match:
+
+| Documented in §A.4 | Actually in the data |
+|---|---|
+| `Nama Tempat/Makan` | `Nama Tempat Makan` — no slash |
+| `Tanggal` (Properti Go) | `' Tanggal'` — **with a leading space** |
+
+Other differences worth knowing before the join is written:
+
+- **`Jenis Properti` reads `Disewa` / `Dijual`**, not the `Sewa` / `Jual` the rules table
+  gives. The current regexes match on the substrings, so both work.
+- **`Kategori Properti` reads `Retail FnB`, while `categories.ts` says `Retail F&B`.**
+  Nothing is broken today — `propertyCategory` is only used to write the narration text —
+  but **seven of thirteen categories** map to that value, so an exact-string match in the
+  join would silently return zero listings for all of them, and zero listings closes the
+  availability gate. Normalise at the join boundary; do not change the display label, which
+  is spelled correctly.
+- Struk Go carries eleven columns not in §A.4, all suffixed `(Lama)` — legacy fields from
+  an earlier version of the form, including `Total Pengeluaran (Tanpa PPN) (Lama)` and
+  `Total Pengeluran per Orang (Lama)` (the typo is theirs). **Every one is null or 0.0.**
+  So there is no spend figure in the data, only a photograph of the receipt — which is
+  exactly the assumption the proposal was built on (§3.3: rupiah values on receipt
+  photographs are not a core indicator).
+- Struk Go and the Bandung Properti Go also carry `Kontributor`, `Pengecekan`,
+  `Catatan Kesalahan`, and `ID data` / `ID Data` (the capitalisation differs between the
+  two). None are needed, all are ignored.
+
+The sample files themselves are **deliberately not committed.** Rules §B.7 forbids
+redistributing raw MAPID data to outside parties, and this repository may become public.
+`--verify` therefore takes a path to wherever they were downloaded, rather than reading a
+fixture from the repo.
 
 ---
 

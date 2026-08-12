@@ -45,9 +45,9 @@
  * one of those is true.
  */
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { mapidKey, projectId, readLayer, searchPremium, listProjectLayers } from './lib/mapid.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -269,7 +269,13 @@ export function normalise(kind, features) {
 			const kondisi = String(col(p, resolved, 'kondisi') ?? '');
 			pt.busy = kondisi ? BUSY.test(kondisi) : null;
 			pt.kondisi = kondisi || null;
-			pt.keliling = /^\s*YA/i.test(String(col(p, resolved, 'mobil') ?? '')) || null;
+			// Tri-state, for the same reason `cashless` is. An earlier version wrote
+			// `/^\s*YA/.test(...) || null`, which collapses a definite "Tidak
+			// (Menetap/Mangkal di satu titik)" to null — indistinguishable from a row
+			// where the question was never answered. The real sample is 14 fixed
+			// vendors and 1 roaming one; that version reported 14 unknowns.
+			const mobil = String(col(p, resolved, 'mobil') ?? '');
+			pt.keliling = /\bYA\b/i.test(mobil) ? true : /\bTIDAK\b/i.test(mobil) ? false : null;
 		} else {
 			pt.kategori = col(p, resolved, 'kategori') ?? null;
 			const jenis = String(col(p, resolved, 'jenis') ?? '');
@@ -399,6 +405,15 @@ function selftest() {
 	check('menu: no missing columns', menu.missing, []);
 	check('menu: prices parsed', menu.points.map((p) => p.harga), [25000, 35000]);
 	check('menu: busy read from Kondisi Pembeli', menu.points.map((p) => p.busy), [true, false]);
+	// Real values, verbatim from the organisers' sample: a leading space, and the full
+	// parenthesised text rather than the bare Ya/Tidak the rules table implies.
+	check('menu: mobility is a tri-state, not truthy-or-null',
+		normalise('menu', [
+			mk({ 'Apakah Berjualan Dengan Berkeliling (Mobilitas)?': ' Tidak (Menetap/Mangkal di satu titik)' }, 106.8, -6.2),
+			mk({ 'Apakah Berjualan Dengan Berkeliling (Mobilitas)?': 'Ya (Berkeliling)' }, 106.8, -6.2),
+			mk({ 'Apakah Berjualan Dengan Berkeliling (Mobilitas)?': '' }, 106.8, -6.2)
+		]).points.map((p) => p.keliling),
+		[false, true, null]);
 
 	const prop = normalise('prop', [
 		mk({ 'Kategori Properti': 'Coffee Shop', 'Jenis Properti': 'Sewa', Alamat: 'Jl. X' }, 106.8, -6.2),
@@ -429,10 +444,60 @@ function selftest() {
    main
    ──────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * Runs the normaliser over GeoJSON files already on disk.
+ *
+ *   node scripts/fetch-mission.mjs --verify struk.geojson menu.geojson …
+ *
+ * The kind is inferred from the filename, so the organisers' own sample files work
+ * unrenamed. This exists because the sample sets are the only real mission data
+ * available before curation, and they must NOT be committed — rules §B.7 forbids
+ * redistributing raw MAPID data, and this repository may become public. So the
+ * fixtures live outside the repo and this flag points at wherever they were
+ * downloaded.
+ */
+function verifyFiles(paths) {
+	let bad = 0;
+	for (const p of paths) {
+		const kind = /struk/i.test(p) ? 'struk' : /menu/i.test(p) ? 'menu' : /prop/i.test(p) ? 'prop' : null;
+		if (!kind) {
+			console.log(`  ?    ${p} — cannot tell which mission set this is from the filename`);
+			bad++;
+			continue;
+		}
+		const gj = JSON.parse(readFileSync(p, 'utf8'));
+		const feats = gj.features ?? [];
+		const { points, resolved, missing, noGeom, presentKeys } = normalise(kind, feats);
+		const ok = missing.length === 0 && noGeom === 0 && points.length === feats.length;
+		if (!ok) bad++;
+		console.log(`\n  ${ok ? 'ok  ' : 'FAIL'} ${SCHEMAS[kind].label} · ${p}`);
+		console.log(`       ${feats.length} features → ${points.length} points, ${noGeom} without usable coordinates`);
+		for (const [want, actual] of Object.entries(resolved)) {
+			const exact = SCHEMAS[kind].columns[want][0] === actual;
+			console.log(`       ${want.padEnd(10)} → ${JSON.stringify(actual)}${exact ? '' : '   (matched by alias, not the documented name)'}`);
+		}
+		if (missing.length) console.log(`       ! unresolved: ${missing.join(', ')}`);
+		const extra = presentKeys.filter((k) => !Object.values(resolved).includes(k));
+		if (extra.length) console.log(`       columns present but unused: ${extra.join(', ')}`);
+	}
+	return bad;
+}
+
 async function main() {
 	if (process.argv.includes('--selftest')) {
 		console.log('Normaliser self-test (no network, schema from docs/00 §A.4)\n');
 		process.exit(selftest() ? 1 : 0);
+	}
+
+	const vi = process.argv.indexOf('--verify');
+	if (vi !== -1) {
+		const paths = process.argv.slice(vi + 1).filter((a) => !a.startsWith('--'));
+		if (!paths.length) {
+			console.error('--verify needs one or more GeoJSON paths');
+			process.exit(1);
+		}
+		console.log('Normalising real mission GeoJSON\n');
+		process.exit(verifyFiles(paths) ? 1 : 0);
 	}
 
 	const key = mapidKey();
@@ -489,7 +554,12 @@ async function main() {
 	console.log('Next: join onto the hexagon grid, the way join-mapid.mjs does for the catalogue POIs.');
 }
 
-main().catch((err) => {
-	console.error('Failed:', err.message);
-	process.exit(1);
-});
+// Only run when executed directly. `normalise` is exported so it can be driven from a
+// test or a scratch script; without this guard, importing the module fired the whole
+// probe — a dozen network calls as a side effect of reading one function.
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+	main().catch((err) => {
+		console.error('Failed:', err.message);
+		process.exit(1);
+	});
+}
