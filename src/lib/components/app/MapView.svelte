@@ -152,6 +152,9 @@
 							// would report a coverage gap that has not been looked for.
 							uncovered: Boolean(row) && !nodata && row!.score === null,
 							color: nodata ? colNodata : row ? ramp[rampIndex(row.score ?? 0)] : colIdle,
+							// Carries a score right now, so the fill means something. An idle cell
+							// is drawn as structure instead: faint fill, crisper edge.
+							scored: Boolean(row) && !nodata && row!.score !== null,
 							saturated: row?.typology === 'saturated',
 							selected: h.id === selectedId
 						}
@@ -188,7 +191,24 @@
 			filter: ['all', ['!', ['get', 'nodata']], ['!', ['get', 'uncovered']]],
 			paint: {
 				'fill-color': ['get', 'color'],
-				'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.68, 0.5]
+				/**
+				 * A scored cell is filled, because the fill IS the reading. An idle one is
+				 * barely filled, because it has nothing to say and the reader is looking
+				 * through it at the streets and place names to work out where they are.
+				 *
+				 * Filled at the same strength as a scored cell, the idle grid became a flat
+				 * wash over the whole city — the basemap gone, every cell identical, and
+				 * nothing to look at. What makes the idle grid legible is its EDGES, below,
+				 * not its fill.
+				 */
+				'fill-opacity': [
+					'case',
+					['boolean', ['feature-state', 'hover'], false],
+					['case', ['get', 'scored'], 0.68, 0.4],
+					['get', 'scored'],
+					0.5,
+					0.16
+				]
 			}
 		});
 		m.addLayer({
@@ -218,15 +238,29 @@
 			type: 'line',
 			source: 'catchments',
 			paint: {
+				// With the heatmap off the edge is the only thing drawing the grid, so it
+				// gets a colour of its own rather than the panel hairline — which is tuned
+				// to separate list rows, not to hold a shape over a map.
 				'line-color': [
 					'case',
 					['get', 'selected'],
 					cssVar('--label-1'),
 					['get', 'saturated'],
 					cssVar('--critical'),
-					cssVar('--separator-strong')
+					['get', 'scored'],
+					cssVar('--separator-strong'),
+					cssVar('--cell-edge')
 				],
-				'line-width': ['case', ['get', 'selected'], 2.4, ['get', 'saturated'], 1.8, 1]
+				'line-width': [
+					'case',
+					['get', 'selected'],
+					2.4,
+					['get', 'saturated'],
+					1.8,
+					['get', 'scored'],
+					1,
+					1.1
+				]
 			}
 		});
 		m.addLayer({
@@ -539,7 +573,9 @@
 			cssVar('--label-1'),
 			['get', 'saturated'],
 			cssVar('--critical'),
-			cssVar('--separator-strong')
+			['get', 'scored'],
+			cssVar('--separator-strong'),
+			cssVar('--cell-edge')
 		]);
 		syncMarkers(app.base);
 	});

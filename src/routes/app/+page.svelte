@@ -17,7 +17,10 @@
 	let { data }: { data: PageData } = $props();
 
 	// The initial data is deliberately fetched once; all state after that lives in AppState.
-	const app = setAppState(untrack(() => data.catchments));
+	const app = setAppState(
+		untrack(() => data.catchments),
+		untrack(() => data.slice)
+	);
 	const c = $derived(copy());
 
 	/** The compact layout uses a draggable sheet; the wide one uses floating panels. */
