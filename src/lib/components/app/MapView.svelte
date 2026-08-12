@@ -115,7 +115,7 @@
 	function catchmentFC(): FeatureCollection {
 		const rows = heat ? app.rowById : null;
 		const colNodata = cssVar('--nodata');
-		const colFlat = cssVar('--fill-2');
+		const colIdle = cssVar('--cell-idle');
 		const ramp = Array.from({ length: 7 }, (_, i) => cssVar(`--ramp-${i}`));
 		const selectedId = app.selectedId;
 		const showNodata = app.layers.nodata;
@@ -151,7 +151,7 @@
 							// loaded nothing has been checked yet, and dashing every cell
 							// would report a coverage gap that has not been looked for.
 							uncovered: Boolean(row) && !nodata && row!.score === null,
-							color: nodata ? colNodata : row ? ramp[rampIndex(row.score ?? 0)] : colFlat,
+							color: nodata ? colNodata : row ? ramp[rampIndex(row.score ?? 0)] : colIdle,
 							saturated: row?.typology === 'saturated',
 							selected: h.id === selectedId
 						}
