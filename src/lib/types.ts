@@ -218,6 +218,32 @@ export interface Recommendation {
 	evidence: string;
 }
 
+/**
+ * What the grid file knows about itself.
+ *
+ * Written by `scripts/build-hexes.mjs`, so these counts can never drift from the
+ * data they describe: rebuild the grid and every figure quoting them follows. The
+ * interface reads them rather than repeating numbers in prose.
+ */
+export interface GridMeta {
+	resolution: number;
+	walkRadius: number;
+	hexes: number;
+	nodata: number;
+	/** Transit nodes captured by the grid (OSM). */
+	stops: number;
+	stopsByMode: Record<string, number>;
+	/** Competitor POIs counted from OpenStreetMap. */
+	pois: number;
+	poisByCategory: Record<string, number>;
+	/** Present once the MAPID premium join has been run. */
+	mapid?: {
+		source: string;
+		points: number;
+		coveredCities?: Record<string, string[]>;
+	};
+}
+
 export interface AiAnswer {
 	query: StructuredQuery;
 	/** Who translated the question — the model, or the fallback rule parser. */

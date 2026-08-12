@@ -1,6 +1,6 @@
 import raw from '$lib/data/hexes.json';
 import { CATEGORY_FIELDS } from '$lib/types';
-import type { CategoryKey, CategorySlice, Hex, HexBase } from '$lib/types';
+import type { CategoryKey, CategorySlice, GridMeta, Hex, HexBase } from '$lib/types';
 
 /**
  * SpotOn's data source.
@@ -15,15 +15,7 @@ import type { CategoryKey, CategorySlice, Hex, HexBase } from '$lib/types';
  */
 
 interface RawFile {
-	meta: {
-		resolution: number;
-		walkRadius: number;
-		hexes: number;
-		nodata: number;
-		stops: number;
-		stopsByMode: Record<string, number>;
-		pois: number;
-		poisByCategory: Record<string, number>;
+	meta: GridMeta & {
 		real: string;
 		mock: string;
 		regenerate: string;
@@ -103,7 +95,7 @@ export const provenance = {
 	},
 	real: {
 		label: 'OSM',
-		note: `${file.meta.stops} simpul transit (MRT ${file.meta.stopsByMode.mrt ?? 0}, KRL ${file.meta.stopsByMode.krl ?? 0}, LRT ${file.meta.stopsByMode.lrt ?? 0}, TransJakarta ${file.meta.stopsByMode.brt ?? 0}) dan ${file.meta.pois} POI pesaing OSM — OpenStreetMap via Overpass API (ODbL).`
+		note: `${file.meta.stops} simpul transit (MRT ${file.meta.stopsByMode.mrt ?? 0}, KRL ${file.meta.stopsByMode.krl ?? 0}, LRT ${file.meta.stopsByMode.lrt ?? 0}, TransJakarta ${file.meta.stopsByMode.brt ?? 0}) dan ${file.meta.pois} POI pesaing OSM, dari OpenStreetMap via Overpass API (ODbL).`
 	},
 	mock: {
 		label: 'MOCK',
