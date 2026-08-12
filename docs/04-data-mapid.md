@@ -390,6 +390,20 @@ This check is not a one-off note: `node scripts/fetch-mission.mjs` with no argum
 repeats it on every run, so the absence keeps being tested rather than quietly turning into
 an assumption — the same pattern as `missing` in `fetch-mapid.mjs`.
 
+Searched again from the public web once egress to `mapid.co.id` was opened, with the same
+result:
+
+| Route | Result |
+|---|---|
+| `mapid.co.id/data-catalog` | no mention of Struk, Menu, Properti Go, Mission, or Catalyst |
+| `mapid.co.id/sitemap.xml` (500 URLs) | only MAPID Catalyst *news articles*; no data page |
+| the two on-topic blog posts (MRT ASEAN property, Bekasi coffee competition) | 2021–2023, built on open POI data, no mission data |
+| bare short links — `/StrukGo`, `/PropertiGo`, `/DataMission`, `/PropertiGoJakarta`, and six more | the shortener answers `Link not found!` |
+
+So the four `Sample…` links in the rules are the only mission-data links that exist
+publicly. There is no undocumented route: the full datasets are handed to curated teams,
+and no amount of probing substitutes for that.
+
 > **The naming trap.** The catalogue answers `STRUK` with nineteen `KONSTRUKSI` datasets —
 > the word "STRUK" sits inside it. `PROPERTI GO` pulls in `HARGA PROPERTI DI KABUPATEN
 > GOWA`. The name filter in the script therefore requires `GO` to be adjacent and uses a
