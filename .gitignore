@@ -22,12 +22,12 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Perkakas lokal (dipasang ulang lewat `npx impeccable install`, bukan sumber proyek)
+# Local tooling (reinstalled via `npx impeccable install`, not project source)
 .claude/skills/
 .claude/settings.local.json
 .impeccable/
 
-# Kunci & rahasia — jangan pernah ikut ter-commit
+# Keys & secrets — must never be committed
 .env
 .env.*
 !.env.example

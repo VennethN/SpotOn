@@ -17,16 +17,16 @@
 
 	const c = $derived(copy());
 	const n = (v: number) => v.toLocaleString(lang() === 'en' ? 'en-GB' : 'id-ID');
-	const k = $derived(data.kisi);
+	const k = $derived(data.grid);
 
-	// Angka blok judul dibaca dari kisi, tidak ditulis tangan. Versi tulis tangan
-	// halaman ini pernah menyebut "13 kawasan MRT" jauh setelah kisinya tumbuh
-	// jadi 558 petak empat moda — persis kesalahan yang tidak boleh terulang.
+	// The title-block figures are read from the grid, not written by hand. A
+	// hand-written version of this page once said "13 MRT areas" long after the grid
+	// had grown to 558 cells across four modes — exactly the mistake not to repeat.
 	const STATS = $derived([
 		{ v: n(k.hexes), l: c.stats.hexes.label, s: c.stats.hexes.sub(k.walkRadius) },
 		{ v: n(k.stops), l: c.stats.stops.label, s: c.stats.stops.sub },
 		{ v: n(k.pois), l: c.stats.pois.label, s: c.stats.pois.sub },
-		{ v: n(k.kategori), l: c.stats.cats.label, s: c.stats.cats.sub }
+		{ v: n(k.categories), l: c.stats.cats.label, s: c.stats.cats.sub }
 	]);
 
 	const MODES = $derived([
@@ -54,10 +54,10 @@
 
 <StreetStage />
 
-<!-- Halaman di bawah panggung memakai bahasa yang sama dengan maketnya: lembar
-     gambar. Garis rambut, label menggantung di kolom kiri, angka besar bertipis —
-     bukan kartu berbayang. Yang membentuk halaman ini garis dan ruang, bukan kotak.
-     Warna hanya muncul di tempat yang benar-benar membawa data. -->
+<!-- The page below the stage speaks the same language as the model: a drawing
+     sheet. Hairlines, labels hanging in the left column, large thin numerals —
+     not shadowed cards. What shapes this page is line and space, not boxes.
+     Colour appears only where it genuinely carries data. -->
 <main id="top" class="sheet">
 	<Reveal as="section">
 		<ul class="titleblock">
@@ -69,10 +69,10 @@
 				</li>
 			{/each}
 		</ul>
-		<p class="cover-note">{c.stats.coverNote(n(k.terdata), n(k.hexes), n(k.nodata))}</p>
+		<p class="cover-note">{c.stats.coverNote(n(k.withData), n(k.hexes), n(k.nodata))}</p>
 	</Reveal>
 
-	<!-- ── masalah ──────────────────────────────────────────────────────── -->
+	<!-- ── the problem ──────────────────────────────────────────────────── -->
 	<section id="masalah" class="band">
 		<Reveal><SectionMark n="01" label={c.problem.mark} /></Reveal>
 		<Reveal><h2>{c.problem.title}</h2></Reveal>
@@ -90,33 +90,33 @@
 			<p class="statement">{c.problem.statement}</p>
 		</Reveal>
 
-		<!-- Grafik pertama halaman ini sekaligus jawaban atas "permintaan tidak
-		     terukur": bentuknya nyata, dan kesimpulannya bisa dibaca dalam sedetik. -->
+		<!-- This page's first chart is also the answer to "demand is not measured":
+		     its shape is real, and the conclusion reads in a second. -->
 		<Reveal>
 			<div class="split wide-left">
 				<div>
 					<h3 class="lede">{c.problem.chartTitle}</h3>
 					<p class="body">{c.problem.chartBody}</p>
 				</div>
-				<HourProfile jam={data.jam} />
+				<HourProfile hourly={data.hourly} />
 			</div>
 		</Reveal>
 	</section>
 
-	<!-- ── cara kerja ───────────────────────────────────────────────────── -->
+	<!-- ── how it works ─────────────────────────────────────────────────── -->
 	<section id="cara-kerja" class="band">
 		<Reveal><SectionMark n="02" label={c.how.mark} /></Reveal>
 		<Reveal><h2>{c.how.title}</h2></Reveal>
 
-		<!-- Kisi itu keputusan bentuk yang paling sulit dijelaskan dengan kalimat,
-		     jadi ia diperlihatkan: satu maket kedua, digerakkan gulir seperti maket
-		     jalan di atasnya, dengan alat ukur yang dipakai gambar kerja. -->
+		<!-- The grid is the formal decision hardest to explain in a sentence, so it is
+		     shown instead: a second model, scroll-driven like the street model above
+		     it, with the measuring marks a working drawing uses. -->
 		<Reveal><GridStage /></Reveal>
 
 		<Reveal><SignalFlow /></Reveal>
 
-		<!-- Nomor dipertahankan di sini karena urutannya memang membawa informasi:
-		     langkah 3 tidak mungkin dijalankan sebelum langkah 2. -->
+		<!-- The numbering is kept here because the order genuinely carries information:
+		     step 3 cannot run before step 2. -->
 		<ol class="rows steps">
 			{#each c.how.steps as s, i (s.t)}
 				<Reveal as="li" delay={i * 80}>
@@ -127,9 +127,9 @@
 		</ol>
 
 		<Reveal delay={120}>
-			<!-- Kalimat biasa yang memimpin; rumusnya tetap ada, tapi dilipat. Pembaca yang
-			     dituju halaman ini tidak sedang mencari notasi — juri yang mau memeriksanya
-			     tinggal membuka satu baris. -->
+			<!-- The plain sentence leads; the formula is still there, but folded away. The
+			     reader this page is for is not looking for notation — a judge who wants to
+			     check it need only open one line. -->
 			<div class="plate">
 				<p class="plain">{c.how.plain}</p>
 				<p class="note">{c.how.note}</p>
@@ -164,14 +164,14 @@
 
 			<Reveal delay={100}>
 				<TapakDemo
-					sets={data.percakapan[lang()]}
-					sapaan={c.tapak.greet(k.hexes, k.terdata)}
+					sets={data.conversation[lang()]}
+					greeting={c.tapak.greet(k.hexes, k.withData)}
 				/>
 			</Reveal>
 		</div>
 	</section>
 
-	<!-- ── kejujuran data ───────────────────────────────────────────────── -->
+	<!-- ── data honesty ─────────────────────────────────────────────────── -->
 	<section id="data" class="band">
 		<Reveal><SectionMark n="04" label={c.data.mark} /></Reveal>
 		<Reveal>
@@ -180,7 +180,7 @@
 		</Reveal>
 
 		<Reveal delay={80}>
-			<CoverageGrid mask={data.cakupan} terdata={k.terdata} nodata={k.nodata} />
+			<CoverageGrid mask={data.coverageMask} withData={k.withData} nodata={k.nodata} />
 		</Reveal>
 
 		<div class="split">
@@ -206,7 +206,7 @@
 		</Reveal>
 	</section>
 
-	<!-- ── untuk siapa ──────────────────────────────────────────────────── -->
+	<!-- ── who it is for ────────────────────────────────────────────────── -->
 	<section class="band">
 		<Reveal><SectionMark n="05" label={c.audience.mark} /></Reveal>
 		<Reveal><h2>{c.audience.title}</h2></Reveal>
@@ -220,7 +220,7 @@
 		</ul>
 	</section>
 
-	<!-- ── penutup ──────────────────────────────────────────────────────── -->
+	<!-- ── closing ──────────────────────────────────────────────────────── -->
 	<section class="band closing">
 		<Reveal>
 			<h2 class="big">{c.closing.title}</h2>
@@ -261,11 +261,11 @@
 		}
 	}
 
-	/* Lembar gambar: alas kertas, dan garis rambut di tepi atas sebagai sambungan
-	   dari pelat maket yang baru saja lewat. */
-	/* Kertasnya terangkat sedikit di tepi atas — sambungan dari pelat maket yang
-	   baru saja lewat, dan yang membuat lembar ini terbaca sebagai benda, bukan
-	   sebagai lubang di bawah adegan. Selisihnya beberapa persen saja. */
+	/* A drawing sheet: a paper ground, with a hairline along the top edge as the
+	   joint to the model slab that has just passed. */
+	/* The paper lifts slightly at its top edge — the joint to the model slab just
+	   passed, and what makes this sheet read as an object rather than as a hole
+	   beneath the scene. The difference is only a few per cent. */
 	.sheet {
 		position: relative;
 		background: var(--paper);
@@ -294,7 +294,7 @@
 		letter-spacing: -0.012em;
 		font-weight: 600;
 	}
-	/* Judul kecil yang memimpin satu grafik, bukan satu baris tabel. */
+	/* A small heading leading one chart, not one row of a table. */
 	h3.lede {
 		font-size: clamp(1.125rem, 1.8vw, 1.375rem);
 		line-height: 1.2;
@@ -312,8 +312,8 @@
 	.body + .body {
 		margin-top: 0.875rem;
 	}
-	/* Judul dan paragraf pertamanya satu kelompok, tapi tetap butuh jarak; tanpa ini
-	   barisnya beradu. Jaraknya lebih kecil daripada jarak di atas judul. */
+	/* A heading and its first paragraph are one group, but still need space; without
+	   this their lines collide. That space is smaller than the space above the heading. */
 	h2 + .body {
 		margin-top: 1rem;
 	}
@@ -321,7 +321,7 @@
 		max-width: 58ch;
 	}
 
-	/* Blok judul, seperti pada sudut lembar gambar teknik. */
+	/* A title block, like the corner of a technical drawing sheet. */
 	.titleblock {
 		list-style: none;
 		margin: 0;
@@ -379,8 +379,8 @@
 		gap: 2.25rem;
 	}
 
-	/* Baris bergaris: label menggantung di kolom kiri, prosa di kanan. Ini yang
-	   menggantikan petak kartu — halaman dibentuk garis, bukan kotak. */
+	/* Ruled rows: the label hangs in the left column, the prose sits right. This is
+	   what replaces a grid of cards — the page is shaped by lines, not boxes. */
 	.rows {
 		list-style: none;
 		margin: 0;
@@ -403,7 +403,7 @@
 		color: var(--label-2);
 		max-width: 62ch;
 	}
-	/* Angka langkah: besar dan bertipis, seperti penomoran pada gambar kerja. */
+	/* Step numbers: large and thin, like the numbering on a working drawing. */
 	.steps :global(li h3) {
 		display: flex;
 		align-items: baseline;
@@ -419,8 +419,8 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	/* Kalimat kunci: satu-satunya tempat garis tegak berwarna dipakai di halaman
-	   teks ini, dan hanya sekali per bagian. */
+	/* The key sentence: the only place a coloured vertical rule is used on this page
+	   of text, and only once per section. */
 	.statement {
 		font-family: var(--font-display);
 		font-size: clamp(1.125rem, 2.1vw, 1.625rem);
@@ -433,14 +433,14 @@
 		padding-left: 1.25rem;
 	}
 
-	/* Plat rumus: satu bidang bergaris rambut, tanpa bayangan. */
+	/* The formula plate: one hairline-ruled field, no shadow. */
 	.plate {
 		margin: 0;
 		padding: 1.75rem;
 		border: 1px solid var(--paper-line);
 		background-image: var(--lift-panel);
-		/* Garis cahaya setebal satu piksel di tepi atas: bidang ini menangkap
-		   cahaya, bukan sekadar dibingkai. */
+		/* A one-pixel light line along the top edge: this field catches the light
+		   rather than merely being framed. */
 		box-shadow: inset 0 1px 0 var(--lift-edge);
 		display: flex;
 		flex-direction: column;
@@ -587,7 +587,7 @@
 		color: var(--label-1);
 		margin-bottom: 0.375rem;
 	}
-	/* Label kaki: dibedakan berat dan warnanya, bukan huruf kapital bertracking. */
+	/* Footer labels: distinguished by weight and colour, not by tracked-out capitals. */
 	.fl {
 		font-family: var(--font-display);
 		font-weight: 600;

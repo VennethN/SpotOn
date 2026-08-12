@@ -1,25 +1,25 @@
 <script lang="ts">
 	/**
-	 * Panggung gulir halaman depan.
+	 * The landing page's scroll stage.
 	 *
-	 * Kanvas menempel (sticky) selama beberapa layar, dan posisi gulir menggerakkan
-	 * dua hal sekaligus: kamera menyusuri koridor, dan jam berjalan maju dari jam
-	 * mesin pengunjung, satu putaran penuh, kembali ke jam yang sama. Kepadatan
-	 * pejalan kaki tidak dikarang — angkanya profil 24 jam catchment Bundaran HI,
-	 * dinormalisasi terhadap jam puncaknya sendiri.
+	 * The canvas is sticky for several screens, and the scroll position drives two
+	 * things at once: the camera moves along the corridor, and the clock runs forward
+	 * from the visitor's machine hour, one full turn, back to the same hour. The
+	 * pedestrian density is not invented — the figures are the 24-hour profile of the
+	 * Bundaran HI catchment, normalised against its own peak hour.
 	 *
-	 * Dua hal yang diperbaiki dari versi sebelumnya, dan keduanya soal tempo:
+	 * Two things were fixed from the previous version, both about pacing:
 	 *
-	 * 1. **Sehari tidak lagi lewat dalam satu dorongan.** Dulu 18 jam dipadatkan ke
-	 *    sepertiga lintasan yang hanya sepanjang 1,4 layar — satu sentakan jempol
-	 *    dan matahari sudah terbenam. Sekarang satu hari mengambil hampir seluruh
-	 *    lintasan pada panggung yang jauh lebih panjang.
-	 * 2. **Harinya tidak berulang.** Dulu setelah tengah malam jamnya terus melaju
-	 *    sampai tengah hari berikutnya, jadi matahari terbit dua kali dalam satu
-	 *    gulir dan yang terbaca adalah pengulangan, bukan satu hari.
+	 * 1. **A day no longer passes in one push.** 18 hours used to be compressed into
+	 *    a third of a track only 1.4 screens long — one flick of a thumb and the sun
+	 *    had already set. Now one day takes almost the entire track on a stage that is
+	 *    far longer.
+	 * 2. **The day does not repeat.** Past midnight the clock used to keep running
+	 *    on to the next midday, so the sun rose twice in a single scroll and what read
+	 *    was a repetition, not one day.
 	 *
-	 * Pemetaannya tetap tidak linear: ada bagian yang menahan supaya pembaca sempat
-	 * membaca, ada bagian yang berjalan tenang.
+	 * The mapping is still non-linear: some stretches hold so the reader has time to
+	 * read, others move along calmly.
 	 */
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
@@ -36,56 +36,56 @@
 
 	const c = $derived(copy());
 	const STATION = stations[0];
-	/** Hex tanpa profil jam memang tidak punya data — bukan nol yang dikarang. */
-	const JAM: number[] = STATION?.jam ?? [];
-	const HAS_DATA = JAM.length === 24;
-	const PEAK = HAS_DATA ? Math.max(...JAM) : 0;
-	const PEAK_HOUR = HAS_DATA ? JAM.indexOf(PEAK) : 12;
+	/** A hex with no hourly profile genuinely has no data — not an invented zero. */
+	const HOURLY: number[] = STATION?.hourly ?? [];
+	const HAS_DATA = HOURLY.length === 24;
+	const PEAK = HAS_DATA ? Math.max(...HOURLY) : 0;
+	const PEAK_HOUR = HAS_DATA ? HOURLY.indexOf(PEAK) : 12;
 
-	/** Kepadatan pada jam pecahan — diinterpolasi antar dua jam bulat. */
+	/** Density at a fractional hour — interpolated between the two whole hours. */
 	function densityAt(h: number): number {
 		if (!HAS_DATA || PEAK <= 0) return 0;
 		const i = Math.floor(((h % 24) + 24) % 24);
 		const f = h - Math.floor(h);
-		const v = JAM[i] * (1 - f) + JAM[(i + 1) % 24] * f;
+		const v = HOURLY[i] * (1 - f) + HOURLY[(i + 1) % 24] * f;
 		return v / PEAK;
 	}
-	/** N struk pada jam itu. Diinterpolasi persis seperti kepadatan, supaya angka
-	    dan persentase yang tampil berdampingan tidak pernah saling membantah. */
-	function strukAt(h: number): number {
+	/** Receipt count at that hour. Interpolated exactly like the density, so the number
+	    and the percentage shown beside it never contradict each other. */
+	function receiptsAt(h: number): number {
 		if (!HAS_DATA) return 0;
 		const i = Math.floor(((h % 24) + 24) % 24);
 		const f = h - Math.floor(h);
-		return Math.round(JAM[i] * (1 - f) + JAM[(i + 1) % 24] * f);
+		return Math.round(HOURLY[i] * (1 - f) + HOURLY[(i + 1) % 24] * f);
 	}
 
 	const START_HOUR = localHour();
 	const reduced = prefersReducedMotion();
 
-	/* Sehari penuh, sekali, maju terus. Berakhir di jam yang sama dengan saat
-	   halaman dibuka — pengunjung kembali ke waktunya sendiri, dan petak di
-	   sebelah kafe masih kosong. */
+	/* A full day, once, always forward. It ends at the same hour the page was opened
+	   — the visitor comes back to their own time, and the lot next to the cafe is
+	   still empty. */
 	const DAY = 24;
 
 	let host = $state<HTMLElement | null>(null);
 	let progress = $state(0);
 
-	// Pegas: gulir mentah terasa gugup, pegas memberi massa pada kamera dan matahari.
+	// A spring: raw scroll feels jittery, a spring gives the camera and sun some mass.
 	const hourSpring = new SpringValue(START_HOUR, { damping: 1, response: 0.75 });
 	const camSpring = new SpringValue(0, { damping: 1, response: 0.85 });
 
-	/* Peta gulir → (jam, kamera). Setiap segmen punya kecepatannya sendiri. */
+	/* Scroll mapping → (hour, camera). Each segment has its own speed. */
 	function mapProgress(p: number) {
 		if (p < 0.1) {
-			// menahan: jam mesin pengunjung, kamera diam
+			// holding: the visitor's machine hour, camera still
 			return { hour: START_HOUR, cam: 0 };
 		}
 		if (p < 0.8) {
-			// satu putaran penuh, tenang — inilah bagian terpanjang lintasan
+			// one full turn, unhurried — this is the longest stretch of the track
 			const t = (p - 0.1) / 0.7;
 			return { hour: START_HOUR + t * DAY, cam: t * 0.78 };
 		}
-		// kembali ke jam semula; yang tersisa cuma kamera merapat ke petak kosong
+		// back to the starting hour; all that is left is the camera closing in on the empty lot
 		const t = (p - 0.8) / 0.2;
 		return { hour: START_HOUR + DAY, cam: 0.78 + t * 0.22 };
 	}
@@ -117,9 +117,9 @@
 	const day = $derived(daylightAt(hour));
 	const density = $derived(densityAt(hour));
 
-	// Tinta jam ini disiarkan ke :root supaya chrome yang mengambang di atas adegan
-	// (bilah navigasi) ikut berganti bersama langit, bukan memakai token tema yang
-	// kebetulan gelap saat adegannya sedang terang benderang.
+	// This hour's ink is broadcast to :root so the chrome floating over the scene (the
+	// nav bar) changes with the sky rather than using a theme token that happens to be
+	// dark while the scene is blazing bright.
 	$effect(() => {
 		const el = document.documentElement;
 		el.style.setProperty('--stage-ink', day.ink);
@@ -132,7 +132,7 @@
 		};
 	});
 
-	// Panel teks muncul dan pergi pada rentang gulir masing-masing.
+	// The text panels appear and leave over their own scroll ranges.
 	function band(p: number, a: number, b: number, fade = 0.06) {
 		if (p < a - fade || p > b + fade) return 0;
 		if (p < a) return (p - (a - fade)) / fade;
@@ -151,18 +151,18 @@
 			{density}
 			{category}
 			cameraT={camSpring.current}
-			label={c.stage.sceneLabel(STATION.name, formatHour(hour), String(strukAt(hour)))}
+			label={c.stage.sceneLabel(STATION.name, formatHour(hour), String(receiptsAt(hour)))}
 		/>
 
 		<div class="scrim" style:--scrim={day.scrim}></div>
 
-		<!-- jam berjalan: satu-satunya elemen yang selalu ada, karena ia yang menjelaskan adegannya -->
+		<!-- the running clock: the one element always present, because it is what explains the scene -->
 		<div class="clock">
 			<span class="time">{formatHour(hour)}</span>
 			<span class="phase">{c.phase[day.phase]}</span>
 			<span class="reading">
 				{#if density > 0}
-					{c.stage.reading(String(strukAt(hour)), Math.round(density * 100))}
+					{c.stage.reading(String(receiptsAt(hour)), Math.round(density * 100))}
 				{:else}
 					{c.stage.noReading}
 				{/if}
@@ -195,9 +195,9 @@
 <style>
 	.stage {
 		position: relative;
-		/* Tinggi ini yang menentukan berapa lama sehari berlangsung. Pada 480vh,
-		   24 jam lewat dalam ±1,4 layar; di sini tiap layar gulir kira-kira lima
-		   jam, dan mataharinya sempat terlihat bergerak. */
+		/* This height is what decides how long a day lasts. At 480vh, 24 hours passed in
+		   ±1.4 screens; here each screen of scroll is roughly five hours, and the sun is
+		   actually seen to move. */
 		height: 760vh;
 	}
 	.sticky {
@@ -210,7 +210,7 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
-		/* Hanya sudut tempat teks duduk yang diredam; koridor di tengah dibiarkan terang. */
+		/* Only the corner the text sits in is dimmed; the corridor down the middle stays bright. */
 		background:
 			linear-gradient(
 				to top,
@@ -220,7 +220,7 @@
 			),
 			linear-gradient(to right, rgba(0, 0, 0, calc(var(--scrim) * 0.5)) 0%, transparent 34%),
 			linear-gradient(to bottom, rgba(0, 0, 0, calc(var(--scrim) * 0.5)) 0%, transparent 16%),
-			/* jam duduk di langit yang terang; tanpa ini angkanya putih di atas putih */
+			/* the clock sits against a bright sky; without this the numbers are white on white */
 			radial-gradient(
 				120% 70% at 100% 0%,
 				rgba(0, 0, 0, calc(var(--scrim) * 0.92)) 0%,
@@ -230,7 +230,7 @@
 
 	.clock {
 		position: absolute;
-		/* di bawah bilah navigasi, bukan di belakangnya */
+		/* below the nav bar, not behind it */
 		top: clamp(4.25rem, 9vh, 6rem);
 		right: clamp(1rem, 4vw, 3rem);
 		display: flex;
@@ -263,7 +263,7 @@
 		color: var(--ink-muted);
 		max-width: 16ch;
 	}
-	/* Penanda permanen: tidak ada angka di halaman ini yang boleh dikira data hidup. */
+	/* A permanent marker: no figure on this page may be taken for live data. */
 	.tag {
 		margin-top: 0.4rem;
 		font-family: var(--font-display);
@@ -275,8 +275,8 @@
 		border: 1px solid currentColor;
 		border-radius: 3px;
 		padding: 0.05rem 0.3rem;
-		/* Penanda ini harus terbaca di langit tengah hari yang terang, bukan sekadar
-		   ada. Alas gelap tipis lebih jujur daripada menaikkan opasitas tinta. */
+		/* This marker has to read against a bright midday sky, not merely be present. A
+		   thin dark backing is more honest than raising the ink's opacity. */
 		background: rgba(0, 0, 0, 0.28);
 	}
 
@@ -297,8 +297,8 @@
 	}
 
 	h1 {
-		/* Judulnya dipatah sendiri lewat baris baru di naskah, bukan lewat <br>:
-		   titik patahnya berbeda antar bahasa. */
+		/* The heading breaks itself via newlines in the copy rather than via <br>:
+		   the break points differ per language. */
 		white-space: pre-line;
 		font-family: var(--font-display);
 		font-size: clamp(2.25rem, 5.6vw, 4.5rem);
@@ -370,8 +370,8 @@
 		.clock .reading {
 			display: none;
 		}
-		/* Teks di layar sempit menempati hampir separuh tinggi, jadi peredupnya harus
-		   naik sejauh itu juga — kalau tidak, baris teratas duduk di atas alas terang. */
+		/* On a narrow screen the text takes almost half the height, so the scrim has to
+		   rise that far too — otherwise the top line sits over a bright backdrop. */
 		.scrim {
 			background:
 				linear-gradient(

@@ -3,11 +3,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-	// maplibre-gl memuat worker-nya sendiri lewat URL relatif. Kalau paketnya ikut
-	// di-prebundle, berkas worker tidak ikut disalin; kalau tidak, dev server justru
-	// menyuntikkan klien HMR ke dalam berkas worker sehingga worker mati saat start.
-	// Keduanya berakhir sama: sumber GeoJSON menggantung tanpa satu pun pesan galat.
-	// Jalan keluarnya: worker di-bundle sendiri lewat `?worker&url` (lihat MapView).
+	// maplibre-gl loads its own worker over a relative URL. If the package is
+	// prebundled, the worker file is not copied along; if it is not, the dev server
+	// injects its HMR client into the worker file and the worker dies on start.
+	// Both end the same way: the GeoJSON source hangs without a single error message.
+	// The way out: bundle the worker ourselves via `?worker&url` (see MapView).
 	optimizeDeps: { exclude: ['maplibre-gl'] },
 	worker: { format: 'es' },
 	plugins: [

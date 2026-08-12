@@ -1,10 +1,10 @@
 /**
- * Klien Overpass untuk skrip pembangun data.
+ * Overpass client for the data-building scripts.
  *
- * Dulu blok yang sama persis — daftar endpoint, User-Agent, jeda, dan seluruh
- * logika coba-ulangnya — disalin di build-hexes.mjs dan build-routes.mjs. Dua
- * salinan berarti perbaikan pada satu skrip (mis. menambah cermin baru saat
- * yang lama sedang penuh) tidak pernah sampai ke skrip lainnya.
+ * The exact same block — endpoint list, User-Agent, backoff, and the whole
+ * retry logic — used to be copied into build-hexes.mjs and build-routes.mjs.
+ * Two copies meant a fix in one script (e.g. adding a new mirror while the old
+ * one is saturated) never reached the other.
  */
 
 const ENDPOINTS = [
@@ -18,10 +18,10 @@ const UA = 'SpotOn/0.1 (MAPID WebGIS Competition 2026; github.com/SpotOn)';
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Menjalankan satu kueri Overpass, berpindah cermin dan menunggu bila perlu.
+ * Runs a single Overpass query, rotating mirrors and backing off as needed.
  *
- * @param {string} query  kueri Overpass QL
- * @param {string} label  disebut pada pesan galat supaya ketahuan kueri mana
+ * @param {string} query  Overpass QL query
+ * @param {string} label  named in error messages so it is clear which query failed
  * @param {{ attempts?: number }} [opts]
  */
 export async function overpass(query, label, opts = {}) {
@@ -31,8 +31,8 @@ export async function overpass(query, label, opts = {}) {
 	for (let i = 0; i < attempts; i++) {
 		const url = ENDPOINTS[i % ENDPOINTS.length];
 		try {
-			// Overpass membalas 406 untuk permintaan tanpa User-Agent yang jelas —
-			// bukan soal isi kuerinya. Header ini yang membuatnya dilayani.
+			// Overpass answers 406 for requests without an explicit User-Agent —
+			// nothing to do with the query itself. This header is what gets it served.
 			const res = await fetch(url, {
 				method: 'POST',
 				headers: {
@@ -42,10 +42,10 @@ export async function overpass(query, label, opts = {}) {
 				},
 				body: new URLSearchParams({ data: query })
 			});
-			// Overpass dipakai bersama-sama; kena batas laju itu wajar, bukan galat.
+			// Overpass is a shared service; being rate-limited is normal, not an error.
 			if (res.status === 429 || res.status === 504) {
 				const wait = 8000 * (i + 1);
-				console.log(`  (${label}) dibatasi laju, tunggu ${wait / 1000}s…`);
+				console.log(`  (${label}) rate-limited, waiting ${wait / 1000}s…`);
 				await sleep(wait);
 				continue;
 			}
@@ -57,5 +57,5 @@ export async function overpass(query, label, opts = {}) {
 		}
 	}
 
-	throw new Error(`Overpass gagal untuk ${label}: ${lastErr?.message ?? 'tidak diketahui'}`);
+	throw new Error(`Overpass failed for ${label}: ${lastErr?.message ?? 'unknown'}`);
 }

@@ -11,25 +11,25 @@ interface Body {
 	question?: string;
 	kategori?: string;
 	weights?: Partial<Weights>;
-	/** Bahasa pembaca; hanya mempengaruhi kalimat "tidak paham" dari model. */
+	/** The reader's language; only affects the model's "I don't understand" sentence. */
 	lang?: string;
 }
 
 /**
- * POST /api/ai/query — mesin rekomendasi di dalam antarmuka.
+ * POST /api/ai/query — the recommendation engine behind the interface.
  *
- * Dua lapis, dan pembagiannya yang penting:
+ * Two layers, and the split between them is what matters:
  *
- * - **Memahami** pertanyaan dikerjakan model (OpenRouter, function-calling).
- *   Model hanya memilih operasi dan mengisi argumennya.
- * - **Menghitung** dikerjakan mesin skor di server, dari data. Model tidak
- *   pernah menyentuh satu angka pun, jadi tidak ada nilai yang bisa dikarang.
+ * - **Understanding** the question is done by the model (OpenRouter,
+ *   function-calling). The model only picks the operation and fills its arguments.
+ * - **Computing** is done by the scoring engine on the server, from the data. The
+ *   model never touches a single number, so there is no value it could invent.
  *
- * Bila model tidak tersedia — kunci belum dipasang, jaringan mati, waktu habis —
- * pengurai aturan mengambil alih dan jawabannya tetap keluar. Yang berubah cuma
- * seberapa pandai pertanyaannya dipahami, bukan benar atau tidaknya angkanya.
- * Jalur mana yang dipakai ikut dikirim sebagai `parsedBy`, supaya antarmuka bisa
- * jujur soal itu alih-alih menyamarkannya.
+ * If the model is unavailable — no key configured, network down, time up — the
+ * rule-based parser takes over and an answer still comes out. What changes is only
+ * how cleverly the question was understood, not whether the figures are right.
+ * Which path was taken is sent along as `parsedBy`, so the interface can be honest
+ * about it instead of glossing over it.
  */
 export const POST: RequestHandler = async ({ request }) => {
 	let body: Body;
@@ -49,8 +49,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	const catchments = loadHexes();
 	const parsed = await parseWithLLM(question, weights, fallback, body.lang === 'en' ? 'en' : 'id');
 
-	// Model mengaku tidak paham. Ini hasil yang sah, bukan kegagalan — dan jauh
-	// lebih baik daripada menjawab pertanyaan yang salah ditafsirkan.
+	// The model admits it did not understand. That is a legitimate result, not a
+	// failure — and far better than answering a misinterpreted question.
 	if (parsed && !parsed.ok) {
 		const empty: AiAnswer = {
 			query: parseQuestion(question, weights, fallback),
@@ -68,7 +68,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const result: AiAnswer = parsed
 		? { ...runQuery(parsed.query, question, catchments, weights), parsedBy: 'model' }
-		: { ...answer(question, catchments, weights, fallback), parsedBy: 'aturan' };
+		: { ...answer(question, catchments, weights, fallback), parsedBy: 'rules' };
 
 	return json(result);
 };

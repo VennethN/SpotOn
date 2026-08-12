@@ -1,14 +1,14 @@
 <script lang="ts">
 	/**
-	 * Kunci peta, selalu terlihat.
+	 * The map key, always visible.
 	 *
-	 * Sebelumnya legenda hanya ada di dalam laci "Pengaturan lanjutan" yang
-	 * tertutup — artinya pengguna pertama melihat peta berwarna tanpa satu pun
-	 * keterangan warnanya. Untuk pengguna yang tidak pernah membaca choropleth,
-	 * itu bukan peta, itu tebak-tebakan.
+	 * The legend used to live only inside the closed "Advanced settings" drawer —
+	 * meaning a first-time user saw a coloured map without a single word explaining
+	 * those colours. For a user who has never read a choropleth, that is not a map,
+	 * that is guesswork.
 	 *
-	 * Isinya sengaja tiga baris saja: skala, arti ujung-ujungnya, dan petak yang
-	 * belum terdata. Sisanya tetap di laci lanjutan.
+	 * It deliberately holds three lines only: the ramp, what its ends mean, and cells
+	 * with no data yet. The rest stays in the advanced drawer.
 	 */
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -18,11 +18,11 @@
 	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
 
-	/* Petak yang tidak dinilai karena sumber aktif belum mencakup kota +
-	   kategori ini. Tanpa keterangannya, peta MAPID untuk kategori yang belum
-	   diimpor terbaca sebagai "semua skornya nol" — kesimpulan yang persis
-	   terbalik dari apa yang sebenarnya terjadi. */
-	const uncovered = $derived(app.weights.source === 'mapid' ? coverage.belumTercakup : 0);
+	/* Cells left unscored because the active source does not yet cover this city +
+	   category. Without saying so, a MAPID map for a category that has not been
+	   imported reads as "every score is zero" — the exact opposite conclusion from
+	   what is actually the case. */
+	const uncovered = $derived(app.weights.source === 'mapid' ? coverage.notCovered : 0);
 	const catName = $derived(c.category[app.category].name);
 
 	let open = $state(true);
@@ -54,11 +54,11 @@
 
 	{#if open}
 		<div class="body" id="legend-body">
-			<ScoreRamp dense nodata={c.app.legendNodata(coverage.belumTerdata)} />
+			<ScoreRamp dense nodata={c.app.legendNodata(coverage.withoutData)} />
 
 			{#if uncovered > 0}
-				<p class="uncovered" class:blocking={coverage.dinilai === 0}>
-					{coverage.dinilai === 0
+				<p class="uncovered" class:blocking={coverage.scored === 0}>
+					{coverage.scored === 0
 						? c.app.legendUncoveredAll(catName)
 						: c.app.legendUncovered(uncovered, catName)}
 				</p>
@@ -76,8 +76,8 @@
 		border-left: 2px dashed var(--nodata);
 		padding-left: 0.5rem;
 	}
-	/* Kalau tidak ada satu pun petak yang bisa dinilai, ini bukan catatan kaki —
-	   itu satu-satunya hal di panel ini yang perlu dibaca. */
+	/* If not one cell can be scored, this is not a footnote — it is the only thing in
+	   this panel worth reading. */
 	.uncovered.blocking {
 		color: var(--label-1);
 		border-left-color: var(--warn);
@@ -133,8 +133,8 @@
 	.body {
 		padding: 0 0.5625rem 0.5rem;
 	}
-	/* Di layar ringkas, sheet menempati bawah layar — legenda pindah ke atas kiri,
-	   tepat di bawah bilah, dan menutup dirinya sendiri supaya peta tetap lapang. */
+	/* In the compact layout the sheet takes the bottom — so the legend moves to the
+	   top left, just under the bar, and collapses itself to keep the map open. */
 	@media (max-width: 1023px) {
 		.legend {
 			top: 3.25rem;

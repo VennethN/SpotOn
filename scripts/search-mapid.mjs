@@ -1,43 +1,42 @@
 /**
- * Menelusuri katalog MAPID untuk menemukan dataset yang masih perlu diimpor.
+ * Searches the MAPID catalogue for datasets that still need importing.
  *
- *   node scripts/search-mapid.mjs              # lima kategori SpotOn
- *   node scripts/search-mapid.mjs LAUNDRY ATM  # istilah bebas
+ *   node scripts/search-mapid.mjs              # SpotOn's five categories
+ *   node scripts/search-mapid.mjs LAUNDRY ATM  # free-form terms
  *
- * Keluarannya daftar periksa Markdown: nama dataset persis seperti di katalog,
- * beserta tautan langsung ke halamannya. Impor tetap dilakukan lewat antarmuka
- * GEO MAPID — yang dihapus skrip ini adalah pekerjaan menebak-nebak nama.
+ * The output is a Markdown checklist: dataset names exactly as they appear in the
+ * catalogue, each with a direct link to its page. Importing still happens through
+ * the GEO MAPID interface — what this script removes is the guesswork about names.
  *
- * ENDPOINT YANG DIPAKAI, DAN KENAPA YANG SEBELUMNYA GAGAL
+ * THE ENDPOINT USED, AND WHY THE EARLIER ONES FAILED
  *
- *   GET geoserver.mapid.io/layers_new/search_layers_public/<istilah>?skip=<n>&api_key=
+ *   GET geoserver.mapid.io/layers_new/search_layers_public/<term>?skip=<n>&api_key=
  *
- * Sempat disimpulkan bahwa katalog tidak bisa ditelusuri dari skrip karena
- * endpoint daftarnya selalu mengembalikan 20 baris yang sama apa pun parameter
- * yang dikirim. Yang sebenarnya terjadi: nama parameternya bukan `search`,
- * `q`, atau `keyword` — melainkan `search_params`, dan halamannya digeser
- * dengan `skip`, bukan `page`. Parameter yang tidak dikenal diabaikan diam-diam,
- * jadi setiap tebakan terlihat seperti "pencarian tidak didukung" padahal yang
- * kembali adalah halaman pertama tanpa filter. Nama yang benar diambil dari
- * kode sumber antarmuka GEO MAPID sendiri.
+ * We once concluded the catalogue could not be searched from a script because its
+ * listing endpoint always returned the same 20 rows no matter which parameters
+ * were sent. What was actually happening: the parameter is not named `search`,
+ * `q`, or `keyword` — it is `search_params`, and pages are advanced with `skip`,
+ * not `page`. Unknown parameters are silently ignored, so every guess looked like
+ * "search is unsupported" when what came back was simply the first unfiltered
+ * page. The correct names were read out of the GEO MAPID interface's own source.
  *
- * Pencarian mengembalikan SELURUH layer publik, bukan hanya katalog premium —
- * termasuk proyek tugas kuliah orang lain yang namanya kebetulan mirip. Karena
- * itu hasilnya disaring ke layer milik akun MAPID Database; tanpa saringan itu
- * daftar ini akan memuat data yang tidak jelas asal-usulnya.
+ * The search returns ALL public layers, not just the premium catalogue — including
+ * other people's coursework projects whose names happen to look similar. The
+ * results are therefore filtered down to layers owned by the MAPID Database
+ * account; without that filter this list would carry data of unclear provenance.
  *
- * BATAS YANG PENTING: INDEKS INI BUKAN KATALOG PREMIUM
+ * AN IMPORTANT LIMIT: THIS INDEX IS NOT THE PREMIUM CATALOGUE
  *
- * `search_layers_public` hanya mengindeks layer yang dipublikasikan. Katalog
- * premium tidak ada di dalamnya. RESTORAN dan MINIMARKET ketemu semata-mata
- * karena MAPID Database kebetulan menerbitkan keduanya secara publik; COFFEE
- * SHOP yang muncul justru salinan "IMPORT" milik pengguna lain, bukan aslinya.
+ * `search_layers_public` only indexes published layers. The premium catalogue is
+ * not in it. RESTORAN and MINIMARKET turn up purely because MAPID Database
+ * happens to publish both publicly; the COFFEE SHOP hit is in fact another user's
+ * "IMPORT" copy, not the original.
  *
- * Maka kategori yang kosong di sini TIDAK boleh dibaca sebagai "tidak ada di
- * katalog" — yang benar "tidak terlihat dari jalur ini, periksa manual di
- * antarmuka". Prinsipnya sama dengan yang dipegang seluruh proyek ini: tidak
- * adanya data bukan bukti tidak adanya barang. Perkakasnya pun harus tunduk
- * pada aturan itu, bukan cuma peta akhirnya.
+ * So a category that comes up empty here must NOT be read as "not in the
+ * catalogue" — the correct reading is "not visible along this path, check by hand
+ * in the interface". The principle is the same one the whole project holds to:
+ * absence of data is not evidence of absence. The tooling has to obey that rule
+ * too, not just the final map.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -46,29 +45,35 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const GEOSERVER = 'https://geoserver.mapid.io';
-const UA = 'SpotOn/0.1 (MAPID WebGIS Competition 2026; kontak lewat repo)';
+const UA = 'SpotOn/0.1 (MAPID WebGIS Competition 2026; contact via repo)';
 
-/** Pemilik resmi katalog premium. */
+/** The official owner of the premium catalogue. */
 const PUBLISHER = /mapid\.database|MAPID Database/i;
 
-/** Lima kota administrasi DKI. Katalog memberi satu dataset per kota. */
-const KOTA = ['JAKARTA PUSAT', 'JAKARTA BARAT', 'JAKARTA SELATAN', 'JAKARTA TIMUR', 'JAKARTA UTARA'];
+/** The five DKI administrative cities. The catalogue ships one dataset per city. */
+const CITIES = [
+	'JAKARTA PUSAT',
+	'JAKARTA BARAT',
+	'JAKARTA SELATAN',
+	'JAKARTA TIMUR',
+	'JAKARTA UTARA'
+];
 
 /**
- * Dua halaman per pencarian sudah cukup karena tiap kueri dipersempit ke satu
- * kota; kecocokan persis selalu muncul di peringkat teratas.
+ * Two pages per search is enough, because each query is already narrowed to a
+ * single city; the exact match always lands in the top ranks.
  */
 const MAX_PAGES = 2;
 
 /**
- * Istilah pencarian per kategori SpotOn, beserta kata kunci yang WAJIB ada di
- * nama dataset.
+ * Search terms per SpotOn category, along with the keyword that MUST appear in the
+ * dataset name.
  *
- * Saringan `must` bukan hiasan. Pencarian mencocokkan kata secara longgar dan
- * memberi peringkat, bukan menyaring: kueri "APOTEK JAKARTA BARAT" dengan
- * senang hati mengembalikan "BATAS ADMINISTRASI KOTA ADMINISTRASI JAKARTA
- * BARAT" karena tiga dari empat katanya cocok. Tanpa `must`, daftar impor akan
- * penuh dataset yang sama sekali bukan yang dicari.
+ * The `must` filter is not decoration. The search matches words loosely and ranks
+ * them rather than filtering: the query "APOTEK JAKARTA BARAT" will happily return
+ * "BATAS ADMINISTRASI KOTA ADMINISTRASI JAKARTA BARAT" because three of its four
+ * words match. Without `must`, the import list would fill up with datasets that
+ * are nothing like what was searched for.
  */
 const TERMS = {
 	kopi: { must: /COFFEE|KOPI/i, base: ['COFFEE SHOP'] },
@@ -81,7 +86,7 @@ const TERMS = {
 function apiKey() {
 	const raw = readFileSync(resolve(ROOT, '.env'), 'utf8');
 	const key = (raw.match(/^MAPID_API_KEY=(.*)$/m)?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
-	if (!key) throw new Error('MAPID_API_KEY belum diisi di .env');
+	if (!key) throw new Error('MAPID_API_KEY is not set in .env');
 	return key;
 }
 
@@ -98,13 +103,13 @@ async function get(url, label) {
 	}
 }
 
-/** Semua hasil untuk satu istilah, halaman demi halaman sampai habis. */
+/** Every result for one term, page by page until exhausted. */
 async function searchAll(term, key) {
 	const out = [];
 	for (let page = 0; page < MAX_PAGES; page++) {
 		const rows = await get(
 			`${GEOSERVER}/layers_new/search_layers_public/${encodeURIComponent(term)}?skip=${page * 20}&api_key=${key}`,
-			`cari "${term}"`
+			`search "${term}"`
 		);
 		if (!Array.isArray(rows) || rows.length === 0) break;
 		out.push(...rows);
@@ -127,8 +132,8 @@ async function main() {
 	for (const [cat, { must, base }] of Object.entries(groups)) {
 		found[cat] = [];
 		for (const b of base) {
-			for (const kota of KOTA) {
-				const term = `${b} ${kota}`;
+			for (const city of CITIES) {
+				const term = `${b} ${city}`;
 				const rows = await searchAll(term, key);
 				scanned += rows.length;
 				let kept = 0;
@@ -137,22 +142,28 @@ async function main() {
 					const owner = `${r.user?.name ?? ''} ${r.user?.full_name ?? ''}`;
 					if (!PUBLISHER.test(owner)) continue;
 					if (!must.test(name)) continue;
-					// Nama harus menyebut kota yang dicari — pencarian longgar
-					// gemar mengembalikan kota tetangga di peringkat bawah.
-					if (!new RegExp(kota, 'i').test(name)) continue;
+					// The name has to mention the city being searched for — a loose
+					// search loves returning neighbouring cities in the lower ranks.
+					if (!new RegExp(city, 'i').test(name)) continue;
 					if (seen.has(r._id)) continue;
 					seen.add(r._id);
 					found[cat].push({ id: r._id, name });
 					kept++;
 				}
-				console.error(`  ${term.padEnd(34)} ${String(rows.length).padStart(3)} hasil → ${kept} baru`);
+				console.error(
+					`  ${term.padEnd(34)} ${String(rows.length).padStart(3)} results → ${kept} new`
+				);
 			}
 		}
 		found[cat].sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	console.error(`\n${scanned} baris ditelusuri · ${seen.size} dataset MAPID Database di DKI Jakarta\n`);
+	console.error(
+		`\n${scanned} rows scanned · ${seen.size} MAPID Database datasets in DKI Jakarta\n`
+	);
 
+	// The checklist itself stays in Indonesian: it is a document that lands in
+	// docs/, read alongside the rest of the Indonesian project documentation.
 	const lines = [
 		'<!-- Dihasilkan `node scripts/search-mapid.mjs` — jangan disunting tangan. -->',
 		'',
@@ -182,6 +193,6 @@ async function main() {
 }
 
 main().catch((err) => {
-	console.error('Gagal:', err.message);
+	console.error('Failed:', err.message);
 	process.exit(1);
 });

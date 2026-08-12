@@ -2,15 +2,15 @@ import raw from '$lib/data/hexes.json';
 import type { Hex } from '$lib/types';
 
 /**
- * Sumber data SpotOn.
+ * SpotOn's data source.
  *
- * Seluruh endpoint membaca lewat modul ini, tidak pernah menyentuh berkas data
- * secara langsung. Saat API MAPID tersedia bagi tim terkurasi, satu-satunya
- * berkas yang berubah adalah berkas ini: `loadHexes()` diganti menjadi
- * pemanggilan API (spatial join Struk/Menu/Properti Go ke petak H3) dan kontrak
- * `Hex` tetap sama, sehingga UI tidak perlu disentuh.
+ * Every endpoint reads through this module and never touches the data file
+ * directly. Once the MAPID API is available to curated teams, this is the only
+ * file that changes: `loadHexes()` becomes an API call (a spatial join of
+ * Struk/Menu/Properti Go onto the H3 cells) while the `Hex` contract stays the
+ * same, so the UI needs no changes at all.
  *
- * Kisinya dibangun ulang oleh `scripts/build-hexes.mjs`.
+ * The grid itself is rebuilt by `scripts/build-hexes.mjs`.
  */
 
 interface RawFile {
@@ -43,7 +43,9 @@ export function findHex(id: string): Hex | undefined {
 
 export const grid = file.meta;
 
-/** Metadata provenans yang ikut dikirim di setiap respons agar klaim data dapat ditelusuri. */
+/* The provenance notes below are part of the API response and are read by users,
+   so they stay in Indonesian like the rest of the product copy. */
+/** Provenance metadata sent with every response so data claims can be traced. */
 export const provenance = {
 	source: 'osm+mock',
 	grid: {

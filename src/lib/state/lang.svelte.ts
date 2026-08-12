@@ -2,17 +2,17 @@ import { browser } from '$app/environment';
 import { DICT, isLang, LANG_STORAGE, type Copy, type Lang } from '$lib/i18n';
 
 /**
- * Bahasa yang sedang dipakai.
+ * The language currently in use.
  *
- * Disimpan di tingkat modul, bukan lewat context, supaya modul domain (narasi
- * Tapak) bisa ikut membacanya tanpa harus dioper melalui setiap pemanggil.
- * Nilainya hanya pernah berubah di peramban; di server ia tetap 'id', jadi tidak
- * ada keadaan yang bocor antar permintaan.
+ * Held at module level rather than in a context, so the domain modules (Tapak's
+ * narration) can read it too without being threaded through every caller. Its value
+ * only ever changes in the browser; on the server it stays 'id', so no state leaks
+ * between requests.
  *
- * Halaman dirender server dalam bahasa Indonesia lalu menyesuaikan diri saat
- * hidrasi. Pengunjung yang memilih Inggris melihat satu kedipan pada muat
- * pertama; itu harga yang lebih murah daripada menebak bahasa dari header dan
- * salah menebaknya untuk pembaca di Jakarta.
+ * Pages are server-rendered in Indonesian and then adjust on hydration. A visitor
+ * who picked English sees one flicker on the first load; that is a cheaper price
+ * than guessing the language from headers and guessing it wrong for a reader in
+ * Jakarta.
  */
 function stored(): Lang {
 	if (!browser) return 'id';
@@ -20,16 +20,16 @@ function stored(): Lang {
 	return isLang(v) ? v : 'id';
 }
 
-/* Dibaca saat modul dimuat, bukan di dalam efek. Sapaan Tapak disusun pada saat
-   panelnya pertama dipasang; kalau bahasanya baru dipulihkan sesudah itu,
-   kalimat pertamanya terlanjur tersimpan dalam bahasa yang salah. */
+/* Read when the module loads, not inside an effect. Tapak's greeting is composed
+   the moment its panel first mounts; if the language were only restored after that,
+   the first sentence would already be stored in the wrong language. */
 let current = $state<Lang>(stored());
 
 export function lang(): Lang {
 	return current;
 }
 
-/** Kamus yang sedang aktif. Komponen memakainya lewat `$derived(copy())`. */
+/** The active dictionary. Components use it via `$derived(copy())`. */
 export function copy(): Copy {
 	return DICT[current];
 }
@@ -41,7 +41,7 @@ export function setLang(next: Lang): void {
 	document.documentElement.setAttribute('lang', next);
 }
 
-/** Menyelaraskan atribut `lang` dokumen. Dipanggil sekali saat aplikasi dimuat. */
+/** Syncs the document's `lang` attribute. Called once when the app loads. */
 export function initLang(): void {
 	if (!browser) return;
 	document.documentElement.setAttribute('lang', current);

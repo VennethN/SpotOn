@@ -1,23 +1,23 @@
 import { formatHour } from '$lib/utils/format';
 
 /**
- * Model cahaya 24 jam untuk Jakarta (−6.2° LU, praktis di khatulistiwa: matahari
- * terbit ~05:50 dan terbenam ~18:00 sepanjang tahun, dan lewat nyaris tepat di
- * atas kepala saat tengah hari).
+ * A 24-hour light model for Jakarta (−6.2° latitude, effectively on the equator:
+ * the sun rises ~05:50 and sets ~18:00 all year round, and passes almost directly
+ * overhead at midday).
  *
- * Satu-satunya sumber kebenaran untuk warna adegan 3D **dan** warna halaman —
- * keduanya membaca sampel yang sama, sehingga tipografi di atas adegan tidak
- * pernah lepas dari langitnya.
+ * The single source of truth for the 3D scene's colours **and** the page's colours
+ * — both read the same sample, so the typography sitting over a scene is never out
+ * of step with its sky.
  *
- * Sengaja tidak bergantung pada three.js: dipakai juga oleh CSS.
+ * Deliberately free of any three.js dependency: the CSS uses it too.
  */
 
-export type Phase = 'malam' | 'subuh' | 'pagi' | 'siang' | 'sore' | 'senja';
+export type Phase = 'night' | 'dawn' | 'morning' | 'midday' | 'afternoon' | 'dusk';
 
 export interface DaylightSample {
-	/** 0..24, boleh pecahan. */
+	/** 0..24, fractional values allowed. */
 	hour: number;
-	/** Radian di atas horizon; negatif berarti matahari sudah terbenam. */
+	/** Radians above the horizon; negative means the sun has already set. */
 	sunElevation: number;
 	sunAzimuth: number;
 	sunColor: string;
@@ -28,20 +28,20 @@ export interface DaylightSample {
 	ambientIntensity: number;
 	fogColor: string;
 	fogDensity: number;
-	/** 0..1 — lampu jalan menyala. */
+	/** 0..1 — street lights on. */
 	streetLights: number;
-	/** 0..1 — etalase & jendela menyala. */
+	/** 0..1 — shopfronts & windows lit. */
 	windowLights: number;
 	groundColor: string;
-	/** Warna teks di atas adegan — selalu terang, di atas scrim gelap. */
+	/** Text colour over the scene — always light, sitting on a dark scrim. */
 	ink: string;
 	inkMuted: string;
-	/** Kebalikannya, untuk tombol pejal: tinta gelap di atas bidang terang. */
+	/** Its inverse, for solid buttons: dark ink on a light field. */
 	inkInverse: string;
-	/** Lapisan gelap di bawah teks; makin terang langit makin tebal. */
+	/** The dark layer under the text; the brighter the sky, the thicker it gets. */
 	scrim: number;
 	phase: Phase;
-	/** Label bahasa manusia, mis. "senja · 18:20". */
+	/** Human-readable label, e.g. "dusk · 18:20". */
 	label: string;
 }
 
@@ -61,8 +61,8 @@ interface Key {
 	dark: boolean;
 }
 
-/* Kunci warna sepanjang hari. Jakarta lembap — horizon selalu berkabut, tidak
-   pernah biru bersih, dan malamnya jingga karena lampu natrium memantul di uap. */
+/* Colour keys across the day. Jakarta is humid — the horizon is always hazy, never
+   a clean blue, and its nights run orange as sodium lamps bounce off the vapour. */
 const KEYS: Key[] = [
 	{
 		h: 0,
@@ -226,7 +226,7 @@ function rgbToHex(r: number, g: number, b: number): string {
 	return '#' + ((1 << 24) | (c(r) << 16) | (c(g) << 8) | c(b)).toString(16).slice(1);
 }
 
-/** Campur di ruang gamma-terkoreksi — mencampur sRGB mentah membuat senja jadi lumpur. */
+/** Mix in gamma-corrected space — mixing raw sRGB turns dusk into mud. */
 function mixHex(a: string, b: string, t: number): string {
 	const [ar, ag, ab] = hexToRgb(a);
 	const [br, bg, bb] = hexToRgb(b);
@@ -241,7 +241,7 @@ function mixHex(a: string, b: string, t: number): string {
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-/** Relatif luminance sRGB — dipakai untuk memilih tinta yang kontras. */
+/** Relative sRGB luminance — used to pick an ink colour that contrasts. */
 function luminance(hex: string): number {
 	const [r, g, b] = hexToRgb(hex);
 	const f = (v: number) => {
@@ -252,13 +252,13 @@ function luminance(hex: string): number {
 }
 
 function phaseOf(h: number): Phase {
-	if (h < 4.4) return 'malam';
-	if (h < 6.2) return 'subuh';
-	if (h < 10.5) return 'pagi';
-	if (h < 15.2) return 'siang';
-	if (h < 17.6) return 'sore';
-	if (h < 19.2) return 'senja';
-	return 'malam';
+	if (h < 4.4) return 'night';
+	if (h < 6.2) return 'dawn';
+	if (h < 10.5) return 'morning';
+	if (h < 15.2) return 'midday';
+	if (h < 17.6) return 'afternoon';
+	if (h < 19.2) return 'dusk';
+	return 'night';
 }
 
 export function daylightAt(hour: number): DaylightSample {
@@ -275,13 +275,13 @@ export function daylightAt(hour: number): DaylightSample {
 	const skyHorizon = mixHex(a.skyHorizon, b.skyHorizon, t);
 	const fogColor = mixHex(a.fog, b.fog, t);
 
-	// Matahari khatulistiwa: puncak nyaris di zenit, terbit 05:50 terbenam 18:00.
+	// Equatorial sun: its peak is near the zenith, rising 05:50 and setting 18:00.
 	const dayFrac = (h - 5.85) / (18.0 - 5.85);
-	// Dipangkas di ~58°, bukan 85° yang sebenarnya. Matahari tepat di atas kepala
-	// secara fisika benar untuk khatulistiwa, tapi menghapus seluruh bayangan dan
-	// maket putih jadi rata tanpa bentuk. Cahaya menyerong dipertahankan sepanjang hari.
+	// Clamped at ~58° rather than the real 85°. A sun directly overhead is physically
+	// correct on the equator, but it erases every shadow and the white diorama goes
+	// flat and shapeless. Raking light is kept all day instead.
 	const sunElevation = Math.sin(dayFrac * Math.PI) * 1.02;
-	// Melintas dari timur ke barat; sedikit condong ke utara.
+	// Tracks east to west; leaning slightly north.
 	const sunAzimuth = Math.PI * (0.18 + dayFrac * 1.04);
 
 	const luma = luminance(skyHorizon) * 0.45 + luminance(skyTop) * 0.55;
@@ -302,21 +302,21 @@ export function daylightAt(hour: number): DaylightSample {
 		streetLights: lerp(a.street, b.street, t),
 		windowLights: lerp(a.window, b.window, t),
 		groundColor: mixHex(a.ground, b.ground, t),
-		// Teks selalu terang di atas scrim gelap — seperti judul film di atas gambar:
-		// satu perlakuan yang terbaca pada tengah hari maupun tengah malam. Tintanya
-		// tetap diambil dari langitnya sendiri, tidak pernah abu-abu netral.
+		// Text is always light over a dark scrim — like a film title over an image: one
+		// treatment that reads at midday and at midnight alike. The ink is still drawn
+		// from the sky itself, never a neutral grey.
 		ink: mixHex('#ffffff', skyHorizon, 0.06),
 		inkMuted: mixHex('#ffffff', skyHorizon, 0.3),
 		inkInverse: mixHex('#0e1118', skyTop, 0.12),
-		// Siang butuh scrim lebih tebal justru karena adegannya terang — tapi
-		// scrim-nya sempit, hanya di bawah teks; adegan tidak boleh ikut diredam.
+		// Daytime needs a thicker scrim precisely because the scene is bright — but the
+		// scrim is narrow, only under the text; the scene itself must not be dimmed.
 		scrim: lerp(0.26, 0.52, dayish),
 		phase: phaseOf(h),
 		label: `${phaseOf(h)} · ${formatHour(h)}`
 	};
 }
 
-/** Jam lokal mesin sebagai pecahan (mis. 18.35). */
+/** The machine's local hour as a fraction (e.g. 18.35). */
 export function localHour(now = new Date()): number {
 	return now.getHours() + now.getMinutes() / 60;
 }

@@ -12,9 +12,9 @@
 	const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
 	/**
-	 * Nilai mengikuti jari 1:1 sepanjang gestur — tidak ada easing di jalur masukan.
-	 * Menekan track langsung melompat ke posisi tekan, lalu meneruskan seretan dari
-	 * sana, sehingga satu gerakan cukup untuk menyetel.
+	 * The value tracks the finger 1:1 through the gesture — no easing in the input path.
+	 * Pressing the track jumps straight to the press position and continues the drag
+	 * from there, so a single movement is enough to set it.
 	 */
 	function valueAt(clientX: number): number {
 		if (!track) return value;
@@ -59,8 +59,8 @@
 		<label for={id}>{label}</label>
 		<output for={id}>{Math.round(value * 100)}%</output>
 	</div>
-	<!-- Track sekaligus kontrolnya: satu elemen menangani pointer dan papan tik,
-	     sehingga menekan di mana pun langsung mengunci nilai di titik itu. -->
+	<!-- The track is the control: one element handles both pointer and keyboard,
+	     so pressing anywhere locks the value to that point at once. -->
 	<div
 		{id}
 		class="track"
@@ -152,7 +152,7 @@
 			0 0 0 1px var(--separator-strong),
 			var(--shadow-chip);
 		pointer-events: none;
-		/* Umpan balik saat ditekan, bukan saat dilepas. */
+		/* Feedback on press, not on release. */
 		transform: translate(0, -50%) scale(1);
 		transition: transform 120ms ease-out;
 	}

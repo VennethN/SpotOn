@@ -1,20 +1,20 @@
 <script lang="ts">
 	/**
-	 * Percakapan dengan Tapak, dimainkan sendiri di halaman depan.
+	 * A conversation with Tapak, playing itself on the landing page.
 	 *
-	 * Pertanyaannya sudah ditentukan — tapi jawabannya tidak. Setiap daftar tempat
-	 * dan setiap kalimat di sini dihitung `runQuery` di server dari data yang sama
-	 * dengan yang dipakai aplikasi, lewat modul narasi yang sama pula. Jadi yang
-	 * ditonton pengunjung memang yang akan ia temui, bukan iklan yang dikarang.
+	 * The questions are predetermined — the answers are not. Every list of places and
+	 * every sentence here is computed by `runQuery` on the server from the same data
+	 * the app uses, through the same narration module. So what the visitor watches is
+	 * genuinely what they will find, not an advert someone made up.
 	 *
-	 * Tiga hal yang membuatnya tidak menjengkelkan:
+	 * Three things keep it from being annoying:
 	 *
-	 * - **Bisa dipegang.** Menekan jenis usaha memindahkan percakapan ke situ
-	 *   seketika; ada tombol jeda; dan gulir tidak pernah dibajak.
-	 * - **Diam saat tidak dilihat.** Di luar layar atau di tab lain, pemutarnya
-	 *   berhenti — halaman ini dibuka di ponsel kelas menengah dengan kuota.
-	 * - **Tidak memaksa gerak.** Dengan `prefers-reduced-motion`, seluruh
-	 *   percakapan tampil sekaligus dan tidak ada yang berjalan sendiri.
+	 * - **It can be grabbed.** Tapping a business type moves the conversation there
+	 *     at once; there is a pause button; and the scroll is never hijacked.
+	 * - **Silent when unwatched.** Off screen or in another tab, the player stops —
+	 *     this page gets opened on mid-range phones with limited data.
+	 * - **It does not force motion.** With `prefers-reduced-motion`, the whole
+	 *     conversation is shown at once and nothing runs on its own.
 	 */
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -28,26 +28,26 @@
 	}
 	export interface DemoSet {
 		id: string;
-		kategori: CategoryKey;
-		pilih: string;
+		category: CategoryKey;
+		choice: string;
 		chip: string;
-		tanya: string;
-		jawab: string;
+		ask: string;
+		answer: string;
 		preface: string;
-		tangkap: string[];
-		kalimat: string;
-		hasil: DemoResult[];
-		sisa: number;
+		captured: string[];
+		sentence: string;
+		results: DemoResult[];
+		more: number;
 	}
 
-	let { sets, sapaan }: { sets: DemoSet[]; sapaan: string } = $props();
+	let { sets, greeting }: { sets: DemoSet[]; greeting: string } = $props();
 
 	const c = $derived(copy());
 
-	/* Langkah percakapan. Nol berarti baru sapaan; enam berarti jawabannya sudah
-	   lengkap dan tinggal ditahan sebentar sebelum pindah. */
+	/* Conversation steps. Zero means only the greeting; six means the answer is
+	   complete and just held for a moment before moving on. */
 	const LAST = 6;
-	/** Jeda per langkah, ms. Langkah terakhir ditahan lebih lama untuk dibaca. */
+	/** Delay per step, in ms. The final step is held longer so it can be read. */
 	const BEAT = [1500, 1100, 1500, 1100, 1200, 6500];
 
 	const reduced = prefersReducedMotion();
@@ -66,8 +66,8 @@
 		step = reduced ? LAST : 0;
 	}
 
-	// Pemutar: satu timer bergilir, bukan interval yang berjalan terus. Timer-nya
-	// dipasang ulang tiap langkah supaya tiap langkah bisa punya temponya sendiri.
+	// The player: a single timer taking turns, not an interval running continuously.
+	// It is re-armed each step so each step can have its own tempo.
 	$effect(() => {
 		if (!playing || !onScreen || reduced) return;
 		const wait = BEAT[Math.min(step, BEAT.length - 1)];
@@ -141,37 +141,37 @@
 		{/if}
 	</div>
 
-	<!-- Perubahan diumumkan sopan: pembaca layar tidak boleh diinterupsi tiap
-	     1,5 detik, jadi hanya giliran yang benar-benar baru yang dibacakan. -->
+	<!-- Changes are announced politely: a screen reader must not be interrupted every
+	     1.5 seconds, so only a genuinely new turn is read out. -->
 	<div class="log" aria-live="polite" aria-atomic="false">
 		<div class="turn tapak">
 			<span class="av"><TapakFigure size={22} walking={false} /></span>
-			<p class="bub">{sapaan}</p>
+			<p class="bub">{greeting}</p>
 		</div>
 
 		{#if step >= 1}
-			<div class="turn mine"><p class="bub said">{set.pilih}</p></div>
+			<div class="turn mine"><p class="bub said">{set.choice}</p></div>
 		{/if}
 		{#if step >= 2}
 			<div class="turn tapak">
 				<span class="av"><TapakFigure size={22} walking={false} /></span>
-				<p class="bub">{set.tanya}</p>
+				<p class="bub">{set.ask}</p>
 			</div>
 		{/if}
 		{#if step >= 3}
-			<div class="turn mine"><p class="bub said">{set.jawab}</p></div>
+			<div class="turn mine"><p class="bub said">{set.answer}</p></div>
 		{/if}
 		{#if step >= 4}
 			<div class="turn tapak">
 				<span class="av"><TapakFigure size={22} walking={false} /></span>
 				<div class="bub">
 					<p>{set.preface}</p>
-					<!-- Apa yang ditangkap peta, sebelum satu angka pun dihitung. Ini yang
-					     membuat salah tangkap ketahuan oleh penanya, bukan disembunyikan. -->
+					<!-- What the map understood, before a single number is computed. This is what
+					     lets the asker catch a misreading rather than have it hidden. -->
 					<div class="caught">
 						<span class="cap">{c.ai.caught}</span>
 						<ul>
-							{#each set.tangkap as t (t)}
+							{#each set.captured as t (t)}
 								<li>{t}</li>
 							{/each}
 						</ul>
@@ -189,10 +189,10 @@
 			<div class="turn tapak">
 				<span class="av"><TapakFigure size={22} walking={false} /></span>
 				<div class="bub">
-					<p>{set.kalimat}</p>
-					{#if set.hasil.length}
+					<p>{set.sentence}</p>
+					{#if set.results.length}
 						<ol class="places">
-							{#each set.hasil as r, k (r.name)}
+							{#each set.results as r, k (r.name)}
 								<li>
 									<span class="rank">{k + 1}</span>
 									<span class="nm">{r.name}</span>
@@ -204,8 +204,8 @@
 								</li>
 							{/each}
 						</ol>
-						{#if set.sisa > 0}
-							<p class="more">{c.ai.more(set.sisa)}</p>
+						{#if set.more > 0}
+							<p class="more">{c.ai.more(set.more)}</p>
 						{/if}
 					{/if}
 				</div>
@@ -221,10 +221,10 @@
 </div>
 
 <style>
-	/* Tingginya dipatok. Dibiarkan mengikuti isi, panjang percakapan yang
-	   berbeda-beda membuat seluruh halaman di bawahnya naik-turun tiap belasan
-	   detik — dan itu jauh lebih mengganggu daripada satu giliran lama yang
-	   terpotong di atas. */
+	/* The height is pinned. Left to follow its contents, conversations of differing
+	   length would make the whole page below it jump every dozen seconds or so — and
+	   that is far more disruptive than one old turn being clipped at the top.
+	   */
 	.demo {
 		border: 1px solid var(--paper-line);
 		background-image: var(--lift-panel);
@@ -293,14 +293,14 @@
 		color: var(--label-1);
 	}
 
-	/* Percakapan ditumpuk dari bawah seperti kotak pesan: kalau ditumpuk dari atas,
-	   tiap giliran baru mendorong yang lama dan seluruh blok ikut bergoyang. */
+	/* The conversation stacks from the bottom like a messaging app: stacked from the
+	   top, each new turn shoves the old ones and the whole block wobbles. */
 	.log {
 		flex: 1;
 		min-height: 0;
 		overflow: hidden;
-		/* Giliran lama yang tergeser ke atas dipudarkan, bukan dipotong rata —
-		   potongan lurus di tengah kalimat terbaca sebagai tata letak yang rusak. */
+		/* Old turns pushed off the top are faded rather than cut flat — a straight cut
+		   through the middle of a sentence reads as broken layout. */
 		mask-image: linear-gradient(to bottom, transparent 0, #000 2.75rem);
 		-webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.75rem);
 		display: flex;
@@ -314,7 +314,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 0.5rem;
-		/* Giliran baru masuk dari bawah, seperti pesan yang baru tiba. */
+		/* A new turn enters from below, like a message that has just arrived. */
 		animation: enter 320ms cubic-bezier(0.22, 0.61, 0.24, 1) both;
 	}
 	.turn.mine {

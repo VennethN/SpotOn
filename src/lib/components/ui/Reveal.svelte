@@ -19,7 +19,7 @@
 		}
 		const io = new IntersectionObserver(
 			(entries) => {
-				// Sekali muncul, tetap muncul — konten tidak boleh berkedip saat digulir balik.
+				// Once shown, stays shown — content must not flicker when scrolled back over.
 				if (entries.some((e) => e.isIntersecting)) {
 					shown = true;
 					io.disconnect();

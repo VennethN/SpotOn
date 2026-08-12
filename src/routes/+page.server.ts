@@ -8,35 +8,36 @@ import type { CategoryKey, StructuredQuery } from '$lib/types';
 import type { PageServerLoad } from './$types';
 
 /**
- * Isi halaman depan dihitung di server, bukan ditulis tangan.
+ * The landing page's content is computed on the server, not written by hand.
  *
- * Dua alasan, dan keduanya soal kejujuran:
+ * Two reasons, and both are about honesty:
  *
- * 1. **Angkanya tidak boleh basi.** Jumlah petak, simpul transit, dan pesaing
- *    dibaca dari berkas kisi yang sama dengan yang dipakai peta. Begitu kisinya
- *    dibangun ulang, halaman depan ikut benar tanpa ada yang perlu ingat
- *    memperbaruinya — angka yang ditulis tangan di sini pernah tertinggal jauh.
- * 2. **Percakapan contohnya dijawab mesin yang sama.** Pertanyaannya memang
- *    sudah ditentukan, tapi jawabannya dihitung `runQuery` dari data — bukan
- *    transkrip yang dikarang. Yang dijanjikan halaman depan persis yang akan
- *    ditemui pengguna di dalam aplikasi.
+ * 1. **The figures must not go stale.** The counts of cells, transit nodes, and
+ *    competitors are read from the same grid file the map uses. Once the grid is
+ *    rebuilt, the landing page stays correct without anyone having to remember to
+ *    update it — hand-written numbers here once fell badly out of date.
+ * 2. **The sample conversation is answered by the same engine.** The questions are
+ *    predetermined, but the answers are computed by `runQuery` from the data — not
+ *    an invented transcript. What the landing page promises is exactly what the
+ *    user will find inside the app.
  *
- * Atribut misinya sendiri masih CONTOH, dan penandanya ikut sampai ke layar.
+ * The mission attributes themselves are still SAMPLES, and that marker reaches the
+ * screen too.
  */
 
 /**
- * Sepasang pertanyaan yang sudah ditentukan — jawabannya tetap dihitung mesin.
+ * A set of predetermined questions — the answers are still computed by the engine.
  *
- * Teksnya tidak disimpan di sini melainkan diambil dari kamus per bahasa, jadi
- * satu skrip menghasilkan percakapan Indonesia dan Inggris dari hitungan yang
- * sama persis. Keduanya dihitung saat build dan dikirim bersama; halaman ini
- * statis, jadi tidak ada permintaan kedua saat pembaca mengganti bahasa.
+ * The text is not stored here but pulled from the per-language dictionary, so one
+ * script produces the Indonesian and the English conversation from exactly the same
+ * computation. Both are computed at build time and shipped together; this page is
+ * static, so there is no second request when the reader switches language.
  */
 interface Script {
 	id: string;
-	kategori: CategoryKey;
-	/** Mengambil teks percakapan dari kamus bahasa yang diminta. */
-	lines: (c: Copy) => { pilih: string; chip: string; tanya: string; jawab: string; preface: string };
+	category: CategoryKey;
+	/** Pulls the conversation's text from the requested language's dictionary. */
+	lines: (c: Copy) => { choice: string; chip: string; ask: string; answer: string; preface: string };
 	query: StructuredQuery;
 }
 
@@ -44,58 +45,58 @@ const W = DEFAULT_WEIGHTS;
 
 export interface DemoSet {
 	id: string;
-	kategori: CategoryKey;
-	pilih: string;
+	category: CategoryKey;
+	choice: string;
 	chip: string;
-	tanya: string;
-	jawab: string;
+	ask: string;
+	answer: string;
 	preface: string;
-	tangkap: string[];
-	kalimat: string;
-	hasil: Array<{ name: string; value: number | null }>;
-	sisa: number;
+	captured: string[];
+	sentence: string;
+	results: Array<{ name: string; value: number | null }>;
+	more: number;
 }
 
-const rank = (kategori: CategoryKey, modalKecil: boolean): StructuredQuery => ({
+const rank = (category: CategoryKey, smallBudget: boolean): StructuredQuery => ({
 	intent: 'RANK',
 	metrik: 'gap permintaan − penawaran',
-	kategori,
+	kategori: category,
 	radius_m: W.radius,
 	filter: {
 		dalam_catchment_transit: `${W.radius} m`,
-		...(modalKecil ? { ruang_sewa_tersedia: true, tier_harga: 'rendah' as const } : {})
+		...(smallBudget ? { ruang_sewa_tersedia: true, tier_harga: 'rendah' as const } : {})
 	},
 	urut: 'desc',
 	limit: 3
 });
 
-function scriptFor(kategori: CategoryKey, modalKecil: boolean): Script {
+function scriptFor(category: CategoryKey, smallBudget: boolean): Script {
 	return {
-		id: kategori,
-		kategori,
+		id: category,
+		category,
 		lines: (c) => ({
-			pilih: c.category[kategori].name,
-			chip: c.category[kategori].short,
-			tanya: c.tapak.budgetAsk(c.category[kategori].name.toLowerCase()),
-			jawab: modalKecil ? c.tapak.budgetTight : c.tapak.budgetLoose,
-			preface: modalKecil ? c.tapak.prefaceTight : c.tapak.prefaceLoose
+			choice: c.category[category].name,
+			chip: c.category[category].short,
+			ask: c.tapak.budgetAsk(c.category[category].name.toLowerCase()),
+			answer: smallBudget ? c.tapak.budgetTight : c.tapak.budgetLoose,
+			preface: smallBudget ? c.tapak.prefaceTight : c.tapak.prefaceLoose
 		}),
-		query: rank(kategori, modalKecil)
+		query: rank(category, smallBudget)
 	};
 }
 
-/** Modal kecil dipakai selang-seling supaya kedua cabang percakapan ikut terlihat. */
+/** The small-budget branch alternates so both sides of the conversation are seen. */
 const SCRIPTS: Script[] = [
 	scriptFor('kopi', true),
 	scriptFor('warung', false),
 	{
 		id: 'jenuh',
-		kategori: 'minimarket',
+		category: 'minimarket',
 		lines: (c) => ({
-			pilih: c.category.minimarket.name,
+			choice: c.category.minimarket.name,
 			chip: c.demo.saturatedChip,
-			tanya: c.demo.saturatedAsk,
-			jawab: c.demo.saturatedYes,
+			ask: c.demo.saturatedAsk,
+			answer: c.demo.saturatedYes,
 			preface: c.demo.saturatedPreface
 		}),
 		query: {
@@ -110,13 +111,13 @@ const SCRIPTS: Script[] = [
 	scriptFor('laundry', true),
 	scriptFor('apotek', false),
 	{
-		id: 'cakupan',
-		kategori: 'kopi',
+		id: 'coverage',
+		category: 'kopi',
 		lines: (c) => ({
-			pilih: c.demo.coverageAsk,
+			choice: c.demo.coverageAsk,
 			chip: c.demo.coverageChip,
-			tanya: c.demo.coverageReply,
-			jawab: c.demo.coverageYes,
+			ask: c.demo.coverageReply,
+			answer: c.demo.coverageYes,
 			preface: c.demo.coveragePreface
 		}),
 		query: {
@@ -131,64 +132,63 @@ const SCRIPTS: Script[] = [
 ];
 
 /**
- * Tidak ada satu pun angka di sini yang bergantung pada permintaan: kisinya
- * berkas yang ikut di-bundel. Jadi halaman ini digambar sekali saat build dan
- * disajikan sebagai berkas statis — tidak ada fungsi server yang dibangunkan
- * hanya untuk menghitung ulang jawaban yang sama.
+ * Not one figure here depends on the request: the grid is a file bundled with the
+ * build. So this page is rendered once at build time and served as a static file —
+ * no server function is woken up just to recompute the same answer.
  */
 export const prerender = true;
 
 export const load: PageServerLoad = () => {
 	const hexes = loadHexes();
-	const terdata = hexes.filter((h) => !h.nodata);
+	const withData = hexes.filter((h) => !h.nodata);
 
-	// Profil 24 jam se-kawasan: jumlah struk tiap jam, dijumlahkan dari petak yang
-	// sudah ada datanya. Bentuknya nyata untuk dataset ini — bukan kurva hiasan.
-	const jam = Array.from({ length: 24 }, (_, h) =>
-		terdata.reduce((a, r) => a + (r.jam?.[h] ?? 0), 0)
+	// The 24-hour profile across the whole area: receipts per hour, summed over the
+	// cells that do have data. Its shape is real for this dataset — not a decorative curve.
+	const hourly = Array.from({ length: 24 }, (_, h) =>
+		withData.reduce((a, r) => a + (r.hourly?.[h] ?? 0), 0)
 	);
 
-	// Satu hitungan per skrip, dua naskah. Angkanya identik lintas bahasa karena
-	// memang berasal dari `runQuery` yang sama.
-	const percakapan = Object.fromEntries(
+	// One computation per script, two scripts' worth of copy. The figures are identical
+	// across languages because they come from the very same `runQuery`.
+	const conversation = Object.fromEntries(
 		LANGS.map((l) => [
 			l,
 			SCRIPTS.map((s) => {
 				const c = DICT[l];
 				const lines = s.lines(c);
-				const ans = runQuery(s.query, lines.pilih, hexes, W);
+				const ans = runQuery(s.query, lines.choice, hexes, W);
 				return {
 					id: s.id,
-					kategori: s.kategori,
+					category: s.category,
 					...lines,
-					tangkap: describeQuery(ans.query, c),
-					kalimat: narrate(ans, c),
-					// Tiga teratas saja: halaman depan menjanjikan bacaan, bukan tabel.
-					hasil: ans.items.slice(0, 3).map((i) => ({ name: i.name, value: i.value })),
-					sisa: Math.max(0, ans.items.length - 3)
+					captured: describeQuery(ans.query, c),
+					sentence: narrate(ans, c),
+					// Top three only: the landing page promises a reading, not a table.
+					results: ans.items.slice(0, 3).map((i) => ({ name: i.name, value: i.value })),
+					more: Math.max(0, ans.items.length - 3)
 				};
 			})
 		])
 	) as Record<Lang, DemoSet[]>;
 
 	return {
-		kisi: {
+		grid: {
 			hexes: grid.hexes,
 			nodata: grid.nodata,
-			terdata: grid.hexes - grid.nodata,
+			withData: grid.hexes - grid.nodata,
 			resolution: grid.resolution,
 			walkRadius: grid.walkRadius,
 			stops: grid.stops,
 			stopsByMode: grid.stopsByMode,
 			pois: grid.pois,
 			poisByCategory: grid.poisByCategory,
-			kategori: CATEGORIES.length,
-			titikMisi: terdata.reduce((a, r) => a + r.nStruk + r.nMenu + r.nProp, 0)
+			categories: CATEGORIES.length,
+			missionPoints: withData.reduce((a, r) => a + r.nStruk + r.nMenu + r.nProp, 0)
 		},
-		// Satu karakter per petak, urut sesuai kisi: 1 = belum terdata. Dikirim
-		// sebagai teks supaya 558 nilai boolean tidak jadi 558 baris JSON.
-		cakupan: hexes.map((h) => (h.nodata ? '1' : '0')).join(''),
-		jam,
-		percakapan
+		// One character per cell, in grid order: 1 = no data yet. Sent as text so 558
+		// booleans do not become 558 lines of JSON.
+		coverageMask: hexes.map((h) => (h.nodata ? '1' : '0')).join(''),
+		hourly,
+		conversation
 	};
 };

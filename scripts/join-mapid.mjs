@@ -1,30 +1,31 @@
 /**
- * Menggabungkan POI premium MAPID ke kisi heksagon.
+ * Joins the MAPID premium POIs onto the hexagon grid.
  *
  *   node scripts/join-mapid.mjs
  *
- * Membaca `src/lib/data/hexes.json` dan `src/lib/data/mapid-poi.json`, lalu
- * menulis ulang `hexes.json` dengan dua tambahan per petak:
+ * Reads `src/lib/data/hexes.json` and `src/lib/data/mapid-poi.json`, then
+ * rewrites `hexes.json` with two additions per cell:
  *
- *   mapid   — cacah pesaing MAPID per kategori dalam jangkauan jalan kaki
- *   covered — per kategori: apakah kota petak ini sudah punya dataset MAPID
+ *   mapid   — MAPID competitor counts per category within walking range
+ *   covered — per category: does this cell's city already have a MAPID dataset
  *
- * KENAPA CAKUPAN DITENTUKAN PER KOTA, BUKAN PER JARAK
+ * WHY COVERAGE IS DECIDED PER CITY, NOT PER DISTANCE
  *
- * Godaannya adalah menandai petak "tercakup" bila ada POI MAPID di dekatnya.
- * Itu keliru: 660 kedai kopi tersebar di lima kota administrasi bukan kepadatan
- * yang tinggi, jadi petak di pinggiran kota yang datasetnya SUDAH diimpor bisa
- * saja tidak punya satu pun POI dalam radius berapa pun — dan akan salah
- * ditandai "belum tercakup". Sebaliknya petak di kota yang belum diimpor bisa
- * kebetulan dekat dengan POI kota tetangga dan salah ditandai "tercakup".
+ * The tempting approach is to mark a cell "covered" whenever a MAPID POI sits
+ * nearby. That is wrong: 660 coffee shops spread across five administrative
+ * cities is not a high density, so a cell on the edge of a city whose dataset HAS
+ * been imported may well hold no POI at any radius — and would be wrongly marked
+ * "not covered". Conversely, a cell in a city that has not been imported can
+ * happen to sit near a neighbouring city's POIs and be wrongly marked "covered".
  *
- * Cakupan itu fakta tingkat kota: dataset diimpor per kota administrasi. Maka
- * batas kota diambil dari OSM, tiap petak ditentukan kotanya lewat uji titik
- * dalam poligon, dan cakupan dibaca dari daftar kota yang datasetnya ada.
+ * Coverage is a city-level fact: datasets are imported per administrative city.
+ * So the city boundaries are pulled from OSM, each cell is assigned its city via a
+ * point-in-polygon test, and coverage is read off the list of cities whose
+ * datasets exist.
  *
- * Petak yang belum tercakup TIDAK diberi nol pesaing. Nol berarti "sudah
- * dicek, memang tidak ada"; belum tercakup berarti "belum dicek". Membedakan
- * keduanya adalah inti dari janji kejujuran data proyek ini.
+ * A cell that is not covered is NOT given zero competitors. Zero means "checked,
+ * and there really is nothing there"; not covered means "not checked yet".
+ * Telling those two apart is the heart of this project's promise of honest data.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -47,7 +48,7 @@ function haversine(aLat, aLon, bLat, bLon) {
 	return 2 * R * Math.asin(Math.sqrt(x));
 }
 
-/** Ray casting; ring berupa [lon, lat][]. */
+/** Ray casting; the ring is a [lon, lat][]. */
 function inRing(lon, lat, ring) {
 	let inside = false;
 	for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -60,9 +61,9 @@ function inRing(lon, lat, ring) {
 	return inside;
 }
 
-/** Normalisasi nama kota supaya "KOTA ADM. JAKARTA PUSAT" dan "Kota Administrasi
-    Jakarta Pusat" dianggap sama. */
-function normKota(s) {
+/** Normalises a city name so that "KOTA ADM. JAKARTA PUSAT" and "Kota Administrasi
+    Jakarta Pusat" count as the same place. */
+function normCity(s) {
 	return String(s ?? '')
 		.toUpperCase()
 		.replace(/KOTA ADMINISTRASI|KOTA ADM\.?|KABUPATEN|KOTA/g, '')
@@ -74,38 +75,40 @@ async function main() {
 	const grid = JSON.parse(readFileSync(hexPath, 'utf8'));
 	const poi = JSON.parse(readFileSync(resolve(ROOT, 'src/lib/data/mapid-poi.json'), 'utf8'));
 
-	console.log(`${grid.hexes.length} petak · ${poi.points.length} titik MAPID\n`);
+	console.log(`${grid.hexes.length} cells · ${poi.points.length} MAPID points\n`);
 
-	// Kota mana yang datasetnya sudah ada, per kategori.
-	const coveredKota = {};
-	for (const c of CATEGORIES) coveredKota[c] = new Set();
+	// Which cities already have a dataset, per category.
+	const coveredCities = {};
+	for (const c of CATEGORIES) coveredCities[c] = new Set();
 	for (const p of poi.points) {
-		if (p.kabkot) coveredKota[p.cat]?.add(normKota(p.kabkot));
+		if (p.city) coveredCities[p.cat]?.add(normCity(p.city));
 	}
-	console.log('Kota tercakup per kategori:');
+	console.log('Covered cities per category:');
 	for (const c of CATEGORIES) {
-		console.log(`  ${c.padEnd(11)} ${coveredKota[c].size ? [...coveredKota[c]].join(', ') : '(belum ada)'}`);
+		console.log(
+			`  ${c.padEnd(11)} ${coveredCities[c].size ? [...coveredCities[c]].join(', ') : '(none yet)'}`
+		);
 	}
 
-	// Batas kota/kabupaten dari OSM — inilah yang membuat cakupan bisa dinilai
-	// tepat, bukan ditebak dari kedekatan.
-	// admin_level=5 adalah kota/kabupaten di Indonesia. Sempat memakai 6, dan
-	// yang kembali justru kecamatan (Kebon Jeruk, Cilincing, Pulo Gadung) —
-	// tidak ada yang cocok dengan KABKOT, jadi seluruh petak salah ditandai
-	// "belum tercakup" tanpa satu pun galat muncul.
-	console.log('\nMengambil batas administrasi dari OSM (admin_level=5)…');
+	// City/regency boundaries from OSM — this is what makes coverage assessable
+	// precisely instead of guessed from proximity.
+	// admin_level=5 is the city/regency level in Indonesia. An earlier attempt used
+	// 6, and what came back were subdistricts (Kebon Jeruk, Cilincing, Pulo Gadung)
+	// — none of which matched KABKOT, so every cell was wrongly marked "not
+	// covered" without a single error surfacing.
+	console.log('\nFetching administrative boundaries from OSM (admin_level=5)…');
 	const q = `[out:json][timeout:180];
 rel["boundary"="administrative"]["admin_level"="5"](-6.45,106.55,-6.02,107.15);
 out geom;`;
-	const raw = await overpass(q, 'batas');
+	const raw = await overpass(q, 'boundaries');
 
-	const kotas = [];
+	const cities = [];
 	for (const rel of raw.elements) {
 		if (rel.type !== 'relation' || !rel.members) continue;
 		const name = rel.tags?.name;
 		if (!name) continue;
-		// Gabung seluruh way anggota jadi satu himpunan ring kasar; untuk uji
-		// "di kota mana" ini sudah cukup — kita tidak menggambar batasnya.
+		// Merge every member way into one rough set of rings; for a "which city is
+		// this in" test that is plenty — we are not drawing the boundary.
 		const ring = [];
 		for (const m of rel.members) {
 			if (m.type !== 'way' || !m.geometry) continue;
@@ -114,45 +117,51 @@ out geom;`;
 		if (ring.length < 4) continue;
 		const lons = ring.map((r) => r[0]);
 		const lats = ring.map((r) => r[1]);
-		kotas.push({
+		cities.push({
 			name,
-			key: normKota(name),
+			key: normCity(name),
 			ring,
 			bbox: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)]
 		});
 	}
-	console.log(`  ${kotas.length} wilayah: ${kotas.map((k) => k.name).join(', ').slice(0, 140)}`);
+	console.log(
+		`  ${cities.length} areas: ${cities
+			.map((k) => k.name)
+			.join(', ')
+			.slice(0, 140)}`
+	);
 
-	// Indeks POI per kategori
+	// Index the POIs per category
 	const byCat = {};
 	for (const c of CATEGORIES) byCat[c] = [];
 	for (const p of poi.points) byCat[p.cat]?.push(p);
 
-	console.log('\nMenggabungkan…');
+	console.log('\nJoining…');
 	let assigned = 0;
 	const tally = { covered: 0, uncovered: 0 };
 
 	for (const h of grid.hexes) {
-		// kota petak ini
-		let kota = null;
-		for (const k of kotas) {
-			if (h.lon < k.bbox[0] || h.lon > k.bbox[2] || h.lat < k.bbox[1] || h.lat > k.bbox[3]) continue;
+		// the city this cell falls in
+		let city = null;
+		for (const k of cities) {
+			if (h.lon < k.bbox[0] || h.lon > k.bbox[2] || h.lat < k.bbox[1] || h.lat > k.bbox[3])
+				continue;
 			if (inRing(h.lon, h.lat, k.ring)) {
-				kota = k;
+				city = k;
 				break;
 			}
 		}
-		if (kota) assigned++;
-		h.kota = kota?.name ?? null;
+		if (city) assigned++;
+		h.city = city?.name ?? null;
 
 		const mapid = {};
 		const covered = {};
 		for (const c of CATEGORIES) {
-			const isCovered = Boolean(kota && coveredKota[c].has(kota.key));
+			const isCovered = Boolean(city && coveredCities[c].has(city.key));
 			covered[c] = isCovered;
 			if (!isCovered) {
-				// Sengaja TIDAK ditulis nol — pembaca harus dipaksa membedakan
-				// "tidak ada pesaing" dari "belum dicek".
+				// Deliberately NOT written as zero — the reader must be forced to tell
+				// "no competitors" apart from "not checked yet".
 				mapid[c] = null;
 				tally.uncovered++;
 				continue;
@@ -173,27 +182,27 @@ out geom;`;
 		source: poi.meta.source,
 		project_id: poi.meta.project_id,
 		points: poi.points.length,
-		coveredKota: Object.fromEntries(
-			CATEGORIES.map((c) => [c, [...coveredKota[c]]])
-		),
-		rule: 'Cakupan ditentukan per kota administrasi (batas dari OSM admin_level=5), bukan dari kedekatan POI. Petak di kota yang datasetnya belum diimpor bernilai null — belum dicek, bukan nol pesaing.',
+		coveredCities: Object.fromEntries(CATEGORIES.map((c) => [c, [...coveredCities[c]]])),
+		rule: 'Coverage is decided per administrative city (boundaries from OSM admin_level=5), not from POI proximity. Cells in a city whose dataset has not been imported are null — not checked yet, not zero competitors.',
 		regenerate: 'node scripts/fetch-mapid.mjs && node scripts/join-mapid.mjs'
 	};
 
 	writeFileSync(hexPath, JSON.stringify(grid));
 
-	const withKota = grid.hexes.filter((h) => h.kota).length;
-	console.log(`  petak dengan kota terisi : ${withKota}/${grid.hexes.length}`);
-	console.log(`  pasangan petak×kategori  : ${tally.covered} tercakup · ${tally.uncovered} belum tercakup`);
+	const withCity = grid.hexes.filter((h) => h.city).length;
+	console.log(`  cells with a city assigned : ${withCity}/${grid.hexes.length}`);
+	console.log(
+		`  cell×category pairs        : ${tally.covered} covered · ${tally.uncovered} not covered`
+	);
 	const tot = {};
 	for (const c of CATEGORIES) {
 		tot[c] = grid.hexes.reduce((a, h) => a + (h.mapid?.[c] ?? 0), 0);
 	}
-	console.log('  total pesaing MAPID terhitung:', tot);
+	console.log('  total MAPID competitors counted:', tot);
 	console.log(`\n→ ${hexPath}`);
 }
 
 main().catch((err) => {
-	console.error('Gagal:', err.message);
+	console.error('Failed:', err.message);
 	process.exit(1);
 });

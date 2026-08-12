@@ -1,16 +1,17 @@
 /**
- * Mengambil geometri jalur angkutan umum Jakarta dari OSM.
+ * Fetches the geometry of Jakarta's public transit lines from OSM.
  *
  *   node scripts/build-routes.mjs
  *
- * Keluaran: `static/data/routes.json` (aset statis, diambil MapLibre lewat URL) — satu FeatureCollection, tiap ruas
- * membawa properti `mode` (mrt | krl | lrt | brt).
+ * Output: `static/data/routes.json` (a static asset, fetched by MapLibre over a URL) — a single
+ * FeatureCollection where every segment carries a `mode` property (mrt | krl | lrt | brt).
  *
- * Relasi rute di OSM punya banyak varian: arah pergi dan pulang dipetakan
- * terpisah, dan satu koridor sering dipakai beberapa nomor trayek sekaligus.
- * Kalau semuanya digambar apa adanya, satu koridor tertumpuk belasan kali —
- * berat dan tidak menambah informasi apa pun. Karena itu ruas dideduplikasi
- * berdasarkan id way OSM: tiap potongan jalan digambar tepat sekali per moda.
+ * Route relations in OSM come in many variants: the outbound and inbound
+ * directions are mapped separately, and one corridor is often shared by several
+ * service numbers at once. Drawing all of them as-is stacks a single corridor a
+ * dozen times over — heavy, and it adds no information whatsoever. Segments are
+ * therefore deduplicated by OSM way id: each stretch of road is drawn exactly
+ * once per mode.
  */
 
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -22,8 +23,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BBOX = '-6.45,106.6,-6.02,107.1';
 
 
-/** Urutan penting: yang digambar belakangan berada di atas. BRT paling padat,
-    jadi ia digambar paling bawah supaya rel tidak tertutup. */
+/** Order matters: whatever is drawn later sits on top. BRT is the densest,
+    so it is drawn at the bottom to keep the rail lines from being buried. */
 const MODES = [
 	{
 		key: 'brt',
@@ -33,15 +34,15 @@ const MODES = [
 	{
 		key: 'krl',
 		label: 'KRL Commuterline',
-		// route=train juga mencakup kereta jarak jauh dan barang; yang relevan bagi
-		// pejalan kaki kota hanya layanan commuter.
+		// route=train also covers long-distance and freight trains; the only thing
+		// relevant to a city pedestrian is the commuter service.
 		query: `rel["route"="train"]["operator"~"KAI Commuter|Kereta Commuter|KCI",i](${BBOX});`
 	},
 	{ key: 'lrt', label: 'LRT', query: `rel["route"="light_rail"](${BBOX});` },
 	{ key: 'mrt', label: 'MRT', query: `rel["route"="subway"](${BBOX});` }
 ];
 
-/** Douglas–Peucker sederhana; toleransi dalam derajat (±1e-4 ≈ 11 m). */
+/** Plain Douglas–Peucker; tolerance in degrees (±1e-4 ≈ 11 m). */
 function simplify(points, tol) {
 	if (points.length < 3) return points;
 	let maxDist = 0;
@@ -79,8 +80,8 @@ async function main() {
 		process.stdout.write(`[${i + 1}/${MODES.length}] ${mode.label} … `);
 		const data = await overpass(`[out:json][timeout:180];(${mode.query});out geom;`, mode.key);
 
-		// Dedup per id way: satu potongan jalan digambar sekali per moda, berapa pun
-		// jumlah trayek dan arah yang melewatinya.
+		// Dedup by way id: each stretch of road is drawn once per mode, no matter
+		// how many services and directions run over it.
 		const seen = new Set();
 		const lines = [];
 		let segments = 0;
@@ -89,7 +90,7 @@ async function main() {
 			if (rel.type !== 'relation' || !rel.members) continue;
 			for (const m of rel.members) {
 				if (m.type !== 'way' || !m.geometry || m.geometry.length < 2) continue;
-				if (m.role && m.role !== '') continue; // peron/halte, bukan ruas jalur
+				if (m.role && m.role !== '') continue; // platform/stop, not a line segment
 				if (seen.has(m.ref)) continue;
 				seen.add(m.ref);
 
@@ -111,7 +112,7 @@ async function main() {
 		}
 
 		summary[mode.key] = segments;
-		console.log(`${data.elements.length} relasi → ${segments} ruas`);
+		console.log(`${data.elements.length} relations → ${segments} segments`);
 		if (i < MODES.length - 1) await sleep(3500);
 	}
 
@@ -119,7 +120,7 @@ async function main() {
 		type: 'FeatureCollection',
 		meta: {
 			source: 'OpenStreetMap contributors (ODbL) via Overpass API',
-			note: 'Ruas dideduplikasi per id way OSM: satu potongan jalur digambar sekali per moda, meski dilewati banyak trayek dan dua arah.',
+			note: 'Segments are deduplicated by OSM way id: one stretch of line is drawn once per mode, even when many services and both directions run over it.',
 			segments: summary,
 			regenerate: 'node scripts/build-routes.mjs'
 		},
@@ -133,11 +134,11 @@ async function main() {
 		(a, f) => a + f.geometry.coordinates.reduce((b, l) => b + l.length, 0),
 		0
 	);
-	console.log(`\n${features.length} moda · ${totalPts} titik tersimpan`);
+	console.log(`\n${features.length} modes · ${totalPts} points written`);
 	console.log(`→ ${dest}`);
 }
 
 main().catch((err) => {
-	console.error('Gagal:', err.message);
+	console.error('Failed:', err.message);
 	process.exit(1);
 });
