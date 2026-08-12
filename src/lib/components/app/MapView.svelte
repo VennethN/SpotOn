@@ -604,10 +604,14 @@
 				// Read at hover time rather than captured when the marker was made: a
 				// marker outlives many rescorings, and a captured row would keep showing
 				// the figures from whichever category was active when it was created.
-				el.addEventListener(
-					'pointerenter',
-					() => (hovered = { name, nodata, row: app.rowById.get(h.id) ?? null })
-				);
+				el.addEventListener('pointerenter', (ev) => {
+					hovered = { name, nodata, row: app.rowById.get(h.id) ?? null };
+					// Placed as well as filled. Only the map's own `mousemove` moved this
+					// thing, so hovering a marker showed its figures in the top-left corner
+					// of the screen, nowhere near the marker and often over another panel.
+					const box = container.getBoundingClientRect();
+					positionTip(ev.clientX - box.left, ev.clientY - box.top);
+				});
 				el.addEventListener('pointerleave', () => (hovered = null));
 				const marker = new gl.Marker({ element: el, anchor: 'center' })
 					.setLngLat([h.lon, h.lat])
