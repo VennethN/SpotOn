@@ -118,7 +118,16 @@ function poiCategory(tags = {}) {
 	if (tags.amenity === 'ice_cream') return 'minuman';
 	if (tags.shop === 'beverages' || tags.shop === 'bubble_tea') return 'minuman';
 	if (tags.shop === 'bakery' || tags.shop === 'pastry') return 'roti';
-	if (tags.amenity === 'restaurant' || tags.amenity === 'fast_food') return 'warung';
+	if (tags.amenity === 'fast_food') return 'cepatsaji';
+	// `amenity=restaurant` sengaja TIDAK dipetakan. Sejak warung dipecah jadi
+	// warteg/mie/seafood/resto asing, tidak ada satu kategori pun yang pantas
+	// menampungnya, dan OSM tidak bisa memilahnya: cuma 48,9% gerai makan di
+	// Jakarta Pusat punya tag `cuisine`, kosakatanya tidak mengenal warteg
+	// maupun rumah makan Padang, dan `seafood` tidak muncul sama sekali di
+	// sampel. Menebak-nebak dari `cuisine` akan menghasilkan cacah yang berat
+	// sebelah, paling parah untuk warteg yang paling jarang ditandai. Jadi
+	// keempat kategori itu dinyatakan tidak tercakup OSM lewat `osmTag: null`,
+	// dan restoran biasa tidak dihitung ke mana-mana.
 	if (tags.shop === 'convenience' || tags.shop === 'supermarket') return 'minimarket';
 	// Sengaja dipisah dari minimarket: `convenience` di OSM dipakai untuk gerai
 	// berjaringan, sedangkan `grocery`/`general`/`kiosk` untuk toko kelontong
@@ -169,15 +178,42 @@ const MODE_WEIGHT = { mrt: 1.0, krl: 0.9, lrt: 0.6, brt: 0.45 };
  */
 const CATEGORIES = [
 	'kopi',
-	'warung',
+	'warteg',
 	'minimarket',
 	'laundry',
 	'apotek',
 	'minuman',
 	'roti',
 	'kelontong',
-	'bengkel'
+	'bengkel',
+	'cepatsaji',
+	'mie',
+	'seafood',
+	'restoasing'
 ];
+
+/**
+ * Kategori yang benar-benar punya sumber di OSM. HANYA ini yang boleh muncul
+ * sebagai kunci pada `hexes.json.osm`.
+ *
+ * Ada tidaknya kunci itulah yang dibaca mesin skor sebagai "sudah diambil dan
+ * ternyata nol" versus "belum tercakup". Menulis nol untuk kategori yang tidak
+ * punya tag OSM akan menyatakan seluruh Jakarta bebas pesaing warteg — dan
+ * karena nol pesaing adalah skor terbaik yang bisa diberikan peta ini, seluruh
+ * peringkatnya jadi bohong. Daftar ini harus cocok dengan `osmTag` yang tidak
+ * null di `src/lib/domain/categories.ts`.
+ */
+const OSM_CATEGORIES = new Set([
+	'kopi',
+	'minuman',
+	'roti',
+	'cepatsaji',
+	'minimarket',
+	'kelontong',
+	'laundry',
+	'bengkel',
+	'apotek'
+]);
 
 /* ── program ──────────────────────────────────────────────────────────────── */
 
@@ -276,7 +312,7 @@ way["${g.key}"~"^(${g.values})$"](${BBOX});
 		const access = Math.min(1, Math.sqrt(weighted) / 3.2);
 
 		const nearPois = poiIndex.near(lat, lon, WALK_M);
-		const osm = Object.fromEntries(CATEGORIES.map((c) => [c, 0]));
+		const osm = Object.fromEntries([...OSM_CATEGORIES].map((c) => [c, 0]));
 		for (const p of nearPois) osm[p.cat]++;
 
 		// Nama manusiawi: simpul transit terdekat yang punya nama.
