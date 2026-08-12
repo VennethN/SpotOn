@@ -1,7 +1,7 @@
 import { getContext, setContext } from 'svelte';
 import { CATEGORY_KEYS, CATEGORY_MAP } from '$lib/domain/categories';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
-import { DEFAULT_WEIGHTS } from '$lib/domain/weights';
+import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
 import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
 import type {
@@ -42,20 +42,25 @@ export class AppState {
 	base = $state<HexBase[]>([]);
 	/** Per-category columns, by category, as they arrive. */
 	slices = $state<Partial<Record<CategoryKey, CategorySlice>>>({});
-	category = $state<CategoryKey>('kopi');
+	category = $state<CategoryKey>(DEFAULT_CATEGORY);
 	weights = $state<Weights>({ ...DEFAULT_WEIGHTS });
 	layers = $state<Record<LayerKey, boolean>>({
 		/**
-		 * The opportunity heatmap starts OFF.
+		 * The opportunity heatmap is ON from the first frame.
 		 *
-		 * Colouring all 562 cells for a category nobody has chosen yet states an
-		 * opinion the user never asked for — and it is the single most expensive thing
-		 * on the page, since it is what forces a category's columns to be loaded and
-		 * every cell to be scored before anything can be drawn. So the map opens as a
-		 * map: cells, transit lines, names. The heatmap arrives when it is asked for,
-		 * by the button on the legend or by Tapak answering a question.
+		 * It is what the product is: a map with an opinion about where to open. Opening
+		 * on a plain grid and asking the user to press a button to see it puts the whole
+		 * point one step away, and an uncoloured grid reads as a map that failed to load.
+		 *
+		 * It stays a switch — the legend can turn it off, which is worth having when
+		 * reading the streets underneath. But off is the state you choose, not the one
+		 * you are given.
+		 *
+		 * This is why the default category's columns are fetched by the page load
+		 * alongside the base grid rather than after mount: on from the start means
+		 * coloured from the start, with no flash of a grey grid in between.
 		 */
-		score: false,
+		score: true,
 		routes: true,
 		poi: false,
 		nodata: true,
@@ -88,8 +93,11 @@ export class AppState {
 	/** In-flight requests, so two callers asking for the same category share one fetch. */
 	#inFlight = new Map<CategoryKey, Promise<void>>();
 
-	constructor(base: HexBase[]) {
+	constructor(base: HexBase[], initial?: CategorySlice) {
 		this.base = base;
+		// The opening category arrives with the page, so the first paint is already
+		// scored. Anything else is fetched on demand from here on.
+		if (initial) this.slices = { [initial.cat]: initial };
 	}
 
 	get definition() {
@@ -336,8 +344,8 @@ export class AppState {
 	}
 }
 
-export function setAppState(base: HexBase[]): AppState {
-	return setContext(KEY, new AppState(base));
+export function setAppState(base: HexBase[], initial?: CategorySlice): AppState {
+	return setContext(KEY, new AppState(base, initial));
 }
 
 export function getAppState(): AppState {

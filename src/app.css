@@ -75,8 +75,15 @@
 	 *
 	 * Solid, and grey rather than blue: with no score there is no position on the
 	 * ramp, and a blue-ish idle cell would read as the bottom of it.
+	 *
+	 * Painted faintly (see `catchment-fill`) — an idle cell is drawn by its EDGE, not
+	 * its fill, so the streets and place names underneath stay readable.
 	 */
 	--cell-idle: #b6bfcb;
+	/* The edge of an idle cell. Stronger than `--separator-strong`, which is a panel
+	   hairline tuned to divide list rows — over a basemap it disappears, and with the
+	   heatmap off this edge is the only thing drawing the grid at all. */
+	--cell-edge: rgba(74, 88, 110, 0.38);
 
 	/* the opportunity ramp (low → high) */
 	--ramp-0: #dbe7f7;
@@ -177,6 +184,7 @@
 		/* Lighter than the basemap, not darker: over a near-black map an idle cell has
 		   to add light to be seen at all. */
 		--cell-idle: #5c6779;
+		--cell-edge: rgba(176, 190, 212, 0.34);
 		--ramp-0: #16305a;
 		--ramp-1: #1c4079;
 		--ramp-2: #245399;
@@ -225,6 +233,7 @@
 	/* Lighter than the basemap, not darker: over a near-black map an idle cell has to
 	   add light to be seen at all. */
 	--cell-idle: #5c6779;
+	--cell-edge: rgba(176, 190, 212, 0.34);
 	--ramp-0: #16305a;
 	--ramp-1: #1c4079;
 	--ramp-2: #245399;

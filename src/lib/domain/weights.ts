@@ -1,4 +1,15 @@
-import type { Weights } from '$lib/types';
+import type { CategoryKey, Weights } from '$lib/types';
+
+/**
+ * The business type the map opens on.
+ *
+ * A named constant because the page load has to fetch this category's columns
+ * before the first paint — the heatmap is on from the start, so the load and the
+ * interface state have to agree on which category that is. Hard-coded in two places,
+ * they would sooner or later disagree, and the map would open having downloaded one
+ * category and be showing another.
+ */
+export const DEFAULT_CATEGORY: CategoryKey = 'kopi';
 
 /**
  * Weights & gates: the default values, and the single place they are sanitised.
