@@ -72,6 +72,53 @@ export function normCity(s) {
 }
 
 /**
+ * An outlet name fit to print, or null.
+ *
+ * The catalogue writes an absent name several ways: missing, empty, and the literal
+ * "-" that also stands in for an empty TIPE column. All three mean the same thing and
+ * none of them is a name, so they collapse to null and the map draws that outlet as a
+ * mark with no label. An unnamed competitor is still a competitor.
+ *
+ * It lives in this module rather than inside `fetch-mapid.mjs` for one reason: that
+ * script calls `main()` on import and reaches the network, so nothing in it can be
+ * loaded by a test. This is the only part of the fetch that has to be RIGHT rather
+ * than merely reachable, and `selftest-pois.mjs` exercises it here without a key and
+ * without a request.
+ */
+export function cleanName(v) {
+	const s = String(v ?? '')
+		.trim()
+		.replace(/\s+/g, ' ');
+	if (!s || s === '-' || /^n\/?a$/i.test(s)) return null;
+	return s;
+}
+
+/**
+ * One record per outlet, names merged.
+ *
+ * An outlet can appear in two datasets — COFFEE SHOP and MAKANAN DAN MINUMAN for the
+ * same city both carry it — and without this, competitors get double-counted and a
+ * busy cell looks twice as busy as it is.
+ *
+ * The key is the outlet, not the record, so it deliberately ignores the name: two
+ * datasets spelling the same shop differently are still one shop, and keying on the
+ * name would let it through twice. But when the copy already kept has no name and
+ * the duplicate does, the name is taken. Same outlet, described better by the second
+ * dataset, and dropping that would leave a mark on the map with no label for no
+ * reason other than the order the layers happened to be read in.
+ */
+export function dedupePoints(points) {
+	const byKey = new Map();
+	for (const p of points) {
+		const k = `${p.cat}|${p.lat}|${p.lon}`;
+		const kept = byKey.get(k);
+		if (!kept) byKey.set(k, { ...p });
+		else if (!kept.name && p.name) kept.name = p.name;
+	}
+	return [...byKey.values()];
+}
+
+/**
  * Matches a dataset name against a search term and a city.
  *
  * Used by `fetch-mapid.mjs` and `search-mapid.mjs` so both judge "this is the
