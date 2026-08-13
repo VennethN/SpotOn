@@ -156,20 +156,6 @@ const RULES = [
 	{ cat: 'warteg', re: /RESTORAN|RESTAURANT|MAKANAN|KULINER/i }
 ];
 
-/**
- * An outlet name fit to print, or null.
- *
- * The catalogue writes an absent name several ways: missing, empty, and the literal
- * "-" that also stands in for an empty TIPE column. All three mean the same thing
- * and none of them is a name, so they collapse to null and the map draws that outlet
- * as a mark with no label. An unnamed competitor is still a competitor.
- */
-function cleanName(v) {
-	const s = String(v ?? '').trim().replace(/\s+/g, ' ');
-	if (!s || s === '-' || /^n\/?a$/i.test(s)) return null;
-	return s;
-}
-
 function classify(props = {}) {
 	// Deliberately reads ONLY the TIPE columns, never NAMA. Guessing from the name
 	// once counted a TransJakarta stop as a minimarket purely because its name
@@ -364,21 +350,9 @@ async function main() {
 	// Dedup: one outlet can appear in two datasets (e.g. COFFEE SHOP and MAKANAN DAN
 	// MINUMAN for the same city). Without this, competitors get double-counted and a
 	// busy cell looks twice as busy as it is.
-	//
-	// The key is the outlet, not the record, so it deliberately ignores the name: two
-	// datasets spelling the same shop differently are still one shop, and keying on
-	// the name would let it through twice. But when the copy already kept has no name
-	// and the duplicate does, the name is taken — the same outlet, described better by
-	// the second dataset, and dropping that would leave a mark on the map with no
-	// label for no reason other than the order the layers happened to be read in.
-	const byKey = new Map();
-	for (const p of points) {
-		const k = `${p.cat}|${p.lat}|${p.lon}`;
-		const kept = byKey.get(k);
-		if (!kept) byKey.set(k, p);
-		else if (!kept.name && p.name) kept.name = p.name;
-	}
-	const unique = [...byKey.values()];
+	// Both the key and the name-merging rule live in `lib/mapid.mjs`, where a test can
+	// reach them — see the note there.
+	const unique = dedupePoints(points);
 
 	const byCat = unique.reduce((a, p) => ((a[p.cat] = (a[p.cat] ?? 0) + 1), a), {});
 	const byCity = unique.reduce((a, p) => ((a[p.city ?? '?'] = (a[p.city ?? '?'] ?? 0) + 1), a), {});
