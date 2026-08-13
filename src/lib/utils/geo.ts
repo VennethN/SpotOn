@@ -1,38 +1,15 @@
-import type { Feature, FeatureCollection, Point } from 'geojson';
+import type { FeatureCollection } from 'geojson';
 
 const EARTH_R = 6378137;
 
-/**
- * Scatters competitor points inside a catchment using a Fibonacci spiral.
- *
- * The count is real (computed from OSM), the individual positions are
- * illustrative — an even spread was chosen so no pattern looks meaningful when it
- * is not.
+/*
+ * There used to be a `scatterPoints` here, which spread a cell's competitor COUNT
+ * around its centre on a Fibonacci spiral: the right number of dots in invented
+ * places. It is gone, and deliberately not replaced. The competitors are drawn from
+ * their real MAPID coordinates now (`domain/competitors`), and a helper whose whole
+ * job is to make up positions is not something to leave lying about in a codebase
+ * that promises never to invent a figure.
  */
-export function scatterPoints(
-	lon: number,
-	lat: number,
-	radiusMeters: number,
-	count: number,
-	seedProps: Record<string, unknown> = {}
-): Feature<Point>[] {
-	const out: Feature<Point>[] = [];
-	const n = Math.min(60, count);
-	if (n <= 0) return out;
-	const latRad = (lat * Math.PI) / 180;
-	for (let i = 0; i < n; i++) {
-		const angle = i * 2.399963; // the golden angle
-		const r = radiusMeters * Math.sqrt((i + 0.5) / n) * 0.92;
-		const dLat = ((r * Math.sin(angle)) / EARTH_R) * (180 / Math.PI);
-		const dLon = ((r * Math.cos(angle)) / (EARTH_R * Math.cos(latRad))) * (180 / Math.PI);
-		out.push({
-			type: 'Feature',
-			geometry: { type: 'Point', coordinates: [lon + dLon, lat + dLat] },
-			properties: { ...seedProps }
-		});
-	}
-	return out;
-}
 
 export const emptyFC = (): FeatureCollection => ({ type: 'FeatureCollection', features: [] });
 
@@ -43,8 +20,8 @@ export const emptyFC = (): FeatureCollection => ({ type: 'FeatureCollection', fe
  * within — the same test `capturedStops` applies, made visible, so the answer to
  * "why those stations and not that one" is on screen rather than in a footnote.
  *
- * Flat-earth offsets, like `scatterPoints` above: at 800 m the error is far under a
- * pixel at any zoom this map reaches.
+ * Flat-earth offsets: at 800 m the error is far under a pixel at any zoom this map
+ * reaches.
  */
 export function ringCoords(
 	lon: number,
