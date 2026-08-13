@@ -102,6 +102,16 @@ export class AppState {
 	 * load. Fetched on the first selection and kept.
 	 */
 	stops = $state<Omit<Stop, 'distance'>[] | null>(null);
+	/**
+	 * The stop file could not be read.
+	 *
+	 * Kept apart from `stops` because "not here yet" and "not coming" are different
+	 * facts, and a panel has to say different things about them: the first is a
+	 * loading line, the second is a fallback to the counts. With one null standing for
+	 * both, a single failed fetch left every panel announcing that it was still
+	 * loading — for the rest of the session, with nothing on the way.
+	 */
+	stopsFailed = $state(false);
 
 	/** In-flight requests, so two callers asking for the same category share one fetch. */
 	#inFlight = new Map<CategoryKey, Promise<void>>();
@@ -277,27 +287,49 @@ export class AppState {
 	}
 
 	/**
-	 * Load the transit stops, once. Failure is silent on purpose: the stops enrich
-	 * the area panel, and losing them must not take the panel's other figures with
-	 * them — the counts it leads with come from the grid, which is already here.
+	 * Load the transit stops, once.
+	 *
+	 * Failure does not take the panels down with it: the counts they lead with come
+	 * from the grid, which is already here, so losing this file costs the reader the
+	 * NAMES and nothing else. But it is not silent either — `stopsFailed` is what lets
+	 * a panel drop its loading line and fall back, instead of waiting on a request
+	 * that is never coming back.
 	 */
 	loadStops(): Promise<void> {
 		if (this.stops || this.#stopsJob) return this.#stopsJob ?? Promise.resolve();
 		this.#stopsJob = (async () => {
 			try {
 				const res = await fetch(`${base}/data/stops.json`);
-				if (!res.ok) return;
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
 				this.stops = parseStops(await res.json());
+				this.stopsFailed = false;
 			} catch {
-				/* the panel falls back to counts alone */
+				this.stopsFailed = true;
+			} finally {
+				// Cleared either way, the same shape `loadCategory` uses for its in-flight
+				// map. Left in place after a failure it is a retry that can never happen:
+				// the guard above sees a job, hands back its settled promise, and every
+				// later selection is answered by the request that already failed.
+				this.#stopsJob = null;
 			}
 		})();
 		return this.#stopsJob;
 	}
 
+	/**
+	 * The selected cell as the GRID holds it.
+	 *
+	 * Not the same thing as `selected`, which is the scored row and stays null until
+	 * the active category's columns land. Everything built from real data — the cell's
+	 * transit counts, its access index, the stops it captures — is already here on the
+	 * first frame, and reading it through this rather than through the scored row is
+	 * what lets the map and the transit panel answer immediately.
+	 */
+	selectedCell = $derived(this.base.find((h) => h.id === this.selectedId) ?? null);
+
 	/** The stops the selected cell captures, nearest first. */
 	selectedStops = $derived.by(() => {
-		const cell = this.base.find((h) => h.id === this.selectedId);
+		const cell = this.selectedCell;
 		if (!cell || !this.stops) return [];
 		return capturedStops(cell, this.stops, this.weights.radius);
 	});

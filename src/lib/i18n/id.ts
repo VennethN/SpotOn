@@ -9,6 +9,11 @@
  * What must never be lost: a figure always says where it came from, and what is
  * not known is called not known.
  */
+
+/** Indonesian decimals: 0.45 → "0,45". Kept in the locale, where notation belongs —
+    the components hand over numbers, never pre-formatted strings. */
+const dec = (v: number, digits = 2): string => v.toFixed(digits).replace('.', ',');
+
 export const id = {
 	lang: { code: 'id', label: 'Bahasa Indonesia', short: 'ID', switchTo: 'Ganti ke Bahasa Inggris' },
 
@@ -316,6 +321,79 @@ export const id = {
 			'Angka pesaing dari OSM (nyata), sedangkan atribut misi MAPID masih contoh. N ditampilkan supaya bisa diperiksa.'
 	},
 
+	/* ── Susunan skor ──────────────────────────────────────────────────────
+	   Panel ini yang menjawab "kenapa segini?". Urutannya sengaja: yang dipimpin
+	   adalah simpul transit — satu-satunya masukan yang datanya nyata, dan memang
+	   itu inti proyek ini — baru sesudahnya rinciannya langkah per langkah. */
+	breakdown: {
+		title: 'Susunan skor',
+		lead: 'Skor di atas dibentuk berurutan. Tiap langkah bisa ditelusuri sampai ke datanya.',
+		/* Petak yang belum tercakup sumber pesaingnya tidak punya skor untuk dibongkar.
+		   Yang di bawahnya tetap berlaku: simpul transit datanya dari OSM, nyata, dan
+		   tidak ikut hilang cuma karena kategorinya belum disurvei. */
+		noScore:
+			'Petak ini belum bisa diberi skor untuk jenis usaha yang sedang dipilih, jadi tidak ada langkah yang bisa ditampilkan. Akses transitnya tetap nyata dan tercatat.',
+		transitLead: 'Yang paling menentukan: angkutan massal',
+		/* Bahasa Indonesia tidak mengubah bentuk kata bendanya; parameternya ada untuk
+		   bahasa yang mengubah, supaya bentuk kuncinya sama di kedua berkas. */
+		stopsUnit: (_n: number) => 'simpul transit terjangkau',
+		stopsSub: (r: number) => `dalam ${r} m jalan kaki dari pusat petak · OSM, data nyata`,
+		stopsSplit: (rel: number, halte: number) => {
+			if (rel > 0 && halte > 0) return `${rel} stasiun rel · ${halte} halte TransJakarta`;
+			if (rel > 0) return `${rel} stasiun rel`;
+			return `${halte} halte TransJakarta`;
+		},
+		none: 'Petak ini tidak menangkap simpul transit mana pun dalam jarak jalan kaki.',
+		contributes: (poin: number, total: number) =>
+			`Dari ${total} poin skor petak ini, ${poin} datang dari akses transitnya.`,
+		without: (poin: number) => `Tanpa transit sama sekali, petak ini cuma ${poin}.`,
+		ceiling: (poin: number) =>
+			`Di petak ini akses transit paling banyak bisa menyumbang ${poin} poin. Sisanya sudah ditentukan permintaan dan persaingan.`,
+		splitBase: 'permintaan − persaingan',
+		splitTransit: 'akses transit',
+		splitAria: (dasar: number, transit: number, total: number) =>
+			`Skor ${total} poin: ${dasar} dari permintaan dan persaingan, ${transit} dari akses transit.`,
+
+		stepsTitle: 'Langkah per langkah',
+		rows: {
+			start: 'Titik seimbang',
+			demand: 'Permintaan',
+			supply: 'Persaingan',
+			clamp: 'Dijaga di rentang',
+			gate: 'Gerbang tempat usaha',
+			access: 'Akses transit'
+		},
+		notes: {
+			start: 'sebelum data dibaca, tiap petak mulai dari sini',
+			demand: (bobot: number, nilai: number) => `bobot ${dec(bobot)} × permintaan ${nilai}`,
+			supply: (bobot: number, nilai: number) => `bobot ${dec(bobot)} × penawaran efektif ${nilai}`,
+			clamp: 'hasilnya tidak boleh keluar dari 0–100',
+			gateOff: 'syaratnya sedang dimatikan',
+			gatePass: (n: number) => `${n} tempat disewakan, syarat terpenuhi`,
+			gateBlock: (f: number) => `tidak ada tempat yang disewakan → ×${dec(f)}`,
+			access: (pengali: number, akses: number) =>
+				`×${dec(pengali)} = 0,60 + 0,40 × indeks akses ${dec(akses)}`
+		},
+		total: 'Skor peluang',
+		deltaAria: (poin: number) => (poin >= 0 ? `naik ${poin} poin` : `turun ${Math.abs(poin)} poin`),
+
+		accessTitle: 'Isi indeks aksesnya',
+		accessRow: (n: number, bobot: number) => `${n} simpul × bobot ${dec(bobot)}`,
+		accessShare: (persen: number) => `${persen}% dari indeks`,
+		accessIndex: (akses: number, pengali: number) =>
+			`Indeks akses ${dec(akses)} → pengali skor ${dec(pengali)}`,
+		accessFormula: (pembagi: number) =>
+			`Indeks akses = √(jumlah simpul × bobot modanya) ÷ ${dec(pembagi, 1)}, dibatasi 1. Dihitung sekali waktu kisinya dibangun, dari OSM. Bobotnya beda karena daya angkutnya beda.`,
+
+		stationsTitle: 'Simpul yang terjangkau, satu per satu',
+		stationsLoading: 'Memuat daftar simpulnya…',
+		stationsFailed:
+			'Daftar nama simpulnya tidak bisa dimuat. Cacah dan indeks aksesnya di atas tetap berlaku, keduanya dibaca dari kisi, bukan dari berkas itu.',
+		modeGroup: (moda: string, n: number) => `${moda} · ${n} simpul`,
+		unnamed: (n: number) =>
+			`+${n} simpul lagi tanpa nama sendiri: peron stasiun yang sama, atau halte yang belum dinamai di OSM`
+	},
+
 	table: {
 		cols: {
 			name: 'Petak',
@@ -400,6 +478,15 @@ export const id = {
 		   dibantah; "akses 0,82" tidak bisa apa-apa. Angkanya tetap ada, di
 		   belakang namanya. */
 		transit: 'Yang dijangkau dari sini',
+		/* Angkanya dipimpin, bukan diselipkan. Ini "edisi angkutan massal": berapa
+		   simpul yang terjangkau dari satu petak itu pertanyaan pertamanya, jadi
+		   jawabannya ditulis besar sebelum apa pun yang lain. */
+		transitCount: (_n: number) => 'simpul transit dalam jarak jalan kaki',
+		transitCountSplit: (rel: number, halte: number) => {
+			if (rel > 0 && halte > 0) return `${rel} stasiun rel · ${halte} halte TransJakarta`;
+			if (rel > 0) return `${rel} stasiun rel`;
+			return `${halte} halte TransJakarta`;
+		},
 		transitNone: 'Tidak ada simpul transit dalam jarak jalan kaki dari petak ini.',
 		transitLoading: 'Memeriksa simpul transit di sekitarnya…',
 		transitBand: {
@@ -546,7 +633,12 @@ export const id = {
 			pois: 'titik usaha terdata',
 			cats: 'jenis usaha'
 		},
+		/* Jalan keluar buat yang tidak mau ditanya dulu. Bunyinya menyebut apa yang
+		   didapat, bukan apa yang dilewati: "lewati" saja tidak memberi tahu ke mana
+		   perginya. Tapak tetap ada di sebelah kanan, jadi tidak ada yang hilang. */
+		launchSkip: 'Lihat petanya dulu',
 		closeArea: 'Tutup kawasan',
+		dismissRemark: 'Tutup catatan Tapak',
 		home: 'Kembali ke beranda SpotOn',
 		emptyMood: 'Belum ada kawasan yang dipilih. Tekan salah satu petak di peta untuk melihat suasananya.',
 		pickBest: (cat: string) => `Pilihkan yang terbaik untuk ${cat}`,
@@ -554,6 +646,12 @@ export const id = {
 		clockAria: 'Geser untuk melihat kawasan ini pada jam lain',
 		schema: 'skema, bukan denah sebenarnya',
 		fullNumbers: 'Lihat angka lengkapnya',
+		/* Tanda di peta, menempel pada petak yang dipilih. Sengaja cuma cacahnya:
+		   rinciannya ada di panel, yang dibutuhkan di peta cuma "berapa banyak". */
+		mapStops: (n: number) => `${n} simpul transit`,
+		mapStopsAria: (n: number, r: number) =>
+			`${n} simpul transit dalam ${r} m jalan kaki dari petak ini`,
+		mapReach: (r: number) => `jangkauan ${r} m`,
 		tipNodata: 'Data misi MAPID: N = 0 · kandidat prioritas survei',
 		tipScore: (cat: string) => `skor ${cat}`,
 		sheet: 'Panel informasi',

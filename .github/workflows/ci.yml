@@ -47,6 +47,12 @@ jobs:
       - name: Typecheck & a11y
         run: npm run check
 
+      # The one piece of arithmetic in here that is claimed to agree with another
+      # piece of arithmetic. Cheap, offline, and it fails loudly rather than showing
+      # a reader a column of numbers that does not add up.
+      - name: Self-test the score composition
+        run: npm run selftest
+
       - name: Production build
         run: npm run build
 

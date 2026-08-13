@@ -36,6 +36,33 @@ export function scatterPoints(
 
 export const emptyFC = (): FeatureCollection => ({ type: 'FeatureCollection', features: [] });
 
+/**
+ * A closed ring at `radiusMeters` around a point, as [lon, lat] pairs.
+ *
+ * Drawn on the map to show the walking range a cell's transit nodes were captured
+ * within — the same test `capturedStops` applies, made visible, so the answer to
+ * "why those stations and not that one" is on screen rather than in a footnote.
+ *
+ * Flat-earth offsets, like `scatterPoints` above: at 800 m the error is far under a
+ * pixel at any zoom this map reaches.
+ */
+export function ringCoords(
+	lon: number,
+	lat: number,
+	radiusMeters: number,
+	steps = 96
+): [number, number][] {
+	const latRad = (lat * Math.PI) / 180;
+	const dLat = ((radiusMeters / EARTH_R) * 180) / Math.PI;
+	const dLon = ((radiusMeters / (EARTH_R * Math.cos(latRad))) * 180) / Math.PI;
+	const out: [number, number][] = [];
+	for (let i = 0; i <= steps; i++) {
+		const a = (i / steps) * Math.PI * 2;
+		out.push([lon + dLon * Math.cos(a), lat + dLat * Math.sin(a)]);
+	}
+	return out;
+}
+
 /** Great-circle distance in metres. */
 export function haversine(aLat: number, aLon: number, bLat: number, bLon: number): number {
 	const rad = (d: number) => (d * Math.PI) / 180;

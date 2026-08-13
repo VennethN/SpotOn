@@ -25,7 +25,7 @@
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import type { GridMeta } from '$lib/types';
 
-	let { tapak, meta }: { tapak: Tapak; meta: GridMeta } = $props();
+	let { tapak, meta, onskip }: { tapak: Tapak; meta: GridMeta; onskip: () => void } = $props();
 
 	const c = $derived(copy());
 	const n = $derived((v: number) => v.toLocaleString(lang() === 'en' ? 'en-GB' : 'id-ID'));
@@ -180,6 +180,12 @@
 			</div>
 		{/each}
 	</dl>
+
+	<!-- The way past. Not everyone arrives with a question, and someone who wants to
+	     look around first should not have to invent one to get at the map. Small and
+	     last, because asking is still the way this is meant to be used, and quiet
+	     enough that it does not compete with the field above it. -->
+	<button type="button" class="skip" onclick={onskip}>{c.app.launchSkip}</button>
 </div>
 
 <style>
@@ -320,6 +326,26 @@
 		margin: 1.375rem 0 0;
 		padding-top: 0.875rem;
 		border-top: 1px solid var(--separator);
+	}
+
+	/* Deliberately the quietest thing on the card: a text button, no fill, no border.
+	   It is a way out, not an offer. */
+	.skip {
+		margin-top: 0.875rem;
+		border: 0;
+		background: none;
+		padding: 0.25rem 0.5rem;
+		border-radius: 999px;
+		font-size: 0.75rem;
+		color: var(--label-3);
+		cursor: pointer;
+		transition:
+			color 140ms ease-out,
+			background-color 140ms ease-out;
+	}
+	.skip:hover {
+		color: var(--label-1);
+		background: var(--fill-1);
 	}
 	.stats > :global(div) {
 		padding-inline: 0.375rem;

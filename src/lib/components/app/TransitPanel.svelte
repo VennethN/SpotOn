@@ -19,6 +19,8 @@
 		accessUplift,
 		namedStops,
 		presentModes,
+		railTotal,
+		stopTotal,
 		type Mode
 	} from '$lib/domain/transit';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -28,20 +30,25 @@
 	const c = $derived(copy());
 
 	const row = $derived(app.selected);
-	const cell = $derived(app.base.find((h) => h.id === app.selectedId) ?? null);
+	const cell = $derived(app.selectedCell);
 
 	const stops = $derived(app.selectedStops);
 	const rail = $derived(namedStops(stops, RAIL));
-	const busCount = $derived(stops.filter((s) => s.mode === 'brt').length);
 	/* The counts come from the GRID, not from the stop list — they are what access was
 	   actually computed from. The stop list only names them. If the file were missing
 	   these still read correctly. */
 	const modes = $derived(cell ? presentModes(cell.transit) : []);
+	const total = $derived(cell ? stopTotal(cell.transit) : 0);
+	const railCount = $derived(cell ? railTotal(cell.transit) : 0);
+	const busCount = $derived(cell?.transit.brt ?? 0);
 	const access = $derived(cell?.access ?? 0);
 	const band = $derived(accessBand(access));
 	const uplift = $derived(accessUplift(access));
 	const hasRail = $derived(modes.some((m) => RAIL.includes(m.mode)));
-	const waiting = $derived(app.stops === null);
+	/* Waiting is not the same as never coming: with the stop file lost, this panel
+	   drops the loading line and keeps the counts, which is what the note above
+	   promises it does. */
+	const waiting = $derived(app.stops === null && !app.stopsFailed);
 
 	const colour = (m: Mode) => `var(--route-${m})`;
 </script>
@@ -64,6 +71,17 @@
 		{#if modes.length === 0}
 			<p class="none">{c.mood.transitNone}</p>
 		{:else}
+			<!-- The count leads. Everything below it — the modes, the names, the index —
+			     answers "which ones?"; this answers "how many?", which is the question
+			     someone comparing two sites asks first, and the one this whole product
+			     is organised around. Read from the grid, so it is right on the first
+			     frame and never disagrees with the score beside it. -->
+			<p class="count">
+				<span class="n">{total}</span>
+				<span class="unit">{c.mood.transitCount(total)}</span>
+			</p>
+			<p class="split">{c.mood.transitCountSplit(railCount, busCount)}</p>
+
 			<!-- The mode chips read off the grid's own counts, so they are right from the
 			     first frame — before the stop list has been fetched. -->
 			<ul class="modes">
@@ -152,6 +170,34 @@
 		border-radius: 999px;
 		background: var(--dot);
 		flex: none;
+	}
+
+	/* The headline count. Set at display size because it is the headline: on a phone
+	   this is the one line that has to survive being read at arm's length. */
+	.count {
+		display: flex;
+		align-items: baseline;
+		gap: 0.4375rem;
+	}
+	.count .n {
+		font-size: 2rem;
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		line-height: 1;
+		font-variant-numeric: tabular-nums;
+		color: var(--label-1);
+	}
+	.count .unit {
+		font-size: 0.75rem;
+		line-height: 1.3;
+		color: var(--label-2);
+	}
+	.split {
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: -0.005em;
+		color: var(--label-1);
+		margin-top: -0.1875rem;
 	}
 
 	.modes {
