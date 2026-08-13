@@ -532,6 +532,10 @@ export const id = {
 		rivalsHidden: (n: number, cat: string) =>
 			`${n} ${cat} di dalam radius jalan kaki. Tampilkan untuk melihat titiknya.`,
 		rivalsLoading: 'Mencari titiknya…',
+		/* Stasiun diberi nama, yang ini tidak, jadi bedanya perlu dijelaskan. Namanya
+		   ada di data MAPID, cuma belum ikut disimpan waktu berkas titiknya dibuat,
+		   dan sekali ambil ulang namanya masuk. */
+		rivalsNoNames: 'Belum ada namanya di data, jadi digambar sebagai tanda saja.',
 		rivalsNone: 'Tidak ada pesaing sejenis di dalam radius jalan kaki.',
 		/* Cuma MAPID yang punya koordinat. Menyebut sumber mana yang punya adalah beda
 		   antara jalan buntu dan sesuatu yang bisa dikerjakan pembaca. */

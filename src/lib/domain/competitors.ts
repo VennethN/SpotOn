@@ -27,19 +27,31 @@ import type { HexBase } from '$lib/types';
  */
 
 export interface Competitor {
+	/**
+	 * The outlet's own name, or null when the dataset has none for it.
+	 *
+	 * Null is common and is not a fault: it means this outlet was surveyed without a
+	 * name, and it is drawn as a mark with no label. It is NOT the same as the whole
+	 * file having no names, which means the point file predates names being kept at
+	 * all — `meta.named` on the file is what tells those two apart.
+	 */
+	name: string | null;
 	lat: number;
 	lon: number;
 	/** Metres from the cell centre — filled in when matched to a cell. */
 	distance: number;
 }
 
-/** The on-disk shape: a flat [lat, lon] pair, because this file carries thousands. */
-type RawPoint = [number, number];
+/** The on-disk shape: a flat [lat, lon] pair, with the name appended only when there
+    is one, because this file carries thousands of them. */
+type RawPoint = [number, number] | [number, number, string];
 
 export interface CompetitorFile {
 	meta: {
 		cat: string;
 		count: number;
+		/** How many of `count` carry a name. Zero for a file written before names were kept. */
+		named: number;
 		/** Cities whose MAPID dataset was read. Absent from this list means NOT CHECKED. */
 		coverage: string[];
 	};
@@ -47,7 +59,7 @@ export interface CompetitorFile {
 }
 
 export function parseCompetitors(file: CompetitorFile): Array<Omit<Competitor, 'distance'>> {
-	return file.points.map(([lat, lon]) => ({ lat, lon }));
+	return file.points.map(([lat, lon, name]) => ({ lat, lon, name: name ?? null }));
 }
 
 /**

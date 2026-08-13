@@ -53,6 +53,81 @@
 	] as const;
 	let appliedTheme: 'light' | 'dark' | null = null;
 
+	/**
+	 * The name labels, in priority order.
+	 *
+	 * Every node that has a name gets one. 1,104 of the grid's 1,105 transit nodes
+	 * carry one, and a cell can capture 33 of them, so "label everything" and "label
+	 * nothing" are both unreadable. What makes it work is that MapLibre's collision
+	 * index is one shared, screen-space index across every symbol layer on the map:
+	 * a label is drawn only where nothing has already taken the room. That is what
+	 * holds at any zoom and any pixel ratio, because it is measured in the pixels the
+	 * reader actually has rather than in map units.
+	 *
+	 * What the index cannot decide is which label should win when two want the same
+	 * pixels, and that is a judgement about the product, not about geometry:
+	 *
+	 *   1. RAIL STATIONS. Twenty MRT and 76 KRL nodes in the whole city. A rail
+	 *      station is a landmark the reader navigates by, and naming it orients them
+	 *      on the whole map, not just inside the cell.
+	 *   2. COMPETITORS. The reason the panel exists. "Three coffee shops nearby" and
+	 *      "Kopi Kenangan, Fore, Janji Jiwa" are different facts, and the second is
+	 *      the one somebody deciding where to open can argue with.
+	 *   3. TRANSJAKARTA STOPS. 976 of them, and a name like "Pertigaan Sagu
+	 *      Kebagusan" tells the reader far less than the fact that a stop is there at
+	 *      all — which the dot already says.
+	 *
+	 * The array below IS that ranking, and it is listed WORST FIRST because MapLibre
+	 * places symbol layers from the top of the style downwards: the layer added LAST
+	 * claims its pixels first. Listed in the reading order instead, which is what this
+	 * started as, the effect is precisely inverted — measured at zoom 13 on the
+	 * densest cell in the grid, both MRT stations lost their names to coffee shops.
+	 */
+	const LABEL_LAYERS = [
+		{
+			id: 'stop-labels-bus',
+			source: 'stops',
+			filter: ['all', ['!', ['get', 'rail']], ['has', 'label']] as ExpressionSpecification,
+			// Last to be named and last to appear. A cell can capture 33 halte, so this
+			// waits until there is room to tell them apart rather than merely room to fit
+			// them.
+			minzoom: 15,
+			size: 10,
+			offset: 0.7,
+			colour: '--label-2'
+		},
+		{
+			id: 'poi-labels',
+			source: 'poi',
+			filter: ['has', 'label'] as ExpressionSpecification,
+			// Not before the cell is big enough to read inside. An 800 m catchment is
+			// 1.6 km across, which is 84 px at zoom 13 and 340 px at 15 — and the first
+			// version of this named competitors from 13, where a dozen labels packed a
+			// space the size of a postage stamp. Not overlapping and legible are not the
+			// same test, and the collision index only enforces the first.
+			//
+			// So the reader gets the cluster at city scale and the names on the way in,
+			// which is also the order the questions come in: where are they, then who.
+			minzoom: 14.5,
+			size: 10.5,
+			// Clear of the square mark rather than of a round dot, so the gap looks the
+			// same on both.
+			offset: 0.8,
+			colour: '--critical'
+		},
+		{
+			id: 'stop-labels-rail',
+			source: 'stops',
+			filter: ['all', ['get', 'rail'], ['has', 'label']] as ExpressionSpecification,
+			// Named from the moment the cell is worth looking at: there are never many,
+			// and they are the labels that orient the reader.
+			minzoom: 11,
+			size: 11.5,
+			offset: 0.9,
+			colour: '--label-1'
+		}
+	] as const;
+
 	/** The tooltip follows the pointer; its position is written straight to the DOM so no frame lags. */
 	let tipEl: HTMLDivElement;
 	/* The name comes from the base grid and the figures from the scored row, so the
@@ -201,10 +276,19 @@
 				geometry: { type: 'Point' as const, coordinates: [s.lon, s.lat] },
 				properties: {
 					mode: s.mode,
-					name: s.name ?? '',
-					// Rail gets a bigger mark and its name on the map. A cell can capture
-					// twenty-odd bus stops, and twenty labels is not a map.
-					rail: s.mode !== 'brt'
+					name: s.name,
+					// Written only when there IS a name, so `['has', 'label']` can filter on
+					// it. An empty string is a label as far as MapLibre is concerned, and it
+					// reserves collision space for a label nobody can read.
+					...(s.name ? { label: labelText(s.name) } : {}),
+					// Rail gets a bigger mark. It is a single fixed doorway, and there are
+					// twenty of them against nine hundred and seventy-six halte.
+					rail: s.mode !== 'brt',
+					// Placement priority within its own label layer, lowest first. Nearest
+					// wins, because the stop on the cell's own doorstep is the one its
+					// score leans on hardest. Ranking BETWEEN the classes is the layer
+					// order, not this — see `LABEL_LAYERS`.
+					sort: Math.round(s.distance)
 				}
 			}))
 		};
@@ -317,7 +401,12 @@
 			features: app.selectedPois.map((p) => ({
 				type: 'Feature' as const,
 				geometry: { type: 'Point' as const, coordinates: [p.lon, p.lat] },
-				properties: { distance: Math.round(p.distance) }
+				properties: {
+					// Only when the dataset has one. An unnamed outlet is still drawn: it
+					// is a competitor whose name was never recorded, not a missing point.
+					...(p.name ? { label: labelText(p.name) } : {}),
+					sort: Math.round(p.distance)
+				}
 			}))
 		};
 	}
@@ -586,30 +675,63 @@
 				'circle-opacity': 0.95
 			}
 		});
-		m.addLayer({
-			id: 'stop-labels',
-			type: 'symbol',
-			source: 'stops',
-			// Rail only: a cell can capture twenty-odd bus stops, and twenty labels is
-			// not a map. The bus stops keep their dots.
-			filter: ['get', 'rail'],
-			layout: {
-				'text-field': ['get', 'name'],
-				'text-size': 11,
-				'text-offset': [0, 1.1],
-				'text-anchor': 'top',
-				'text-font': ['Open Sans Regular'],
-				// A station whose label will not fit is still worth drawing as a dot, so
-				// the label is allowed to drop rather than the whole symbol.
-				'text-optional': true,
-				'text-allow-overlap': false
-			},
-			paint: {
-				'text-color': cssVar('--label-1'),
-				'text-halo-color': cssVar('--bg-elevated'),
-				'text-halo-width': 1.6
-			}
-		});
+		for (const spec of LABEL_LAYERS) {
+			m.addLayer({
+				id: spec.id,
+				type: 'symbol',
+				source: spec.source,
+				filter: spec.filter,
+				// Only from the zoom at which the label has somewhere to go. Below it the
+				// cell is a few pixels across, every label lands on top of the last, and
+				// the collision engine spends its time rejecting them. The marks are
+				// drawn at every zoom regardless — it is the naming that waits.
+				minzoom: spec.minzoom,
+				layout: {
+					'text-field': ['get', 'label'],
+					'text-size': [
+						'interpolate',
+						['linear'],
+						['zoom'],
+						12,
+						spec.size - 1.5,
+						16,
+						spec.size
+					],
+					'text-font': ['Open Sans Regular'],
+					// Long names wrap instead of forming a bar. These run to 57 characters
+					// ("Direktorat Jenderal Energi Terbarukan dan Konversi Energi"), and on
+					// one line such a label sweeps half the cell and evicts everything it
+					// crosses — one name costing five.
+					'text-max-width': 9,
+					'text-line-height': 1.15,
+					// Try the other three sides before giving up. This is what turns a
+					// crowded cell from "three labels placed, thirty dropped" into most of
+					// them finding a gap, and it is done in screen space so it holds at any
+					// zoom and any pixel ratio.
+					'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
+					'text-radial-offset': spec.offset,
+					'text-justify': 'auto',
+					// Keep a gap between neighbouring labels rather than letting them touch.
+					// In pixels, so it does not shrink as the map zooms out.
+					'text-padding': 3,
+					// Placement priority, and the whole reason the labels are split across
+					// three layers rather than filtered inside one. MapLibre sorts by this
+					// key WITHIN a layer only, so the ranking between classes has to be the
+					// layer order itself: rail, then competitors, then halte.
+					'symbol-sort-key': ['get', 'sort'],
+					// A node whose label will not fit is still worth drawing, so the label
+					// is allowed to drop rather than the whole symbol.
+					'text-optional': true,
+					'text-allow-overlap': false,
+					'icon-allow-overlap': true
+				},
+				paint: {
+					'text-color': cssVar(spec.colour),
+					'text-halo-color': cssVar('--bg-elevated'),
+					'text-halo-width': 1.6
+				}
+			});
+		}
 
 		let hoverId: number | null = null;
 		m.on('mousemove', 'catchment-fill', (e) => {
@@ -813,6 +935,28 @@
 			/ (Bank Syariah Indonesia|Bank Jakarta|Mastercard|Indomaret|BCA|BNI|VISA|TUKU|Astra|Headquarters)$/,
 			''
 		);
+
+	/**
+	 * A name cut down to what a map label can actually carry.
+	 *
+	 * Names run long: the median stop is 16 characters but the tail reaches 57
+	 * ("Direktorat Jenderal Energi Terbarukan dan Konversi Energi"). Wrapped rather
+	 * than cut, that one name becomes a five-line block roughly the height of a
+	 * thumbnail, and because the collision index works on the whole block it evicts
+	 * every neighbour it touches. One halte nobody was looking for costs five labels
+	 * somebody was.
+	 *
+	 * 30 characters is where that stops happening while barely touching the data: 41
+	 * of the 1,104 named nodes are longer, and the p90 is 26. Paired with a 9 em wrap
+	 * this holds every label to at most two lines.
+	 *
+	 * The full name is kept on the feature and is what the panel lists. This is the
+	 * label form, and the ellipsis is there so a cut name is legible AS cut rather
+	 * than passing for a shorter name that does not exist.
+	 */
+	const LABEL_CHARS = 30;
+	const labelText = (n: string): string =>
+		n.length <= LABEL_CHARS ? n : `${n.slice(0, LABEL_CHARS - 1).trimEnd()}…`;
 
 	/**
 	 * The selected cell's transit count, pinned to the cell itself.
