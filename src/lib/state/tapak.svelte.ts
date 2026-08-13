@@ -63,6 +63,15 @@ function categoryChips(): Chip[] {
 
 export class Tapak {
 	turns = $state<Turn[]>([]);
+	/**
+	 * What Tapak says about the area the user just picked, shown as a toast rather
+	 * than as a turn.
+	 *
+	 * Kept apart from `turns` on purpose: the thread is the conversation, and this is
+	 * Tapak looking where the user is pointing. Mixing the two made the thread grow by
+	 * a paragraph on every tap of the map.
+	 */
+	remark = $state<{ id: number; text: string } | null>(null);
 	/** Small budget → results are filtered to areas where space is genuinely available. */
 	smallBudget = $state<boolean | null>(null);
 	#app: AppState;
@@ -86,6 +95,7 @@ export class Tapak {
 	/** Clears the thread and greets again — used when the language is switched. */
 	reset() {
 		this.turns = [];
+		this.remark = null;
 		this.smallBudget = null;
 		this.#greeted = false;
 		this.#lastRemarked = null;
@@ -222,11 +232,26 @@ export class Tapak {
 
 	/**
 	 * Called when the user picks an area on the map themselves. Tapak turns to look
-	 * too — this is what sets it apart from a chat box that only waits to be typed in.
+	 * too, which is what sets this apart from a chat box that only waits to be typed
+	 * in.
+	 *
+	 * The remark does NOT go into the thread. A thread is a conversation, and a
+	 * conversation is made of things that were asked and answered; picking an area on
+	 * the map asked nothing. Pushed in as turns, five taps around the map left five
+	 * paragraphs stacked under the question the user actually asked, burying it. So
+	 * the remark is set aside here and shown as a toast instead: same voice, same
+	 * figure, gone on its own.
 	 */
 	remarkOnSelection() {
 		const row = this.#app.selected;
-		if (!row || row.name === this.#lastRemarked) return;
+		// Deselecting takes the remark with it. A note about an area nobody is looking
+		// at any more is a claim about the map that the map no longer makes.
+		if (!row) {
+			this.remark = null;
+			this.#lastRemarked = null;
+			return;
+		}
+		if (row.name === this.#lastRemarked) return;
 		if (!this.#greeted) return;
 		this.#lastRemarked = row.name;
 
@@ -234,7 +259,7 @@ export class Tapak {
 		const def = c.category[this.#app.category];
 		const cat = def.name.toLowerCase();
 		if (row.nodata) {
-			this.#say(c.narrate.remarkNodata(row.name, row.osm, def.many));
+			this.#note(c.narrate.remarkNodata(row.name, row.osm, def.many));
 			return;
 		}
 		const verdict =
@@ -243,7 +268,7 @@ export class Tapak {
 				: (row.score ?? 0) >= 0.4
 					? c.narrate.verdictMid
 					: c.narrate.verdictLow;
-		this.#say(
+		this.#note(
 			c.narrate.remark(
 				row.name,
 				verdict,
@@ -253,5 +278,16 @@ export class Tapak {
 				row.listings > 0 ? c.narrate.listingSome(row.listings) : c.narrate.listingNone
 			)
 		);
+	}
+
+	/** Set the remark aside for the toast. The id changes every time, so picking a
+	    second area restarts the toast rather than quietly swapping its text. */
+	#note(text: string) {
+		this.remark = { id: this.#nextId++, text };
+	}
+
+	/** Dismissed by hand, or by its own timer. */
+	clearRemark() {
+		this.remark = null;
 	}
 }

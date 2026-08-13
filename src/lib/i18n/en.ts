@@ -312,6 +312,80 @@ export const en: Copy = {
 			'Competitor counts come from OSM (real), while MAPID mission attributes are still samples. N is shown so it can be checked.'
 	},
 
+	/* ── Score composition ─────────────────────────────────────────────────
+	   The panel that answers "why this number?". The order is deliberate: the
+	   transit nodes lead — the one input built from real data, and the point of
+	   this project — and the step-by-step arithmetic follows. */
+	breakdown: {
+		title: 'How this score is made',
+		lead: 'The score above is built in order. Every step can be traced back to its data.',
+		/* A cell the competitor source has not surveyed has no score to take apart.
+		   What follows still holds: its transit nodes come from OSM, are real, and do
+		   not disappear because a category has not been surveyed here. */
+		noScore:
+			'This cell cannot be scored for the business type currently selected, so there are no steps to show. Its transit access is real and recorded all the same.',
+		transitLead: 'What decides it most: mass transit',
+		stopsUnit: (n: number) => (n === 1 ? 'transit node in range' : 'transit nodes in range'),
+		stopsSub: (r: number) => `within a ${r} m walk of the cell centre · OSM, real data`,
+		stopsSplit: (rel: number, halte: number) => {
+			if (rel > 0 && halte > 0) return `${rel} rail stations · ${halte} TransJakarta stops`;
+			if (rel > 0) return `${rel} rail ${rel === 1 ? 'station' : 'stations'}`;
+			return `${halte} TransJakarta ${halte === 1 ? 'stop' : 'stops'}`;
+		},
+		none: 'This cell catches no transit node at all within walking range.',
+		contributes: (poin: number, total: number) =>
+			`Of this cell's ${total} points, ${poin} come from its transit access.`,
+		without: (poin: number) => `With no transit at all it would score ${poin}.`,
+		ceiling: (poin: number) =>
+			`Transit access can add at most ${poin} points to this cell. The rest is already settled by demand and competition.`,
+		splitBase: 'demand − competition',
+		splitTransit: 'transit access',
+		splitAria: (dasar: number, transit: number, total: number) =>
+			`${total} points: ${dasar} from demand and competition, ${transit} from transit access.`,
+
+		stepsTitle: 'Step by step',
+		rows: {
+			start: 'Level footing',
+			demand: 'Demand',
+			supply: 'Competition',
+			clamp: 'Kept in range',
+			gate: 'Space requirement',
+			access: 'Transit access'
+		},
+		notes: {
+			start: 'before any data is read, every cell starts here',
+			demand: (bobot: number, nilai: number) => `weight ${bobot.toFixed(2)} × demand ${nilai}`,
+			supply: (bobot: number, nilai: number) =>
+				`weight ${bobot.toFixed(2)} × effective supply ${nilai}`,
+			clamp: 'the result is not allowed outside 0–100',
+			gateOff: 'the requirement is switched off',
+			gatePass: (n: number) => `${n} ${n === 1 ? 'unit' : 'units'} up for rent, requirement met`,
+			gateBlock: (f: number) => `nothing up for rent → ×${f.toFixed(2)}`,
+			access: (pengali: number, akses: number) =>
+				`×${pengali.toFixed(2)} = 0.60 + 0.40 × access index ${akses.toFixed(2)}`
+		},
+		total: 'Opportunity score',
+		deltaAria: (poin: number) =>
+			poin >= 0 ? `up ${poin} points` : `down ${Math.abs(poin)} points`,
+
+		accessTitle: 'What the access index is made of',
+		accessRow: (n: number, bobot: number) =>
+			`${n} ${n === 1 ? 'node' : 'nodes'} × weight ${bobot.toFixed(2)}`,
+		accessShare: (persen: number) => `${persen}% of the index`,
+		accessIndex: (akses: number, pengali: number) =>
+			`Access index ${akses.toFixed(2)} → score multiplier ${pengali.toFixed(2)}`,
+		accessFormula: (pembagi: number) =>
+			`Access index = √(Σ nodes × their mode weight) ÷ ${pembagi.toFixed(1)}, capped at 1. Computed once when the grid was built, from OSM. The weights differ because the modes carry different numbers of people.`,
+
+		stationsTitle: 'The nodes in range, one by one',
+		stationsLoading: 'Loading the list of nodes…',
+		stationsFailed:
+			'The list of node names could not be loaded. The counts and the access index above still hold, both are read from the grid, not from that file.',
+		modeGroup: (moda: string, n: number) => `${moda} · ${n} ${n === 1 ? 'node' : 'nodes'}`,
+		unnamed: (n: number) =>
+			`+${n} more with no name of their own: platforms of the same station, or stops OSM has not named`
+	},
+
 	table: {
 		cols: {
 			name: 'Cell',
@@ -395,6 +469,16 @@ export const en: Copy = {
 		   lead: "Blok M" can be pictured, checked and argued with; "access 0.82"
 		   can do none of those. The figure is still there, behind the name. */
 		transit: 'What this area reaches',
+		/* The count leads rather than being tucked into a sentence. This is the mass
+		   transit edition: how many nodes one cell reaches is the first question, so
+		   the answer is set large before anything else. */
+		transitCount: (n: number) =>
+			n === 1 ? 'transit node within walking range' : 'transit nodes within walking range',
+		transitCountSplit: (rel: number, halte: number) => {
+			if (rel > 0 && halte > 0) return `${rel} rail stations · ${halte} TransJakarta stops`;
+			if (rel > 0) return `${rel} rail ${rel === 1 ? 'station' : 'stations'}`;
+			return `${halte} TransJakarta ${halte === 1 ? 'stop' : 'stops'}`;
+		},
 		transitNone: 'No transit node within walking range of this cell.',
 		transitLoading: 'Checking the transit nodes nearby…',
 		transitBand: {
@@ -534,9 +618,14 @@ export const en: Copy = {
 			pois: 'businesses mapped',
 			cats: 'business types'
 		},
+		/* The way out for someone who would rather not be asked first. It names what
+		   you get rather than what you are skipping, and Tapak is still there on the
+		   right afterwards, so nothing is given up by taking it. */
+		launchSkip: 'Just show me the map',
 		/* The chips are framed as examples, not a menu. Without this label a row of
 		   business-type buttons reads as "these are the only things you may ask". */
 		closeArea: 'Close area',
+		dismissRemark: "Dismiss Tapak's note",
 		home: 'Back to the SpotOn home page',
 		emptyMood: 'No area selected yet. Tap a cell on the map to see what it feels like.',
 		pickBest: (cat: string) => `Pick the best one for a ${cat}`,
@@ -544,6 +633,13 @@ export const en: Copy = {
 		clockAria: 'Drag to see this area at another hour',
 		schema: 'schematic, not an actual site plan',
 		fullNumbers: 'See the full figures',
+		/* The map's own badge, pinned to the selected cell. Deliberately the count and
+		   nothing else: the breakdown is in the panel, what the map has to carry is
+		   "how many". */
+		mapStops: (n: number) => `${n} transit ${n === 1 ? 'node' : 'nodes'}`,
+		mapStopsAria: (n: number, r: number) =>
+			`${n} transit ${n === 1 ? 'node' : 'nodes'} within a ${r} m walk of this cell`,
+		mapReach: (r: number) => `${r} m reach`,
 		tipNodata: 'MAPID mission data: N = 0 · survey priority candidate',
 		tipScore: (cat: string) => `${cat} score`,
 		sheet: 'Information panel',

@@ -21,6 +21,7 @@
 	import SpotCard from '$lib/components/app/SpotCard.svelte';
 	import Sheet from '$lib/components/ui/Sheet.svelte';
 	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
+	import TapakToast from '$lib/components/app/TapakToast.svelte';
 	import { setAppState } from '$lib/state/app.svelte';
 	import { copy, lang } from '$lib/state/lang.svelte';
 	import { Tapak } from '$lib/state/tapak.svelte';
@@ -40,10 +41,17 @@
 	const c = $derived(copy());
 
 	/**
-	 * Act two begins as soon as there is any turn beyond the opening greeting —
-	 * whether the user asked, tapped an option, or picked an area on the map.
+	 * Act two begins as soon as there is any turn beyond the opening greeting: the
+	 * user asked, or tapped one of the options.
+	 *
+	 * Or said they would rather not. Picking an area on the map used to start it too,
+	 * back when doing that filed a turn, but the map is behind the scrim until this
+	 * flips, so nobody could reach it that way in the first place. `skipped` is that
+	 * door, and it is one-way: once the map is open, the question box has nothing left
+	 * to do that the panel does not do better.
 	 */
-	const started = $derived(tapak.turns.length > 1);
+	let skipped = $state(false);
+	const started = $derived(tapak.turns.length > 1 || skipped);
 
 	/** The compact layout uses a draggable sheet. */
 	let compact = $state(false);
@@ -148,10 +156,16 @@
 		     just depth. -->
 		<div class="scrim" transition:fade={{ duration: 320 }} aria-hidden="true"></div>
 		<div class="stage" out:leaveForPanel>
-			<AskLauncher {tapak} meta={data.meta} />
+			<AskLauncher {tapak} meta={data.meta} onskip={() => (skipped = true)} />
 		</div>
 	{:else if compact}
-		<MapLegend />
+		<!-- Same rule as the wide layout below: the legend explains the colours, and
+		     once an area is picked the answer about that area is the more specific
+		     reply to the same question. Here it also clears the top-left corner, which
+		     is where Tapak's remark about that area arrives. -->
+		{#if !app.selectedId}
+			<MapLegend />
+		{/if}
 		<Sheet bind:index={sheetIndex} detents={[0.12, 0.55, 0.94]}>
 			{#if app.selectedId}
 				<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>
@@ -172,6 +186,13 @@
 		{:else}
 			<MapLegend />
 		{/if}
+	{/if}
+
+	<!-- Outside the three branches: what Tapak says about a picked area belongs to
+	     the map, not to whichever surface happens to be open. It can only appear once
+	     the map is reachable, which is after the launcher has gone. -->
+	{#if started}
+		<TapakToast {tapak} />
 	{/if}
 </div>
 
