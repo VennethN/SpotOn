@@ -416,7 +416,7 @@ export const en: Copy = {
 		layerNames: {
 			score: 'Opportunity score',
 			routes: 'Transit lines',
-			poi: 'Competitor scatter',
+			poi: 'Competitors of the selected cell',
 			nodata: 'Cells with no data',
 			label: 'Stop names',
 			stops: 'Transit nodes of the selected cell'
@@ -514,6 +514,27 @@ export const en: Copy = {
 		transitRadius: (m: number) => `Measured from the cell centre, ${m} m radius`,
 		transitShow: 'Show on map',
 		transitHide: 'Hide from map',
+		/* The competitors, drawn where they actually stand. Shared wording with the
+		   transit switch above, because it is the same promise about the same map. */
+		rivalsOnMap: 'Competitors on the map',
+		rivalsCount: (n: number, cat: string) =>
+			`${n} ${cat} drawn where they actually stand, within the same walking range.`,
+		/* Switched off, the sentence above would be describing a map that is not there.
+		   Same figure, and it says what to press to see it. */
+		rivalsHidden: (n: number, cat: string) =>
+			`${n} ${cat} inside the walking range. Show them to see where they stand.`,
+		rivalsLoading: 'Looking up where they stand…',
+		/* Stations are labelled and these are not, so the difference gets a reason. The
+		   names exist in the MAPID features, they were simply not kept when the point
+		   file was written, and a re-fetch brings them in. */
+		rivalsNoNames:
+			'None of them carry a name in the data yet, so they are drawn as marks only.',
+		rivalsNone: 'No competitors of this type inside the walking range.',
+		/* Only MAPID carries positions. Saying which source would have them is the
+		   difference between a dead end and a fix the reader can act on. */
+		rivalsNoPositions:
+			'OSM gives competitor counts but not their positions, so there is nothing to draw. Switch the source to MAPID in the legend to see where they are.',
+		rivalsFailed: 'Could not load the competitor positions. The counts beside them are unaffected.',
 		prov: 'Transactions & space: MAPID sample data. Competitors & stops: OSM.',
 		sceneLabel: (nama: string, jam: string, isi: string) => `Schematic of ${nama} at ${jam}. ${isi}`,
 		sceneNodata: 'There is no data for this area yet, so the street is shown empty.',
@@ -639,6 +660,11 @@ export const en: Copy = {
 		mapStops: (n: number) => `${n} transit ${n === 1 ? 'node' : 'nodes'}`,
 		mapStopsAria: (n: number, r: number) =>
 			`${n} transit ${n === 1 ? 'node' : 'nodes'} within a ${r} m walk of this cell`,
+		/* The number of competitor dots actually drawn, not the panel's figure. The
+		   badge and the map it sits on must never disagree. */
+		mapRivals: (n: number) => `${n} ${n === 1 ? 'competitor' : 'competitors'}`,
+		mapRivalsAria: (n: number, r: number) =>
+			`${n} similar ${n === 1 ? 'business' : 'businesses'} within a ${r} m walk of this cell`,
 		mapReach: (r: number) => `${r} m reach`,
 		tipNodata: 'MAPID mission data: N = 0 · survey priority candidate',
 		tipScore: (cat: string) => `${cat} score`,

@@ -1,6 +1,11 @@
 import { getContext, setContext } from 'svelte';
 import { base } from '$app/paths';
 import { CATEGORY_KEYS, CATEGORY_MAP } from '$lib/domain/categories';
+import {
+	capturedCompetitors,
+	parseCompetitors,
+	type Competitor
+} from '$lib/domain/competitors';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
@@ -64,7 +69,16 @@ export class AppState {
 		 */
 		score: true,
 		routes: true,
-		poi: false,
+		/**
+		 * The competitors the SELECTED cell captures — never the whole city's.
+		 *
+		 * Off by default while this drew an invented scatter over all 562 cells at
+		 * once, which was the right call for what it was then. It now draws the real
+		 * MAPID positions for one cell at a time, so it is on for exactly the reason
+		 * the transit nodes are: it only appears once a cell is picked, and when it
+		 * does it is answering the question the reader just asked by picking it.
+		 */
+		poi: true,
 		nodata: true,
 		label: true,
 		/**
@@ -113,9 +127,25 @@ export class AppState {
 	 */
 	stopsFailed = $state(false);
 
+	/**
+	 * Competitor positions, by category, for drawing what a cell captures.
+	 *
+	 * Per category rather than one file, because only the active category is ever
+	 * drawn and the whole set is 532 KB against 12 to 78 KB for one of them. Fetched
+	 * on the first selection and kept, exactly like the stops.
+	 *
+	 * MAPID only. There are no OSM coordinates on disk — see `domain/competitors`.
+	 */
+	pois = $state<Partial<Record<CategoryKey, Array<Omit<Competitor, 'distance'>>>>>({});
+	/** Categories whose point file could not be read. Kept apart from `pois` for the
+	    same reason `stopsFailed` is kept apart from `stops`: "not here yet" and "not
+	    coming" are different facts, and only one of them is worth waiting on. */
+	poisFailed = $state<CategoryKey[]>([]);
+
 	/** In-flight requests, so two callers asking for the same category share one fetch. */
 	#inFlight = new Map<CategoryKey, Promise<void>>();
 	#stopsJob: Promise<void> | null = null;
+	#poiJobs = new Map<CategoryKey, Promise<void>>();
 
 	constructor(base: HexBase[], initial?: CategorySlice) {
 		this.base = base;
@@ -317,6 +347,38 @@ export class AppState {
 	}
 
 	/**
+	 * Load one category's competitor positions, once.
+	 *
+	 * Failure is quiet in the same way `loadStops` is: the counts the panels lead with
+	 * come from the grid, which is already here, so losing this file costs the reader
+	 * the POSITIONS and nothing else. The score, the ranking and every figure on
+	 * screen are untouched by it.
+	 */
+	loadPois(cat: CategoryKey): Promise<void> {
+		if (this.pois[cat]) return Promise.resolve();
+		const running = this.#poiJobs.get(cat);
+		if (running) return running;
+
+		const job = (async () => {
+			try {
+				const res = await fetch(`${base}/data/pois/${cat}.json`);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				this.pois = { ...this.pois, [cat]: parseCompetitors(await res.json()) };
+				this.poisFailed = this.poisFailed.filter((k) => k !== cat);
+			} catch {
+				if (!this.poisFailed.includes(cat)) this.poisFailed = [...this.poisFailed, cat];
+			} finally {
+				// Cleared either way, so a failure can be retried by the next selection
+				// rather than every later one being answered by the request that failed.
+				this.#poiJobs.delete(cat);
+			}
+		})();
+
+		this.#poiJobs.set(cat, job);
+		return job;
+	}
+
+	/**
 	 * The selected cell as the GRID holds it.
 	 *
 	 * Not the same thing as `selected`, which is the scored row and stays null until
@@ -332,6 +394,47 @@ export class AppState {
 		const cell = this.selectedCell;
 		if (!cell || !this.stops) return [];
 		return capturedStops(cell, this.stops, this.weights.radius);
+	});
+
+	/**
+	 * The competitors the selected cell captures, nearest first.
+	 *
+	 * Empty on the OSM source, and that is the point: the positions ARE the MAPID
+	 * dataset, so drawing them while an OSM count is on screen would show one source's
+	 * competitors as though they were the other's. Nothing is drawn, and
+	 * `poisUnavailable` below is what lets the interface say so instead of leaving the
+	 * reader to wonder where the dots went.
+	 */
+	selectedPois = $derived.by(() => {
+		const cell = this.selectedCell;
+		if (!cell || cell.nodata || this.weights.source !== 'mapid') return [];
+		const points = this.pois[this.category];
+		if (!points) return [];
+		return capturedCompetitors(cell, points, this.weights.radius);
+	});
+
+	/** A cell is selected, but its competitors cannot be placed on the map. Either the
+	    active source has no coordinates at all (OSM), or this category's file failed
+	    to load. Both leave the count intact and only the positions missing. */
+	poisUnavailable = $derived.by(() => {
+		if (!this.selectedCell || this.selectedCell.nodata) return null;
+		if (this.weights.source !== 'mapid') return 'source' as const;
+		if (this.poisFailed.includes(this.category)) return 'failed' as const;
+		return null;
+	});
+
+	/**
+	 * The points are on their way and no conclusion can be drawn yet.
+	 *
+	 * Worth its own flag, because without it an empty `selectedPois` reads the same
+	 * whether the file has not landed or has landed and holds nothing inside the
+	 * range — and the interface would announce "no competitors here" for as long as
+	 * the request took. That is a finding, and it would be being reported before
+	 * anything had been looked at.
+	 */
+	poisLoading = $derived.by(() => {
+		if (this.poisUnavailable || !this.selectedCell) return false;
+		return !this.pois[this.category];
 	});
 
 	/** Turn the heatmap on, fetching the active category's columns if they are not here yet. */
@@ -350,6 +453,10 @@ export class AppState {
 			// draws. Both are cached after the first selection, so this is one cost paid
 			// once rather than per cell.
 			void this.loadStops();
+			// …and for where its competitors actually stand, which the map draws beside
+			// them. Cached per category, so switching back to a category already seen
+			// costs nothing.
+			void this.loadPois(this.category);
 		}
 	}
 
@@ -357,6 +464,11 @@ export class AppState {
 		this.category = cat;
 		this.highlight = [];
 		void this.loadCategory(cat);
+		// A cell is already open: its competitors are on the map and they belong to the
+		// category being left behind. Fetched here rather than waiting for the next
+		// selection, otherwise switching category leaves the previous category's dots
+		// on screen until the user happens to click somewhere.
+		if (this.selectedId) void this.loadPois(cat);
 	}
 
 	/** Switch the competitor-count source. The highlight is cleared with it: the
@@ -365,6 +477,10 @@ export class AppState {
 	setSource(source: PoiSource) {
 		this.weights.source = source;
 		this.highlight = [];
+		// Only MAPID carries positions, so switching to it with a cell already open has
+		// to fetch them — otherwise the competitors stay off the map until the next
+		// click, and switching source looks like it did nothing.
+		if (source === 'mapid' && this.selectedId) void this.loadPois(this.category);
 	}
 
 	setTheme(theme: Theme) {
@@ -405,7 +521,12 @@ export class AppState {
 			this.highlight = data.highlight;
 			// The parsed query is allowed to change the active category — the map has to
 			// follow to the category that was actually answered, not stay on the old one.
-			if (data.query.kategori !== this.category) this.category = data.query.kategori;
+			if (data.query.kategori !== this.category) {
+				this.category = data.query.kategori;
+				// Same reason as in `setCategory`: a cell left open would otherwise keep
+				// showing the previous category's competitors under the new answer.
+				if (this.selectedId) void this.loadPois(this.category);
+			}
 			// Tapak has just named places on the map, so the map has to be able to show
 			// them: the answered category's columns are fetched and the heatmap comes on.
 			// This is the path the heatmap is meant to arrive by — the user asked a
