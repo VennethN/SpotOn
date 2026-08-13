@@ -10,6 +10,7 @@
 	 * The wording is deliberately plain: "how busy", not "demand index". The full
 	 * figures are still there, one click below.
 	 */
+	import RivalsPanel from '$lib/components/app/RivalsPanel.svelte';
 	import ScoreBreakdown from '$lib/components/app/ScoreBreakdown.svelte';
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
 	import TransitPanel from '$lib/components/app/TransitPanel.svelte';
@@ -157,6 +158,13 @@
 
 				<p class="prov">{c.mood.prov}</p>
 			</details>
+
+			<!-- Directly under the sentence that counts the competitors, because it is
+			     what turns that count into something you can look at. Inside the "no
+			     data" branch on purpose, unlike the transit panel below: a cell with no
+			     mission data is credited with no competitors either, so there would be
+			     nothing here to switch on. -->
+			<RivalsPanel />
 		{/if}
 
 		<!-- OUTSIDE the "no data" branch on purpose. Transit access is built from OSM,
