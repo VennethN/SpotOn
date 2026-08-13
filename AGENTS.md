@@ -145,12 +145,16 @@ node scripts/build-stops.mjs    # → static/data/stops.json   needs Overpass
 node scripts/build-routes.mjs   # → static/data/routes.json  needs Overpass
 ```
 
-**Competitors on the map have no names yet, and this is why.** The map labels a
-competitor with its own name the same way it labels a station, and today it
-labels none of them: `mapid-poi.json` holds 24,630 points and 0 names. The MAPID
-features do carry a `NAMA` column, it was simply not kept when that file was
-written. `fetch-mapid.mjs` keeps it now, so the fix is a re-fetch and nothing
-else:
+**Competitors on the map are named, and this is what keeps them named.** The map
+labels a competitor with its own name the same way it labels a station. That
+came from the MAPID features' `NAMA` column, which `fetch-mapid.mjs` keeps and
+`build-pois.mjs` writes into the third slot of each point. All 24,630 points
+carry one.
+
+It was not always so. The file was once written before `NAMA` was kept, and
+every competitor on the map was drawn bare for as long as that lasted. What
+brought them back was this pair, and it is the pair to run again if the names
+ever go missing:
 
 ```bash
 MAPID_API_KEY=… node scripts/fetch-mapid.mjs && node scripts/build-pois.mjs
@@ -160,11 +164,16 @@ MAPID_API_KEY=… node scripts/fetch-mapid.mjs && node scripts/build-pois.mjs
 nothing needs rejoining, and that step needs Overpass as well as a key. Run it
 only if the point set itself changed.
 
-There is no setting for this in the application. A cell whose competitors have
-no names says so in the panel rather than leaving the marks looking like a
-label layer that failed.
+Whether the names are there is read from the data, never assumed. Each category
+file carries a `named` count beside its `count`, `build-pois.mjs` prints the two
+side by side on every run, and the panel falls back to saying a cell's
+competitors have no names rather than leaving the marks looking like a label
+layer that failed. A rebuild that quietly drops `NAMA` therefore shows up as a
+number, in the place the number is already being read.
+
+There is no setting for this in the application.
 
 `npm run selftest` covers the parts of this that a rebuild cannot: the score
 breakdown against the scoring engine, and the competitor pipeline including the
-name handling, which the real data cannot exercise because it has no names in
-it.
+absent-name rules, which the real data no longer exercises now that every point
+in it has a name.

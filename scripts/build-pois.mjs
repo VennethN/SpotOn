@@ -39,10 +39,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * The point file split into one payload per category.
  *
  * Exported and kept free of the filesystem so `selftest-pois.mjs` can run it on a
- * fixture. That matters more here than it looks: the name half of this pipeline
- * cannot be exercised against the real data, because `mapid-poi.json` was written
- * before names were kept, so without a test the encoding below is code that has never
- * once produced a named point.
+ * fixture. That matters more here than it looks: every point in `mapid-poi.json` now
+ * carries a name, so the real data only ever takes one of the two branches below, and
+ * the unnamed one would go on compiling long after it stopped working.
  */
 export function splitByCategory(file) {
 	const points = file.points ?? [];

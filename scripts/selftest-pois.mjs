@@ -5,17 +5,17 @@
  *
  * WHY THIS EXISTS
  *
- * The map labels a competitor with its own name, and today it labels none of them,
- * because `src/lib/data/mapid-poi.json` was written before names were kept and holds
- * 24,630 points with 0 names between them. `fetch-mapid.mjs` reads the features'
- * NAMA column and now keeps it, but that line has never once run: it needs an API key
- * and a reachable catalogue.
+ * The map labels a competitor with its own name, and `src/lib/data/mapid-poi.json` now
+ * carries a name for all 24,630 of its points. That is exactly why this file is still
+ * here: the real data no longer exercises the ABSENT-name half of the pipeline at all.
+ * Every point in it takes the same branch, so a bad edit to the other one changes
+ * nothing anybody would see until a future dataset arrives with a gap in it.
  *
- * So every part of this pipeline that handles a name is code nobody has seen work.
- * Running the real data through it proves nothing at all — the whole name branch is
- * skipped, and it would go on being skipped after a bad edit. This runs the same
- * functions on a fixture that DOES carry names, so the day somebody re-fetches with a
- * key, the labels appear rather than the bug being discovered then.
+ * The reverse was true when this was written, and the lesson survives the reversal:
+ * whichever branch the real data happens to miss is the branch that rots. Running the
+ * real file through the pipeline proves only the path it takes. This runs the same
+ * functions on a fixture holding both kinds of point, named and unnamed, so neither
+ * branch depends on the data being a particular shape that day.
  *
  * The two rules being pinned are the ones that are easy to get quietly wrong:
  *
