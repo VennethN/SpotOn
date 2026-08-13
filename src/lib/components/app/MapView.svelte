@@ -12,7 +12,7 @@
 	// the dev server touches the file and the worker dies without a sound.
 	import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import { env } from '$env/dynamic/public';
-	import { boundsOf, emptyFC, ringCoords, scatterPoints } from '$lib/utils/geo';
+	import { boundsOf, emptyFC, ringCoords } from '$lib/utils/geo';
 	import { railTotal, stopTotal } from '$lib/domain/transit';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import { pct, rampIndex } from '$lib/utils/format';
@@ -238,10 +238,18 @@
 		};
 	}
 
-	/** The walking range those nodes were captured within, drawn as it was measured. */
+	/**
+	 * The walking range, drawn as it was measured.
+	 *
+	 * One ring for both fans, because it is one rule: the transit nodes and the
+	 * competitors are captured by the same test at the same radius from the same
+	 * centre. So it is drawn whenever either of them is on screen, and drawing it
+	 * twice would only put two identical circles on top of each other.
+	 */
 	function reachFC(): FeatureCollection {
 		const cell = app.selectedCell;
-		if (!app.layers.stops || !cell) return emptyFC();
+		if (!cell) return emptyFC();
+		if (!app.layers.stops && !app.layers.poi) return emptyFC();
 		return {
 			type: 'FeatureCollection',
 			features: [
@@ -257,22 +265,106 @@
 		};
 	}
 
-	/** Competitor dots — real counts, so they need the active category's columns. */
+	/**
+	 * The competitor mark: a square, not a dot.
+	 *
+	 * Colour alone cannot carry this. `--route-krl` is #e05a5a and `--critical` is
+	 * #d1352b, and in dark mode they are #ff7b74 against #ff6257 — so a red circle for
+	 * a competitor and a red circle for a KRL station are the same mark to anyone not
+	 * holding a swatch, and closer still to a reader with a colour vision deficiency.
+	 * The two mean opposite things: one is why a cell is worth having, the other is
+	 * what stands in the way.
+	 *
+	 * A square separates them by shape, which survives both. Drawn at 2× and handed to
+	 * MapLibre with `pixelRatio: 2` so the edges stay crisp on a retina screen, and
+	 * carrying its own knockout border for the same reason the transit nodes have a
+	 * plate: this sits on a heatmap fill whose colour changes cell to cell.
+	 */
+	function rivalImage(): { data: ImageData; pixelRatio: number } {
+		const size = 16;
+		const c = document.createElement('canvas');
+		c.width = c.height = size;
+		const ctx = c.getContext('2d')!;
+		const inset = 2.5;
+		const side = size - inset * 2;
+		ctx.fillStyle = cssVar('--bg-elevated') || '#ffffff';
+		ctx.strokeStyle = cssVar('--bg-elevated') || '#ffffff';
+		ctx.lineWidth = 3;
+		ctx.lineJoin = 'round';
+		ctx.strokeRect(inset, inset, side, side);
+		ctx.fillStyle = cssVar('--critical');
+		ctx.fillRect(inset, inset, side, side);
+		return { data: ctx.getImageData(0, 0, size, size), pixelRatio: 2 };
+	}
+
+	/**
+	 * The competitors the SELECTED cell captures — real positions, never the whole
+	 * city's.
+	 *
+	 * This used to scatter every cell's competitor COUNT on a Fibonacci spiral around
+	 * its centre: the right number of dots in invented places, on all 562 cells at
+	 * once. It answered "how many", which the panel already answers better, and
+	 * quietly implied a distribution nobody had measured.
+	 *
+	 * These are the MAPID points themselves, captured by the same distance test the
+	 * grid counted them with. So the dots are not an illustration of the count, they
+	 * ARE the count — and where they cluster is a real fact about the cell.
+	 */
 	function poiFC(): FeatureCollection {
-		if (!app.layers.poi || !app.ready) return emptyFC();
+		if (!app.layers.poi) return emptyFC();
 		return {
 			type: 'FeatureCollection',
-			features: app.rows
-				.filter((r) => !r.nodata)
-				.flatMap((r) => scatterPoints(r.lon, r.lat, 430, r.osm, { id: r.id }))
+			features: app.selectedPois.map((p) => ({
+				type: 'Feature' as const,
+				geometry: { type: 'Point' as const, coordinates: [p.lon, p.lat] },
+				properties: { distance: Math.round(p.distance) }
+			}))
+		};
+	}
+
+	/**
+	 * A line from the selected cell's centre to every competitor it captures.
+	 *
+	 * The same device as the transit fan, doing the same job: the dots say "there are
+	 * rivals here", the fan says "these are the ones counted against this cell". It is
+	 * also literally the measurement — centre to point, under the walking radius.
+	 *
+	 * Fainter and thinner than even the bus links, because a cell can capture thirty
+	 * competitors where it captures twenty-odd stops, and at equal weight the fan
+	 * stops being a fan and becomes a smear.
+	 */
+	function poiLinksFC(): FeatureCollection {
+		const cell = app.selectedCell;
+		if (!app.layers.poi || !cell) return emptyFC();
+		return {
+			type: 'FeatureCollection',
+			features: app.selectedPois.map((p) => ({
+				type: 'Feature' as const,
+				geometry: {
+					type: 'LineString' as const,
+					coordinates: [
+						[cell.lon, cell.lat],
+						[p.lon, p.lat]
+					]
+				},
+				properties: {}
+			}))
 		};
 	}
 
 	function addLayers(m: MapLibreMap) {
 		if (!m.hasImage('hatch')) m.addImage('hatch', hatchImage());
+		// Both of these bake a theme colour in, so a theme change has to redraw them.
+		// `addLayers` re-runs on `setStyle`, which clears the style's images, and the
+		// guard above is what makes the re-add happen exactly then.
+		if (!m.hasImage('rival')) {
+			const { data, pixelRatio } = rivalImage();
+			m.addImage('rival', data, { pixelRatio });
+		}
 
 		m.addSource('catchments', { type: 'geojson', data: catchmentFC() });
 		m.addSource('poi', { type: 'geojson', data: poiFC() });
+		m.addSource('poi-links', { type: 'geojson', data: poiLinksFC() });
 		m.addSource('stops', { type: 'geojson', data: stopsFC() });
 		m.addSource('stop-links', { type: 'geojson', data: stopLinksFC() });
 		m.addSource('reach', { type: 'geojson', data: reachFC() });
@@ -360,16 +452,6 @@
 				]
 			}
 		});
-		m.addLayer({
-			id: 'poi-dots',
-			type: 'circle',
-			source: 'poi',
-			paint: {
-				'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 1.4, 15, 3.2],
-				'circle-color': cssVar('--good'),
-				'circle-opacity': 0.85
-			}
-		});
 		// One layer per mode. The order decides what sits on top: TransJakarta is the
 		// densest, so it is drawn first to keep the rail lines from being buried.
 		for (const mode of ROUTE_MODES) {
@@ -400,6 +482,44 @@
 			cssVar('--route-lrt'),
 			cssVar('--route-brt')
 		];
+		// COMPETITORS OF THE SELECTED CELL
+		//
+		// Below the transit marks on purpose. Both are drawn from the same cell centre
+		// within the same ring, but the stations carry names and a cell captures far
+		// more competitors than stops — put the rivals on top and they bury the labels
+		// that make the transit fan readable.
+		//
+		// Red, the same red a saturated cell's outline is drawn in: a competitor is the
+		// thing standing between this cell and the opportunity, and that is one meaning
+		// wearing one colour. It is NOT the only red on the map though — KRL is
+		// #e05a5a — which is why the mark itself is a square. See `rivalImage`.
+		const rival = cssVar('--critical');
+		m.addLayer({
+			id: 'poi-links',
+			type: 'line',
+			source: 'poi-links',
+			paint: {
+				'line-color': rival,
+				'line-width': 0.7,
+				'line-opacity': 0.3
+			}
+		});
+		m.addLayer({
+			id: 'poi-dots',
+			type: 'symbol',
+			source: 'poi',
+			layout: {
+				'icon-image': 'rival',
+				'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.55, 15, 1.25],
+				// Every competitor counted has to be drawn. Let MapLibre place these and
+				// it drops the ones that collide, which on a dense cell means the map
+				// showing fewer rivals than the badge counts — the map contradicting
+				// itself, and in the direction that flatters the cell.
+				'icon-allow-overlap': true,
+				'icon-ignore-placement': true
+			}
+		});
+
 		// The walking range the nodes below were captured within — the rule, drawn.
 		m.addLayer({
 			id: 'reach-ring',
@@ -626,16 +746,19 @@
 			entry.el.setAttribute(
 				'aria-label',
 				`${name}${nodata ? ', belum terdata' : ''}` +
-					(selected ? `, ${c.app.mapStopsAria(stopTotal(h.transit), app.weights.radius)}` : '')
+					(selected ? `, ${c.app.mapStopsAria(stopTotal(h.transit), app.weights.radius)}` : '') +
+					(selected && app.layers.poi && app.selectedPois.length
+						? `, ${c.app.mapRivalsAria(app.selectedPois.length, app.weights.radius)}`
+						: '')
 			);
 			entry.el.innerHTML =
 				`<span class="stn-dot"></span>` +
 				(rank > -1 ? `<span class="stn-rank">${rank + 1}</span>` : '') +
 				(app.layers.label || selected ? `<span class="stn-label">${shortName(name)}</span>` : '') +
-				// Only the selected cell carries it. On fourteen markers at once a count
-				// on each is a wall of chips, and the question it answers is one the
+				// Only the selected cell carries them. On fourteen markers at once a count
+				// on each is a wall of chips, and the question they answer is one the
 				// reader asks about the cell they have chosen.
-				(selected ? transitBadge(h) : '');
+				(selected ? badges(h) : '');
 			entry.el.style.display = nodata && !app.layers.nodata ? 'none' : '';
 		}
 
@@ -708,7 +831,29 @@
 		// A cell reaching rail gets the accent: one fixed doorway with all-day footfall
 		// is a different proposition from the same count made up of bus stops.
 		const rail = railTotal(h.transit) > 0 ? ' has-rail' : '';
-		return `<span class="stn-transit${rail}">${c.app.mapStops(n)}</span>`;
+		return `<span class="stn-chip${rail}">${c.app.mapStops(n)}</span>`;
+	}
+
+	/**
+	 * The competitor count for the selected cell.
+	 *
+	 * Counted off `selectedPois` — the dots on screen — and not off the scored row's
+	 * `osm` figure, so this badge and the map it sits on can never disagree with each
+	 * other. Where the panel's figure differs it is because the grid's counts and the
+	 * point file were built at different times, and a badge that quietly restated the
+	 * panel's number over a different number of dots would hide exactly that.
+	 */
+	function rivalBadge(): string {
+		const n = app.selectedPois.length;
+		if (!n || !app.layers.poi) return '';
+		return `<span class="stn-chip is-rival">${c.app.mapRivals(n)}</span>`;
+	}
+
+	/** The selected cell's chips, stacked. Either can be absent, so they are laid out
+	    by the container rather than each pinned to a fixed offset of its own. */
+	function badges(h: HexBase): string {
+		const inner = transitBadge(h) + rivalBadge();
+		return inner ? `<span class="stn-badges">${inner}</span>` : '';
 	}
 
 	function fitAll(animate = true) {
@@ -794,12 +939,14 @@
 		void app.selectedId;
 		void app.highlight;
 		void app.selectedStops;
+		void app.selectedPois;
 		void app.layers.stops;
 		void app.weights.radius;
 		const m = map;
 		if (!m || !ready) return;
 		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC());
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC());
+		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC());
 		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC());
 		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC());
 		(m.getSource('reach') as GeoJSONSource | undefined)?.setData(reachFC());
@@ -1091,12 +1238,19 @@
 		color: var(--label-1);
 		background: var(--mat-thick);
 	}
-	/* The transit count for the selected cell. Sits under the dot, opposite the name
-	   above it, so the two never fight for the same space. */
-	:global(.stn-transit) {
+	/* What the selected cell captures. Sits under the dot, opposite the name above it,
+	   so the two never fight for the same space. A column, because either chip can be
+	   absent and neither may be left holding a gap where the other would have been. */
+	:global(.stn-badges) {
 		position: absolute;
 		left: 0.625rem;
 		top: 0.3125rem;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.125rem;
+	}
+	:global(.stn-chip) {
 		white-space: nowrap;
 		font-size: 0.625rem;
 		font-weight: 700;
@@ -1111,9 +1265,15 @@
 		padding: 0.0625rem 0.4375rem;
 		box-shadow: var(--shadow-chip);
 	}
-	:global(.stn-transit.has-rail) {
+	:global(.stn-chip.has-rail) {
 		border-color: var(--accent);
 		color: var(--accent);
+	}
+	/* The same red as the dots it counts, so which chip goes with which fan needs no
+	   explaining. */
+	:global(.stn-chip.is-rival) {
+		border-color: var(--critical);
+		color: var(--critical);
 	}
 
 	:global(.stn-rank) {
