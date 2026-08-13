@@ -130,3 +130,41 @@ Copy `.env.example` to `.env` and fill it in.
 The model only ever chooses an operation and fills in its arguments. Every
 number a user sees is computed by `domain/scoring.ts`, on data. That boundary is
 the product's whole claim to being trustworthy, so do not move work across it.
+
+## Regenerating the data
+
+Every data file says how to rebuild it, in a `regenerate` field in its own
+metadata. The order matters, because each step reads what the one before it
+wrote.
+
+```bash
+node scripts/fetch-mapid.mjs    # → src/lib/data/mapid-poi.json   needs MAPID_API_KEY
+node scripts/join-mapid.mjs     # → adds mapid + covered to hexes.json   needs Overpass
+node scripts/build-pois.mjs     # → static/data/pois/<category>.json   local only
+node scripts/build-stops.mjs    # → static/data/stops.json   needs Overpass
+node scripts/build-routes.mjs   # → static/data/routes.json  needs Overpass
+```
+
+**Competitors on the map have no names yet, and this is why.** The map labels a
+competitor with its own name the same way it labels a station, and today it
+labels none of them: `mapid-poi.json` holds 24,630 points and 0 names. The MAPID
+features do carry a `NAMA` column, it was simply not kept when that file was
+written. `fetch-mapid.mjs` keeps it now, so the fix is a re-fetch and nothing
+else:
+
+```bash
+MAPID_API_KEY=… node scripts/fetch-mapid.mjs && node scripts/build-pois.mjs
+```
+
+`join-mapid.mjs` is not in that pair on purpose. Names change no count, so
+nothing needs rejoining, and that step needs Overpass as well as a key. Run it
+only if the point set itself changed.
+
+There is no setting for this in the application. A cell whose competitors have
+no names says so in the panel rather than leaving the marks looking like a
+label layer that failed.
+
+`npm run selftest` covers the parts of this that a rebuild cannot: the score
+breakdown against the scoring engine, and the competitor pipeline including the
+name handling, which the real data cannot exercise because it has no names in
+it.

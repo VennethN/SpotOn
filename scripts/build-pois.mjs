@@ -35,13 +35,19 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-function main() {
-	const src = resolve(ROOT, 'src/lib/data/mapid-poi.json');
-	const file = JSON.parse(readFileSync(src, 'utf8'));
+/**
+ * The point file split into one payload per category.
+ *
+ * Exported and kept free of the filesystem so `selftest-pois.mjs` can run it on a
+ * fixture. That matters more here than it looks: the name half of this pipeline
+ * cannot be exercised against the real data, because `mapid-poi.json` was written
+ * before names were kept, so without a test the encoding below is code that has never
+ * once produced a named point.
+ */
+export function splitByCategory(file) {
 	const points = file.points ?? [];
-	console.log(`Reading ${points.length} MAPID points…`);
 
-	/** Points per category. A category with no points still gets a file: an empty
+	/** Points per category. A category with no points still gets an entry: an empty
 	    list is the honest answer to "where are they", and a missing file would make
 	    the app report a failed fetch instead. */
 	const byCat = new Map();
@@ -51,51 +57,62 @@ function main() {
 		byCat.get(p.cat).push(p);
 	}
 
+	return [...byCat]
+		.sort(([a], [b]) => a.localeCompare(b))
+		.map(([cat, list]) => ({
+			cat,
+			named: list.filter((p) => p.name).length,
+			// Coordinates to five decimals (±1 m) as a flat [y, x] pair, the same economy
+			// `build-stops.mjs` applies: at up to 3,700 points per category the GeoJSON
+			// scaffolding, or even named keys, would cost more than the data itself. The
+			// app builds the GeoJSON it needs for the handful a cell actually captures.
+			//
+			// A named outlet gets a third slot. Left OFF entirely when there is no name,
+			// rather than written as null: at 24,630 points the nulls alone would be
+			// 120 KB of file saying nothing, and the reader has to tell "no name" from
+			// "no label drawn" either way.
+			payload: {
+				meta: {
+					cat,
+					source: file.meta?.source ?? 'MAPID premium data (Data Premium)',
+					note: 'Titik pesaing MAPID. Persis titik yang dihitung join-mapid.mjs untuk kolom `mapid` tiap petak, jadi cacah yang tergambar sama dengan cacah yang dipakai mesin skor.',
+					count: list.length,
+					/* How many carry a name of their own. Stated so a map with marks and no
+					   labels can be read as what it is, rather than as a broken label
+					   layer. Zero here means `mapid-poi.json` predates names being kept
+					   (see the NAMA note in fetch-mapid.mjs) and needs a re-fetch. */
+					named: list.filter((p) => p.name).length,
+					/* Which cities were READ, carried over from the point file. A city that is
+					   not here was never checked, and that is not the same fact as a city that
+					   was checked and held no competitor. The app needs to be able to tell the
+					   two apart before it draws an empty cell. */
+					coverage: file.meta?.coverage?.[cat] ?? [],
+					regenerate: 'node scripts/build-pois.mjs'
+				},
+				points: list.map((p) => {
+					const y = Math.round(p.lat * 1e5) / 1e5;
+					const x = Math.round(p.lon * 1e5) / 1e5;
+					return p.name ? [y, x, p.name] : [y, x];
+				})
+			}
+		}));
+}
+
+function main() {
+	const src = resolve(ROOT, 'src/lib/data/mapid-poi.json');
+	const file = JSON.parse(readFileSync(src, 'utf8'));
+	console.log(`Reading ${(file.points ?? []).length} MAPID points…`);
+
 	const dir = resolve(ROOT, 'static/data/pois');
 	mkdirSync(dir, { recursive: true });
 
 	let namedTotal = 0;
-	for (const [cat, list] of [...byCat].sort(([a], [b]) => a.localeCompare(b))) {
-		const named = list.filter((p) => p.name).length;
+	for (const { cat, named, payload } of splitByCategory(file)) {
 		namedTotal += named;
-		// Coordinates to five decimals (±1 m) as a flat [y, x] pair, the same economy
-		// `build-stops.mjs` applies: at up to 3,700 points per category the GeoJSON
-		// scaffolding, or even named keys, would cost more than the data itself. The
-		// app builds the GeoJSON it needs for the handful a cell actually captures.
-		//
-		// A named outlet gets a third slot. Left OFF entirely when there is no name,
-		// rather than written as null: at 24,630 points the nulls alone would be
-		// 120 KB of file saying nothing, and the reader has to tell "no name" from
-		// "no label drawn" either way.
-		const out = {
-			meta: {
-				cat,
-				source: file.meta?.source ?? 'MAPID premium data (Data Premium)',
-				note: 'Titik pesaing MAPID. Persis titik yang dihitung join-mapid.mjs untuk kolom `mapid` tiap petak, jadi cacah yang tergambar sama dengan cacah yang dipakai mesin skor.',
-				count: list.length,
-				/* How many carry a name of their own. Stated so a map with marks and no
-				   labels can be read as what it is, rather than as a broken label
-				   layer. Zero here means `mapid-poi.json` predates names being kept
-				   (see the NAMA note in fetch-mapid.mjs) and needs a re-fetch. */
-				named,
-				/* Which cities were READ, carried over from the point file. A city that is
-				   not here was never checked, and that is not the same fact as a city that
-				   was checked and held no competitor. The app needs to be able to tell the
-				   two apart before it draws an empty cell. */
-				coverage: file.meta?.coverage?.[cat] ?? [],
-				regenerate: 'node scripts/build-pois.mjs'
-			},
-			points: list.map((p) => {
-				const y = Math.round(p.lat * 1e5) / 1e5;
-				const x = Math.round(p.lon * 1e5) / 1e5;
-				return p.name ? [y, x, p.name] : [y, x];
-			})
-		};
-
 		const path = resolve(dir, `${cat}.json`);
-		writeFileSync(path, JSON.stringify(out));
+		writeFileSync(path, JSON.stringify(payload));
 		console.log(
-			`  ${String(list.length).padStart(5)} · ${String(named).padStart(5)} named · ${cat}.json`
+			`  ${String(payload.meta.count).padStart(5)} · ${String(named).padStart(5)} named · ${cat}.json`
 		);
 	}
 
@@ -110,9 +127,13 @@ function main() {
 	}
 }
 
-try {
-	main();
-} catch (err) {
-	console.error('Failed:', err.message);
-	process.exit(1);
+// Only when run as a script. Imported — which is how the self-test reaches
+// `splitByCategory` — this must not touch the filesystem or write anything.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	try {
+		main();
+	} catch (err) {
+		console.error('Failed:', err.message);
+		process.exit(1);
+	}
 }
