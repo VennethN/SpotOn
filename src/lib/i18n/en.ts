@@ -524,6 +524,11 @@ export const en: Copy = {
 		rivalsHidden: (n: number, cat: string) =>
 			`${n} ${cat} inside the walking range. Show them to see where they stand.`,
 		rivalsLoading: 'Looking up where they stand…',
+		/* Stations are labelled and these are not, so the difference gets a reason. The
+		   names exist in the MAPID features, they were simply not kept when the point
+		   file was written, and a re-fetch brings them in. */
+		rivalsNoNames:
+			'None of them carry a name in the data yet, so they are drawn as marks only.',
 		rivalsNone: 'No competitors of this type inside the walking range.',
 		/* Only MAPID carries positions. Saying which source would have them is the
 		   difference between a dead end and a fix the reader can act on. */
