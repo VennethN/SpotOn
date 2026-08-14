@@ -1,6 +1,15 @@
 import { id as ID } from '$lib/i18n/id';
 import { formatHour, pct } from '$lib/utils/format';
 import { CATEGORY_MAP } from './categories';
+import {
+	DEFAULT_METRIC,
+	METRIC_MAP,
+	applyFilters,
+	rankBy,
+	resolveOrder,
+	type MetricFilter,
+	type MetricKey
+} from './metrics';
 import { supplyPhrase } from './narrate';
 import { scoreAll } from './scoring';
 
@@ -54,21 +63,65 @@ const KEYWORDS: Array<[RegExp, CategoryKey]> = [
 ];
 
 /**
+ * Which figure a question is about, when it names one.
+ *
+ * Matched in order like the categories above, specific before general. This is the
+ * fallback parser's half of what the model does with the `ukuran` argument, and the two
+ * have to be able to reach the same measures — otherwise losing the model key silently
+ * narrows what the product can answer, which is the worst moment for it to narrow.
+ *
+ * The patterns are Indonesian first because the questions are, with the English words
+ * people actually mix in alongside.
+ */
+const METRIC_WORDS: Array<[RegExp, MetricKey]> = [
+	// Price of space, before anything else: "harga" on its own most often means this,
+	// and it is the only measure with a currency attached.
+	[/harga|sewa|biaya|mahal|murah|terjangkau|modal kecil|rp\b|rupiah/i, 'harga_tempat'],
+	// "tempat kosong" is a vacancy, not a gap in the data. The coverage intent below
+	// used to take the word `kosong` on its own and answer "here is what we have not
+	// surveyed" to a question about empty shopfronts.
+	[
+		/unit|ruko|kios|tempat usaha|tempat kosong|ruang kosong|dipasarkan|dijual|properti|listing|lowong/i,
+		'unit_dipasarkan'
+	],
+	// Above `keramaian`, because both of these are asked with the word "ramai" in the
+	// sentence and only the specific words tell them apart. "Jam berapa paling ramai"
+	// is a question about the clock; "seberapa ramai di sini" is not.
+	[/jam berapa|jam ramai|jam puncak|jam sibuk|puncak|peak hour/i, 'jam_puncak'],
+	[/kunjungan|transaksi|struk|traffic|pengunjung|footfall|omzet|pembeli/i, 'kunjungan'],
+	[/ramai|rame|sepi|keramaian|crowd|busy|sibuk/i, 'keramaian'],
+	// `non[- ]?tunai` and not `non ?tunai`: the hyphenated spelling is the common one and
+	// the space-only version missed every question that used it.
+	[/non[- ]?tunai|cashless|qris|kartu|e-?wallet|debit/i, 'nontunai'],
+	[/pesaing|saingan|kompetitor|competitor|rival/i, 'pesaing'],
+	[/permintaan|demand/i, 'permintaan'],
+	[/penawaran|supply|jenuh|saturasi/i, 'penawaran'],
+	[/simpul|halte|stasiun|mrt|krl|lrt|transjakarta|angkutan/i, 'simpul_transit'],
+	[/akses|transit|dekat/i, 'akses_transit'],
+	[/skor|score|peluang|opportunity|terbaik|bagus|cocok|rekomendasi/i, 'skor']
+];
+
+/** Words that flip a ranking away from the measure's own idea of "best". */
+const MOST = /paling banyak|terbanyak|tertinggi|termahal|paling ramai|paling mahal|paling tinggi|most|highest/i;
+const LEAST = /paling sedikit|tersedikit|terendah|termurah|paling sepi|paling murah|paling rendah|least|lowest|cheapest/i;
+
+/**
  * Translates a natural-language question into a structured query.
  *
- * In the finished product this layer is run by an LLM doing function-calling
- * against a limited list of spatial operations; the output shape stays this same
- * object. The model only picks the operation and fills in the arguments — every
- * number is still computed by the scoring engine, so there is no value the model
- * could invent.
+ * The model does this job when a key is configured; this is what runs when it is not,
+ * and the two produce the same object so everything downstream is identical either way.
+ * Neither of them computes anything: they choose an operation, a measure and a
+ * direction, and the scoring engine produces every number from the data.
  */
 export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): StructuredQuery {
 	const out: StructuredQuery = {
 		intent: 'RANK',
 		metrik: 'gap permintaan − penawaran',
 		kategori: fallback,
+		ukuran: DEFAULT_METRIC,
 		radius_m: w.radius,
 		filter: {},
+		filters: [],
 		urut: 'desc',
 		limit: 5
 	};
@@ -80,12 +133,27 @@ export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): Str
 		}
 	}
 
-	if (/belum terdata|tidak ada data|kosong|cakupan/i.test(q)) {
+	// The measure the question is about. Read before the intent, because a question can
+	// name a figure without naming a shape — "seberapa ramai di sini" is a ranking by
+	// how busy it is, and nothing in it says the word "rank".
+	for (const [re, key] of METRIC_WORDS) {
+		if (re.test(q)) {
+			out.ukuran = key;
+			break;
+		}
+	}
+
+	// `kosong` on its own used to be here, and it meant "mana yang paling banyak tempat
+	// kosong" — which areas have the most empty units — came back as a list of cells
+	// nobody has surveyed. The word has to be attached to the data to mean that.
+	if (/belum terdata|belum ada data|tidak ada data|data\w*\s+kosong|cakupan data|cakupan/i.test(q)) {
 		out.intent = 'COVERAGE';
 		out.metrik = 'N titik data misi per catchment';
+		out.ukuran = DEFAULT_METRIC;
 		out.urut = 'asc';
 		out.limit = 99;
 		delete out.filter;
+		delete out.filters;
 	} else if (/jenuh|saturasi|penuh|hindari|jangan/i.test(q)) {
 		out.intent = 'FLAG_SATURATED';
 		out.metrik = 'penawaran efektif (pesaing × keramaian)';
@@ -95,12 +163,28 @@ export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): Str
 		out.limit = 2;
 	}
 
+	if (out.intent === 'RANK') {
+		// The measure's own idea of "best" unless the question overrides it. Cheapest
+		// space and most footfall are both "best", and they sit at opposite ends.
+		const asked = MOST.test(q) ? 'desc' : LEAST.test(q) ? 'asc' : undefined;
+		out.urut = resolveOrder(out.ukuran ?? DEFAULT_METRIC, asked);
+		out.metrik = `peringkat menurut ${out.ukuran}`;
+	}
+
 	if (out.filter && /modal kecil|murah|terjangkau/i.test(q)) {
 		out.filter.ruang_sewa_tersedia = true;
 		out.filter.tier_harga = 'rendah';
+		out.filters?.push({ ukuran: 'unit_dipasarkan', arah: 'ada' });
+		// Only where the price is not itself what is being ranked — filtering a ranking
+		// to its own bottom third and then ranking it says the same thing twice while
+		// throwing away two thirds of the answer.
+		if (out.ukuran !== 'harga_tempat') out.filters?.push({ ukuran: 'harga_tempat', arah: 'rendah' });
 	}
 	if (out.filter && /dekat|mrt|stasiun|transit/i.test(q)) {
 		out.filter.dalam_catchment_transit = `${w.radius} m`;
+		if (out.ukuran !== 'akses_transit' && out.ukuran !== 'simpul_transit') {
+			out.filters?.push({ ukuran: 'akses_transit', arah: 'tinggi' });
+		}
 	}
 	return out;
 }
@@ -247,25 +331,91 @@ export function runQuery(
 		};
 	}
 
-	// RANK
-	let cands = rows.filter((r) => !r.nodata);
-	if (query.filter?.ruang_sewa_tersedia) cands = cands.filter((r) => r.listings > 0);
-	cands = cands.sort((a, b) => (b.score ?? 0) - (a.score ?? 0)).slice(0, query.limit);
+	// RANK — by whichever figure the question was about.
+	const key = query.ukuran ?? DEFAULT_METRIC;
+	const metric = METRIC_MAP[key] ?? METRIC_MAP[DEFAULT_METRIC];
+	const order = query.urut === 'asc' ? 'asc' : 'desc';
+
+	let pool = rows.filter((r) => !r.nodata);
+	// The old boolean filter still works, and the new ones run alongside it: a query
+	// object built by an older client keeps behaving exactly as it did.
+	if (query.filter?.ruang_sewa_tersedia) pool = pool.filter((r) => r.listings > 0);
+	const beforeFilters = pool.length;
+	pool = applyFilters(pool, (query.filters ?? []) as MetricFilter[]);
+
+	const ranked = rankBy(pool, key, order).slice(0, query.limit);
 	const skipped = rows.filter((r) => r.nodata).length;
+	// Cells dropped for having no reading on the measure asked about. Counted and said
+	// out loud, because a list of six where the reader expected the whole city is a
+	// finding about the data, not a short answer.
+	const unmeasured = pool.length - rankBy(pool, key, order).length;
+	const filtered = beforeFilters - pool.length;
 
 	return {
 		query,
 		headline:
-			`${cands.length} catchment teratas untuk ${def.name} berdasarkan selisih permintaan − penawaran, digerbang ketersediaan ruang usaha.` +
+			`${ranked.length} catchment teratas untuk ${def.name} menurut ${key} (${order === 'asc' ? 'terkecil' : 'terbesar'} dulu).` +
+			(filtered ? ` ${filtered} catchment disaring keluar oleh filter.` : '') +
+			(unmeasured ? ` ${unmeasured} catchment belum terukur untuk ${key} dan tidak diperingkat.` : '') +
 			(skipped ? ` ${skipped} catchment dikecualikan karena belum terdata.` : ''),
-		items: cands.map<Recommendation>((r) => ({
+		items: ranked.map<Recommendation>(({ row: r, value }) => ({
 			id: r.id,
 			name: r.name,
+			// The opportunity score stays the row's headline number whatever was asked,
+			// so a list never loses the one figure the rest of the product is about.
 			value: r.score,
-			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.peakHour)}, non-tunai ${pct(r.cashless)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.busy)}% ramai, ${supplyPhrase(r, ID)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propertyCategory}.`,
+			// …and the measure that was actually asked for travels beside it. Null when
+			// they are the same figure, rather than printing one number twice.
+			measure: key === 'skor' ? null : { ukuran: key, value, text: metricText(key, value) },
+			why: whyLine(r, key, value, def, w),
 			evidence: evidence(r)
 		})),
-		highlight: cands.map((r) => r.id),
+		highlight: ranked.map(({ row }) => row.id),
 		provenance
 	};
+}
+
+/**
+ * One row's value, written out.
+ *
+ * Indonesian, like the rest of this module's prose: it is API output, and the interface
+ * rebuilds what the reader sees in their own language from the structured fields beside
+ * it. See the note at the top of this file.
+ */
+function metricText(key: MetricKey, v: number): string {
+	const kind = METRIC_MAP[key]?.kind;
+	if (kind === 'pct') return `${pct(v)}%`;
+	if (kind === 'hour') return formatHour(v);
+	if (kind === 'rupiah') return `Rp ${Math.round(v).toLocaleString('id-ID')}/m²`;
+	return String(Math.round(v));
+}
+
+/**
+ * Why this catchment is on the list.
+ *
+ * Leads with the figure that was asked about and then gives the context that figure
+ * needs to mean anything — a busy catchment with forty rivals and a busy one with two
+ * are not the same finding. The opportunity score's own sentence is kept as it was,
+ * because that question has a different shape: it is about a balance rather than a
+ * quantity.
+ */
+function whyLine(
+	r: ScoredHex,
+	key: MetricKey,
+	value: number,
+	def: { name: string; propertyCategory: string },
+	w: Weights
+): string {
+	if (key === 'skor') {
+		return `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.peakHour)}, non-tunai ${pct(r.cashless)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.busy)}% ramai, ${supplyPhrase(r, ID)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propertyCategory}.`;
+	}
+	const lead = `${key} = ${metricText(key, value)}`;
+	const context = `Skor peluang ${pct(r.score)} · permintaan ${pct(r.demand)} · ${r.osm} pesaing dalam radius ${w.radius} m · ${pct(r.busy)}% ramai`;
+	if (key === 'harga_tempat') {
+		return `${lead}. Harga JUAL yang diminta penjual, bukan sewa — katalog MAPID tidak memuat listing sewa untuk Jakarta. ${r.units} unit komersial dipasarkan di sekitarnya. ${context}.`;
+	}
+	if (key === 'unit_dipasarkan') {
+		return `${lead} unit komersial dipasarkan dalam radius ${w.radius} m${r.price !== null ? `, median ${metricText('harga_tempat', r.price)}` : ', tidak satu pun memasang harga'}. ${context}.`;
+	}
+	return `${lead}. ${context}.`;
 }

@@ -1,3 +1,7 @@
+import type { MetricKey } from '$lib/domain/metrics';
+
+export type { MetricKey };
+
 /** Keys of the business types SpotOn scores. Kept in Indonesian: they are the
     domain's own vocabulary and the values stored in the generated datasets. */
 export type CategoryKey =
@@ -265,6 +269,29 @@ export interface StructuredQuery {
 	metrik: string;
 	kategori: CategoryKey;
 	radius_m: number;
+	/**
+	 * WHICH figure the question is about, as a key from `domain/metrics`.
+	 *
+	 * The intent is the shape of the question — rank these, compare those — and this is
+	 * the measure it is about. Kept apart because they vary independently: "where is
+	 * busiest", "where is space cheapest" and "where should I open" are all rankings,
+	 * and answering the first two with the third is how "how busy is it here" used to
+	 * come back as an opportunity score.
+	 *
+	 * Absent on an older query object, which is read as the opportunity score.
+	 */
+	ukuran?: MetricKey;
+	/**
+	 * Filters, each naming a measure and a band rather than a threshold.
+	 *
+	 * `rendah` and `tinggi` are the bottom and top third of the grid on that measure,
+	 * worked out from the data when the query runs. There is deliberately no way to
+	 * express "under 30 million": a number the understanding layer supplied would be the
+	 * only figure in the answer that came from nobody's data.
+	 */
+	filters?: Array<{ ukuran: MetricKey; arah: 'rendah' | 'tinggi' | 'ada' }>;
+	/** The original filter block. Kept because it is a published API shape, and still
+	    written alongside `filters` for the cases it can express. */
 	filter?: {
 		ruang_sewa_tersedia?: boolean;
 		tier_harga?: 'rendah' | 'menengah' | 'tinggi';
@@ -281,6 +308,14 @@ export interface Recommendation {
 	name: string;
 	/** The ranked value (score for RANK, supply for FLAG_SATURATED). */
 	value: number | null;
+	/**
+	 * The figure the question was actually about, when it was not the score.
+	 *
+	 * Carried separately from `value` so a list can lead with the measure that was
+	 * asked for while the score stays available beside it. Null for a question that was
+	 * about the score, where the two would be the same number printed twice.
+	 */
+	measure?: { ukuran: MetricKey; value: number; text: string } | null;
 	why: string;
 	evidence: string;
 }
