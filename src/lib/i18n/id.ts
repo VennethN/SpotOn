@@ -10,9 +10,33 @@
  * not known is called not known.
  */
 
+import { moneyScale, num } from '$lib/utils/format';
+
 /** Indonesian decimals: 0.45 → "0,45". Kept in the locale, where notation belongs —
     the components hand over numbers, never pre-formatted strings. */
 const dec = (v: number, digits = 2): string => v.toFixed(digits).replace('.', ',');
+
+/**
+ * Rupiah, written short: 45000000 → "Rp 45 jt", 4300000000 → "Rp 4,3 M".
+ *
+ * The WORDS are here because "jt" and "million" are not the same string. WHERE the
+ * scale breaks is not: that comes from `moneyScale`, so the two languages cannot end
+ * up writing the same price as "Rp 950 jt" on one side and "Rp 1,0 billion" on the
+ * other.
+ *
+ * A whole number keeps no decimal — "Rp 45 jt" reads as a price, "Rp 45,0 jt" reads as
+ * a measurement. The rounding happens BEFORE that test, not after: Rp 6,95 miliar and
+ * Rp 7 miliar are both "Rp 7 M", where testing first would set them in a column as
+ * "Rp 7,0 M" above "Rp 7 M" and make one of them look more precisely known than the
+ * other. They are asking prices, and neither is.
+ */
+const SCALE_ID = { unit: '', thousand: 'rb', million: 'jt', billion: 'M' } as const;
+const rp = (v: number): string => {
+	const { value, scale } = moneyScale(v);
+	const r = Math.round(value * 10) / 10;
+	const n = Number.isInteger(r) ? r.toLocaleString('id-ID') : dec(r, 1);
+	return `Rp ${n}${SCALE_ID[scale] ? ` ${SCALE_ID[scale]}` : ''}`;
+};
 
 export const id = {
 	lang: { code: 'id', label: 'Bahasa Indonesia', short: 'ID', switchTo: 'Ganti ke Bahasa Inggris' },
@@ -361,7 +385,8 @@ export const id = {
 			supply: 'Persaingan',
 			clamp: 'Dijaga di rentang',
 			gate: 'Gerbang tempat usaha',
-			access: 'Akses transit'
+			access: 'Akses transit',
+			cost: 'Harga tempat'
 		},
 		notes: {
 			start: 'sebelum data dibaca, tiap petak mulai dari sini',
@@ -372,7 +397,21 @@ export const id = {
 			gatePass: (n: number) => `${n} tempat disewakan, syarat terpenuhi`,
 			gateBlock: (f: number) => `tidak ada tempat yang disewakan → ×${dec(f)}`,
 			access: (pengali: number, akses: number) =>
-				`×${dec(pengali)} = 0,60 + 0,40 × indeks akses ${dec(akses)}`
+				`×${dec(pengali)} = 0,60 + 0,40 × indeks akses ${dec(akses)}`,
+			/* Langkah harga selalu ditampilkan, termasuk waktu tidak memotong apa-apa.
+			   Empat sebab diamnya dibedakan, karena "belum disurvei", "tidak ada yang
+			   dijual", "ada tapi harganya tidak dipasang", dan "termurah sekisi" itu
+			   empat kalimat yang berbeda, dan cuma yang pertama berarti belum dilihat. */
+			cost: (pengali: number, peringkat: number) =>
+				`×${dec(pengali)} · lebih mahal dari ${peringkat}% petak lain`,
+			costCheapest: (pengali: number) => `×${dec(pengali)} · termurah sekisi, tidak dipotong`,
+			costUncovered: 'katalog properti kota ini belum dibaca, jadi tidak dipotong',
+			costEmpty: 'tidak ada unit komersial dijual dalam radius ini, jadi tidak dipotong',
+			costUnpriced: (n: number) =>
+				`${n} unit dijual di sekitarnya tapi harganya tidak dipasang, jadi tidak dipotong`,
+			costThin: (n: number) =>
+				`baru ${n} unit di sekitarnya yang berharga, belum cukup untuk diambil mediannya`,
+			costUngraded: 'harga sekisi belum cukup banyak untuk dibandingkan, jadi tidak dipotong'
 		},
 		total: 'Skor peluang',
 		deltaAria: (poin: number) => (poin >= 0 ? `naik ${poin} poin` : `turun ${Math.abs(poin)} poin`),
@@ -392,6 +431,94 @@ export const id = {
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} simpul`,
 		unnamed: (n: number) =>
 			`+${n} simpul lagi tanpa nama sendiri: peron stasiun yang sama, atau halte yang belum dinamai di OSM`
+	},
+
+	/* ── Harga tempat usaha ────────────────────────────────────────────────
+	   Panel ini menjawab "berapa duit tempatnya di sini". Satu hal yang tidak
+	   boleh kabur: KATALOG MAPID TIDAK PUNYA DATA SEWA. Semua angka di sini
+	   harga JUAL yang diminta penjual, dan tidak satu pun boleh terbaca sebagai
+	   sewa bulanan. Menurunkan sewa dari harga jual butuh asumsi imbal hasil,
+	   dan asumsi itu bakal jadi satu-satunya angka di layar yang datangnya
+	   bukan dari data siapa pun. */
+	property: {
+		title: 'Harga tempat usaha',
+		/* Dipimpin, bukan diselipkan di catatan kaki. Pembaca datang mencari sewa,
+		   dan yang ada di katalog bukan itu. */
+		saleNote:
+			'Ini harga JUAL yang diminta penjual, bukan sewa. Di katalog MAPID tidak ada satu pun listing sewa untuk Jakarta, jadi tidak ada sewa bulanan yang bisa ditampilkan tanpa mengarang asumsinya.',
+		perM2: 'per m² tanah',
+		medianOf: (n: number, r: number) =>
+			`median dari ${n} unit yang dipasarkan dalam radius ${r} m`,
+		priceValue: (v: number) => rp(v),
+		/* Peringkat, bukan rasio. Harga per m² di Jakarta rentangnya dua orde, dan
+		   segelintir kavling raksasa duduk di dasar skala per m², jadi rasio gampang
+		   diseret pencilan. Peringkat tidak bisa. */
+		rank: (persen: number) => `Lebih mahal dari ${persen}% petak yang harganya terbaca.`,
+		rankCheapest: 'Ini petak termurah di antara yang harganya terbaca.',
+		rankDearest: 'Ini petak termahal di antara yang harganya terbaca.',
+		/* `kali` datang sebagai angka, bukan teks: koma desimalnya urusan berkas bahasa,
+		   dan kalau komponennya yang memformat, kalimat Indonesia ini kebagian "1.2×". */
+		vsMedian: (v: number, kali: number) =>
+			`Median sekisi ${rp(v)} per m², jadi di sini ${dec(kali, 1)}×.`,
+		/* Apa yang dilakukan angka itu ke skor. Dibaca dari mesin skornya, bukan
+		   dihitung ulang di sini. */
+		effect: (poin: number, pengali: number) =>
+			`Harga segini memotong ${poin} poin dari skor petak ini, pengalinya ×${dec(pengali)}.`,
+		effectNone: 'Harga tempat tidak memotong skor petak ini.',
+		floor: (pengali: number) =>
+			`Paling banyak harga tempat bisa memotong sampai ×${dec(pengali)}. Ia menggeser urutan, bukan menentukannya: harga yang diminta penjual masih bisa ditawar, dan itu harga beli, bukan harga menempati.`,
+
+		/* ── Empat macam diam, dibedakan ────────────────────────────────────
+		   Cuma yang pertama berarti belum ada yang melihat. */
+		noneUncovered:
+			'Katalog properti untuk kota ini belum dibaca, jadi belum ada yang bisa dikatakan soal harga tempat di sini. Ini bukan berarti tidak ada yang dijual.',
+		noneEmpty: (r: number) =>
+			`Tidak ada unit komersial yang sedang dipasarkan dalam radius ${r} m. Sudah dicek, memang tidak ada.`,
+		noneUnpriced: (n: number) =>
+			`Ada ${n} unit yang dipasarkan di sekitarnya, tapi tidak satu pun memasang harga. Jadi harganya tidak diisi, bukan ditaksir.`,
+		noneThin: (n: number, min: number) =>
+			`Baru ${n} unit di sekitarnya yang memasang harga. Median butuh sedikitnya ${min}, karena satu salah ketik koma saja sudah cukup untuk memindahkan seluruh petak ini ke ujung mahal.`,
+		noneUngraded:
+			'Harga di petak ini terbaca, tapi belum cukup banyak petak lain yang harganya terbaca untuk dibandingkan. Jadi belum bisa dibilang mahal atau murah, dan skornya tidak dipotong.',
+
+		/* ── Yang sedang dipasarkan ─────────────────────────────────────────── */
+		marketTitle: 'Yang sedang dipasarkan di sini',
+		marketCount: (n: number, r: number) => `${n} unit komersial dalam radius ${r} m`,
+		marketPremises: (n: number) => `${n} di antaranya bisa ditempati usaha kecil`,
+		marketNone: 'Tidak ada unit komersial yang sedang dipasarkan di sini.',
+		marketLoading: 'Memuat daftar unitnya…',
+		marketFailed:
+			'Daftar unitnya tidak bisa dimuat. Harga dan cacahnya di atas tetap berlaku, keduanya dibaca dari kisi, bukan dari berkas itu.',
+		/* Nama tipe. Kunci-kuncinya dari data (TIPE_2 di katalog), bukan terjemahan,
+		   jadi harus lengkap di kedua bahasa. */
+		types: {
+			ruko: 'Ruko',
+			toko: 'Toko / kios',
+			ruang: 'Ruang usaha',
+			rukan: 'Rukan',
+			komersial: 'Komersial lain',
+			kantor: 'Kantor',
+			gedung: 'Gedung',
+			gudang: 'Gudang'
+		},
+		typeAside: 'bukan tempat usaha kecil',
+
+		/* ── Unit satu per satu ─────────────────────────────────────────────── */
+		unitsTitle: 'Unit terdekat, satu per satu',
+		unitPrice: (v: number) => rp(v),
+		unitNoPrice: (n: number) =>
+			`+${n} unit lagi yang bisa ditempati usaha, tanpa harga terpasang`,
+		unitWalk: (m: number) => `${m} m`,
+		/* Ciri unitnya, cuma yang benar-benar ada di datanya. Kolom yang kosong
+		   dilewat, bukan ditulis nol: gedung tanpa jumlah lantai terpasang dan
+		   gedung satu lantai itu dua hal yang berbeda. */
+		unitLand: (m2: number) => `tanah ${num(m2)} m²`,
+		unitBuild: (m2: number) => `bangunan ${num(m2)} m²`,
+		unitFloors: (n: number) => `${n} lantai`,
+		unitPerM2: (v: number) => `${rp(v)}/m²`,
+		unitsMore: (n: number) => `+${n} unit lagi`,
+		provenance: (n: number, kota: number) =>
+			`${num(n)} listing properti komersial dari katalog Data Premium MAPID, ${kota} kota administrasi. Semuanya listing jual.`
 	},
 
 	table: {

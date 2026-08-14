@@ -10,6 +10,7 @@
 	 * The wording is deliberately plain: "how busy", not "demand index". The full
 	 * figures are still there, one click below.
 	 */
+	import PropertyPanel from '$lib/components/app/PropertyPanel.svelte';
 	import RivalsPanel from '$lib/components/app/RivalsPanel.svelte';
 	import ScoreBreakdown from '$lib/components/app/ScoreBreakdown.svelte';
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
@@ -167,10 +168,12 @@
 			<RivalsPanel />
 		{/if}
 
-		<!-- OUTSIDE the "no data" branch on purpose. Transit access is built from OSM,
-		     which is real, so it is the one thing this panel can still say about a cell
-		     whose mission data is missing — and for that cell it is the only thing there
-		     is to say. -->
+		<!-- Both of these sit OUTSIDE the "no data" branch on purpose. Transit access is
+		     built from OSM and what space costs is built from the MAPID property
+		     catalogue, and both are real — so they are what this panel can still say
+		     about a cell whose mission data is missing, and for that cell they are the
+		     only things there are to say. -->
+		<PropertyPanel />
 		<TransitPanel />
 	</div>
 {/if}

@@ -1,4 +1,5 @@
 import type { Copy } from './id';
+import { moneyScale } from '$lib/utils/format';
 
 /**
  * English copy — written, not translated.
@@ -12,6 +13,32 @@ import type { Copy } from './id';
  * do the two words this market actually uses in English — *site selection* and
  * *catchment*.
  */
+
+/**
+ * Rupiah, written short: 45000000 → "Rp 45m", 4300000000 → "Rp 4.3bn".
+ *
+ * The suffixes are English, the thresholds are not: those come from `moneyScale`, so
+ * the two languages cannot end up writing the same price as "Rp 950 jt" on one side and
+ * "Rp 1.0bn" on the other. The currency stays "Rp" in both, because that is what is
+ * written on the price.
+ *
+ * The rounding happens before the whole-number test, not after, so Rp 6.95bn and Rp 7bn
+ * both come out "Rp 7bn". Testing first would set them in a column as "Rp 7.0bn" above
+ * "Rp 7bn" and make one look more precisely known than the other. They are asking
+ * prices, and neither is.
+ */
+const SCALE_EN = { unit: '', thousand: 'k', million: 'm', billion: 'bn' } as const;
+const rp = (v: number): string => {
+	const { value, scale } = moneyScale(v);
+	const r = Math.round(value * 10) / 10;
+	const n = Number.isInteger(r) ? r.toLocaleString('en-US') : r.toFixed(1);
+	return `Rp ${n}${SCALE_EN[scale]}`;
+};
+
+/** English thousands: 7577 → "7,577". `format.num` is Indonesian on purpose and would
+    print "7.577" here, which an English reader reads as seven and a half. */
+const num = (v: number): string => v.toLocaleString('en-US');
+
 export const en: Copy = {
 	lang: { code: 'en', label: 'English', short: 'EN', switchTo: 'Switch to Indonesian' },
 
@@ -350,7 +377,8 @@ export const en: Copy = {
 			supply: 'Competition',
 			clamp: 'Kept in range',
 			gate: 'Space requirement',
-			access: 'Transit access'
+			access: 'Transit access',
+			cost: 'Cost of space'
 		},
 		notes: {
 			start: 'before any data is read, every cell starts here',
@@ -362,7 +390,22 @@ export const en: Copy = {
 			gatePass: (n: number) => `${n} ${n === 1 ? 'unit' : 'units'} up for rent, requirement met`,
 			gateBlock: (f: number) => `nothing up for rent → ×${f.toFixed(2)}`,
 			access: (pengali: number, akses: number) =>
-				`×${pengali.toFixed(2)} = 0.60 + 0.40 × access index ${akses.toFixed(2)}`
+				`×${pengali.toFixed(2)} = 0.60 + 0.40 × access index ${akses.toFixed(2)}`,
+			/* The cost step is shown on every cell, including the ones it did not touch.
+			   Its four silences are kept apart, because "not surveyed", "nothing for
+			   sale", "for sale with no price on it" and "cheapest on the grid" are four
+			   different sentences, and only the first means nobody has looked. */
+			cost: (pengali: number, peringkat: number) =>
+				`×${pengali.toFixed(2)} · dearer than ${peringkat}% of cells`,
+			costCheapest: (pengali: number) =>
+				`×${pengali.toFixed(2)} · cheapest on the grid, nothing taken off`,
+			costUncovered: 'the property catalogue has not been read for this city, nothing taken off',
+			costEmpty: 'no commercial unit for sale within range, nothing taken off',
+			costUnpriced: (n: number) =>
+				`${n} ${n === 1 ? 'unit is' : 'units are'} for sale nearby with no price on ${n === 1 ? 'it' : 'them'}, nothing taken off`,
+			costThin: (n: number) =>
+				`only ${n} priced ${n === 1 ? 'unit' : 'units'} nearby, too few to take a median from`,
+			costUngraded: 'too few prices across the grid to rank this one against, nothing taken off'
 		},
 		total: 'Opportunity score',
 		deltaAria: (poin: number) =>
@@ -384,6 +427,92 @@ export const en: Copy = {
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} ${n === 1 ? 'node' : 'nodes'}`,
 		unnamed: (n: number) =>
 			`+${n} more with no name of their own: platforms of the same station, or stops OSM has not named`
+	},
+
+	/* ── Cost of space ─────────────────────────────────────────────────────
+	   This panel answers "what does the space cost here". One thing must never
+	   blur: THE MAPID CATALOGUE HAS NO RENT. Every figure here is an asking
+	   price to buy, and not one of them may be read as a monthly rent. Getting
+	   a rent out of a sale price takes a yield assumption, and that assumption
+	   would be the only number on the screen that came from nobody's data. */
+	property: {
+		title: 'Cost of space',
+		/* Led with, not tucked into a footnote. The reader came looking for rent,
+		   and rent is not what the catalogue holds. */
+		saleNote:
+			'This is an asking price to buy, not a rent. The MAPID catalogue carries no rental listings for Jakarta at all, so there is no monthly rent to show without inventing the assumption behind it.',
+		perM2: 'per m² of land',
+		medianOf: (n: number, r: number) =>
+			`median of ${n} ${n === 1 ? 'unit' : 'units'} on the market within ${r} m`,
+		priceValue: (v: number) => rp(v),
+		/* A rank, not a ratio. Asking prices per m² in Jakarta run across two orders
+		   of magnitude and a handful of very large parcels sit at the bottom of the
+		   per-m² scale, so a ratio is easily dragged about by outliers. A rank is not. */
+		rank: (persen: number) => `Dearer than ${persen}% of the cells with a readable price.`,
+		rankCheapest: 'This is the cheapest of the cells with a readable price.',
+		rankDearest: 'This is the dearest of the cells with a readable price.',
+		vsMedian: (v: number, kali: number) =>
+			`The grid median is ${rp(v)} per m², so this is ${kali.toFixed(1)}× that.`,
+		/* What the figure did to the score. Read back off the scoring engine, never
+		   recomputed here. */
+		effect: (poin: number, pengali: number) =>
+			`That price takes ${poin} ${poin === 1 ? 'point' : 'points'} off this cell, a multiplier of ×${pengali.toFixed(2)}.`,
+		effectNone: 'The cost of space took nothing off this cell.',
+		floor: (pengali: number) =>
+			`The cost of space can take a cell down to ×${pengali.toFixed(2)} at most. It tilts the ranking rather than deciding it: an asking price is one negotiation away from being wrong, and it is a price to buy rather than to occupy.`,
+
+		/* ── Four kinds of silence, kept apart ──────────────────────────────
+		   Only the first means nobody has looked. */
+		noneUncovered:
+			'The property catalogue has not been read for this city, so there is nothing to say yet about what space costs here. That is not the same as nothing being for sale.',
+		noneEmpty: (r: number) =>
+			`No commercial unit is on the market within ${r} m. That was checked, and there genuinely is none.`,
+		noneUnpriced: (n: number) =>
+			`${n} ${n === 1 ? 'unit is' : 'units are'} on the market nearby, and not one carries a price. So the price is left empty rather than estimated.`,
+		noneThin: (n: number, min: number) =>
+			`Only ${n} ${n === 1 ? 'unit' : 'units'} nearby carry a price. A median needs at least ${min}, because a single misplaced decimal point is enough to move this whole cell to the expensive end.`,
+		noneUngraded:
+			'This cell has a readable price, but too few other cells do for it to be ranked against them. So it cannot yet be called dear or cheap, and nothing was taken off the score.',
+
+		/* ── What is on the market ──────────────────────────────────────────── */
+		marketTitle: 'On the market here',
+		marketCount: (n: number, r: number) =>
+			`${n} commercial ${n === 1 ? 'unit' : 'units'} within ${r} m`,
+		marketPremises: (n: number) => `${n} of them could hold a small business`,
+		marketNone: 'No commercial unit is on the market here.',
+		marketLoading: 'Loading the units…',
+		marketFailed:
+			'The list of units could not be loaded. The price and the counts above still hold, both are read from the grid, not from that file.',
+		/* Type names. The keys come from the data (TIPE_2 in the catalogue) rather
+		   than from a translation, so both languages have to carry all of them. */
+		types: {
+			ruko: 'Shophouse',
+			toko: 'Shop or kiosk',
+			ruang: 'Business space',
+			rukan: 'Shop-office',
+			komersial: 'Other commercial',
+			kantor: 'Office',
+			gedung: 'Building',
+			gudang: 'Warehouse'
+		},
+		typeAside: 'not premises for a small business',
+
+		/* ── The units, one by one ──────────────────────────────────────────── */
+		unitsTitle: 'The nearest units, one by one',
+		unitPrice: (v: number) => rp(v),
+		unitNoPrice: (n: number) =>
+			`+${n} more ${n === 1 ? 'unit' : 'units'} a business could take, with no price on ${n === 1 ? 'it' : 'them'}`,
+		unitWalk: (m: number) => `${m} m`,
+		/* The unit's characteristics, and only the ones genuinely in the data. An
+		   empty column is skipped rather than written as zero: a building with no
+		   floor count published and a single-storey building are not the same thing. */
+		unitLand: (m2: number) => `${num(m2)} m² land`,
+		unitBuild: (m2: number) => `${num(m2)} m² floor`,
+		unitFloors: (n: number) => `${n} ${n === 1 ? 'floor' : 'floors'}`,
+		unitPerM2: (v: number) => `${rp(v)}/m²`,
+		unitsMore: (n: number) => `+${n} more`,
+		provenance: (n: number, kota: number) =>
+			`${num(n)} commercial property listings from the MAPID Data Premium catalogue, across ${kota} administrative ${kota === 1 ? 'city' : 'cities'}. Every one of them is for sale.`
 	},
 
 	table: {
