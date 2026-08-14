@@ -36,6 +36,12 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 	// inventing an answer to a question it does not grasp — this is where trust is kept.
 	if (ans.notUnderstood) return n$.notUnderstood(ans.notUnderstood);
 
+	// Small talk. The model's own sentence if it wrote one that survived the fence in
+	// `domain/chat`, and this interface's canned line for the topic if it did not — which
+	// is also the only thing available when there is no model at all. Either way nothing
+	// was computed, so nothing else on screen changes.
+	if (ans.chat) return ans.chat.text ?? c.chat[ans.chat.topik];
+
 	const cat = c.category[ans.query.kategori].name.toLowerCase();
 	const n = ans.items.length;
 

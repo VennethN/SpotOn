@@ -871,6 +871,23 @@ export const id = {
 		listingNone: 'tidak ada tempat yang sedang disewakan'
 	},
 
+	/* ── Ngobrol biasa ─────────────────────────────────────────────────────
+	   Kalimat baku untuk giliran yang bukan pertanyaan data. Dipakai kalau
+	   modelnya tidak ada, atau kalau balasan modelnya memuat angka dan dibuang
+	   `domain/chat`. Nadanya sama dengan Tapak yang lain: ramah, pendek, dan
+	   selalu balik mengarahkan ke yang bisa dijawab peta.
+
+	   Tidak boleh ada angka di sini juga. Bukan karena kodenya memeriksa, tapi
+	   karena kalimat baku yang memuat angka justru jadi contoh dari hal yang
+	   sedang dilarang. */
+	chat: {
+		sapaan: 'Halo. Saya cuma bisa cerita soal kawasan transit Jakarta, tapi soal itu saya lumayan tahu. Mau mulai dari jenis usaha apa?',
+		tentang:
+			'Saya membaca keramaian, jumlah pesaing, dan tempat usaha yang dipasarkan di tiap petak sekitar stasiun, lalu menjawab dari angkanya. Kalau datanya tidak ada, saya bilang tidak ada.',
+		usaha:
+			'Biasanya yang menentukan itu siapa yang lewat, siapa yang sudah jualan di situ, dan tempatnya bisa ditempati atau tidak. Tiga hal itu yang bisa saya tunjukkan angkanya per kawasan.'
+	},
+
 	query: {
 		saturated: 'yang sudah sesak',
 		coverage: 'yang belum ada datanya',

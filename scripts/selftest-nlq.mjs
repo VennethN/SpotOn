@@ -40,12 +40,13 @@ async function load() {
 	});
 	const nlq = await server.ssrLoadModule('/src/lib/domain/nlq.ts');
 	const metrics = await server.ssrLoadModule('/src/lib/domain/metrics.ts');
+	const chat = await server.ssrLoadModule('/src/lib/domain/chat.ts');
 	const source = await server.ssrLoadModule('/src/lib/server/source.ts');
 	await server.close();
-	return { nlq, metrics, cells: source.loadHexes() };
+	return { nlq, metrics, chat, cells: source.loadHexes() };
 }
 
-const { nlq, metrics, cells } = await load();
+const { nlq, metrics, chat, cells } = await load();
 const W = { wd: 0.5, ws: 0.5, gate: true, radius: 800, source: 'mapid' };
 
 let failures = 0;
@@ -166,6 +167,76 @@ check(
 	})
 );
 check('the ranking helper drops unmeasured rows', rows.items.length > 0);
+
+/* ── small talk, and the fence around it ─────────────────────────────────── */
+
+// The fence is the whole reason chat is allowed at all, so it is checked here rather
+// than trusted to the prompt. A model asked politely not to write figures will, one day,
+// write figures.
+const KEPT = [
+	'Halo, mau mulai dari jenis usaha apa?',
+	'Saya cuma tahu soal kawasan transit Jakarta.',
+	'Yang biasanya menentukan itu siapa yang lewat dan siapa yang sudah jualan di situ.'
+];
+for (const s of KEPT) check(`a clean reply survives: "${s.slice(0, 40)}…"`, chat.cleanChatReply(s) === s);
+
+// Every one of these is a sentence a model would happily produce, and every one of them
+// is a figure nobody measured sitting next to figures that were.
+const THROWN = [
+	'Warteg biasanya balik modal dalam 8 bulan.',
+	'Sewa ruko di Jakarta sekitar Rp 80 juta per tahun.',
+	'Margin kedai kopi umumnya 60%.',
+	'Buka jam 7 pagi biasanya paling ramai.',
+	'Ada 3 hal yang menentukan lokasi.'
+];
+for (const s of THROWN) {
+	check(`a reply with a figure is thrown away: "${s.slice(0, 44)}…"`, chat.cleanChatReply(s) === null);
+}
+check('an over-long reply is thrown away', chat.cleanChatReply('a'.repeat(chat.CHAT_MAX_CHARS + 1)) === null);
+check('an empty reply is thrown away', chat.cleanChatReply('   ') === null);
+check('a non-string reply is thrown away', chat.cleanChatReply({ balasan: 'hai' }) === null);
+check(
+	'no canned line carries a figure either',
+	['sapaan', 'tentang', 'usaha'].every((t) => chat.isChatTopic(t))
+);
+
+/* ── the rule path recognises a greeting, and only a greeting ────────────── */
+
+for (const [q, want] of [
+	['halo', 'sapaan'],
+	['Hai, apa kabar', 'sapaan'],
+	['makasih ya', 'sapaan'],
+	['kamu siapa', 'tentang'],
+	['apa itu SpotOn', 'tentang'],
+	['selamat pagi', 'sapaan'],
+	// A greeting in front of a real question is not a greeting.
+	['halo kamu siapa', 'tentang']
+]) {
+	check(`"${q}" is recognised as ${want}`, chat.ruleChatTopic(q) === want, `got ${chat.ruleChatTopic(q)}`);
+}
+
+// The failure that would be invisible: `hai` sits inside "ramai" and "pantai", so an
+// unanchored greeting pattern turns real questions into small talk and stops answering
+// them altogether.
+for (const q of [
+	'di mana yang ramai',
+	'mana yang paling ramai pengunjungnya',
+	'kedai kopi dekat pantai',
+	'seberapa ramai di sini',
+	'oke berapa harga tempat di sini',
+	'halo, di mana sebaiknya buka kedai kopi',
+	'makasih, sekarang mana yang paling sepi',
+	'pagi ini mana yang paling ramai'
+]) {
+	check(`"${q}" is NOT mistaken for small talk`, chat.ruleChatTopic(q) === null, `got ${chat.ruleChatTopic(q)}`);
+}
+
+// Without a model, general business talk is not answerable by rule, and guessing at it
+// would be inventing an intent rather than reading one.
+check(
+	'general business talk is not guessed at by the rule parser',
+	chat.ruleChatTopic('kenapa lokasi penting untuk usaha') === null
+);
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

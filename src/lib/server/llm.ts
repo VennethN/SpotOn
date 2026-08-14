@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { CATEGORIES, CATEGORY_KEYS } from '$lib/domain/categories';
+import { CHAT_TOPICS, cleanChatReply, isChatTopic, type ChatTopic } from '$lib/domain/chat';
 import { DEFAULT_METRIC, METRIC_KEYS, isMetric, resolveOrder } from '$lib/domain/metrics';
 import type { CategoryKey, MetricKey, StructuredQuery, Weights } from '$lib/types';
 
@@ -94,6 +95,16 @@ export function llmEnabled(): boolean {
 
 export type ParseResult =
 	| { ok: true; query: StructuredQuery }
+	/**
+	 * Not a data question at all, and not one to refuse either: a greeting, a question
+	 * about SpotOn itself, or general talk about running a small business.
+	 *
+	 * `text` is the one sentence in this whole product the model actually writes, and it
+	 * has already been through `cleanChatReply` before it gets here — no digits, two
+	 * sentences at most. Null means the model broke that fence and the caller falls back
+	 * to the canned line for the topic.
+	 */
+	| { ok: false; chat: ChatTopic; text: string | null }
 	/** The model understood the language but knows the question is out of the data's range. */
 	| { ok: false; reason: string }
 	/** The model is unavailable — the caller must use the rule-based parser. */
@@ -167,14 +178,25 @@ urut: 'desc' untuk "paling banyak/tinggi/mahal/ramai", 'asc' untuk "paling sedik
 filters: dipakai untuk menyaring, bukan memeringkat. Tiap filter menyebut satu ukuran dan satu pita: 'rendah' (sepertiga terbawah), 'tinggi' (sepertiga teratas), atau 'ada' (ada isinya, lebih dari nol). JANGAN pernah mengarang angka ambang — kamu tidak bisa, dan memang tidak boleh.
 Contoh: "kedai kopi di tempat yang sewanya murah dan dekat transit" → intent RANK, ukuran skor, filters [{ukuran: harga_tempat, arah: rendah}, {ukuran: akses_transit, arah: tinggi}].
 
-Panggil tidak_dimengerti bila pertanyaannya di luar jangkauan di atas — misalnya kota selain Jakarta, jenis usaha yang tidak ada dalam daftar, pertanyaan soal perizinan atau pajak, atau kalimat yang tidak jelas maksudnya. Jangan menebak hanya supaya bisa menjawab; lebih baik mengaku tidak paham.`;
+NGOBROL SECUKUPNYA. Panggil ngobrol untuk kalimat yang memang bukan permintaan data:
+- sapaan: "halo", "makasih", "kamu siapa", "sampai jumpa".
+- tentang: apa itu SpotOn, datanya dari mana, apa yang bisa dan tidak bisa dijawab.
+- usaha: obrolan umum soal buka usaha kecil — kenapa lokasi penting, bedanya warteg dan kafe, hal yang biasa dipikirkan sebelum menyewa tempat.
 
-/* The only sentence the model really writes and the user really reads is `alasan`
-   on tidak_dimengerti. It has to come out in the language the reader has selected,
-   not in the language of the prompt. */
+Aturan ngobrol, dan ini keras:
+- MAKSIMAL DUA KALIMAT pendek.
+- DILARANG menulis angka apa pun. Tidak ada persen, rupiah, jumlah, bulan, tahun, atau "sekitar sekian". Kalau menjawabnya butuh angka, itu bukan ngobrol — panggil jalankan_query.
+- Jangan mengarang fakta soal pasar, harga, atau perilaku pembeli. Bicara umum saja, lalu arahkan kembali ke apa yang bisa dijawab peta.
+- Balasan yang memuat angka akan dibuang mesin dan diganti kalimat baku. Jadi jangan.
+
+Panggil tidak_dimengerti bila pertanyaannya di luar semua itu — misalnya kota selain Jakarta, jenis usaha yang tidak ada dalam daftar, perizinan, pajak, urusan pribadi, atau kalimat yang tidak jelas maksudnya. Jangan menebak hanya supaya bisa menjawab; lebih baik mengaku tidak paham.`;
+
+/* The only sentences the model really writes and the user really reads are `alasan`
+   on tidak_dimengerti and `balasan` on ngobrol. Both have to come out in the language
+   the reader has selected, not in the language of the prompt. */
 const LANG_RULE: Record<string, string> = {
-	id: 'Tulis argumen `alasan` dalam bahasa Indonesia.',
-	en: 'Write the `alasan` argument in English.'
+	id: 'Tulis argumen `alasan` dan `balasan` dalam bahasa Indonesia.',
+	en: 'Write the `alasan` and `balasan` arguments in English.'
 };
 
 const TOOLS = [
@@ -244,6 +266,32 @@ const TOOLS = [
 					}
 				},
 				required: ['intent', 'kategori'],
+				additionalProperties: false
+			}
+		}
+	},
+	{
+		type: 'function',
+		function: {
+			name: 'ngobrol',
+			description:
+				'Panggil ini untuk sapaan, pertanyaan tentang SpotOn sendiri, atau obrolan umum soal buka usaha kecil — kalimat yang memang bukan permintaan data. Maksimal dua kalimat, dan DILARANG memuat angka.',
+			parameters: {
+				type: 'object',
+				properties: {
+					topik: {
+						type: 'string',
+						enum: CHAT_TOPICS,
+						description:
+							'sapaan = halo/makasih/kamu siapa. tentang = apa itu SpotOn dan datanya. usaha = obrolan umum soal buka usaha kecil.'
+					},
+					balasan: {
+						type: 'string',
+						description:
+							'Balasan singkat dan ramah, maksimal dua kalimat, tanpa satu angka pun. Tutup dengan mengarahkan ke pertanyaan yang bisa dijawab peta.'
+					}
+				},
+				required: ['topik', 'balasan'],
 				additionalProperties: false
 			}
 		}
@@ -379,6 +427,17 @@ export async function parseWithLLM(
 			args = JSON.parse(call.function?.arguments ?? '{}');
 		} catch {
 			return null;
+		}
+
+		if (name === 'ngobrol') {
+			const topik = args.topik;
+			// An unrecognised topic is not chat. Letting it through would make the enum
+			// decorative and hand the model a way to reply in prose about anything.
+			if (!isChatTopic(topik)) return null;
+			// The fence, applied rather than requested. `cleanChatReply` returns null for
+			// anything carrying a digit or running long, and the caller then uses the
+			// canned line for the topic — so a misbehaving model costs the reader nothing.
+			return { ok: false, chat: topik, text: cleanChatReply(args.balasan) };
 		}
 
 		if (name === 'tidak_dimengerti') {
