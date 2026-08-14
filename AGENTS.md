@@ -138,12 +138,20 @@ metadata. The order matters, because each step reads what the one before it
 wrote.
 
 ```bash
-node scripts/fetch-mapid.mjs    # → src/lib/data/mapid-poi.json   needs MAPID_API_KEY
-node scripts/join-mapid.mjs     # → adds mapid + covered to hexes.json   needs Overpass
-node scripts/build-pois.mjs     # → static/data/pois/<category>.json   local only
-node scripts/build-stops.mjs    # → static/data/stops.json   needs Overpass
-node scripts/build-routes.mjs   # → static/data/routes.json  needs Overpass
+node scripts/fetch-mapid.mjs     # → src/lib/data/mapid-poi.json   needs MAPID_API_KEY
+node scripts/join-mapid.mjs      # → adds mapid + covered to hexes.json   needs Overpass
+node scripts/build-pois.mjs      # → static/data/pois/<category>.json   local only
+node scripts/fetch-property.mjs  # → src/lib/data/mapid-property.json   needs MAPID_API_KEY
+node scripts/join-property.mjs   # → adds prop + propCovered to hexes.json   local only
+node scripts/build-property.mjs  # → static/data/property.json   local only
+node scripts/build-stops.mjs     # → static/data/stops.json   needs Overpass
+node scripts/build-routes.mjs    # → static/data/routes.json  needs Overpass
 ```
+
+`join-property.mjs` has to run after `join-mapid.mjs`, not before. It decides coverage
+per administrative city and reads the city each cell sits in from the cell itself, which
+is what the MAPID join wrote there. Run it on a grid that has never been through that
+step and it covers nothing, which it says and then stops rather than writing zeroes.
 
 **Competitors on the map are named, and this is what keeps them named.** The map
 labels a competitor with its own name the same way it labels a station. That
@@ -174,6 +182,36 @@ number, in the place the number is already being read.
 There is no setting for this in the application.
 
 `npm run selftest` covers the parts of this that a rebuild cannot: the score
-breakdown against the scoring engine, and the competitor pipeline including the
+breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
-in it has a name.
+in it has a name, and the cost-of-space layer against the grid on disk.
+
+## What space costs, and the word this product will not use
+
+MAPID's premium catalogue has no rent for Jakarta. That is a measurement, not a guess:
+`fetch-property.mjs` reads every property dataset published for the province and tallies
+the sale-or-rent column on every run, 30,629 rows across 83 datasets, and the answer
+comes back a sale every time. 176 rows do carry the word SEWA, all of them inside the
+advertising copy in `ALAMAT` ("DI JUAL SEWA APARTEMEN KEMANG MANSION FULL FURNISHED"),
+which is why that column is not carried into the app at all.
+
+So the cost signal is an **asking price to buy**, and it is called that everywhere it
+travels: `price`, `pricePerM2`, `costFactor`, never `rent`. A monthly rent could be
+produced from it with a yield assumption. It is not, because that assumption would be
+the only figure on the screen that came from nobody's data, in a product whose whole
+claim is that its figures do not.
+
+The tally is recomputed rather than written down, and `selftest-property.mjs` asserts on
+it, so the day MAPID publishes a SEWA row the test fails and says the interface is now
+wrong. That is the intended way to find out.
+
+Two rules follow from the same place as the rest of this file:
+
+- The multiplier never goes above 1. A catchment nobody has priced is multiplied by
+  exactly 1, and the panel says which of five reasons that is. Treating it as
+  median-priced instead would put an invented price on an unsurveyed place and let it
+  move a ranking.
+- A median is read from at least three priced units, and a catchment is ranked only
+  against a grid carrying at least eight prices. The listings hold real errors, a ruko
+  at Rp 9.6 billion per m² among them, and one of those alone in a catchment would cost
+  it a quarter of its score on the strength of a typo.
