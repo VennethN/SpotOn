@@ -69,6 +69,59 @@ export interface Hex {
 	mapid?: PerCategory<number | null>;
 	/** Per category: has this city's MAPID dataset been imported. */
 	covered?: PerCategory<boolean>;
+	/**
+	 * Commercial property on the market within walking range (MAPID premium catalogue).
+	 *
+	 * Absent, rather than zeroed, when this cell's city has not been read. See
+	 * `propCovered`.
+	 */
+	prop?: PropertyStats;
+	/** Has this cell's city been read from the property catalogue. */
+	propCovered?: boolean;
+}
+
+/**
+ * What is on the market around one cell, at both walking radii.
+ *
+ * THE PRICES ARE ASKING PRICES FOR SALE. There is no rent in the MAPID catalogue for
+ * Jakarta, which `scripts/fetch-property.mjs` establishes by tallying the sale-or-rent
+ * column across every property dataset published for the province, on every run. The
+ * naming follows: `price`, never `rent`.
+ *
+ * Not per category. What a square metre of shopfront costs is a property of the place,
+ * not of the business going into it, so this rides in the base payload rather than in
+ * the per-category slices — one copy for all thirteen categories instead of thirteen
+ * copies of the same figure.
+ */
+export interface PropertyStats {
+	/** Every commercial listing within 400 m / 800 m, premises or not. */
+	n400: number;
+	n800: number;
+	/** Of those, the ones a small business could occupy. */
+	u400: number;
+	u800: number;
+	/**
+	 * Median asking price per m² of those premises, in rupiah.
+	 *
+	 * `null` means not one unit in range published a price. It is never 0: space that
+	 * nobody priced and space that costs nothing are different claims.
+	 *
+	 * Computed separately per radius rather than rescaled from the other. A count can be
+	 * scaled by area, a median cannot.
+	 */
+	p400: number | null;
+	p800: number | null;
+	/**
+	 * How many priced premises that median was read from.
+	 *
+	 * Kept even where the median came back null, because it is what tells "nothing is
+	 * listed here" apart from "two units are listed and two is too thin to read a price
+	 * off". `scripts/join-property.mjs` needs three before it writes one.
+	 */
+	q400: number;
+	q800: number;
+	/** How the 800 m listings break down by type, e.g. `{ ruko: 12, gudang: 1 }`. */
+	by: Record<string, number>;
 }
 
 /** The `Hex` fields that hold one entry per business category. */
@@ -171,6 +224,20 @@ export interface ScoredHex {
 	osm: number;
 	/** Commercial listings matching the category at the active radius. */
 	listings: number;
+	/**
+	 * Median ASKING PRICE FOR SALE per m² of premises within the active radius, rupiah.
+	 * Null when nothing in range published one. Never a rent — MAPID publishes none.
+	 */
+	price: number | null;
+	/** Where that price ranks on the grid, 0 cheapest to 1 dearest. Null when there is
+	    no price, or too few across the grid to rank against. */
+	priceLevel: number | null;
+	/** The multiplier the cost of space applied to this score. 1 when unpriced. */
+	costFactor: number;
+	/** Premises on the market within the active radius. */
+	units: number;
+	/** Has this cell's city been read from the property catalogue at all. */
+	propCovered: boolean;
 	/** Total mission data points (receipts + menus + properties). */
 	nTot: number;
 	nStruk: number;
@@ -241,6 +308,23 @@ export interface GridMeta {
 		source: string;
 		points: number;
 		coveredCities?: Record<string, string[]>;
+	};
+	/** Present once the property join has been run. */
+	property?: {
+		source: string;
+		listings: number;
+		/** States in words that these are sale prices, not rents. Written by the fetch. */
+		listingType: string;
+		/** The sale-or-rent column tallied across every dataset read, so the claim above
+		    is a measurement rather than a note somebody left behind. */
+		tipe3: Record<string, number>;
+		coveredCities: string[];
+		cellsCovered: number;
+		cellsPriced: number;
+		/** Priced units a cell needs in range before it is given a price at all. */
+		minPriced: number;
+		/** Median asking price per m² across the grid, at 800 m. */
+		medianPrice: number | null;
 	};
 }
 

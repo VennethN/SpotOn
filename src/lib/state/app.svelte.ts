@@ -6,6 +6,8 @@ import {
 	parseCompetitors,
 	type Competitor
 } from '$lib/domain/competitors';
+import { priceLadder } from '$lib/domain/cost';
+import { capturedListings, parseListings, type Listing } from '$lib/domain/premises';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
@@ -15,6 +17,7 @@ import type {
 	AiAnswer,
 	CategoryKey,
 	CategorySlice,
+	GridMeta,
 	Hex,
 	HexBase,
 	PoiSource,
@@ -47,6 +50,16 @@ const KEY = Symbol('spoton');
 export class AppState {
 	/** The grid, minus per-category columns — loaded with the page. */
 	base = $state<HexBase[]>([]);
+	/**
+	 * What the grid file knows about itself, carried through from the page load.
+	 *
+	 * Here so the panels can state the SIZE and the RULES of the evidence from the data
+	 * rather than from a number somebody typed into a sentence: how many property
+	 * listings were read, how many cities they cover, and how many priced units a cell
+	 * needs before the join will take a median from them. Rebuild the grid and every
+	 * sentence quoting them follows, which is the whole point.
+	 */
+	meta = $state<GridMeta | null>(null);
 	/** Per-category columns, by category, as they arrive. */
 	slices = $state<Partial<Record<CategoryKey, CategorySlice>>>({});
 	category = $state<CategoryKey>(DEFAULT_CATEGORY);
@@ -142,16 +155,34 @@ export class AppState {
 	    coming" are different facts, and only one of them is worth waiting on. */
 	poisFailed = $state<CategoryKey[]>([]);
 
+	/**
+	 * Commercial property listings, for showing what is actually on the market around a
+	 * selected cell.
+	 *
+	 * 231 KB, and only ever needed once a cell is selected — so it is not in the page
+	 * load. Fetched on the first selection and kept, exactly like the stops.
+	 *
+	 * Not per category, because it is not a per-category fact: what a square metre of
+	 * shopfront costs is a property of the place, not of the business going into it.
+	 */
+	listings = $state<Array<Omit<Listing, 'distance'>> | null>(null);
+	/** The listing file could not be read. Kept apart from `listings` for the same
+	    reason `stopsFailed` is kept apart from `stops`: the price and the count on
+	    screen come from the grid and survive this, only the individual units are lost. */
+	listingsFailed = $state(false);
+
 	/** In-flight requests, so two callers asking for the same category share one fetch. */
 	#inFlight = new Map<CategoryKey, Promise<void>>();
 	#stopsJob: Promise<void> | null = null;
 	#poiJobs = new Map<CategoryKey, Promise<void>>();
+	#listingsJob: Promise<void> | null = null;
 
-	constructor(base: HexBase[], initial?: CategorySlice) {
+	constructor(base: HexBase[], initial?: CategorySlice, meta?: GridMeta) {
 		this.base = base;
 		// The opening category arrives with the page, so the first paint is already
 		// scored. Anything else is fetched on demand from here on.
 		if (initial) this.slices = { [initial.cat]: initial };
+		this.meta = meta ?? null;
 	}
 
 	get definition() {
@@ -210,6 +241,22 @@ export class AppState {
 			return { ...h, osm, mapid, covered, busy, listing, d } as Hex;
 		});
 	});
+
+	/**
+	 * Every asking price on the grid, sorted — the scale one catchment's price is read
+	 * against.
+	 *
+	 * Held here rather than rebuilt by each panel that needs it. Two of them do, and
+	 * `$derived` alone would not have saved them from each other: they are separate
+	 * expressions, so each would run its own pass over 562 cells every time the grid or
+	 * the radius changed. One derived, read twice, is one pass.
+	 *
+	 * The scoring engine still builds its own inside `scoreAll`, and that is deliberate:
+	 * `domain/scoring` is a pure function of the data handed to it, and reaching into
+	 * interface state for a figure the score depends on would put the two out of reach of
+	 * the self-test that checks them against each other.
+	 */
+	priceLadder = $derived(priceLadder(this.catchments, this.weights.radius));
 
 	/**
 	 * Every catchment, scored for the active category.
@@ -379,6 +426,34 @@ export class AppState {
 	}
 
 	/**
+	 * Load the commercial property listings, once.
+	 *
+	 * Failure is quiet in the same way `loadStops` is: the asking price the panel leads
+	 * with, the count of units on the market and the cost multiplier on the score all
+	 * come from the grid, which is already here. Losing this file costs the reader the
+	 * INDIVIDUAL UNITS and nothing else, and the panel says so rather than waiting on a
+	 * request that is never coming back.
+	 */
+	loadListings(): Promise<void> {
+		if (this.listings || this.#listingsJob) return this.#listingsJob ?? Promise.resolve();
+		this.#listingsJob = (async () => {
+			try {
+				const res = await fetch(`${base}/data/property.json`);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				this.listings = parseListings(await res.json());
+				this.listingsFailed = false;
+			} catch {
+				this.listingsFailed = true;
+			} finally {
+				// Cleared either way, so a failure can be retried by the next selection
+				// rather than every later one being answered by the request that failed.
+				this.#listingsJob = null;
+			}
+		})();
+		return this.#listingsJob;
+	}
+
+	/**
 	 * The selected cell as the GRID holds it.
 	 *
 	 * Not the same thing as `selected`, which is the scored row and stays null until
@@ -424,6 +499,29 @@ export class AppState {
 	});
 
 	/**
+	 * The property listings the selected cell captures, nearest first.
+	 *
+	 * The same distance test the join used, so these ARE the units the median asking
+	 * price was taken over rather than a set that resembles them. Empty for a cell whose
+	 * city the catalogue has not been read for, which `selected.propCovered` is what
+	 * tells apart from a cell where nothing is on the market.
+	 */
+	selectedListings = $derived.by(() => {
+		const cell = this.selectedCell;
+		if (!cell || !this.listings) return [];
+		return capturedListings(cell, this.listings, this.weights.radius);
+	});
+
+	/** The listings are on their way and no conclusion can be drawn yet. Worth its own
+	    flag for the same reason `poisLoading` is: an empty list reads the same whether
+	    the file has not landed or has landed and holds nothing within reach, and only
+	    one of those is a finding. */
+	listingsLoading = $derived.by(() => {
+		if (!this.selectedCell || this.listingsFailed) return false;
+		return this.listings === null;
+	});
+
+	/**
 	 * The points are on their way and no conclusion can be drawn yet.
 	 *
 	 * Worth its own flag, because without it an empty `selectedPois` reads the same
@@ -457,6 +555,9 @@ export class AppState {
 			// them. Cached per category, so switching back to a category already seen
 			// costs nothing.
 			void this.loadPois(this.category);
+			// …and for what is on the market in it. One file for every category, cached
+			// after the first selection, so this too is a cost paid once.
+			void this.loadListings();
 		}
 	}
 
@@ -542,8 +643,12 @@ export class AppState {
 	}
 }
 
-export function setAppState(base: HexBase[], initial?: CategorySlice): AppState {
-	return setContext(KEY, new AppState(base, initial));
+export function setAppState(
+	base: HexBase[],
+	initial?: CategorySlice,
+	meta?: GridMeta
+): AppState {
+	return setContext(KEY, new AppState(base, initial, meta));
 }
 
 export function getAppState(): AppState {
