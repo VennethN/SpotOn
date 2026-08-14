@@ -861,6 +861,23 @@ export const en: Copy = {
 		listingNone: 'nothing up for rent'
 	},
 
+	/* ── Small talk ────────────────────────────────────────────────────────
+	   The canned lines for a turn that was not a question about the data. Used
+	   when there is no model, and when the model's reply carried a digit and was
+	   thrown away by `domain/chat`. Same voice as the rest of Tapak: friendly,
+	   short, and always turning back to what the map can answer.
+
+	   No figures here either. Not because the code checks these, but because a
+	   canned line containing one would be an example of the thing being banned. */
+	chat: {
+		sapaan:
+			"Hello. Transit areas in Jakarta are all I know about, but I know them fairly well. What kind of business are you thinking of?",
+		tentang:
+			'I read footfall, how many rivals are already there, and what space is on the market in each cell around a station, then answer from those figures. Where there is no data, I say so.',
+		usaha:
+			'What usually decides it is who walks past, who is already selling there, and whether there is space you can actually take. Those three are the ones I can put numbers to, area by area.'
+	},
+
 	query: {
 		saturated: 'already crowded',
 		coverage: 'with no data yet',

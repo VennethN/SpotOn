@@ -1,6 +1,7 @@
+import type { ChatTopic } from '$lib/domain/chat';
 import type { MetricKey } from '$lib/domain/metrics';
 
-export type { MetricKey };
+export type { ChatTopic, MetricKey };
 
 /** Keys of the business types SpotOn scores. Kept in Indonesian: they are the
     domain's own vocabulary and the values stored in the generated datasets. */
@@ -369,6 +370,16 @@ export interface AiAnswer {
 	parsedBy?: 'model' | 'rules';
 	/** Filled in when the model admits it did not understand; there are no results to show. */
 	notUnderstood?: string;
+	/**
+	 * Filled in when the turn was small talk rather than a question about the data.
+	 *
+	 * There are no results, no highlight and no map change — that is the point. `text`
+	 * is the model's own sentence and has already passed `domain/chat`'s fence: two
+	 * sentences at most and not one digit. Absent means the model wrote nothing usable
+	 * or there was no model, and the interface says the canned line for the topic
+	 * instead, in the reader's language.
+	 */
+	chat?: { topik: ChatTopic; text?: string };
 	headline: string;
 	items: Recommendation[];
 	/** Ids of the catchments highlighted on the map. */

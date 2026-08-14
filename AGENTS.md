@@ -208,6 +208,31 @@ bearing:
   "fewest competitors" is indistinguishable from a real finding, which is the same
   mistake as reading an unsurveyed count as zero.
 
+## Small talk is allowed, and fenced in code
+
+Tapak can say hello, say what SpotOn is, and talk generally about running a small
+business. It could not before, and a greeting met with "that is outside what I can
+answer" reads as broken rather than rigorous.
+
+This is the one place the model writes a sentence the reader sees, which makes it the
+one place a fabricated figure could get in. "Warteg biasanya balik modal dalam 8 bulan"
+is fluent, plausible, entirely invented, and would sit in the same thread as figures
+that are traceable to a source. So `domain/chat` enforces what the prompt asks for:
+
+- **No digits.** Any digit at all, and the reply is thrown away rather than repaired,
+  replaced by this interface's own canned line for the topic. Blunt on purpose — a
+  clever rule grows exceptions, and the first exception is where "sekitar 8 bulan" gets
+  through. A rejected "24 jam" costs one canned sentence; the alternative costs trust.
+- **Two sentences, three topics.** Anything outside greetings, what SpotOn is, and
+  general business talk still goes to "I cannot answer that from this data".
+- **The map never moves.** No items, no highlight, no category change. `query` on a
+  chat turn is only the fallback parser's reading of the sentence, and it will happily
+  find "warteg" inside "makasih, warteg emang enak".
+
+Without a model key only greetings are reachable, by rule, and a greeting counts only
+when it is the whole message: "oke berapa harga tempat di sini" is a question with a
+courtesy in front of it, and answering it with hello throws away what was asked.
+
 ## What space costs, and the word this product will not use
 
 MAPID's premium catalogue has no rent for Jakarta. That is a measurement, not a guess:

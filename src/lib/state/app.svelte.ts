@@ -629,6 +629,12 @@ export class AppState {
 			if (!res.ok) throw new Error(`Gagal memproses pertanyaan (${res.status}).`);
 			const data: AiAnswer = await res.json();
 			this.ai = data;
+			// Small talk leaves the map exactly as it was. Nothing was computed, so there
+			// is nothing to show — and `query` on a chat turn is only the fallback parser's
+			// reading of the sentence, which will happily find "warteg" inside "makasih,
+			// warteg emang enak" and swing the whole map to a category the reader never
+			// asked to see. A greeting must not repaint anything.
+			if (data.chat) return;
 			this.highlight = data.highlight;
 			// The parsed query is allowed to change the active category — the map has to
 			// follow to the category that was actually answered, not stay on the old one.

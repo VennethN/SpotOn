@@ -213,6 +213,13 @@ export class Tapak {
 		// offering routes that can actually be answered.
 		if (ans.notUnderstood) return categoryChips();
 
+		// Small talk gets the same treatment, and this is the "not too much" part of
+		// allowing it at all: a casual turn always ends holding the door open to a
+		// question the map can answer. Without it, chat is a room with no exit — the
+		// reader says hello, gets a friendly sentence back, and is left where they
+		// started with nothing to tap.
+		if (ans.chat) return categoryChips();
+
 		const c = copy();
 		const cat = c.category[this.#app.category].name.toLowerCase();
 		const chips: Chip[] = [];
