@@ -184,7 +184,29 @@ There is no setting for this in the application.
 `npm run selftest` covers the parts of this that a rebuild cannot: the score
 breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
-in it has a name, and the cost-of-space layer against the grid on disk.
+in it has a name, the cost-of-space layer against the grid on disk, and which
+measure each kind of question is understood to be asking about.
+
+## Questions are a shape and a measure, chosen separately
+
+`domain/metrics` lists every figure a question can be about. The understanding layer
+picks one of those keys plus an intent, and the two vary independently: "where should I
+open", "where is it busiest" and "where is space cheapest" are all rankings, and the
+measure is the only thing that differs. They were not separate once, and the result was
+that "seberapa ramai di sini" came back as an opportunity score.
+
+Add a measure in `domain/metrics` and it reaches the model's tool schema, the fallback
+parser, the sort, the filters and the answer sentence together. Two things are load
+bearing:
+
+- A filter names a **band**, never a threshold: `rendah`, `tinggi` or `ada`. The bands
+  are the grid's own terciles, computed when the query runs. There is deliberately no
+  way for the understanding layer to say "under 30 million", because that number would
+  be the only figure in the answer that came from nobody's data.
+- `read` returns null where a cell was never measured, and a null is DROPPED from a
+  ranking rather than sorted to the bottom of it. An unsurveyed catchment at the top of
+  "fewest competitors" is indistinguishable from a real finding, which is the same
+  mistake as reading an unsurveyed count as zero.
 
 ## What space costs, and the word this product will not use
 

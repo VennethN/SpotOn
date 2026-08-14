@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { CATEGORIES, CATEGORY_KEYS } from '$lib/domain/categories';
-import type { CategoryKey, StructuredQuery, Weights } from '$lib/types';
+import { DEFAULT_METRIC, METRIC_KEYS, isMetric, resolveOrder } from '$lib/domain/metrics';
+import type { CategoryKey, MetricKey, StructuredQuery, Weights } from '$lib/types';
 
 /**
  * The language-understanding layer: a person's question → a structured query.
@@ -103,22 +104,70 @@ export type ParseResult =
    contract (intent, metrik, kategori, radius, filter). Translating them would
    change model behaviour and break that contract, so only the surrounding code
    comments are in English. */
-const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta rekomendasi lokasi usaha di kawasan stasiun transit Jakarta.
+/**
+ * What each measure means, for the model.
+ *
+ * Written next to the registry's keys rather than inside it, because the registry is
+ * arithmetic and this is a prompt. The keys come FROM the registry, so a measure added
+ * there and not described here fails the check below at module load rather than
+ * quietly reaching the model with no explanation of what it is.
+ */
+const METRIC_HELP: Record<MetricKey, string> = {
+	skor: 'skor peluang gabungan, 0-100. Dipakai untuk "di mana sebaiknya buka".',
+	permintaan: 'perkiraan permintaan pembeli, 0-100.',
+	penawaran: 'penawaran efektif: kepadatan pesaing dibobot seramai apa pembelinya, 0-100.',
+	pesaing: 'jumlah pesaing sejenis dalam radius jalan kaki.',
+	keramaian: 'seberapa ramai pesaing di petak itu, 0-100. Untuk "seberapa ramai", "mana yang sepi".',
+	kunjungan: 'jumlah transaksi tercatat (Struk Go) — ukuran lalu lalang orang.',
+	jam_puncak: 'jam tersibuk dalam sehari, 0-23.',
+	nontunai: 'porsi pembayaran non-tunai, 0-100. Perkiraan daya beli.',
+	listing: 'jumlah listing ruang usaha yang cocok untuk kategori ini (data contoh Properti Go).',
+	harga_tempat:
+		'median harga JUAL tempat usaha per m² tanah, rupiah, dari katalog properti MAPID. PENTING: katalog MAPID tidak punya listing SEWA untuk Jakarta sama sekali, jadi ini harga beli, bukan sewa bulanan. Tetap pakai ukuran ini kalau pengguna bertanya soal sewa atau biaya tempat, karena inilah data harga yang ada.',
+	unit_dipasarkan: 'jumlah unit komersial yang sedang dipasarkan dalam radius jalan kaki.',
+	akses_transit: 'indeks akses transit petak, 0-100.',
+	simpul_transit: 'jumlah simpul transit (stasiun/halte) dalam radius jalan kaki.'
+};
+
+// A measure that reached the enum with nothing said about it would be offered to the
+// model as a bare key, and the model would guess at what it means.
+for (const k of METRIC_KEYS) {
+	if (!METRIC_HELP[k]) throw new Error(`[SpotOn] metric "${k}" has no description in llm.ts`);
+}
+
+const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta data lokasi usaha di kawasan stasiun transit Jakarta.
 
 Tugasmu HANYA menerjemahkan pertanyaan pengguna menjadi satu pemanggilan alat. Kamu tidak menghitung apa pun dan tidak menulis jawaban — mesin skor yang melakukannya dari data asli.
 
 Data yang tersedia, dan hanya ini:
 - 562 petak heksagon H3 yang menutupi kawasan berjalan kaki (800 m) di sekitar simpul transit Jakarta — MRT, KRL, LRT, dan koridor TransJakarta. 90 di antaranya belum ada datanya.
 - ${CATEGORIES.length} jenis usaha: ${CATEGORIES.map((c) => `${c.key} (${c.name.toLowerCase()})`).join(', ')}.
-- Per petak: perkiraan permintaan, jumlah pesaing sejenis, seberapa ramai pesaingnya, dan jumlah ruang usaha yang sedang disewakan.
+- Per petak, ukuran yang bisa ditanyakan:
+${METRIC_KEYS.map((k) => `  - ${k}: ${METRIC_HELP[k]}`).join('\n')}
 
-Pilih niat yang tepat:
-- RANK — "di mana sebaiknya buka X", "lokasi terbaik untuk X". Ini yang paling umum.
+DUA HAL YANG DIPILIH TERPISAH: bentuk pertanyaannya (intent) dan ukuran yang ditanyakan (ukuran).
+
+intent:
+- RANK — memeringkat petak. Ini yang paling umum, dan dipakai untuk SEMUA pertanyaan "di mana", "mana yang paling", "seberapa". Ukurannya yang membedakan.
 - FLAG_SATURATED — "mana yang sudah jenuh/penuh", "mana yang harus dihindari".
 - COMPARE — membandingkan dua kawasan yang disebut namanya.
 - COVERAGE — "mana yang belum ada datanya", pertanyaan soal cakupan data.
 
-Panggil tidak_dimengerti bila pertanyaannya di luar jangkauan di atas — misalnya kota selain Jakarta, jenis usaha yang tidak ada dalam daftar, pertanyaan soal modal/perizinan/pajak, atau kalimat yang tidak jelas maksudnya. Jangan menebak jenis usaha terdekat hanya supaya bisa menjawab; lebih baik mengaku tidak paham.`;
+ukuran: pilih dari daftar di atas sesuai apa yang benar-benar ditanyakan.
+- "di mana sebaiknya buka kedai kopi" → skor
+- "seberapa ramai di sini" / "mana yang paling sepi" → keramaian
+- "di mana sewanya paling murah" / "harga tempat" → harga_tempat
+- "mana yang paling banyak tempat kosong" → unit_dipasarkan
+- "mana yang paling ramai pengunjung" → kunjungan
+- "jam berapa paling ramai" → jam_puncak
+- "mana yang pesaingnya paling sedikit" → pesaing
+
+urut: 'desc' untuk "paling banyak/tinggi/mahal/ramai", 'asc' untuk "paling sedikit/rendah/murah/sepi". Kalau pengguna tidak menyebut arah, kosongkan saja — mesin memakai arah yang masuk akal untuk ukuran itu.
+
+filters: dipakai untuk menyaring, bukan memeringkat. Tiap filter menyebut satu ukuran dan satu pita: 'rendah' (sepertiga terbawah), 'tinggi' (sepertiga teratas), atau 'ada' (ada isinya, lebih dari nol). JANGAN pernah mengarang angka ambang — kamu tidak bisa, dan memang tidak boleh.
+Contoh: "kedai kopi di tempat yang sewanya murah dan dekat transit" → intent RANK, ukuran skor, filters [{ukuran: harga_tempat, arah: rendah}, {ukuran: akses_transit, arah: tinggi}].
+
+Panggil tidak_dimengerti bila pertanyaannya di luar jangkauan di atas — misalnya kota selain Jakarta, jenis usaha yang tidak ada dalam daftar, pertanyaan soal perizinan atau pajak, atau kalimat yang tidak jelas maksudnya. Jangan menebak hanya supaya bisa menjawab; lebih baik mengaku tidak paham.`;
 
 /* The only sentence the model really writes and the user really reads is `alasan`
    on tidak_dimengerti. It has to come out in the language the reader has selected,
@@ -149,10 +198,40 @@ const TOOLS = [
 						description:
 							'Jenis usaha yang ditanyakan. Bila pengguna tidak menyebut, pakai kategori yang sedang aktif.'
 					},
+					ukuran: {
+						type: 'string',
+						enum: METRIC_KEYS,
+						description: `Ukuran yang ditanyakan. ${METRIC_KEYS.map((k) => `${k} = ${METRIC_HELP[k]}`).join(' ')}`
+					},
+					urut: {
+						type: 'string',
+						enum: ['asc', 'desc'],
+						description:
+							"'desc' untuk paling banyak/tinggi/mahal/ramai, 'asc' untuk paling sedikit/rendah/murah/sepi. Kosongkan bila pengguna tidak menyebut arah."
+					},
+					filters: {
+						type: 'array',
+						description:
+							'Penyaring. Tiap item menyebut satu ukuran dan satu pita. Tidak ada angka ambang di sini — mesin menghitungnya dari sebaran data.',
+						items: {
+							type: 'object',
+							properties: {
+								ukuran: { type: 'string', enum: METRIC_KEYS },
+								arah: {
+									type: 'string',
+									enum: ['rendah', 'tinggi', 'ada'],
+									description:
+										"'rendah' sepertiga terbawah, 'tinggi' sepertiga teratas, 'ada' lebih dari nol."
+								}
+							},
+							required: ['ukuran', 'arah'],
+							additionalProperties: false
+						}
+					},
 					modal_kecil: {
 						type: 'boolean',
 						description:
-							'true bila pengguna menyebut modal kecil, murah, atau terjangkau. Hasil akan disaring ke kawasan yang ruang usahanya benar-benar tersedia.'
+							'true bila pengguna menyebut modal kecil, murah, atau terjangkau. Hasil akan disaring ke kawasan yang ruang usahanya benar-benar tersedia dan harganya di sepertiga terbawah.'
 					},
 					dekat_transit: {
 						type: 'boolean',
@@ -318,6 +397,17 @@ export async function parseWithLLM(
 		}
 
 		const kategori = isCat(args.kategori) ? args.kategori : fallbackCategory;
+		// An unrecognised measure falls back to the opportunity score rather than failing
+		// the whole parse: the model got the shape of the question right, and answering
+		// the usual question beats dropping to the rule parser over one bad enum value.
+		const ukuran: MetricKey = isMetric(args.ukuran) ? args.ukuran : DEFAULT_METRIC;
+		// The measure's own idea of "best" when the model did not state a direction. It is
+		// told to leave it out unless the user said so, precisely so this default applies:
+		// cheapest space and busiest street are both "best" and sit at opposite ends.
+		const urut = resolveOrder(
+			ukuran,
+			args.urut === 'asc' || args.urut === 'desc' ? args.urut : undefined
+		);
 
 		const query: StructuredQuery = {
 			intent,
@@ -328,21 +418,52 @@ export async function parseWithLLM(
 						? 'penawaran efektif (pesaing × keramaian)'
 						: intent === 'COMPARE'
 							? 'profil lengkap 2 catchment'
-							: 'gap permintaan − penawaran',
+							: `peringkat menurut ${ukuran}`,
 			kategori,
+			ukuran: intent === 'RANK' ? ukuran : DEFAULT_METRIC,
 			radius_m: w.radius,
-			urut: intent === 'COVERAGE' ? 'asc' : 'desc',
+			urut: intent === 'COVERAGE' ? 'asc' : intent === 'RANK' ? urut : 'desc',
 			limit: intent === 'COMPARE' ? 2 : intent === 'COVERAGE' ? 99 : 5
 		};
 
 		if (intent !== 'COVERAGE') {
 			const filter: NonNullable<StructuredQuery['filter']> = {};
+			const filters: NonNullable<StructuredQuery['filters']> = [];
+			// Read before the booleans below, so a model that used both does not get its
+			// explicit filters overwritten by the shorthand.
+			if (Array.isArray(args.filters)) {
+				for (const raw of args.filters) {
+					const f = raw as { ukuran?: unknown; arah?: unknown };
+					if (!isMetric(f.ukuran)) continue;
+					if (f.arah !== 'rendah' && f.arah !== 'tinggi' && f.arah !== 'ada') continue;
+					// Filtering a ranking by its own measure and then ranking it says the
+					// same thing twice while throwing away two thirds of the answer.
+					if (f.ukuran === ukuran && f.arah !== 'ada') continue;
+					filters.push({ ukuran: f.ukuran, arah: f.arah });
+				}
+			}
 			if (args.modal_kecil === true) {
 				filter.ruang_sewa_tersedia = true;
 				filter.tier_harga = 'rendah';
+				if (!filters.some((f) => f.ukuran === 'unit_dipasarkan')) {
+					filters.push({ ukuran: 'unit_dipasarkan', arah: 'ada' });
+				}
+				if (ukuran !== 'harga_tempat' && !filters.some((f) => f.ukuran === 'harga_tempat')) {
+					filters.push({ ukuran: 'harga_tempat', arah: 'rendah' });
+				}
 			}
-			if (args.dekat_transit === true) filter.dalam_catchment_transit = `${w.radius} m`;
+			if (args.dekat_transit === true) {
+				filter.dalam_catchment_transit = `${w.radius} m`;
+				if (
+					ukuran !== 'akses_transit' &&
+					ukuran !== 'simpul_transit' &&
+					!filters.some((f) => f.ukuran === 'akses_transit')
+				) {
+					filters.push({ ukuran: 'akses_transit', arah: 'tinggi' });
+				}
+			}
 			query.filter = filter;
+			query.filters = filters;
 		}
 
 		if (intent === 'COMPARE' && Array.isArray(args.target)) {
