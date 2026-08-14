@@ -517,6 +517,14 @@ export const id = {
 		unitFloors: (n: number) => `${n} lantai`,
 		unitPerM2: (v: number) => `${rp(v)}/m²`,
 		unitsMore: (n: number) => `+${n} unit lagi`,
+		/* Label peta. Harganya bisa kosong kalau listingnya memang tidak memasang harga,
+		   dan kalimatnya harus tetap utuh tanpa itu. */
+		mapUnitAria: (jenis: string, harga: string, m: number) =>
+			harga
+				? `${jenis} dijual ${harga}, ${m} m dari pusat petak`
+				: `${jenis} dijual tanpa harga terpasang, ${m} m dari pusat petak`,
+		mapShow: 'Tampilkan di peta',
+		mapHide: 'Sembunyikan dari peta',
 		provenance: (n: number, kota: number) =>
 			`${num(n)} listing properti komersial dari katalog Data Premium MAPID, ${kota} kota administrasi. Semuanya listing jual.`
 	},
