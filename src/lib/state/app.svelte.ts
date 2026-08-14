@@ -8,6 +8,16 @@ import {
 } from '$lib/domain/competitors';
 import { priceLadder } from '$lib/domain/cost';
 import { capturedListings, parseListings, type Listing } from '$lib/domain/premises';
+import {
+	DEFAULT_UNIT_METRIC,
+	UNIT_METRIC_MAP,
+	applyUnitFilters,
+	buildUnits,
+	rankUnits,
+	type ScoredUnit,
+	type UnitFilter,
+	type UnitMetricKey
+} from '$lib/domain/units';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
@@ -24,6 +34,9 @@ import type {
 	ScoredHex,
 	Weights
 } from '$lib/types';
+
+/** What the map is a list OF: catchments, or the units standing in them. */
+export type Pivot = 'cell' | 'unit';
 
 export type LayerKey = 'score' | 'routes' | 'poi' | 'nodata' | 'label' | 'stops' | 'property';
 export type { Theme };
@@ -111,6 +124,29 @@ export class AppState {
 		 */
 		property: true
 	});
+	/**
+	 * What the map is a list OF.
+	 *
+	 * `cell` is the product as it was: 562 catchments, ranked by whichever figure was
+	 * asked about. `unit` pivots that — every shopfront on the market becomes a row, and
+	 * the catchment it stands in becomes context travelling with it.
+	 *
+	 * Not a filter and not a layer, which is why it is a mode rather than a switch in the
+	 * legend: it changes what a row IS, so the ranking, the panel and the map marks all
+	 * mean something different on either side of it. Nobody rents a hexagon.
+	 */
+	pivot = $state<Pivot>('cell');
+	/** The unit the reader has open, in unit mode. Kept apart from `selectedId`, which
+	    is a cell: switching pivot must not leave one reading the other's id. */
+	selectedUnitId = $state<string | null>(null);
+	/** What the unit list is sorted by, and which way. */
+	unitSort = $state<UnitMetricKey>(DEFAULT_UNIT_METRIC);
+	// The default measure's own idea of "best", rather than a hard-coded direction:
+	// changing `DEFAULT_UNIT_METRIC` used to leave this pointing the wrong way.
+	unitOrder = $state<'asc' | 'desc'>(UNIT_METRIC_MAP[DEFAULT_UNIT_METRIC].best);
+	/** Band filters on the unit list — thirds of the set, never a typed threshold. */
+	unitFilters = $state<UnitFilter[]>([]);
+
 	selectedId = $state<string | null>(null);
 	highlight = $state<string[]>([]);
 	ai = $state<AiAnswer | null>(null);
@@ -521,6 +557,71 @@ export class AppState {
 		if (!cell || !this.listings) return [];
 		return capturedListings(cell, this.listings, this.weights.radius);
 	});
+
+	/**
+	 * Every unit on the market, with the catchment it stands in attached.
+	 *
+	 * Built only in unit mode. It walks 2,700 listings against 562 cells, and in cell
+	 * mode nothing reads the result — paying for it on every weight change so it can sit
+	 * unused is the kind of cost that only shows up on somebody else's laptop.
+	 */
+	units = $derived.by(() => {
+		if (this.pivot !== 'unit' || !this.listings) return [];
+		return buildUnits(this.base, this.listings, this.rowById, this.weights.radius);
+	});
+
+	/**
+	 * The units left after the filters, before the sort drops anything.
+	 *
+	 * Kept apart from `unitRows` so the panel can tell the two subtractions apart. A unit
+	 * removed by a filter and a unit with no reading for the measure being sorted by are
+	 * different facts, and reporting both as "filtered out" tells the reader they
+	 * narrowed something they did not touch.
+	 */
+	unitFiltered = $derived(applyUnitFilters(this.units, this.unitFilters));
+
+	/** The unit list as the reader has it: filtered, then ranked. */
+	unitRows = $derived(rankUnits(this.unitFiltered, this.unitSort, this.unitOrder));
+
+	get selectedUnit(): ScoredUnit | null {
+		if (this.pivot !== 'unit' || !this.selectedUnitId) return null;
+		return this.units.find((u) => u.id === this.selectedUnitId) ?? null;
+	}
+
+	/**
+	 * Switch what the map is a list of.
+	 *
+	 * The listings are fetched here rather than on the first selection, because in unit
+	 * mode they are not a detail of a chosen cell — they ARE the rows, and a mode that
+	 * opens empty and fills in a moment later reads as a mode that failed.
+	 *
+	 * Each side's selection is dropped on the way out. A cell id and a unit id are not
+	 * interchangeable, and leaving one set means switching back lands on whatever was
+	 * open three modes ago rather than on what the reader is looking at.
+	 */
+	setPivot(p: Pivot) {
+		if (this.pivot === p) return;
+		this.pivot = p;
+		this.highlight = [];
+		if (p === 'unit') {
+			this.selectedId = null;
+			void this.loadListings();
+			void this.loadCategory(this.category);
+		} else {
+			this.selectedUnitId = null;
+		}
+	}
+
+	/** Open one unit. Its home cell's competitors and stations are fetched with it: the
+	    panel describes the catchment around the unit, and that is what draws it. */
+	selectUnit(id: string | null) {
+		this.selectedUnitId = id;
+		if (id) {
+			void this.loadCategory(this.category);
+			void this.loadStops();
+			void this.loadPois(this.category);
+		}
+	}
 
 	/** The listings are on their way and no conclusion can be drawn yet. Worth its own
 	    flag for the same reason `poisLoading` is: an empty list reads the same whether

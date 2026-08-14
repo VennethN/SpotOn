@@ -888,6 +888,65 @@ export const id = {
 			'Biasanya yang menentukan itu siapa yang lewat, siapa yang sudah jualan di situ, dan tempatnya bisa ditempati atau tidak. Tiga hal itu yang bisa saya tunjukkan angkanya per kawasan.'
 	},
 
+	/* ── Pivot tempat usaha ────────────────────────────────────────────────
+	   Mode kedua peta: barisnya unit yang dipasarkan, bukan petak. Kuncinya
+	   dari `domain/units`, jadi ukuran baru di sana harus ada namanya di sini
+	   dan di en.ts.
+
+	   `harga` tetap harga JUAL. Tidak ada listing sewa di katalog MAPID untuk
+	   Jakarta, dan menamainya "sewa" di sini bakal jadi satu-satunya kalimat
+	   di produk ini yang tidak benar. */
+	units: {
+		title: 'Tempat yang dipasarkan',
+		pivotCell: 'Per petak',
+		pivotUnit: 'Per tempat',
+		pivotHint: 'Ganti yang jadi barisnya: kawasan, atau tempat usahanya sendiri',
+		count: (n: number) => `${num(n)} tempat usaha yang bisa ditempati`,
+		filteredOut: (n: number) => `${num(n)} lagi disaring keluar`,
+		unmeasured: (n: number, ukuran: string) =>
+			`${num(n)} lagi tidak diperingkat karena ${ukuran.toLowerCase()}-nya belum terukur`,
+		none: 'Tidak ada tempat yang lolos saringan ini. Longgarkan salah satunya.',
+		more: (n: number) => `+${num(n)} lagi, urutkan atau saring untuk mempersempit`,
+		cellScore: (nilai: string) => `skor petaknya ${nilai}`,
+		cellUnscored: 'petaknya belum dinilai untuk jenis usaha ini',
+		provenance:
+			'Tiap tempat dipasangkan ke petak terdekat yang pusatnya masih dalam jarak jalan kaki. Angka petaknya dihitung dari petak itu, bukan dari titik tempatnya.',
+		metrics: {
+			harga: 'Harga',
+			harga_m2: 'Harga per m²',
+			luas_tanah: 'Luas tanah',
+			luas_bangunan: 'Luas bangunan',
+			lantai: 'Jumlah lantai',
+			skor_petak: 'Skor petak',
+			permintaan_petak: 'Permintaan petak',
+			pesaing_petak: 'Pesaing di petak',
+			akses_petak: 'Akses transit',
+			jarak_pusat: 'Jarak ke pusat petak'
+		},
+		/* Format nilainya ikut jenis ukurannya, dibaca dari `domain/units`. */
+		value: (k: string, v: number) => {
+			if (k === 'harga') return rp(v);
+			if (k === 'harga_m2') return `${rp(v)}/m²`;
+			if (k === 'luas_tanah' || k === 'luas_bangunan') return `${num(Math.round(v))} m²`;
+			if (k === 'jarak_pusat') return `${num(Math.round(v))} m`;
+			if (k === 'skor_petak' || k === 'permintaan_petak' || k === 'akses_petak') {
+				return String(Math.round(v * 100));
+			}
+			return num(Math.round(v));
+		},
+		/* ── Kartu satu tempat ─────────────────────────────────────────────── */
+		cardIn: (petak: string) => `di petak ${petak}`,
+		cardWalk: (m: number) => `${num(m)} m dari pusat petak`,
+		cardAbout: 'Tentang tempatnya',
+		cardArea: 'Tentang kawasannya',
+		cardNoScore:
+			'Petak ini belum tercakup data pesaing untuk jenis usaha yang dipilih, jadi belum ada skornya. Keterangan tempatnya di atas tetap berlaku.',
+		cardRivals: (n: number, cat: string, r: number) =>
+			`${num(n)} ${cat} dalam radius ${r} m`,
+		cardStops: (n: number) => `${num(n)} simpul transit dalam jarak jalan kaki`,
+		cardOpen: 'Buka petaknya'
+	},
+
 	query: {
 		saturated: 'yang sudah sesak',
 		coverage: 'yang belum ada datanya',

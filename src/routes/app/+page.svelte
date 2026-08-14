@@ -18,7 +18,10 @@
 	import MapChrome from '$lib/components/app/MapChrome.svelte';
 	import MapLegend from '$lib/components/app/MapLegend.svelte';
 	import MapView from '$lib/components/app/MapView.svelte';
+	import PivotSwitch from '$lib/components/app/PivotSwitch.svelte';
 	import SpotCard from '$lib/components/app/SpotCard.svelte';
+	import UnitCard from '$lib/components/app/UnitCard.svelte';
+	import UnitList from '$lib/components/app/UnitList.svelte';
 	import Sheet from '$lib/components/ui/Sheet.svelte';
 	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
 	import TapakToast from '$lib/components/app/TapakToast.svelte';
@@ -164,23 +167,48 @@
 		     once an area is picked the answer about that area is the more specific
 		     reply to the same question. Here it also clears the top-left corner, which
 		     is where Tapak's remark about that area arrives. -->
-		{#if !app.selectedId}
+		{#if !app.selectedId && app.pivot === 'cell'}
 			<MapLegend />
 		{/if}
 		<Sheet bind:index={sheetIndex} detents={[0.12, 0.55, 0.94]}>
-			{#if app.selectedId}
-				<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>
-					<SpotCard />
-				</div>
+			<PivotSwitch />
+			{#if app.pivot === 'unit'}
+				{#if app.selectedUnitId}
+					<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>
+						<UnitCard />
+					</div>
+				{/if}
+				<UnitList />
+			{:else}
+				{#if app.selectedId}
+					<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>
+						<SpotCard />
+					</div>
+				{/if}
+				<TapakPanel {tapak} />
 			{/if}
-			<TapakPanel {tapak} />
 		</Sheet>
 	{:else}
 		<aside class="guide material" aria-label={c.app.tapak} in:arriveFromCentre>
-			<TapakPanel {tapak} />
+			<PivotSwitch />
+			<!-- The two pivots are two different products in the same frame, so the
+			     right-hand panel swaps whole rather than growing a second mode inside
+			     Tapak's thread. Nobody rents a hexagon, and nobody asks a hexagon a
+			     question either. -->
+			{#if app.pivot === 'unit'}
+				<UnitList />
+			{:else}
+				<TapakPanel {tapak} />
+			{/if}
 		</aside>
 
-		{#if app.selectedId}
+		{#if app.pivot === 'unit'}
+			{#if app.selectedUnitId}
+				<aside class="spot material" aria-label={c.units.title} transition:materialize>
+					<UnitCard />
+				</aside>
+			{/if}
+		{:else if app.selectedId}
 			<aside class="spot material" aria-label={c.app.mood} transition:materialize>
 				<SpotCard />
 			</aside>
