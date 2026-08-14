@@ -31,6 +31,9 @@
 	let ready = $state(false);
 	let gl: typeof import('maplibre-gl') | null = null;
 	let markers = new Map<string, { marker: Marker; el: HTMLButtonElement; rank: number }>();
+	/** Price tags on the units the selected cell captures. Kept apart from `markers`
+	    because they come and go with the selection rather than with the ranking. */
+	let unitTags = new Map<string, { marker: Marker; el: HTMLDivElement }>();
 	let labelFrame = 0;
 
 	/**
@@ -382,6 +385,95 @@
 	}
 
 	/**
+	 * The property mark: a diamond, and a third shape on purpose.
+	 *
+	 * The map already spends a square on competitors and circles on transit nodes, and
+	 * this is neither. It is a doorway the reader could walk into and take, which is the
+	 * opposite kind of thing from a rival and a different kind of thing from a station.
+	 *
+	 * Colour cannot carry it alone here any more than it could for the competitors. The
+	 * palette's five other map colours are all spoken for — red for rivals, and orange,
+	 * red, green and mauve for the four transit modes — so a diamond in `--warn` is told
+	 * apart by its shape first and its colour second, which is the order that survives a
+	 * colour vision deficiency.
+	 *
+	 * Hollow rather than filled. A filled mark at this size reads as another data point
+	 * competing with the rivals for attention, and these are not competing with anything:
+	 * they are the vacancies among them. The knockout ring is there for the same reason
+	 * the transit plate is, because this sits on a heatmap fill that changes cell to cell.
+	 */
+	function unitImage(): { data: ImageData; pixelRatio: number } {
+		const size = 18;
+		const c = document.createElement('canvas');
+		c.width = c.height = size;
+		const ctx = c.getContext('2d')!;
+		const mid = size / 2;
+		const r = mid - 3;
+		const diamond = () => {
+			ctx.beginPath();
+			ctx.moveTo(mid, mid - r);
+			ctx.lineTo(mid + r, mid);
+			ctx.lineTo(mid, mid + r);
+			ctx.lineTo(mid - r, mid);
+			ctx.closePath();
+		};
+		// The knockout first and the mark over it, so the ring is a border rather than a
+		// halo sitting on top of the shape it is meant to lift off the map.
+		diamond();
+		ctx.lineWidth = 4;
+		ctx.lineJoin = 'round';
+		ctx.strokeStyle = cssVar('--bg-elevated') || '#ffffff';
+		ctx.stroke();
+		ctx.fillStyle = cssVar('--bg-elevated') || '#ffffff';
+		ctx.fill();
+		diamond();
+		ctx.lineWidth = 2.2;
+		ctx.strokeStyle = cssVar('--warn');
+		ctx.stroke();
+		return { data: ctx.getImageData(0, 0, size, size), pixelRatio: 2 };
+	}
+
+	/**
+	 * The units on the market in the selected cell, at their real addresses.
+	 *
+	 * The panel gives one number for the whole catchment — the median asking price per
+	 * m² — and a number like that is only actionable once the reader can see which
+	 * doorways it was taken over. Two shophouses on the main road and eight on a lane
+	 * behind it produce the same median and are not the same choice.
+	 *
+	 * PREMISES ONLY
+	 *
+	 * Warehouses, office floors and whole buildings are on the market too and are counted
+	 * in the panel, but they are not somewhere to open a coffee shop. Drawing them here
+	 * would put marks on the map the reader cannot act on, next to marks they can, with
+	 * nothing on screen separating the two. The panel says how many of each there are.
+	 *
+	 * Every unit carries its type and, where the listing published one, its asking price
+	 * — which is a price to BUY. The catalogue has no rent, and `domain/cost` holds the
+	 * measurement that says so.
+	 */
+	function propertyFC(): FeatureCollection {
+		if (!app.layers.property) return emptyFC();
+		return {
+			type: 'FeatureCollection',
+			features: app.selectedListings
+				.filter((l) => l.premises)
+				.map((l) => ({
+					type: 'Feature' as const,
+					geometry: { type: 'Point' as const, coordinates: [l.lon, l.lat] },
+					properties: {
+						label: c.property.types[l.type] ?? l.type,
+						// Only where the listing published one. A unit with no price is still a
+						// vacancy and is still drawn, with its type alone under it — the same
+						// rule the competitors follow for a missing name.
+						...(l.price !== null ? { price: c.property.unitPrice(l.price) } : {}),
+						sort: Math.round(l.distance)
+					}
+				}))
+		};
+	}
+
+	/**
 	 * The competitors the SELECTED cell captures — real positions, never the whole
 	 * city's.
 	 *
@@ -450,9 +542,14 @@
 			const { data, pixelRatio } = rivalImage();
 			m.addImage('rival', data, { pixelRatio });
 		}
+		if (!m.hasImage('unit')) {
+			const { data, pixelRatio } = unitImage();
+			m.addImage('unit', data, { pixelRatio });
+		}
 
 		m.addSource('catchments', { type: 'geojson', data: catchmentFC() });
 		m.addSource('poi', { type: 'geojson', data: poiFC() });
+		m.addSource('property', { type: 'geojson', data: propertyFC() });
 		m.addSource('poi-links', { type: 'geojson', data: poiLinksFC() });
 		m.addSource('stops', { type: 'geojson', data: stopsFC() });
 		m.addSource('stop-links', { type: 'geojson', data: stopLinksFC() });
@@ -604,6 +701,20 @@
 				// it drops the ones that collide, which on a dense cell means the map
 				// showing fewer rivals than the badge counts — the map contradicting
 				// itself, and in the direction that flatters the cell.
+				'icon-allow-overlap': true,
+				'icon-ignore-placement': true
+			}
+		});
+		// Every vacancy counted has to be drawn, for the same reason every competitor is:
+		// the panel states a count, and a map quietly showing fewer of them than the
+		// panel claims is the map contradicting the number beside it.
+		m.addLayer({
+			id: 'property-units',
+			type: 'symbol',
+			source: 'property',
+			layout: {
+				'icon-image': 'unit',
+				'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 15, 1.15],
 				'icon-allow-overlap': true,
 				'icon-ignore-placement': true
 			}
@@ -888,26 +999,114 @@
 	}
 
 	/**
+	 * How many units get a price tag.
+	 *
+	 * A dense cell captures thirty-odd premises, and thirty price tags is not a map. The
+	 * nearest eight are tagged and the rest keep their diamond, which is the same
+	 * bargain the cell labels strike: every unit is still drawn, only the naming is
+	 * rationed. Nearest first, because the panel's list is ordered that way too and the
+	 * two have to agree about which units are "the near ones".
+	 */
+	const MAX_UNIT_TAGS = 8;
+
+	/**
+	 * Price tags on the units the selected cell captures.
+	 *
+	 * DOM markers rather than a symbol layer, and that is not a style preference. A
+	 * `text-field` needs a `glyphs` source, and the open raster basemap this falls back
+	 * to when `PUBLIC_MAPID_STYLE_URL` is unset has none — so every symbol label on this
+	 * map renders nothing today, silently, and the names the reader does see are these
+	 * markers. A price drawn the other way would be a feature that works on one
+	 * developer's machine and nowhere else.
+	 *
+	 * The type leads and the price sits under it, because they answer two questions in
+	 * that order: what is it, then what are they asking. A unit with no published price
+	 * gets the type alone rather than a tag reading "Ruko ·" — the panel already counts
+	 * those separately.
+	 */
+	function syncUnitTags() {
+		if (!map || !gl) return;
+		const wanted = app.layers.property
+			? app.selectedListings.filter((l) => l.premises).slice(0, MAX_UNIT_TAGS)
+			: [];
+
+		// Keyed by position in the captured list, not by coordinate: 1,915 of the 3,547
+		// listings share a coordinate with another, so a coordinate key would collapse
+		// four real units in one building into one tag.
+		const keep = new Set(wanted.map((_, i) => String(i)));
+		for (const [id, entry] of unitTags) {
+			if (!keep.has(id)) {
+				entry.marker.remove();
+				unitTags.delete(id);
+			}
+		}
+
+		for (const [i, l] of wanted.entries()) {
+			const id = String(i);
+			let entry = unitTags.get(id);
+			if (!entry) {
+				const el = document.createElement('div');
+				el.className = 'unit-pin';
+				const marker = new gl.Marker({ element: el, anchor: 'center' }).setLngLat([l.lon, l.lat]);
+				marker.addTo(map);
+				entry = { marker, el };
+				unitTags.set(id, entry);
+			}
+			entry.marker.setLngLat([l.lon, l.lat]);
+			const type = c.property.types[l.type] ?? l.type;
+			const price = l.price !== null ? c.property.unitPrice(l.price) : '';
+			entry.el.setAttribute(
+				'aria-label',
+				c.property.mapUnitAria(type, price, Math.round(l.distance))
+			);
+			entry.el.innerHTML =
+				`<span class="unit-mark"></span>` +
+				`<span class="unit-tag"><span class="unit-type">${escapeText(type)}</span>` +
+				(price ? `<span class="unit-price">${escapeText(price)}</span>` : '') +
+				`</span>`;
+		}
+	}
+
+	/** Text going into `innerHTML` above. Every value it is handed comes from the
+	    locale files or the property file, but the rule that it is escaped before it is
+	    interpolated should not depend on where the string came from today. */
+	const escapeText = (s: string) =>
+		s.replace(/[&<>"]/g, (ch) => `&${{ '&': 'amp', '<': 'lt', '>': 'gt', '"': 'quot' }[ch]};`);
+
+	/**
 	 * Colliding labels are hidden rather than drawn on top of each other.
 	 *
 	 * The top fourteen cells often cluster along one corridor, and their names then
 	 * overlap until not one of them reads. The more important ones — the selected
 	 * cell, then the ranked results — get their space first; the rest fall back to a
 	 * dot. The dot is still there, so no cell disappears.
+	 *
+	 * The price tags go through the SAME pass rather than one of their own. Two
+	 * independent collision layouts do not collide with each other, which is exactly how
+	 * a price tag ends up sitting on top of a cell name — each one having correctly
+	 * concluded it had the space to itself. Cell names are laid first because they orient
+	 * the reader on the whole map; a tag that cannot fit falls back to its diamond, which
+	 * the symbol layer draws for every unit regardless.
 	 */
 	function layoutLabels() {
 		if (!map) return;
 		const entries = [...markers.values()].sort((a, b) => a.rank - b.rank);
 		const placed: DOMRect[] = [];
 
+		const labels: HTMLElement[] = [];
 		for (const e of entries) {
 			const label = e.el.querySelector<HTMLElement>('.stn-label');
-			if (!label) continue;
-			label.style.visibility = '';
+			if (label && e.el.style.display !== 'none') labels.push(label);
+			if (label) label.style.visibility = '';
 		}
-		for (const e of entries) {
-			const label = e.el.querySelector<HTMLElement>('.stn-label');
-			if (!label || e.el.style.display === 'none') continue;
+		for (const e of unitTags.values()) {
+			const tag = e.el.querySelector<HTMLElement>('.unit-tag');
+			if (!tag) continue;
+			tag.style.visibility = '';
+			labels.push(tag);
+		}
+
+		for (const label of labels) {
 			const box = label.getBoundingClientRect();
 			const clash = placed.some(
 				(q) =>
@@ -1050,6 +1249,7 @@
 			if (labelFrame) cancelAnimationFrame(labelFrame);
 			map?.remove();
 			markers.clear();
+			unitTags.clear();
 		};
 	});
 
@@ -1085,11 +1285,14 @@
 		void app.selectedStops;
 		void app.selectedPois;
 		void app.layers.stops;
+		void app.layers.property;
+		void app.selectedListings;
 		void app.weights.radius;
 		const m = map;
 		if (!m || !ready) return;
 		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC());
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC());
+		(m.getSource('property') as GeoJSONSource | undefined)?.setData(propertyFC());
 		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC());
 		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC());
 		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC());
@@ -1107,6 +1310,9 @@
 			cssVar('--separator-strong'),
 			cssVar('--cell-edge')
 		]);
+		// The tags before the layout pass inside `syncMarkers`, so the two sets of labels
+		// are laid out together against one set of occupied rectangles.
+		syncUnitTags();
 		syncMarkers(app.base);
 	});
 
@@ -1382,6 +1588,78 @@
 		color: var(--label-1);
 		background: var(--mat-thick);
 	}
+	/* ── Units on the market ─────────────────────────────────────────────────
+	   A price tag on a doorway the reader could actually take. The type leads and
+	   the asking price sits under it, in that order because that is the order the
+	   questions come in: what is it, then what are they asking for it.
+
+	   Deliberately quieter than a cell name. A cell name is a place on the map; this
+	   is one listing among a dozen, and at equal weight eight of them bury the map
+	   they are drawn on. The diamond stays put when the tag is hidden by the layout
+	   pass, so no unit ever disappears. */
+	/* `unit-pin`, not `unit`. These are `:global` because MapLibre owns the elements, and
+	   a bare `.unit` collapsed the panel's own `<span class="unit">` — the caption beside
+	   the median price — to 0×0 across the whole app. A global class needs a name nothing
+	   else would reach for, which a word as ordinary as "unit" is not. */
+	:global(.unit-pin) {
+		position: relative;
+		display: block;
+		width: 0;
+		height: 0;
+		/* Purely informative, and the panel lists the same units with more about each.
+		   Nothing here is clickable, so nothing here should look it or catch a pointer
+		   travelling to the cell underneath. */
+		pointer-events: none;
+	}
+	/* The diamond, matching the symbol layer's mark so the tag reads as belonging to
+	   it rather than floating beside it. A rotated square: one shape the map does not
+	   already spend on competitors (square) or transit nodes (circles). */
+	:global(.unit-mark) {
+		position: absolute;
+		left: -4px;
+		top: -4px;
+		width: 8px;
+		height: 8px;
+		transform: rotate(45deg);
+		background: var(--bg-elevated);
+		border: 1.5px solid var(--warn);
+		box-shadow: var(--shadow-chip);
+	}
+	:global(.unit-tag) {
+		position: absolute;
+		left: 0.5625rem;
+		top: -0.75rem;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.0625rem;
+		white-space: nowrap;
+		background: var(--mat-thin);
+		-webkit-backdrop-filter: var(--blur-thin);
+		backdrop-filter: var(--blur-thin);
+		border: 1px solid var(--separator);
+		border-left: 2px solid var(--warn);
+		border-radius: 0 var(--r-sm, 6px) var(--r-sm, 6px) 0;
+		padding: 0.0625rem 0.375rem 0.125rem;
+		box-shadow: var(--shadow-chip);
+	}
+	:global(.unit-type) {
+		font-size: 0.625rem;
+		font-weight: 500;
+		line-height: 1.2;
+		color: var(--label-2);
+	}
+	/* The figure the reader came for, so it is the one set in the strong colour and
+	   the tabular numerals. The type above it is the caption, not the other way round. */
+	:global(.unit-price) {
+		font-size: 0.6875rem;
+		font-weight: 650;
+		line-height: 1.15;
+		letter-spacing: -0.01em;
+		color: var(--label-1);
+		font-variant-numeric: tabular-nums;
+	}
+
 	/* What the selected cell captures. Sits under the dot, opposite the name above it,
 	   so the two never fight for the same space. A column, because either chip can be
 	   absent and neither may be left holding a gap where the other would have been. */
