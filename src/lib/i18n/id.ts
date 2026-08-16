@@ -124,7 +124,7 @@ export const id = {
 		pois: { label: 'gerai pesaing terdata', sub: 'OpenStreetMap (ODbL)' },
 		cats: {
 			label: 'jenis usaha dinilai',
-			sub: 'kopi, minuman, roti, warteg, cepat saji, mie, seafood, resto asing, minimarket, kelontong, laundry, bengkel, apotek'
+			sub: 'kuliner, ritel harian, dan jasa'
 		},
 		coverNote: (terdata: string, total: string, nodata: string) =>
 			`${terdata} dari ${total} petak kotanya sudah ada di katalog MAPID. Sisanya ${nodata} kami tandai belum disurvei: tidak kami tebak, tidak kami beri nilai.`
@@ -255,7 +255,7 @@ export const id = {
 		colBand: 'Sampai',
 		colValue: 'Petak',
 		tableCaption: 'Jumlah petak per kelompok kepadatan usaha',
-		peak: 'terbanyak sampai',
+		axisUnit: 'usaha',
 		unit: 'petak',
 		upTo: (batas: string) => `sampai ${batas} usaha`,
 		label: (total: string, batas: string, puncak: string, unit: string) =>
