@@ -15,7 +15,6 @@ import type { AiAnswer, MetricKey, Recommendation, ScoredHex, StructuredQuery } 
 export function metricValue(m: NonNullable<Recommendation['measure']>, c: Copy): string {
 	const kind = METRIC_MAP[m.ukuran]?.kind;
 	if (kind === 'pct') return `${pct(m.value)}%`;
-	if (kind === 'hour') return formatHour(m.value);
 	if (kind === 'rupiah') return c.query.perM2(m.value);
 	return c.query.count(m.value);
 }
@@ -130,13 +129,20 @@ export function describeQuery(q: StructuredQuery, c: Copy): string[] {
 }
 
 /**
- * The supply phrase has to reflect BOTH of its drivers (competitor count × how
- * busy they are). Read only the busyness and the narrative can end up contradicting
- * the very score it accompanies.
+ * The competition phrase, read off BOTH sides of the gap.
+ *
+ * Rivals alone say very little: five coffee shops on a street with two hundred other
+ * businesses is a different place from five on a street with eight. So the phrase pairs
+ * the count of rivals with the trade around them, and those are the two figures the
+ * score itself is made of — the sentence cannot end up contradicting the number it sits
+ * beside.
+ *
+ * It used to pair the count with how busy those rivals were, from a column that was
+ * generated. Nobody has ever measured how full the shops of Jakarta are.
  */
 export function supplyPhrase(r: ScoredHex, c: Copy): string {
 	const dense = (r.supply ?? 0) >= 0.6;
-	const busy = r.busy >= 0.45;
+	const busy = (r.demand ?? 0) >= 0.45;
 	if (dense && busy) return c.supply.denseBusy;
 	if (dense && !busy) return c.supply.denseQuiet;
 	if (!dense && busy) return c.supply.fewBusy;
