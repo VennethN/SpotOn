@@ -133,14 +133,12 @@ export type ParseResult =
  */
 const METRIC_HELP: Record<MetricKey, string> = {
 	skor: 'skor peluang gabungan, 0-100. Dipakai untuk "di mana sebaiknya buka".',
-	permintaan: 'perkiraan permintaan pembeli, 0-100.',
-	penawaran: 'penawaran efektif: kepadatan pesaing dibobot seramai apa pembelinya, 0-100.',
+	permintaan:
+		'ramainya usaha di sekitar petak selain kategori yang ditanya, 0-100. Bukan survei pembeli: ini hitungan usaha lain dalam radius jalan kaki.',
+	penawaran: 'kepadatan pesaing sejenis dibanding petak terpadat di seluruh kisi, 0-100.',
 	pesaing: 'jumlah pesaing sejenis dalam radius jalan kaki.',
-	keramaian: 'seberapa ramai pesaing di petak itu, 0-100. Untuk "seberapa ramai", "mana yang sepi".',
-	kunjungan: 'jumlah transaksi tercatat (Struk Go) — ukuran lalu lalang orang.',
-	jam_puncak: 'jam tersibuk dalam sehari, 0-23.',
-	nontunai: 'porsi pembayaran non-tunai, 0-100. Perkiraan daya beli.',
-	listing: 'jumlah listing ruang usaha yang cocok untuk kategori ini (data contoh Properti Go).',
+	keramaian:
+		'jumlah usaha lain dalam radius jalan kaki, apa pun jenisnya. Untuk "seberapa ramai", "mana yang sepi", "mana yang banyak pengunjung".',
 	harga_tempat:
 		'median harga JUAL tempat usaha per m² tanah, rupiah, dari katalog properti MAPID. PENTING: katalog MAPID tidak punya listing SEWA untuk Jakarta sama sekali, jadi ini harga beli, bukan sewa bulanan. Tetap pakai ukuran ini kalau pengguna bertanya soal sewa atau biaya tempat, karena inilah data harga yang ada.',
 	unit_dipasarkan: 'jumlah unit komersial yang sedang dipasarkan dalam radius jalan kaki.',

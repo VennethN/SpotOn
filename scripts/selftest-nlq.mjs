@@ -67,10 +67,14 @@ const CASES = [
 	['di mana sewanya paling murah untuk kedai kopi', 'harga_tempat', 'asc', 'kopi'],
 	['mana yang paling mahal harganya', 'harga_tempat', 'desc', null],
 	['mana yang paling banyak tempat kosong', 'unit_dipasarkan', 'desc', null],
-	['mana yang paling ramai pengunjungnya', 'kunjungan', 'desc', null],
-	['jam berapa paling ramai', 'jam_puncak', null, null],
+	/* Three sentences that used to reach three different measures now all reach the
+	   same one, and that is the point rather than a loss: `kunjungan`, `jam_puncak` and
+	   `nontunai` read columns that were generated, and those columns are gone. The trade
+	   counted around a cell is the only thing about the crowd anybody has measured, so
+	   every question about the crowd lands there. */
+	['mana yang paling ramai pengunjungnya', 'keramaian', 'desc', null],
+	['jam berapa paling ramai', 'keramaian', null, null],
 	['mana yang pesaingnya paling sedikit untuk apotek', 'pesaing', 'asc', 'apotek'],
-	['berapa porsi non-tunai di sekitar sini', 'nontunai', 'desc', null],
 	['mana yang simpul transitnya paling banyak', 'simpul_transit', 'desc', null]
 ];
 
@@ -86,12 +90,14 @@ for (const [q, ukuran, urut, kategori] of CASES) {
 	);
 }
 
-// An hour is not a quantity, so a superlative in the sentence must not flip it. "Jam
-// berapa paling ramai" contains "paling ramai", which reads as "most".
+// The hour check that stood here is gone with the hourly profile it guarded. What
+// replaces it is the pair that still matters: "ramai" and "sepi" are the same measure
+// read from opposite ends, and a parser that returned the same direction for both would
+// answer "which is quietest" with the busiest cell on the grid.
 check(
-	'a superlative cannot reverse an hour ranking',
-	nlq.parseQuestion('jam berapa paling ramai', W, 'kopi').urut ===
-		nlq.parseQuestion('jam puncak', W, 'kopi').urut
+	'busiest and quietest are the same measure, read opposite ways',
+	nlq.parseQuestion('mana yang paling ramai', W, 'kopi').urut === 'desc' &&
+		nlq.parseQuestion('mana yang paling sepi', W, 'kopi').urut === 'asc'
 );
 
 /* ── the intents still route ─────────────────────────────────────────────── */

@@ -11,18 +11,18 @@ import type { ScoredHex, Weights } from '$lib/types';
  * arithmetic back out, step by step, on the 0–100 scale the panel prints.
  *
  * Nothing here recomputes the score from raw data. Every term is built from the
- * figures the engine already stored on the row — demand, effective supply, listings,
- * access — and from the engine's own exported constants, so the column of steps
- * always lands on the score sitting above it. A breakdown that disagreed with its
- * own total would discredit the number it exists to explain.
+ * figures the engine already stored on the row — trade around the cell, its own
+ * rivals, premises on the market, access — and from the engine's own exported
+ * constants, so the column of steps always lands on the score sitting above it. A
+ * breakdown that disagreed with its own total would discredit the number it exists to
+ * explain.
  *
  * Transit is pulled out twice on purpose. It is a step like any other in the
- * waterfall, AND it is one of the two inputs built from real data rather than sample
- * attributes — so the split of the final score into "what any cell would keep" and
- * "what these stations added" is stated separately, in points rather than in the
- * percentage `accessUplift` gives.
+ * waterfall, AND the split of the final score into "what any cell would keep" and
+ * "what these stations added" is worth stating separately, in points rather than in
+ * the percentage `accessUplift` gives.
  *
- * The cost of space is the other real one, and it is the last step: a multiplier of at
+ * The cost of space is the last step: a multiplier of at
  * most 1, taken off the end. On a catchment where no asking price could be read it is
  * exactly 1 and the row says so, rather than being dropped — a step that disappears
  * when it finds nothing is indistinguishable from a step that found nothing to charge.
@@ -81,7 +81,7 @@ export function composeScore(row: ScoredHex, w: Weights): Composition | null {
 	const supplyTerm = (w.ws * row.supply) / sum;
 	const raw = BALANCE_POINT + demandTerm - supplyTerm;
 	const balance = Math.max(0, Math.min(1, raw));
-	const gate = w.gate && row.listings === 0 ? GATE_BLOCKED : 1;
+	const gate = w.gate && row.units === 0 ? GATE_BLOCKED : 1;
 	const gated = balance * gate;
 	const accessFactor = ACCESS_FLOOR + ACCESS_SPAN * row.access;
 	const travelled = gated * accessFactor;
