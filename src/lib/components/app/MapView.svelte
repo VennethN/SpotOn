@@ -151,7 +151,7 @@
 	/* The name comes from the base grid and the figures from the scored row, so the
 	   tooltip still names a cell before any category has been loaded — rather than the
 	   map going quiet under the pointer until the heatmap is switched on. */
-	let hovered = $state<{ name: string; nodata: boolean; row: ScoredHex | null } | null>(null);
+	let hovered = $state<{ name: string; row: ScoredHex | null } | null>(null);
 
 	const cssVar = (name: string) =>
 		getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -197,7 +197,7 @@
 			id: 'catchment-fill',
 			type: 'fill',
 			source: 'catchments',
-			filter: ['all', ['!', ['get', 'nodata']], ['!', ['get', 'uncovered']]],
+			filter: ['!', ['get', 'uncovered']],
 			paint: {
 				'fill-color': ['get', 'color'],
 				/**
@@ -220,16 +220,19 @@
 				]
 			}
 		});
+		/* Not surveyed: hatched, and outlined dashed below.
+		   There used to be two blank states drawn two ways, a hatch for cells flagged
+		   dataless at build time and a dashed edge for cells the source had never read.
+		   The first flag was rolled by a random number generator and is gone, so one
+		   blank state is left and it takes the stronger of the two marks. A hatch reads
+		   as "nothing was measured here" at a glance, which a hairline does not. */
 		m.addLayer({
 			id: 'catchment-nodata',
 			type: 'fill',
 			source: 'catchments',
-			filter: ['get', 'nodata'],
-			paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0.85 }
+			filter: ['get', 'uncovered'],
+			paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0.6 }
 		});
-		// Not covered: a dashed outline only, no fill. Deliberately different from the
-		// `nodata` hatching — both are valueless, but for different reasons and calling
-		// for different user action (import a dataset vs there is nothing there).
 		m.addLayer({
 			id: 'catchment-uncovered',
 			type: 'line',
@@ -537,11 +540,7 @@
 			// biggest reason moving the pointer over the map felt heavy.
 			const id = f.properties?.id as string | undefined;
 			hovered = id
-				? {
-						name: (f.properties?.name as string) ?? '',
-						nodata: Boolean(f.properties?.nodata),
-						row: app.rowById.get(id) ?? null
-					}
+				? { name: (f.properties?.name as string) ?? '', row: app.rowById.get(id) ?? null }
 				: null;
 			positionTip(e.point.x, e.point.y);
 		});
@@ -594,7 +593,6 @@
 
 		const rows = heat ? app.rowById : null;
 		const top = app.base
-			.filter((h) => !h.nodata)
 			.slice()
 			.sort((a, b) =>
 				rows
@@ -627,7 +625,6 @@
 		for (const h of cells) {
 			if (!keep.has(h.id)) continue;
 			const name = cellName(h);
-			const nodata = Boolean(h.nodata);
 			let entry = markers.get(h.id);
 			if (!entry) {
 				const el = document.createElement('button');
@@ -641,7 +638,7 @@
 				// marker outlives many rescorings, and a captured row would keep showing
 				// the figures from whichever category was active when it was created.
 				el.addEventListener('pointerenter', (ev) => {
-					hovered = { name, nodata, row: app.rowById.get(h.id) ?? null };
+					hovered = { name, row: app.rowById.get(h.id) ?? null };
 					// Placed as well as filled. Only the map's own `mousemove` moved this
 					// thing, so hovering a marker showed its figures in the top-left corner
 					// of the screen, nowhere near the marker and often over another panel.
@@ -658,10 +655,10 @@
 			entry.rank = order.indexOf(h.id);
 			const rank = app.highlight.indexOf(h.id);
 			const selected = app.selectedId === h.id;
-			entry.el.className = `stn${selected ? ' is-selected' : ''}${nodata ? ' is-nodata' : ''}`;
+			entry.el.className = `stn${selected ? ' is-selected' : ''}`;
 			entry.el.setAttribute(
 				'aria-label',
-				`${name}${nodata ? ', belum terdata' : ''}` +
+				name +
 					(selected ? `, ${c.app.mapStopsAria(stopTotal(h.transit), app.weights.radius)}` : '') +
 					(selected && app.layers.poi && app.selectedPois.length
 						? `, ${c.app.mapRivalsAria(app.selectedPois.length, app.weights.radius)}`
@@ -675,7 +672,6 @@
 				// on each is a wall of chips, and the question they answer is one the
 				// reader asks about the cell they have chosen.
 				(selected ? badges(h) : '');
-			entry.el.style.display = nodata && !app.layers.nodata ? 'none' : '';
 		}
 
 		layoutLabels();
@@ -939,7 +935,6 @@
 		void app.base;
 		void app.rowById;
 		void heat;
-		void app.layers.nodata;
 		void app.layers.poi;
 		void app.layers.label;
 		void app.selectedId;
@@ -1086,7 +1081,7 @@
 <div class="tip material" bind:this={tipEl} class:show={!!hovered} aria-hidden="true">
 	{#if hovered}
 		<strong>{hovered.name}</strong>
-		{#if hovered.nodata}
+		{#if hovered.row && hovered.row.score === null}
 			<span class="tip-sub">{c.app.tipNodata}</span>
 		{:else if hovered.row}
 			{@const row = hovered.row}
@@ -1095,10 +1090,9 @@
 				<span class="tip-unit">{c.app.tipScore(c.category[app.category].name.toLowerCase())}</span>
 			</span>
 			<span class="tip-sub">
-				Permintaan {pct(row.demand)} · penawaran {pct(row.supply)}<br />
-				{row.osm} pesaing ({row.source === 'mapid' ? 'MAPID' : 'OSM'}, r={app.weights.radius} m) ·
-				{row.listings} listing<br />
-				N misi = {row.nTot} titik
+				{c.app.tipBusy(row.density)} · {c.app.tipRivals(row.osm)}<br />
+				{row.source === 'mapid' ? 'MAPID' : 'OSM'}, r={app.weights.radius} m ·
+				{c.app.tipUnits(row.units)}
 			</span>
 		{:else}
 			<!-- No category loaded yet: the cell is named and nothing more is claimed. -->
@@ -1230,10 +1224,6 @@
 		background: var(--accent);
 		border-color: var(--bg-elevated);
 		transform: scale(1.35);
-	}
-	:global(.stn.is-nodata .stn-dot) {
-		border-style: dashed;
-		border-color: var(--nodata);
 	}
 	:global(.stn-label) {
 		position: absolute;

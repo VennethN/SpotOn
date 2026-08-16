@@ -107,8 +107,8 @@ export class Tapak {
 		this.#greeted = true;
 		// The figures are read from the data, not written by hand — once the grid is
 		// rebuilt, Tapak's greeting stays correct without anyone remembering to update it.
-		const { withData, total } = this.#app.coverage;
-		this.#say(copy().tapak.greet(total, withData), categoryChips());
+		const { total, surveyed } = this.#app.coverage;
+		this.#say(copy().tapak.greet(total, surveyed), categoryChips());
 	}
 
 	/** Closes the chips on the last turn so stale options cannot be tapped again. */
@@ -265,8 +265,10 @@ export class Tapak {
 		const c = copy();
 		const def = c.category[this.#app.category];
 		const cat = def.name.toLowerCase();
-		if (row.nodata) {
-			this.#note(c.narrate.remarkNodata(row.name, row.osm, def.many));
+		// Unscored means the active source has never read this cell's city. Saying so is
+		// the whole remark: a verdict here would be a number about a place nobody counted.
+		if (row.score === null) {
+			this.#note(c.narrate.remarkUncovered(row.name, def.many));
 			return;
 		}
 		const verdict =
@@ -282,7 +284,7 @@ export class Tapak {
 				cat,
 				pct(row.score),
 				row.osm,
-				row.listings > 0 ? c.narrate.listingSome(row.listings) : c.narrate.listingNone
+				row.units > 0 ? c.narrate.listingSome(row.units) : c.narrate.listingNone
 			)
 		);
 	}
