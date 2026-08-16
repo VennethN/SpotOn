@@ -94,20 +94,19 @@ export const id = {
 		 */
 		heroTitle: 'Jangan tebak lokasi usaha.\nTanya petanya.',
 		heroBody:
-			'SpotOn membaca keramaian, jumlah pesaing, dan tempat yang bisa disewa di tiap kawasan transit Jakarta, lalu menjawab di mana sebaiknya Anda buka usaha dan kenapa. Angka di halaman ini masih contoh.',
-		heroHint: 'gulir untuk melihat satu hari penuh',
-		dayTitle: 'Ramainya berubah tiap jam.',
+			'SpotOn menghitung usaha yang sudah berdiri, pesaing sejenis, simpul transit, dan tempat yang dijual di tiap kawasan transit Jakarta, lalu menjawab di mana sebaiknya Anda buka usaha dan kenapa.',
+		heroHint: 'gulir untuk menyusuri satu blok',
+		dayTitle: 'Ramai itu bisa dihitung.',
 		dayBody:
-			'Trotoar yang sepi jam 10 pagi bisa penuh jam 7 malam. Sewanya dibayar untuk 24 jam, jadi jam berapa ramainya ikut menentukan usaha apa yang cocok di situ.',
+			'Bukan dari firasat dan bukan dari survei yang belum pernah ada. Yang dihitung adalah usaha yang sudah berdiri di radius jalan kaki: kalau satu blok sudah menghidupi puluhan usaha, orangnya jelas lewat situ.',
 		lotTitle: 'Petak bergaris putih itu masih kosong.',
 		lotBody:
 			'Kotak tembus pandang di atasnya bukan bangunan yang sudah ada. Itu usaha yang bisa Anda buka di situ. Permintaan sebesar apa pun tidak ada gunanya kalau tempatnya tidak bisa disewa, jadi ketersediaan tempat kami pakai sebagai syarat, bukan nilai tambah.',
-		lotProv: 'Struk Go, Menu Go, Properti Go: contoh · Stasiun & pesaing: OSM',
-		sample: 'data contoh',
-		reading: (struk: string, persen: number) => `${struk} struk · ${persen}% dari jam puncak`,
-		noReading: 'belum ada transaksi jam segini',
-		sceneLabel: (nama: string, jam: string, struk: string) =>
-			`Blok jalan di sekitar stasiun ${nama} pada pukul ${jam}. Kepadatan pejalan kaki mengikuti data transaksi 24 jam petak ini: ${struk} struk pada jam tersebut.`
+		lotProv: 'Simpul transit & pesaing: OpenStreetMap · Tempat usaha: katalog MAPID',
+		clockNote: 'ramainya ilustrasi, angkanya cacah sungguhan',
+		reading: (nama: string, n: number) => `${nama} · ${n} usaha dalam radius jalan kaki`,
+		sceneLabel: (nama: string, n: number, pesaing: number) =>
+			`Blok jalan di kawasan ${nama}. Ramainya mengikuti jumlah usaha yang benar-benar berdiri di radius jalan kaki petak itu, ${n} usaha, ${pesaing} di antaranya sejenis.`
 	},
 
 	phase: {
@@ -128,7 +127,7 @@ export const id = {
 			sub: 'kopi, minuman, roti, warteg, cepat saji, mie, seafood, resto asing, minimarket, kelontong, laundry, bengkel, apotek'
 		},
 		coverNote: (terdata: string, total: string, nodata: string) =>
-			`${terdata} dari ${total} petak sudah ada datanya. Sisanya ${nodata} kami tandai belum terdata: tidak kami tebak, tidak kami beri nilai.`
+			`${terdata} dari ${total} petak kotanya sudah ada di katalog MAPID. Sisanya ${nodata} kami tandai belum disurvei: tidak kami tebak, tidak kami beri nilai.`
 	},
 
 	problem: {
@@ -136,23 +135,23 @@ export const id = {
 		title: 'Ada tiga hal yang menentukan lokasi usaha jalan atau tidak. Selama ini ketiganya tidak pernah dilihat bersamaan.',
 		rows: [
 			{
-				t: 'Tidak ada yang tahu permintaannya',
-				d: 'Belanja warga di sekitar stasiun terekam di jutaan struk, tapi tidak pernah dikumpulkan per lokasi. Jadi tidak ada yang tahu kawasan mana yang sebenarnya masih kekurangan satu jenis usaha.'
+				t: 'Ramainya tidak pernah dihitung per lokasi',
+				d: 'Semua orang tahu kawasan stasiun itu ramai. Tapi tidak ada yang pernah menghitung, petak demi petak, berapa banyak usaha yang sudah hidup di situ, sehingga tidak ada yang tahu kawasan mana yang sebenarnya masih kekurangan satu jenis usaha.'
 			},
 			{
 				t: 'Pesaingnya tidak terpetakan',
-				d: 'Buka kedai kopi di tempat yang kedai kopinya sudah berjubel itu resep bangkrut. Tapi tidak ada peta yang menunjukkan di mana usaha sejenis menumpuk, dan seramai apa mereka.'
+				d: 'Buka kedai kopi di tempat yang kedai kopinya sudah berjubel itu resep bangkrut. Tapi tidak ada peta yang menunjukkan di mana usaha sejenis menumpuk, dan sepadat apa dibanding usaha lain di sekitarnya.'
 			},
 			{
 				t: 'Tempatnya tidak ikut dihitung',
-				d: 'Peluang baru berarti kalau ada tempatnya. Tapi ruko, kios, dan tempat yang disewakan tidak pernah dihubungkan dengan ramai sepinya pembeli atau jumlah pesaing di sekitarnya.'
+				d: 'Peluang baru berarti kalau ada tempatnya. Tapi ruko, kios, dan ruang usaha yang dipasarkan tidak pernah dihubungkan dengan ramai sepinya kawasan atau jumlah pesaing di sekitarnya.'
 			}
 		],
 		statement:
 			'Sekitar stasiun itu tempat dagang paling ramai di Jakarta. Tapi orang masih memilih lokasi pakai firasat, dan kalau salah, modalnya yang hangus.',
-		chartTitle: 'Sewa dibayar untuk 24 jam. Ramainya tidak 24 jam.',
+		chartTitle: 'Ramainya tidak rata.',
 		chartBody:
-			'Trotoar yang sepi jam 10 pagi bisa penuh jam 7 malam. Grafik inilah yang menggerakkan maket di atas, dan yang dibaca peta di dalam aplikasi.'
+			'Tiap batang adalah jumlah petak yang punya sekian usaha dalam radius jalan kaki. Kebanyakan petak sepi, dan cuma sedikit yang benar-benar padat. Justru sebaran inilah yang membuat pilihan lokasi jadi ada artinya.'
 	},
 
 	how: {
@@ -166,11 +165,11 @@ export const id = {
 			},
 			{
 				t: 'Tiga data digabung',
-				d: 'Data belanja, data pesaing, dan data tempat yang disewakan dicocokkan ke petaknya masing-masing. Hasilnya tiga angka per petak: berapa banyak yang belanja, seramai apa pesaingnya, dan ada tidaknya tempat kosong.'
+				d: 'Titik usaha, simpul transit, dan listing properti komersial dicocokkan ke petaknya masing-masing. Hasilnya tiga angka per petak: berapa banyak usaha lain di sekitarnya, berapa yang sejenis, dan ada tidaknya tempat yang dipasarkan.'
 			},
 			{
 				t: 'Skor peluang per jenis usaha',
-				d: 'Selisih antara yang belanja dan yang sudah dilayani dihitung untuk tiap jenis usaha. Pesaing yang ramai dihitung lebih berat, lalu hasilnya disyaratkan punya tempat yang bisa disewa.'
+				d: 'Selisih antara ramainya kawasan dan padatnya pesaing sejenis dihitung untuk tiap jenis usaha, lalu dikali akses transit dan harga tempat, dan disyaratkan punya tempat yang benar-benar dipasarkan.'
 			},
 			{
 				t: 'Urutan, lengkap dengan alasannya',
@@ -178,28 +177,28 @@ export const id = {
 			}
 		],
 		plain:
-			'Peluang = berapa banyak uang yang dibelanjakan di sana, dikurangi seramai apa pesaing sejenisnya. Lalu satu syarat: harus ada tempat yang benar-benar bisa disewa.',
+			'Peluang = seramai apa kawasannya oleh usaha selain jenis yang Anda tanyakan, dikurangi sepadat apa pesaing sejenisnya. Lalu satu syarat: harus ada tempat yang benar-benar dipasarkan.',
 		note:
-			'Pesaing tidak cuma dihitung jumlahnya. Kedai sebelah yang selalu penuh menekan peluang Anda jauh lebih keras daripada kedai yang sepi, jadi keduanya tidak dihitung sama. Dan sebagus apa pun angkanya, kalau tidak ada tempat yang bisa disewa, peluang itu tidak bisa dijalankan. Karena itu ketersediaan tempat jadi syarat, bukan bonus. Bobot permintaan dan persaingannya bisa Anda geser sendiri.',
+			'Pesaing sejenis dikeluarkan dulu dari hitungan keramaian, supaya jalan yang penuh kedai kopi tidak dibaca sebagai bukti bahwa kawasan itu butuh kedai kopi lagi. Dan sebagus apa pun angkanya, kalau tidak ada tempat yang bisa ditempati, peluang itu tidak bisa dijalankan. Karena itu ketersediaan tempat jadi syarat, bukan bonus. Bobot keramaian dan persaingannya bisa Anda geser sendiri.',
 		scaleCap: 'Hasilnya satu skala, dan itu juga legenda petanya',
 		formulaSummary: 'Rumus persisnya'
 	},
 
 	signal: {
 		demand: {
-			nm: 'Permintaan',
-			src: 'Struk Go',
-			d: 'Berapa banyak uang yang dibelanjakan orang di sana.'
+			nm: 'Keramaian',
+			src: 'OSM + MAPID',
+			d: 'Jumlah usaha lain yang sudah berdiri dalam radius jalan kaki.'
 		},
 		supply: {
 			nm: 'Pesaing',
-			src: 'Menu Go',
-			d: 'Bukan cuma jumlahnya. Yang selalu penuh menekan lebih keras.'
+			src: 'OSM + MAPID',
+			d: 'Yang sejenis saja, dibanding petak paling padat sekisi.'
 		},
 		gate: {
 			nm: 'Tempat usaha',
-			src: 'Properti Go',
-			ok: 'ada yang disewakan → peluang berlaku',
+			src: 'Katalog MAPID',
+			ok: 'ada yang dipasarkan → peluang berlaku',
 			no: 'tidak ada → peluang nyaris nol',
 			d: 'Syarat, bukan bonus. Peluang yang tidak bisa ditempati bukan peluang.'
 		}
@@ -210,11 +209,11 @@ export const id = {
 		caption: {
 			lead: 'Satu heksagon, satu petak.',
 			strong: 'Tinggi dan warnanya sama-sama skor peluang',
-			rest: ', pada skala yang sama persis dengan peta di dalam aplikasi. Yang cekung dan tidak berwarna belum ada datanya. Lingkaran putus-putus itu jangkauan jalan kaki yang dipakai waktu kisinya dibangun.'
+			rest: ', diambil dari skor sungguhan kisinya, pada skala yang sama persis dengan peta di dalam aplikasi. Yang cekung dan tidak berwarna kotanya belum disurvei. Lingkaran putus-putus itu jangkauan jalan kaki yang dipakai waktu kisinya dibangun.'
 		},
-		outOfScale: 'belum terdata, di luar skala',
+		outOfScale: 'belum disurvei, di luar skala',
 		label:
-			'Maket kisi heksagon. Tiap petak satu heksagon, dan tinggi serta warnanya mewakili skor peluang pada skala yang sama dengan peta. Petak yang belum terdata dibiarkan cekung tanpa warna. Lingkaran putus-putus menandai jangkauan berjalan kaki dari petak yang sedang dibidik.'
+			'Maket kisi heksagon. Tinggi dan warnanya adalah skor peluang sungguhan, diambil merata dari seluruh kisi, pada skala yang sama dengan peta. Yang letaknya saja yang skema: yang tertinggi ditaruh di tengah. Petak yang kotanya belum disurvei dibiarkan cekung tanpa warna.'
 	},
 
 	ai: {
@@ -228,44 +227,43 @@ export const id = {
 		more: (n: number) => `+${n} lagi di dalam aplikasi`,
 		play: 'Jalankan percakapan',
 		pause: 'Jeda percakapan',
-		foot: 'Pertanyaannya contoh, tapi jawabannya dihitung mesin skor yang sama dengan aplikasinya.',
-		footMock: 'atribut misi masih data contoh.'
+		foot: 'Pertanyaannya contoh, tapi jawabannya dihitung mesin skor yang sama dengan aplikasinya.'
 	},
 
 	data: {
 		mark: 'Data',
 		title: 'Kawasan yang datanya belum ada kami tampilkan apa adanya.',
-		body: 'Kalau di satu kawasan datanya belum ada, kami tidak mengarang angka penggantinya. Kawasannya ditandai kosong dan masuk antrean untuk disurvei duluan. Setiap angka juga menyebut berapa banyak data di baliknya, biar Anda bisa menilai sendiri seberapa kuat dasarnya.',
-		gridWithData: 'petak sudah ada datanya',
-		gridEmpty: 'belum terdata, tidak dinilai, masuk antrean survei',
+		body: 'Kalau kota satu kawasan belum ada di katalog, kami tidak mengarang angka penggantinya. Kawasannya ditandai kosong dan masuk antrean untuk disurvei duluan. Tidak ada satu pun angka di produk ini yang dibangkitkan: semuanya cacah dari OpenStreetMap atau dari katalog MAPID, dan tiap angka bisa ditelusuri sampai ke titik sumbernya.',
+		gridWithData: 'petak kotanya sudah disurvei',
+		gridEmpty: 'belum disurvei, tidak dinilai, masuk antrean',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
-			`Kisi ${total} petak: ${terdata} sudah ada datanya, ${nodata} belum.`,
+			`Kisi ${total} petak: ${terdata} kotanya sudah disurvei, ${nodata} belum.`,
 		realTitle: 'Yang nyata',
 		realUnit: (stops: string) =>
 			`${stops} titik transit empat moda, lengkap dengan geometri jalurnya, dari OpenStreetMap lewat Overpass API (ODbL). Akses transit tiap petak dihitung dari sini.`,
 		poiTitle: 'Pesaing terdata, per jenis usaha',
 		poiUnit: (pois: string) =>
 			`${pois} titik usaha sejenis, juga dari OpenStreetMap. Inilah angka pesaing yang dipakai mesin skor, bukan perkiraan.`,
-		mockTitle: 'Yang masih contoh',
+		mockTitle: 'Yang sengaja tidak ada',
 		mockNote:
-			'Atribut khas dataset misi MAPID (Struk Go, Menu Go, Properti Go, termasuk profil 24 jam dan jumlah tempat yang disewakan) masih berupa contoh, karena datanya baru dibuka untuk 50 tim terkurasi. Strukturnya sudah mengikuti kolom aslinya, dan semua akses data lewat satu modul, jadi penggantian ke API MAPID tidak menyentuh kode antarmuka. Sampai itu terjadi, penanda MOCK ikut ke mana pun angkanya muncul.'
+			'Tidak ada profil 24 jam, tidak ada jumlah struk, tidak ada porsi non-tunai, dan tidak ada listing sewa per jenis usaha. Semua itu dulu ada di produk ini sebagai data contoh yang dibangkitkan, dan sekarang dihapus seluruhnya. Katalog MAPID untuk Jakarta juga tidak memuat satu pun listing sewa, jadi harga yang ditampilkan adalah harga jual dan disebut harga jual. Yang tidak terukur lebih baik tidak ada di layar daripada ada tapi dikarang.'
 	},
 
-	hourChart: {
-		caption: 'Transaksi per jam, seluruh kawasan yang sudah terdata.',
-		table: 'Angka per jamnya',
-		colHour: 'Jam',
-		colValue: 'Struk',
-		tableCaption: 'Jumlah struk per jam',
-		peak: 'puncak',
-		unit: 'struk',
-		unitApp: 'transaksi',
-		label: (total: string, jam: string, puncak: string, unit: string) =>
-			`Profil 24 jam: total ${total} ${unit}, paling ramai pukul ${jam} dengan ${puncak} ${unit}.`,
-		bar: (jam: string, nilai: string, unit: string) => `Pukul ${jam}: ${nilai} ${unit}`
+	spreadChart: {
+		caption: 'Sebaran petak menurut jumlah usaha dalam radius jalan kaki, katalog MAPID.',
+		table: 'Angka per kelompoknya',
+		colBand: 'Sampai',
+		colValue: 'Petak',
+		tableCaption: 'Jumlah petak per kelompok kepadatan usaha',
+		peak: 'terbanyak sampai',
+		unit: 'petak',
+		upTo: (batas: string) => `sampai ${batas} usaha`,
+		label: (total: string, batas: string, puncak: string, unit: string) =>
+			`Sebaran ${total} ${unit}, paling banyak di kelompok sampai ${batas} usaha dengan ${puncak} ${unit}.`,
+		bar: (batas: string, nilai: string, unit: string) => `Sampai ${batas} usaha: ${nilai} ${unit}`
 	},
 
-	scale: { low: '0 · kecil', high: '100 · besar', nodata: 'belum terdata, tidak diberi nilai' },
+	scale: { low: '0 · kecil', high: '100 · besar', nodata: 'belum disurvei, tidak diberi nilai' },
 
 	audience: {
 		mark: 'Untuk siapa',
@@ -295,7 +293,7 @@ export const id = {
 		campus: 'Universitas Bina Nusantara',
 		dataLabel: 'Data',
 		dataNote:
-			'Geometri dan POI © OpenStreetMap contributors (ODbL). Atribut misi MAPID masih contoh. Basemap wajib pada produk final: MAPID MAPS.'
+			'Geometri dan POI © OpenStreetMap contributors (ODbL). Titik usaha dan properti komersial dari katalog Data Premium MAPID. Basemap wajib pada produk final: MAPID MAPS.'
 	},
 
 	meta: {
@@ -310,45 +308,22 @@ export const id = {
 		competitive: 'Bersaing ketat',
 		saturated: 'Sudah jenuh',
 		'busy-limited-space': 'Ramai, tempat terbatas',
-		'no-data': 'Belum terdata',
-		'not-covered': 'Belum tercakup'
+		'not-covered': 'Belum disurvei'
 	},
 
 	supply: {
-		denseBusy: 'jumlahnya padat dan kebanyakan ramai, jadi celahnya sempit',
-		denseQuiet: 'jumlahnya padat tapi kebanyakan sepi, tandanya sudah jenuh',
-		fewBusy: 'jumlahnya sedikit tapi kebanyakan ramai, permintaannya tampak tertahan',
-		fewQuiet: 'jumlahnya sedikit dan kebanyakan sepi'
+		denseBusy: 'pesaingnya padat tapi kawasannya memang ramai, jadi celahnya sempit',
+		denseQuiet: 'pesaingnya padat padahal kawasannya sepi, tandanya sudah jenuh',
+		fewBusy: 'pesaingnya sedikit padahal kawasannya ramai, celahnya justru di situ',
+		fewQuiet: 'pesaingnya sedikit dan kawasannya juga sepi'
 	},
 
-	detail: {
-		empty: 'Pilih satu petak di peta atau di tabel untuk melihat permintaan, persaingan, dan tempat usaha yang tersedia.',
-		catchment: (r: number) => `jangkauan ${r} m`,
-		nodata: (osm: number, cat: string, r: number) =>
-			`Data misi MAPID belum ada di petak ini (N = 0). Tidak ada titik Struk Go, Menu Go, maupun Properti Go di dalamnya, jadi skornya tidak kami isi. Kawasan ini masuk daftar prioritas survei. Tidak ada data bukan berarti tidak ada usaha: OSM mencatat ${osm} ${cat} dalam radius ${r} m.`,
-		score: (cat: string) => `Skor ${cat}`,
-		demand: 'Permintaan',
-		nStruk: (n: number) => `N struk = ${n}`,
-		rivals: 'Pesaing',
-		supplyEff: 'Penawaran efektif',
-		busyPct: (p: string) => `${p}% ramai`,
-		space: 'Tempat usaha',
-		listingOf: (n: number) => `listing dari ${n}`,
-		cashless: 'Non-tunai',
-		cashlessSub: 'perkiraan daya beli',
-		hourTitle: (n: number) => `Transaksi per jam · Struk Go · N = ${n}`,
-		acrossTitle: 'Peluang per jenis usaha, dengan bobot saat ini',
-		summaryLead: 'Ringkasan.',
-		summary: (jam: string, cat: string, osm: number, r: number, frasa: string, listing: number, kat: string) =>
-			`Petak ini paling ramai pukul ${jam}. Untuk ${cat}, OSM mencatat ${osm} pesaing dalam radius ${r} m, dan ${frasa}. Tersedia ${listing} listing berkategori ${kat}.`,
-		summaryNote:
-			'Angka pesaing dari OSM (nyata), sedangkan atribut misi MAPID masih contoh. N ditampilkan supaya bisa diperiksa.'
-	},
 
 	/* ── Susunan skor ──────────────────────────────────────────────────────
 	   Panel ini yang menjawab "kenapa segini?". Urutannya sengaja: yang dipimpin
-	   adalah simpul transit — satu-satunya masukan yang datanya nyata, dan memang
-	   itu inti proyek ini — baru sesudahnya rinciannya langkah per langkah. */
+	   adalah simpul transit, karena itu inti proyek ini, baru sesudahnya rinciannya
+	   langkah per langkah. Dulu di sini tertulis bahwa transit satu-satunya masukan
+	   yang datanya nyata. Sekarang semuanya nyata, jadi alasan itu gugur. */
 	breakdown: {
 		title: 'Susunan skor',
 		lead: 'Skor di atas dibentuk berurutan. Tiap langkah bisa ditelusuri sampai ke datanya.',
@@ -529,60 +504,7 @@ export const id = {
 			`${num(n)} listing properti komersial dari katalog Data Premium MAPID, ${kota} kota administrasi. Semuanya listing jual.`
 	},
 
-	table: {
-		cols: {
-			name: 'Petak',
-			score: 'Skor',
-			demand: 'Permintaan',
-			supply: 'Penawaran',
-			osm: 'Pesaing (OSM)',
-			listings: 'Listing',
-			nTot: 'N misi',
-			typology: 'Tipologi'
-		},
-		empty: 'Tidak ada petak untuk ditampilkan.'
-	},
 
-	control: {
-		weights: 'Bobot peluang',
-		demand: 'Permintaan',
-		demandHint: 'Struk Go: jumlah transaksi, jenis belanja, jam ramai, dan porsi non-tunai.',
-		supply: 'Persaingan',
-		supplyHint: 'Menu Go: kepadatan pesaing dibobot seramai apa pembelinya. Pesaing ramai menekan lebih keras.',
-		gate: 'Gerbang tempat usaha',
-		gateLabel: 'Wajib ada listing',
-		gateSub: 'Tanpa tempat yang bisa ditempati, peluangnya tidak bisa dijalankan.',
-		walk: 'Jangkauan jalan kaki',
-		walkNote: (r: number) =>
-			`Tetap ${r} m, sekitar 10 menit jalan kaki. Dipakai waktu kisinya dibangun, untuk menghitung akses transit dan pesaing tiap petak.`,
-		layers: 'Layer',
-		layerNames: {
-			score: 'Skor peluang',
-			routes: 'Jalur angkutan',
-			poi: 'Pesaing petak terpilih',
-			nodata: 'Petak belum terdata',
-			label: 'Nama titik transit',
-			stops: 'Simpul transit petak terpilih'
-		},
-		legend: 'Legenda',
-		legendLow: 'Rendah',
-		legendHigh: 'Tinggi',
-		keyNodata: 'Belum terdata (N = 0)',
-		keySaturated: 'Ditandai jenuh',
-		keyDot: 'Titik transit, klik untuk detail',
-		honesty: 'Kejujuran data',
-		honesty1: (terdata: number, total: number, titik: number) =>
-			`${terdata} dari ${total} petak punya data misi (${titik} titik contoh).`,
-		honesty2: (poi: number, r: number) => `${poi} POI pesaing terhitung dari OSM pada radius ${r} m.`,
-		honesty3:
-			'Petak tanpa data tidak diinterpolasi. Ia ditandai arsir dan masuk daftar prioritas survei. Tiap skor disertai N di panel dan tabel, supaya bisa dinilai sendiri seberapa tebal dasarnya.',
-		prov: 'Sumber data',
-		provReal:
-			'Titik transit empat moda (MRT, KRL, LRT, TransJakarta), geometri jalurnya, dan jumlah POI pesaing per radius, dari Overpass API (ODbL).',
-		provMock:
-			'Atribut khas dataset misi MAPID (Struk Go, Menu Go, Properti Go) karena datanya belum publik. Strukturnya mengikuti kolom asli, jadi tinggal ditukar begitu API MAPID tersedia.',
-		provBasemap: 'Basemap wajib pada produk final: MAPID MAPS.'
-	},
 
 	mood: {
 		busiest: 'paling ramai',
@@ -590,22 +512,19 @@ export const id = {
 		quiet: 'agak sepi',
 		empty: 'sepi',
 		nodata:
-			'Petak ini belum ada datanya, jadi jalannya sengaja dibiarkan kosong. Bukan berarti benar-benar sepi.',
-		reading: (jam: string, kata: string) => `Pukul ${jam} di sini ${kata}.`,
-		peakAt: (jam: string) => `Paling ramai sekitar pukul ${jam}.`,
-		rivals: (n: number, cat: string) => `Ada ${n} ${cat} lain di sekitarnya`,
-		listings: (n: number) => `dan ${n} tempat yang sedang disewakan.`,
-		noListings: 'dan tidak ada tempat yang sedang disewakan.',
+			'Kota petak ini belum ada di katalog, jadi jalannya sengaja dibiarkan kosong. Bukan berarti benar-benar sepi.',
+		reading: (n: number, kata: string) => `Ada ${n} usaha di radius jalan kaki sini, jadi ${kata}.`,
+		rivals: (n: number, cat: string) => `${n} di antaranya ${cat}`,
+		listings: (n: number) => `dan ${n} unit sedang dipasarkan.`,
+		noListings: 'dan tidak ada unit yang sedang dipasarkan.',
 		rows: {
 			score: 'Skor peluang',
-			demand: 'Permintaan',
+			demand: 'Keramaian',
 			supply: 'Penawaran efektif',
-			now: 'Transaksi jam ini',
-			peak: 'Puncak harian',
-			rivals: 'Pesaing (OSM)',
-			busy: 'Pesaing ramai',
-			space: 'Tempat disewakan',
-			points: 'Titik data'
+			around: 'Usaha lain di sekitar',
+			rivals: 'Pesaing sejenis',
+			access: 'Akses transit',
+			space: 'Unit dipasarkan'
 		},
 		/* ── Akses transit ──────────────────────────────────────────────────
 		   Bagian ini ditulis untuk pembaca yang tidak membaca angka indeks. Yang
@@ -677,11 +596,11 @@ export const id = {
 		rivalsNoPositions:
 			'OSM memberi cacah pesaing, bukan titiknya, jadi tidak ada yang bisa digambar. Ganti sumber ke MAPID di keterangan peta untuk melihat posisinya.',
 		rivalsFailed: 'Posisi pesaing gagal dimuat. Cacah di sebelahnya tidak terpengaruh.',
-		prov: 'Transaksi & tempat usaha: data contoh MAPID. Pesaing & titik transit: OSM.',
-		sceneLabel: (nama: string, jam: string, isi: string) => `Skema kawasan ${nama} pukul ${jam}. ${isi}`,
-		sceneNodata: 'Belum ada data untuk kawasan ini, jadi jalannya ditampilkan kosong.',
-		sceneBody: (n: number, osm: number, cat: string, listing: number) =>
-			`Sekitar ${n} transaksi pada jam ini, ${osm} ${cat} pesaing, dan ${listing} tempat yang sedang disewakan.`
+		prov: 'Titik usaha & properti: katalog MAPID. Pesaing & simpul transit: OSM.',
+		sceneLabel: (nama: string, isi: string) => `Skema kawasan ${nama}. ${isi}`,
+		sceneNodata: 'Kota kawasan ini belum disurvei, jadi jalannya ditampilkan kosong.',
+		sceneBody: (n: number, osm: number, cat: string, unit: number) =>
+			`Ada ${n} usaha dalam radius jalan kaki, ${osm} di antaranya ${cat} pesaing, dan ${unit} unit sedang dipasarkan.`
 	},
 
 	/* ── app ──────────────────────────────────────────────────────────────── */
@@ -694,13 +613,12 @@ export const id = {
 			'Sejauh apa dari titik tengah yang dihitung, untuk petak maupun tempat. Harga tiap jangkauan dihitung sendiri, bukan ditaksir dari jangkauan lain.',
 		categoryLabel: 'Jenis usaha',
 		coverage: (terdata: number, total: number, poi: number) =>
-			`${terdata}/${total} petak · ${poi} pesaing terdata`,
+			`${terdata}/${total} petak disurvei · ${poi} pesaing terdata`,
 		/* Cacah pesaing baru ada setelah kolom satu kategori dimuat. Sebelum itu
 		   kalimatnya berhenti di petak — menulis "0 pesaing terdata" berarti mengaku
 		   sudah menghitung dan tidak menemukan siapa pun, padahal belum menghitung. */
 		coverageCells: (terdata: number, total: number) => `${terdata}/${total} petak`,
-		coverageTitle:
-			'Petak yang sudah ada datanya, dan jumlah pesaing sejenis yang tercatat di OpenStreetMap',
+		coverageTitle: 'Petak yang kotanya sudah disurvei, dan jumlah pesaing sejenis yang tercatat',
 		advanced: 'Pengaturan lanjutan',
 		advancedClose: 'Tutup pengaturan',
 		tapak: 'Tapak',
@@ -729,7 +647,7 @@ export const id = {
 			`${n} petak belum tercakup data ${src} untuk ${cat}, jadi tidak dinilai. Itu bukan berarti tanpa pesaing`,
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} tidak punya data pesaing untuk ${cat}, jadi tidak ada petak yang bisa dinilai. Coba sumber ${other}.`,
-		legendNodata: (n: number) => `${n} petak belum terdata, tidak dinilai`,
+		legendNodata: (n: number) => `${n} petak kotanya belum disurvei, tidak dinilai`,
 		/* Peta panas menyatakan pendapat: petak mana yang bagus untuk satu jenis usaha.
 		   Ia baru muncul kalau memang diminta — lewat tombol ini, atau lewat Tapak yang
 		   menjawab pertanyaan. */
@@ -802,8 +720,6 @@ export const id = {
 		home: 'Kembali ke beranda SpotOn',
 		emptyMood: 'Belum ada kawasan yang dipilih. Tekan salah satu petak di peta untuk melihat suasananya.',
 		pickBest: (cat: string) => `Pilihkan yang terbaik untuk ${cat}`,
-		clock: 'Jam',
-		clockAria: 'Geser untuk melihat kawasan ini pada jam lain',
 		schema: 'skema, bukan denah sebenarnya',
 		fullNumbers: 'Lihat angka lengkapnya',
 		/* Tanda di peta, menempel pada petak yang dipilih. Sengaja cuma cacahnya:
@@ -817,8 +733,11 @@ export const id = {
 		mapRivalsAria: (n: number, r: number) =>
 			`${n} pesaing sejenis dalam ${r} m jalan kaki dari petak ini`,
 		mapReach: (r: number) => `jangkauan ${r} m`,
-		tipNodata: 'Data misi MAPID: N = 0 · kandidat prioritas survei',
+		tipNodata: 'Kotanya belum disurvei · kandidat prioritas survei',
 		tipScore: (cat: string) => `skor ${cat}`,
+		tipBusy: (n: number) => `${n} usaha di sekitar`,
+		tipRivals: (n: number) => `${n} pesaing`,
+		tipUnits: (n: number) => `${n} unit dipasarkan`,
 		sheet: 'Panel informasi',
 		sheetGrip: 'Ubah tinggi panel'
 	},
@@ -872,15 +791,15 @@ export const id = {
 		nowByUnit:
 			'Petanya saya ganti ke per tempat, jadi yang jadi barisnya tempat usahanya sendiri, bukan kawasannya.',
 		nowByCell: 'Petanya saya balikkan ke per petak, jadi barisnya kawasan lagi.',
-		remarkNodata: (name: string, osm: number, cat: string) =>
-			`${name} belum ada datanya, jadi saya tidak berani menilai. Yang saya tahu cuma ada ${osm} ${cat} di sekitarnya menurut peta terbuka.`,
+		remarkUncovered: (name: string, cat: string) =>
+			`Kota ${name} belum ada di katalog, jadi ${cat} di sekitarnya belum pernah dihitung dan saya tidak berani menilai. Bukan berarti tidak ada pesaingnya.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
 			`${name} ${verdict} untuk ${cat}, nilainya ${nilai}. Ada ${osm} pesaing sejenis, dan ${listing}.`,
 		verdictGood: 'termasuk bagus',
 		verdictMid: 'menengah',
 		verdictLow: 'terus terang kurang menjanjikan',
-		listingSome: (n: number) => `${n} tempat sedang disewakan`,
-		listingNone: 'tidak ada tempat yang sedang disewakan'
+		listingSome: (n: number) => `${n} unit sedang dipasarkan`,
+		listingNone: 'tidak ada unit yang sedang dipasarkan'
 	},
 
 	/* ── Ngobrol biasa ─────────────────────────────────────────────────────
@@ -1000,14 +919,10 @@ export const id = {
 		   menamainya begitu bakal jadi satu-satunya kebohongan di layar. */
 		metrics: {
 			skor: 'skor peluang',
-			permintaan: 'permintaan',
+			permintaan: 'keramaian kawasan',
 			penawaran: 'penawaran efektif',
 			pesaing: 'jumlah pesaing',
-			keramaian: 'keramaian',
-			kunjungan: 'transaksi tercatat',
-			jam_puncak: 'jam puncak',
-			nontunai: 'porsi non-tunai',
-			listing: 'listing ruang usaha',
+			keramaian: 'jumlah usaha di sekitar',
 			harga_tempat: 'harga jual tempat usaha',
 			unit_dipasarkan: 'unit yang dipasarkan',
 			akses_transit: 'akses transit',
