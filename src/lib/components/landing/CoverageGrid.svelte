@@ -1,26 +1,30 @@
 <script lang="ts">
 	/**
-	 * One hexagon per H3 cell — 558 of them, in the same order as the grid.
+	 * One hexagon per H3 cell, in the same order as the grid.
 	 *
 	 * Drawn isometric and with thickness rather than flat, because the model on the
 	 * stage above has already set the language: white objects seen from above and to
 	 * the side, with their sides visible. A flat grid on the same page would read as
 	 * an image borrowed from a different product.
 	 *
-	 * Cells with no data yet are drawn as holes — edges only, no body and no sides.
-	 * Not given the palest colour: the palest colour still reads as "a small value",
-	 * and that is not what is happening here. What is happening is that we do not
-	 * know.
+	 * Cells whose city has not been surveyed are drawn as holes — edges only, no body
+	 * and no sides. Not given the palest colour: the palest colour still reads as "a
+	 * small value", and that is not what is happening here. What is happening is that we
+	 * do not know.
+	 *
+	 * The holes are a fact about the catalogue's reach now. They used to be a flag set
+	 * by a random number generator when the grid was built, which made this picture an
+	 * honest-looking drawing of nothing.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
 
 	interface Props {
-		/** One character per cell, '1' = no data yet. */
+		/** One character per cell, '1' = this cell's city has not been surveyed. */
 		mask: string;
-		withData: number;
-		nodata: number;
+		surveyed: number;
+		unsurveyed: number;
 	}
-	let { mask, withData, nodata }: Props = $props();
+	let { mask, surveyed, unsurveyed }: Props = $props();
 
 	const c = $derived(copy());
 
@@ -65,7 +69,7 @@
 	<svg
 		viewBox={`-1 -1 ${w + 2} ${h + 2}`}
 		role="img"
-		aria-label={c.data.gridLabel(mask.length, withData, nodata)}
+		aria-label={c.data.gridLabel(mask.length, surveyed, unsurveyed)}
 	>
 		<defs>
 			<!-- One gradient across the whole field, not one per cell: the light
@@ -93,11 +97,11 @@
 	<figcaption>
 		<span class="key">
 			<span class="sw ada" aria-hidden="true"></span>
-			<b>{withData}</b> {c.data.gridWithData}
+			<b>{surveyed}</b> {c.data.gridWithData}
 		</span>
 		<span class="key">
 			<span class="sw empty" aria-hidden="true"></span>
-			<b>{nodata}</b> {c.data.gridEmpty}
+			<b>{unsurveyed}</b> {c.data.gridEmpty}
 		</span>
 	</figcaption>
 </figure>

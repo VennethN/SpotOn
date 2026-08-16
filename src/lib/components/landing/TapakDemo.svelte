@@ -213,11 +213,9 @@
 		{/if}
 	</div>
 
-	<p class="foot">
-		{c.ai.foot}
-		<span class="tag mock">MOCK</span>
-		{c.ai.footMock}
-	</p>
+	<!-- The MOCK tag that stood here, and the sentence after it admitting the mission
+	     attributes were samples, are gone with the attributes themselves. -->
+	<p class="foot">{c.ai.foot}</p>
 </div>
 
 <style>

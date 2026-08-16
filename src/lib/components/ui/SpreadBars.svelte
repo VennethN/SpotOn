@@ -1,91 +1,106 @@
 <script lang="ts">
 	/**
-	 * A 24-hour profile: one bar per hour, with the peak picked out.
+	 * A distribution: one bar per band, with the fullest band picked out.
 	 *
-	 * The same chart is used in the app's detail panel and on the landing page.
-	 * It used to be drawn twice with different code, so a fix to one chart never
-	 * reached the other.
+	 * This was a 24-hour profile, and the series behind it — receipts per hour, summed
+	 * over the grid — was generated cell by cell. Nobody has counted an hour of trade in
+	 * Jakarta. What is counted is how many businesses stand within walking range of each
+	 * cell, so the chart now shows how those cells are spread across that count: most
+	 * quiet, a long tail of dense ones.
 	 *
-	 * One series, one hue — height carries the magnitude, the colour carries
-	 * nothing beyond "this is the data". Only the peak hour gets a label;
-	 * putting a number on 24 bars means not one of them reads. The full
-	 * figures are supplied by the caller, in the collapsible table.
+	 * One series, one hue — height carries the magnitude, the colour carries nothing
+	 * beyond "this is the data". Only the fullest band gets a label; putting a number on
+	 * every bar means not one of them reads. The full figures are supplied by the caller,
+	 * in the collapsible table.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
-	import { formatHour, num } from '$lib/utils/format';
+	import { num } from '$lib/utils/format';
+
+	export interface Band {
+		/** The top of this band, inclusive — bands run from the one below it up to here. */
+		upTo: number;
+		/** How many cells fall in it. */
+		cells: number;
+	}
 
 	interface Props {
-		/** 24 values, index = hour. */
-		hourly: number[];
-		/** Unit for screen readers and the tooltip. Empty = the app's unit. */
+		bands: Band[];
+		/** What one bar counts, for screen readers and the tooltip. */
 		unit?: string;
 		/** Compact: short height for narrow panels, no axis and no tooltip. */
 		dense?: boolean;
 	}
-	let { hourly, unit, dense = false }: Props = $props();
+	let { bands, unit, dense = false }: Props = $props();
 
 	const c = $derived(copy());
-	const u = $derived(unit ?? c.hourChart.unitApp);
+	const u = $derived(unit ?? c.spreadChart.unit);
 
-	const peak = $derived(Math.max(1, ...hourly));
-	const peakHour = $derived(hourly.indexOf(Math.max(...hourly)));
-	const total = $derived(hourly.reduce((a, b) => a + b, 0));
-	// Hour ticks that land right under the peak label are skipped; two labels
-	// stacked on each other is worse than one missing tick.
-	const ticks = $derived([0, 6, 12, 18].filter((h) => Math.abs(h - peakHour) > 1.5));
+	const values = $derived(bands.map((b) => b.cells));
+	const peak = $derived(Math.max(1, ...values));
+	const peakAt = $derived(values.indexOf(Math.max(...values)));
+	const total = $derived(values.reduce((a, b) => a + b, 0));
+	// Ticks that land right under the peak label are skipped; two labels stacked on
+	// each other is worse than one missing tick.
+	const ticks = $derived(
+		[0, Math.floor(bands.length / 2), bands.length - 1].filter(
+			(i) => i >= 0 && Math.abs(i - peakAt) > 1.5
+		)
+	);
 
 	let hover = $state<number | null>(null);
 
-	const at = (h: number) => ((h + 0.5) / 24) * 100;
+	const at = (i: number) => ((i + 0.5) / Math.max(1, bands.length)) * 100;
 	/**
 	 * Axis labels are centred on their bar, except at both edges: there half
 	 * the label falls outside the plot and the number gets clipped.
 	 */
-	const anchor = (h: number) => (at(h) < 6 ? '0' : at(h) > 94 ? '-100%' : '-50%');
+	const anchor = (i: number) => (at(i) < 6 ? '0' : at(i) > 94 ? '-100%' : '-50%');
+	const band = (i: number) => num(bands[i]?.upTo ?? 0);
 </script>
 
-<div class="hours" class:dense>
+<div class="bars" class:dense>
 	<div
 		class="plot"
 		role="img"
-		aria-label={c.hourChart.label(num(total), formatHour(peakHour), num(peak), u)}
+		aria-label={c.spreadChart.label(num(total), band(peakAt), num(peak), u)}
 		onpointerleave={() => (hover = null)}
 	>
-		{#each hourly as v, h (h)}
+		{#each bands as b, i (b.upTo)}
 			<button
 				type="button"
 				class="col"
-				class:on={h === peakHour}
-				class:hot={hover === h}
-				aria-label={c.hourChart.bar(formatHour(h), num(v), u)}
-				onpointerenter={() => (hover = h)}
-				onfocus={() => (hover = h)}
+				class:on={i === peakAt}
+				class:hot={hover === i}
+				aria-label={c.spreadChart.bar(band(i), num(b.cells), u)}
+				onpointerenter={() => (hover = i)}
+				onfocus={() => (hover = i)}
 				onblur={() => (hover = null)}
 			>
-				<span class="bar" style:height={`${Math.max(1.5, (v / peak) * 100)}%`}></span>
+				<span class="bar" style:height={`${Math.max(1.5, (b.cells / peak) * 100)}%`}></span>
 			</button>
 		{/each}
 
 		{#if hover !== null && !dense}
 			<span class="tip" style:left={`${at(hover)}%`}>
-				<b>{num(hourly[hover])}</b>
-				{u} · {formatHour(hover)}
+				<b>{num(bands[hover].cells)}</b>
+				{u} · {c.spreadChart.upTo(band(hover))}
 			</span>
 		{/if}
 	</div>
 
 	<div class="axis" aria-hidden="true">
-		{#each ticks as h (h)}
-			<span style:left={`${at(h)}%`} style:--anchor={anchor(h)}>{formatHour(h)}</span>
+		{#each ticks as i (i)}
+			<span style:left={`${at(i)}%`} style:--anchor={anchor(i)}>{band(i)}</span>
 		{/each}
-		<span class="peak" style:left={`${at(peakHour)}%`} style:--anchor={anchor(peakHour)}>
-			{c.hourChart.peak} {formatHour(peakHour)}
+		<span class="peak" style:left={`${at(peakAt)}%`} style:--anchor={anchor(peakAt)}>
+			{c.spreadChart.peak}
+			{band(peakAt)}
 		</span>
 	</div>
 </div>
 
 <style>
-	.hours {
+	.bars {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;

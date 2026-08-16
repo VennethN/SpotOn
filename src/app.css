@@ -398,10 +398,6 @@ code,
 	border-color: color-mix(in srgb, var(--good) 55%, transparent);
 	color: var(--good);
 }
-.tag.mock {
-	border-color: color-mix(in srgb, var(--warn) 55%, transparent);
-	color: var(--warn);
-}
 
 .muted {
 	color: var(--label-3);
