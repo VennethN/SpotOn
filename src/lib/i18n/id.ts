@@ -233,7 +233,7 @@ export const id = {
 	data: {
 		mark: 'Data',
 		title: 'Kawasan yang datanya belum ada kami tampilkan apa adanya.',
-		body: 'Kalau kota satu kawasan belum ada di katalog, kami tidak mengarang angka penggantinya. Kawasannya ditandai kosong dan masuk antrean untuk disurvei duluan. Tidak ada satu pun angka di produk ini yang dibangkitkan: semuanya cacah dari OpenStreetMap atau dari katalog MAPID, dan tiap angka bisa ditelusuri sampai ke titik sumbernya.',
+		body: 'Kalau kota satu kawasan belum ada di katalog, kami tidak mengarang angka penggantinya. Kawasannya ditandai kosong dan masuk antrean untuk disurvei duluan.',
 		gridWithData: 'petak kotanya sudah disurvei',
 		gridEmpty: 'belum disurvei, tidak dinilai, masuk antrean',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
@@ -246,7 +246,7 @@ export const id = {
 			`${pois} titik usaha sejenis, juga dari OpenStreetMap. Inilah angka pesaing yang dipakai mesin skor, bukan perkiraan.`,
 		mockTitle: 'Yang sengaja tidak ada',
 		mockNote:
-			'Tidak ada profil 24 jam, tidak ada jumlah struk, tidak ada porsi non-tunai, dan tidak ada listing sewa per jenis usaha. Semua itu dulu ada di produk ini sebagai data contoh yang dibangkitkan, dan sekarang dihapus seluruhnya. Katalog MAPID untuk Jakarta juga tidak memuat satu pun listing sewa, jadi harga yang ditampilkan adalah harga jual dan disebut harga jual. Yang tidak terukur lebih baik tidak ada di layar daripada ada tapi dikarang.'
+			'Tidak ada satu pun angka di produk ini yang dibangkitkan. Tidak ada profil 24 jam, tidak ada jumlah struk, tidak ada porsi non-tunai, dan tidak ada listing sewa per jenis usaha. Semua itu dulu ada di produk ini sebagai data contoh yang dibangkitkan, dan sekarang dihapus seluruhnya. Katalog MAPID untuk Jakarta juga tidak memuat satu pun listing sewa, jadi harga yang ditampilkan adalah harga jual dan disebut harga jual. Yang tidak terukur lebih baik tidak ada di layar daripada ada tapi dikarang.'
 	},
 
 	spreadChart: {

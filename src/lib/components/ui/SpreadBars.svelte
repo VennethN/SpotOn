@@ -256,8 +256,10 @@
 	.axis {
 		position: relative;
 		height: 1.6rem;
-		font-size: 0.625rem;
-		color: var(--label-3);
+		/* A step up from 0.625rem and one label brighter: at the smaller size the axis
+		   was legible on paper and gone in the dark. */
+		font-size: 0.6875rem;
+		color: var(--label-2);
 	}
 	.dense .axis {
 		height: 1.1rem;
