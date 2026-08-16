@@ -5,7 +5,7 @@ import { scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
 import { DICT, LANGS, type Copy, type Lang } from '$lib/i18n';
 import { grid, loadHexes } from '$lib/server/source';
-import type { CategoryKey, StructuredQuery } from '$lib/types';
+import type { CategoryKey, Hex, StructuredQuery } from '$lib/types';
 import type { PageServerLoad } from './$types';
 
 /**
@@ -205,9 +205,7 @@ export const load: PageServerLoad = () => {
 			mapidPoints: grid.mapid?.points ?? 0,
 			listings: grid.property?.listings ?? 0
 		},
-		// One character per cell, in grid order: 1 = its city has not been surveyed. Sent
-		// as text so 562 booleans do not become 562 lines of JSON.
-		coverageMask: hexes.map((h) => (h.dens.mapid === null ? '1' : '0')).join(''),
+		coverage: coverageMap(hexes),
 		spread,
 		field,
 		stage: {
@@ -228,6 +226,62 @@ export const load: PageServerLoad = () => {
  * evenly spaced because the reader is meant to see the shape of the distribution — most
  * cells quiet, a long tail of dense ones — rather than a ranking.
  */
+/**
+ * The coverage picture: every cell WHERE IT ACTUALLY IS.
+ *
+ * What stood here was one hexagon per cell laid out in grid order, 31 to a row. Grid
+ * order is by transit access, so the picture had the shape of a rectangle and the holes
+ * in it fell wherever the sort happened to put them. It looked exactly like a map of
+ * Jakarta and was a map of nothing, which is the one thing this section is about not
+ * doing.
+ *
+ * These are the real centres, in a plain equirectangular projection with the longitudes
+ * scaled by the cosine of the middle latitude so the city is not stretched sideways.
+ * The radius is derived from the closest pair of cells on the grid rather than typed in,
+ * so the hexagons tile at whatever resolution the grid is rebuilt at.
+ */
+function coverageMap(hexes: Hex[]) {
+	const lats = hexes.map((h) => h.lat);
+	const lons = hexes.map((h) => h.lon);
+	const latMid = (Math.min(...lats) + Math.max(...lats)) / 2;
+	const kx = Math.cos((latMid * Math.PI) / 180);
+	const x0 = Math.min(...lons) * kx;
+	const y0 = Math.max(...lats);
+	const raw = hexes.map((h) => ({
+		x: h.lon * kx - x0,
+		y: y0 - h.lat,
+		surveyed: h.dens.mapid !== null
+	}));
+
+	// Scale so the field is 1000 units wide, whatever the city's extent.
+	const w = Math.max(...raw.map((p) => p.x)) || 1;
+	const k = 1000 / w;
+	const pts = raw.map((p) => ({
+		x: Math.round(p.x * k * 10) / 10,
+		y: Math.round(p.y * k * 10) / 10,
+		s: p.surveyed
+	}));
+
+	// The nearest neighbour of a handful of cells, which is one cell pitch. Sampled
+	// rather than computed for all 562, because this is a drawing size and not a figure
+	// anybody reads.
+	let pitch = Infinity;
+	for (let i = 0; i < pts.length; i += 17) {
+		for (const q of pts) {
+			if (q === pts[i]) continue;
+			const d = Math.hypot(q.x - pts[i].x, q.y - pts[i].y);
+			if (d > 0.01 && d < pitch) pitch = d;
+		}
+	}
+
+	return {
+		pts,
+		height: Math.round(Math.max(...pts.map((p) => p.y)) * 10) / 10,
+		/** Centre to vertex. A pointy-top hexagon's width is `sqrt(3) x` this. */
+		radius: Math.round((pitch / Math.sqrt(3)) * 100) / 100
+	};
+}
+
 /**
  * `n` values taken evenly across a ranking, best first.
  *
