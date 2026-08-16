@@ -83,13 +83,22 @@
 
 	   Clear of `MapControls`, which took the very bottom of that middle column. The two
 	   used to be given the same corner and the toast landed on top of the pivot switch,
-	   hiding half of it behind a remark about the cell the reader had just chosen. */
+	   hiding half of it behind a remark about the cell the reader had just chosen.
+
+	   Centred by auto margins between a pinned left and right, NOT by translateX(-50%).
+	   `transition:fly` writes a transform inline, and an inline transform replaces the
+	   one from here rather than adding to it: with the centring done that way, the toast
+	   spent its whole entrance sitting half a width to the right of where it belongs and
+	   only snapped into place once Svelte dropped the inline style. Keeping the transform
+	   property free for the transition is what makes it land centred from the first
+	   frame. */
 	.toast {
 		position: fixed;
-		left: 50%;
+		left: 0;
+		right: 0;
 		bottom: 3.75rem;
 		z-index: 7;
-		transform: translateX(-50%);
+		margin-inline: auto;
 		display: flex;
 		align-items: flex-start;
 		gap: 0.625rem;
@@ -148,7 +157,6 @@
 			right: 4.25rem;
 			width: auto;
 			max-width: none;
-			transform: none;
 		}
 	}
 </style>
