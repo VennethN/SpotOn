@@ -224,7 +224,7 @@
 
 		<Reveal delay={60} distance={12}>
 			<div class="panel">
-				<CoverageGrid mask={data.coverageMask} surveyed={k.surveyed} unsurveyed={k.unsurveyed} />
+				<CoverageGrid map={data.coverage} surveyed={k.surveyed} unsurveyed={k.unsurveyed} />
 			</div>
 		</Reveal>
 
