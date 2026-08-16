@@ -156,15 +156,19 @@ const rows = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, 'kopi');
 check('every measure has a definition', metrics.METRIC_KEYS.every((k) => metrics.METRIC_MAP[k]));
 check(
 	'every measure declares which end is best',
-	metrics.METRICS.every((m) => m.best === 'asc' || m.best === 'desc')
+	Object.values(metrics.METRIC_MAP).every((m) => m.best === 'asc' || m.best === 'desc')
 );
 check(
-	'no measure is unreadable across the whole grid',
-	metrics.METRIC_KEYS.every((k) => {
-		const def = metrics.METRIC_MAP[k];
-		const all = nlq.answer('x', cells, W, 'kopi');
-		return all && typeof def.read === 'function';
-	})
+	'every measure can actually be read',
+	metrics.METRIC_KEYS.every((k) => typeof metrics.METRIC_MAP[k].read === 'function')
+);
+// The keys and the table are one object now, so they cannot come apart — but the key
+// list is what the model's tool schema is built from, so an empty one would silently
+// offer it nothing to choose between.
+check(
+	`the key list is derived from the table (${metrics.METRIC_KEYS.length} measures)`,
+	metrics.METRIC_KEYS.length === Object.keys(metrics.METRIC_MAP).length &&
+		metrics.METRIC_KEYS.length > 0
 );
 check('the ranking helper drops unmeasured rows', rows.items.length > 0);
 

@@ -1,8 +1,8 @@
-import { isPremises } from './cost';
-import type { Listing } from './premises';
+import { isPremises, type Listing } from './premises';
+import { applyBands, rankRows, type Band, type Measure } from './rank';
 import { stopTotal } from './transit';
 import { haversine } from '$lib/utils/geo';
-import type { HexBase, ScoredHex } from '$lib/types';
+import type { HexBase, ScoredHex, UnitMetricKey } from '$lib/types';
 
 /**
  * The map, pivoted on the unit rather than the cell.
@@ -102,64 +102,47 @@ export function buildUnits(
 /**
  * The figures a unit can be ranked by.
  *
- * Deliberately a separate list from `domain/metrics`, not an extension of it. Those read
- * a catchment; these read a unit standing in one, and half of them — the asking price,
- * the floor area, the number of storeys — do not exist at cell level at all. Folding the
- * two together would produce one registry where half the entries are null for half the
- * callers, which is the shape that invites a `?? 0` and ends the honesty.
+ * Deliberately a separate table from `domain/metrics`, not an extension of it. Those
+ * read a catchment; these read a unit standing in one, and half of them — the asking
+ * price, the floor area, the number of storeys — do not exist at cell level at all.
+ * Folding the two together would produce one registry where half the entries are null
+ * for half the callers, which is the shape that invites a `?? 0` and ends the honesty.
  *
  * The cell-level entries are here too, read THROUGH the unit's home cell, because "the
  * cheapest unit in a catchment that actually has customers" is the question this pivot
  * exists to answer and it needs both halves in one sort.
+ *
+ * The ARITHMETIC is shared, in `domain/rank`. What differs between the two pivots is the
+ * row type and the list of measures; the rules about bands, dropped rows and composing
+ * filters are the same rules, and were written twice before they were written once.
  */
-export const UNIT_METRIC_KEYS = [
-	'harga',
-	'harga_m2',
-	'luas_tanah',
-	'luas_bangunan',
-	'lantai',
-	'skor_petak',
-	'permintaan_petak',
-	'pesaing_petak',
-	'akses_petak',
-	'jarak_pusat'
-] as const;
-
-export type UnitMetricKey = (typeof UNIT_METRIC_KEYS)[number];
-
-export interface UnitMetricDef {
-	key: UnitMetricKey;
-	read: (u: ScoredUnit) => number | null;
+export interface UnitMetricDef extends Measure<ScoredUnit> {
 	kind: 'rupiah' | 'area' | 'count' | 'pct' | 'metre';
-	/** Which end a plain "best" means. Cheapest price, highest score. */
-	best: 'asc' | 'desc';
 }
 
-export const UNIT_METRICS: UnitMetricDef[] = [
-	{ key: 'harga', read: (u) => u.listing.price, kind: 'rupiah', best: 'asc' },
-	{ key: 'harga_m2', read: (u) => u.listing.ppm, kind: 'rupiah', best: 'asc' },
-	{ key: 'luas_tanah', read: (u) => u.listing.land, kind: 'area', best: 'desc' },
-	{ key: 'luas_bangunan', read: (u) => u.listing.build, kind: 'area', best: 'desc' },
-	{ key: 'lantai', read: (u) => u.listing.floors, kind: 'count', best: 'desc' },
+/** Keyed rather than listed, so a key in the union without a definition here is a
+    compile error rather than an `undefined` at the far end of a sort. */
+export const UNIT_METRIC_MAP: Record<UnitMetricKey, UnitMetricDef> = {
+	harga: { read: (u) => u.listing.price, kind: 'rupiah', best: 'asc' },
+	harga_m2: { read: (u) => u.listing.ppm, kind: 'rupiah', best: 'asc' },
+	luas_tanah: { read: (u) => u.listing.land, kind: 'area', best: 'desc' },
+	luas_bangunan: { read: (u) => u.listing.build, kind: 'area', best: 'desc' },
+	lantai: { read: (u) => u.listing.floors, kind: 'count', best: 'desc' },
 	// Through the home cell. Null while the category's columns are still in the air, and
 	// null is dropped from a ranking rather than sorted last — the same rule the cell
-	// pivot follows, for the same reason.
-	{ key: 'skor_petak', read: (u) => u.row?.score ?? null, kind: 'pct', best: 'desc' },
-	{ key: 'permintaan_petak', read: (u) => u.row?.demand ?? null, kind: 'pct', best: 'desc' },
-	{
-		key: 'pesaing_petak',
+	// pivot follows, for the same reason, from the same module.
+	skor_petak: { read: (u) => u.row?.score ?? null, kind: 'pct', best: 'desc' },
+	permintaan_petak: { read: (u) => u.row?.demand ?? null, kind: 'pct', best: 'desc' },
+	pesaing_petak: {
 		read: (u) => (u.row && u.row.covered ? u.row.osm : null),
 		kind: 'count',
 		best: 'asc'
 	},
-	{ key: 'akses_petak', read: (u) => u.row?.access ?? null, kind: 'pct', best: 'desc' },
-	{ key: 'jarak_pusat', read: (u) => u.distance, kind: 'metre', best: 'asc' }
-];
+	akses_petak: { read: (u) => u.row?.access ?? null, kind: 'pct', best: 'desc' },
+	jarak_pusat: { read: (u) => u.distance, kind: 'metre', best: 'asc' }
+};
 
-export const UNIT_METRIC_MAP = Object.fromEntries(UNIT_METRICS.map((m) => [m.key, m])) as Record<
-	UnitMetricKey,
-	UnitMetricDef
->;
+export const UNIT_METRIC_KEYS = Object.keys(UNIT_METRIC_MAP) as UnitMetricKey[];
 
 export const isUnitMetric = (v: unknown): v is UnitMetricKey =>
 	typeof v === 'string' && (UNIT_METRIC_KEYS as readonly string[]).includes(v);
@@ -179,73 +162,23 @@ export const isUnitMetric = (v: unknown): v is UnitMetricKey =>
  */
 export const DEFAULT_UNIT_METRIC: UnitMetricKey = 'skor_petak';
 
-/** A band filter, exactly as the cell pivot expresses one: a third of the set, computed
-    from the set, never a threshold anybody typed. */
-export interface UnitFilter {
-	ukuran: UnitMetricKey;
-	arah: 'rendah' | 'tinggi' | 'ada';
-}
+/** A band filter, exactly as the cell pivot expresses one: a third of the current set,
+    computed from the set, never a threshold anybody typed. */
+export type UnitFilter = Band<UnitMetricKey>;
 
-function tercile(units: ScoredUnit[], def: UnitMetricDef): { low: number; high: number } | null {
-	const vals = units
-		.map((u) => def.read(u))
-		.filter((v): v is number => v !== null)
-		.sort((a, b) => a - b);
-	if (vals.length < 6) return null;
-	return {
-		low: vals[Math.floor(vals.length / 3)],
-		high: vals[Math.floor((vals.length * 2) / 3)]
-	};
-}
+export const applyUnitFilters = (units: ScoredUnit[], filters: UnitFilter[]): ScoredUnit[] =>
+	applyBands(units, filters, (k) => UNIT_METRIC_MAP[k]);
 
-export function applyUnitFilters(units: ScoredUnit[], filters: UnitFilter[]): ScoredUnit[] {
-	let out = units;
-	for (const f of filters) {
-		const def = UNIT_METRIC_MAP[f.ukuran];
-		if (!def) continue;
-		if (f.arah === 'ada') {
-			out = out.filter((u) => {
-				const v = def.read(u);
-				return v !== null && v > 0;
-			});
-			continue;
-		}
-		const band = tercile(out, def);
-		if (!band) continue;
-		out = out.filter((u) => {
-			const v = def.read(u);
-			if (v === null) return false;
-			return f.arah === 'rendah' ? v <= band.low : v >= band.high;
-		});
-	}
-	return out;
-}
-
-/**
- * Ranks units by one figure.
- *
- * Units with nothing measured for it are dropped rather than sorted last, as in the cell
- * pivot: a list of "the cheapest units" whose tail is really "the units with no price on
- * them" is worse than a shorter list, because nothing on screen separates the two.
- *
- * The tie-break is the home cell's opportunity score, so two units asking the same money
- * come back with the better-placed one first rather than in file order.
- */
-export function rankUnits(
+/** Ranks units by one figure, tie-broken by the home cell's opportunity score so two
+    units asking the same money come back better-placed first. */
+export const rankUnits = (
 	units: ScoredUnit[],
 	key: UnitMetricKey,
 	order: 'asc' | 'desc'
-): Array<{ unit: ScoredUnit; value: number }> {
-	const def = UNIT_METRIC_MAP[key];
-	if (!def) return [];
-	const sign = order === 'asc' ? 1 : -1;
-	return units
-		.map((unit) => ({ unit, value: def.read(unit) }))
-		.filter((x): x is { unit: ScoredUnit; value: number } => x.value !== null)
-		.sort(
-			(a, b) => sign * (a.value - b.value) || (b.unit.row?.score ?? 0) - (a.unit.row?.score ?? 0)
-		);
-}
+): Array<{ unit: ScoredUnit; value: number }> =>
+	rankRows(units, UNIT_METRIC_MAP[key], order, (u) => u.row?.score ?? 0).map(
+		({ row, value }) => ({ unit: row, value })
+	);
 
 /** How many transit nodes the unit's home cell captures. Read from the cell's own
     counts, so it is right before `stops.json` has arrived. */

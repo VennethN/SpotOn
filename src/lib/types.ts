@@ -1,7 +1,57 @@
-import type { ChatTopic } from '$lib/domain/chat';
-import type { MetricKey } from '$lib/domain/metrics';
+/**
+ * The figures a question can be asked about, and the measures of one unit on the market.
+ *
+ * Here rather than in `domain/metrics` and `domain/units` for the same reason
+ * `CategoryKey` is here: this file is the leaf that every layer may import, and a key
+ * union declared in the domain would make it import back upwards. It did, briefly, and
+ * a type-only cycle is still a cycle — the module everything depends on had come to
+ * depend on two modules that depend on it.
+ *
+ * The tables that give these keys meaning stay in the domain, declared as
+ * `Record<Key, …>` so a key added here without a definition, or a definition added
+ * there without a key, is a compile error rather than a gap nobody notices.
+ */
+export type MetricKey =
+	| 'skor'
+	| 'permintaan'
+	| 'penawaran'
+	| 'pesaing'
+	| 'keramaian'
+	| 'kunjungan'
+	| 'jam_puncak'
+	| 'nontunai'
+	| 'listing'
+	| 'harga_tempat'
+	| 'unit_dipasarkan'
+	| 'akses_transit'
+	| 'simpul_transit';
 
-export type { ChatTopic, MetricKey };
+/** The measures of one unit on the market — see `domain/units`. */
+export type UnitMetricKey =
+	| 'harga'
+	| 'harga_m2'
+	| 'luas_tanah'
+	| 'luas_bangunan'
+	| 'lantai'
+	| 'skor_petak'
+	| 'permintaan_petak'
+	| 'pesaing_petak'
+	| 'akses_petak'
+	| 'jarak_pusat';
+
+/** What a casual turn is allowed to be about — see `domain/chat`. */
+export type ChatTopic = 'sapaan' | 'tentang' | 'usaha';
+
+/** The commercial property families the catalogue publishes — see `domain/premises`. */
+export type PropertyType =
+	| 'ruko'
+	| 'toko'
+	| 'ruang'
+	| 'rukan'
+	| 'komersial'
+	| 'kantor'
+	| 'gedung'
+	| 'gudang';
 
 /** Keys of the business types SpotOn scores. Kept in Indonesian: they are the
     domain's own vocabulary and the values stored in the generated datasets. */

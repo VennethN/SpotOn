@@ -19,12 +19,13 @@
 	 * here does arithmetic of its own beyond turning a share into a percentage, so the
 	 * price on screen and the multiplier that moved the score cannot come apart.
 	 */
-	import { COST_FLOOR, readCost, type PropertyType } from '$lib/domain/cost';
+	import { COST_FLOOR, readCost } from '$lib/domain/cost';
 	import { composeScore } from '$lib/domain/composition';
 	import { byType, pricedPremises, withoutPrice } from '$lib/domain/premises';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
+	import type { PropertyType } from '$lib/types';
 
 	/** How many units get a row of their own before the rest become a count. Enough to
 	    show the spread of what is available without turning a panel into a listings site. */

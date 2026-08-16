@@ -7,8 +7,7 @@ import {
 	applyFilters,
 	rankBy,
 	resolveOrder,
-	type MetricFilter,
-	type MetricKey
+	type MetricFilter
 } from './metrics';
 import { supplyPhrase } from './narrate';
 import { scoreAll } from './scoring';
@@ -23,6 +22,7 @@ import type {
 	AiAnswer,
 	Hex,
 	CategoryKey,
+	MetricKey,
 	PoiSource,
 	Recommendation,
 	ScoredHex,
