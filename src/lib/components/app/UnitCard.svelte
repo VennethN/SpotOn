@@ -7,24 +7,39 @@
 	 * halves are on screen at once on purpose. A unit with no area figures is a listing
 	 * off a property site, and an area with no unit is advice nobody can act on.
 	 *
-	 * Every figure here already exists elsewhere in the product and is read, not
-	 * recomputed: the unit's own columns come from the listing, and the area's come from
-	 * the scored row of its home cell. The one thing this component works out for itself
-	 * is which of them are present.
+	 * WHY THE LOWER HALF IS THE AREA PANEL ITSELF
+	 *
+	 * It used to be a summary of it — a score, a competitor count, a stop count — and
+	 * next to the area card that read as the poor relation: the same subject, a tenth of
+	 * the detail, with nothing saying why. The catchment around a unit is not a lesser
+	 * question than the catchment on its own, so the answer is not a lesser answer. The
+	 * whole of `CatchmentDiorama` is here, which is exactly what `SpotCard` shows, and it
+	 * is the SAME component rather than a second version of it — two of them would drift,
+	 * and the day they did the two cards would describe the same place differently.
+	 *
+	 * That works because opening a unit selects its home cell (`selectUnit`), so every
+	 * panel underneath reads the catchment this unit actually stands in.
+	 *
+	 * Which leaves the two cards nearly identical in shape, which is the point and also
+	 * the risk — hence `PivotMark` in the header. One badge is a hexagon and the other is
+	 * a shopfront, and that is what tells 800 m of city apart from one front door at a
+	 * glance.
+	 *
+	 * Every figure is read, never recomputed: the unit's own columns come from the
+	 * listing, and the area's come from the scored row of its home cell.
 	 */
+	import CatchmentDiorama from '$lib/components/app/CatchmentDiorama.svelte';
+	import PivotMark from '$lib/components/ui/PivotMark.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { pct, rampIndex } from '$lib/utils/format';
-	import { stopTotal } from '$lib/domain/transit';
 
 	const app = getAppState();
 	const c = $derived(copy());
 	const unit = $derived(app.selectedUnit);
 	const l = $derived(unit?.listing ?? null);
 	const row = $derived(unit?.row ?? null);
-	const cell = $derived(unit ? (app.base.find((h) => h.id === unit.cellId) ?? null) : null);
-	const catMany = $derived(c.category[app.category].many.toLowerCase());
 
 	/** The unit's measured characteristics, skipping whatever the listing left empty. An
 	    absent floor count is left out rather than printed as one. */
@@ -38,11 +53,40 @@
 		if (l.cert) out.push(l.cert);
 		return out;
 	});
+
+	/**
+	 * Every column the listing carries, as rows — the unit's answer to the area panel's
+	 * "full figures".
+	 *
+	 * Built as a list rather than written out as markup so the empty columns disappear
+	 * instead of printing a dash. Half the catalogue leaves the floor count or the
+	 * certificate blank, and a table of dashes reads as a unit with nothing to say about
+	 * itself rather than as a record somebody filled in partially.
+	 */
+	const figures = $derived.by(() => {
+		if (!l || !unit) return [];
+		const r = c.units.rows;
+		const out: Array<[string, string]> = [
+			[r.type, c.property.types[l.type] ?? l.type],
+			[r.cell, unit.cellName],
+			[r.distance, c.units.value('jarak_pusat', unit.distance)]
+		];
+		if (l.price !== null) out.push([r.price, c.units.value('harga', l.price)]);
+		if (l.ppm !== null) out.push([r.ppm, c.units.value('harga_m2', l.ppm)]);
+		if (l.land !== null) out.push([r.land, c.units.value('luas_tanah', l.land)]);
+		if (l.build !== null) out.push([r.build, c.units.value('luas_bangunan', l.build)]);
+		if (l.floors !== null) out.push([r.floors, c.units.value('lantai', l.floors)]);
+		if (l.cert) out.push([r.cert, l.cert]);
+		return out;
+	});
 </script>
 
 {#if unit && l}
 	<div class="card">
 		<div class="head">
+			<!-- A shopfront, against the hexagon the area card carries. The two panels are
+			     deliberately alike below this line, so this is what says which one it is. -->
+			<PivotMark kind="unit" />
 			<div class="who">
 				<h2>{c.property.types[l.type] ?? l.type}</h2>
 				<p class="sub">
@@ -74,6 +118,20 @@
 		{:else}
 			<p class="note">{c.property.noneUnpriced(1)}</p>
 		{/if}
+		{#if figures.length}
+			<!-- Behind the same fold the area panel puts its figures behind, and for the
+			     same reason: the sentence above is the reading, and this is what it was
+			     read from, for whoever wants to check it. -->
+			<details class="numbers">
+				<summary>{c.units.cardFigures}</summary>
+				<dl>
+					{#each figures as [label, value] (label)}
+						<div><dt>{label}</dt><dd>{value}</dd></div>
+					{/each}
+				</dl>
+				<p class="prov">{c.units.provenance}</p>
+			</details>
+		{/if}
 
 		<SectionHead icon="market">{c.units.cardArea}</SectionHead>
 		{#if row && row.score !== null}
@@ -82,29 +140,17 @@
 				<span class="n">{pct(row.score)}</span>
 				<span class="lbl">{c.typology[row.typology]}</span>
 			</p>
-			<p class="traits">
-				{c.units.cardRivals(row.osm, catMany, app.weights.radius)}
-				{#if cell} · {c.units.cardStops(stopTotal(cell.transit))}{/if}
-			</p>
 		{:else}
 			<!-- The area cannot be scored for this business type. Said plainly, because a
-			     card with the area section simply missing reads as a loading state. -->
+			     card that skipped straight to the panel below would leave a reader hunting
+			     for a score that is never coming. The panel is still shown: what space
+			     costs and what the place reaches are real either way. -->
 			<p class="note">{c.units.cardNoScore}</p>
 		{/if}
 
-		<!-- The way back to the other pivot. The area panel says far more about the
-		     catchment than this card can, and a reader who wants that should not have to
-		     find the cell on the map by eye. -->
-		<button
-			type="button"
-			class="open"
-			onclick={() => {
-				app.setPivot('cell');
-				app.select(unit.cellId);
-			}}
-		>
-			{c.units.cardOpen}
-		</button>
+		<!-- The area card's whole contents, not a summary of them. Reads the selected
+		     cell, which `selectUnit` set to this unit's home cell. -->
+		<CatchmentDiorama />
 	</div>
 {/if}
 
@@ -117,7 +163,7 @@
 	.head {
 		display: flex;
 		align-items: flex-start;
-		gap: 0.625rem;
+		gap: 0.5rem;
 	}
 	.who {
 		flex: 1;
@@ -211,21 +257,42 @@
 		color: var(--label-2);
 	}
 
-	.open {
-		align-self: flex-start;
-		border: 1px solid var(--separator);
-		background: transparent;
-		color: var(--label-2);
-		border-radius: 999px;
-		padding: 0.25rem 0.625rem;
-		font-size: 0.6875rem;
+	/* Same treatment as the area panel's own fold, so the two read as one product
+	   rather than as two people's tables. */
+	.numbers summary {
+		font-size: 0.75rem;
+		color: var(--label-3);
 		cursor: pointer;
-		transition:
-			background-color 140ms ease-out,
-			color 140ms ease-out;
 	}
-	.open:hover {
-		background: var(--fill-1);
+	.numbers summary:hover {
+		color: var(--label-2);
+	}
+	.numbers dl {
+		margin: 0.625rem 0 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+	.numbers dl div {
+		display: flex;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 0.3125rem 0;
+		border-bottom: 1px solid var(--separator);
+		font-size: 0.75rem;
+	}
+	.numbers dt {
+		color: var(--label-3);
+	}
+	.numbers dd {
+		margin: 0;
 		color: var(--label-1);
+		font-variant-numeric: tabular-nums;
+	}
+	.prov {
+		margin-top: 0.5rem;
+		font-size: 0.625rem;
+		line-height: 1.45;
+		color: var(--label-3);
 	}
 </style>

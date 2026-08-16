@@ -172,6 +172,89 @@ check(
 );
 check('the ranking helper drops unmeasured rows', rows.items.length > 0);
 
+/* ── the two controls the conversation is allowed to move ────────────────── */
+
+/* Tapak can switch the pivot and the walking radius, which means it can also switch
+   them BY ACCIDENT — and that is the failure worth testing for. A reader browsing the
+   unit list who asks an ordinary question must not be thrown back to the catchment grid,
+   so a question that says nothing about the shape of the answer has to leave `pivot`
+   undefined rather than defaulting to one. */
+for (const [q, pivot] of [
+	['ruko mana yang paling murah', 'unit'],
+	['tampilkan per tempat saja', 'unit'],
+	['daftar ruko di sekitar sini', 'unit'],
+	['tempat mana yang paling luas', 'unit'],
+	['kawasan mana yang paling ramai', 'cell'],
+	['balik ke per petak', 'cell'],
+	['petak mana yang pesaingnya paling sedikit', 'cell'],
+	// Says nothing about the shape of the answer → the mode is left exactly as it was.
+	['di mana sebaiknya buka kedai kopi', undefined],
+	['seberapa ramai di sini', undefined],
+	['mana yang paling banyak tempat kosong', undefined]
+]) {
+	const got = nlq.parseQuestion(q, W, 'kopi').pivot;
+	check(`"${q}" → pivot ${pivot ?? '(left alone)'}`, got === pivot, `got ${got ?? '(left alone)'}`);
+}
+
+// A question about which AREA has the most units on the market and a question about
+// which UNIT is cheapest are the pair this parser is most likely to confuse, and they
+// mean opposite things.
+const areaUnits = nlq.parseQuestion('mana yang paling banyak tempat kosong', W, 'kopi');
+check(
+	'"paling banyak tempat kosong" ranks areas by a property count, not doorways',
+	areaUnits.pivot === undefined && areaUnits.ukuran === 'unit_dipasarkan',
+	`pivot=${areaUnits.pivot} ukuran=${areaUnits.ukuran}`
+);
+
+for (const [q, ukuran, urut] of [
+	['ruko mana yang paling murah', 'harga', 'asc'],
+	['ruko mana yang paling mahal', 'harga', 'desc'],
+	['tempat mana yang bangunannya paling luas', 'luas_bangunan', 'desc'],
+	['tempat mana yang paling dekat pusat petak', 'jarak_pusat', 'asc']
+]) {
+	const p = nlq.parseQuestion(q, W, 'kopi');
+	check(
+		`"${q}" → unit sort ${ukuran} ${urut}`,
+		p.ukuran_unit === ukuran && p.urut_unit === urut,
+		`got ${p.ukuran_unit} ${p.urut_unit}`
+	);
+}
+
+// The unit sort is only read alongside the pivot it belongs to. Written on a catchment
+// ranking it is a field nothing downstream looks at, and it would silently re-sort the
+// unit list the next time the reader switched pivot by hand.
+check(
+	'a catchment question carries no unit sort',
+	nlq.parseQuestion('di mana sewanya paling murah', W, 'kopi').ukuran_unit === undefined
+);
+
+/* The radius. A question that names one has to be ANSWERED at it — computing at 800 m
+   and then moving the map to 500 would leave every figure in the reply describing a
+   catchment the reader is no longer looking at. */
+for (const [q, radius] of [
+	['kedai kopi dalam 500 m dari stasiun', 500],
+	['pesaing dalam radius 400 meter', 400],
+	['mana yang paling ramai dalam 620 m', 600],
+	// Walking MINUTES are not metres, and converting them takes a pace assumption —
+	// which would be the only figure on screen that came from nobody's data.
+	['kedai kopi 10 menit jalan kaki', W.radius],
+	['di mana sebaiknya buka kedai kopi', W.radius]
+]) {
+	const got = nlq.parseQuestion(q, W, 'kopi').radius_m;
+	check(`"${q}" → radius ${radius} m`, got === radius, `got ${got}`);
+}
+
+// And the answer is genuinely computed at it, rather than the field being decoration.
+const near = nlq.answer('mana yang pesaingnya paling banyak dalam 400 m', cells, W, 'kopi');
+const far = nlq.answer('mana yang pesaingnya paling banyak dalam 800 m', cells, W, 'kopi');
+check(
+	'a radius named in the question changes the figures, not just the query object',
+	near.query.radius_m === 400 &&
+		far.query.radius_m === 800 &&
+		near.items[0].measure.value < far.items[0].measure.value,
+	`400 m → ${near.items[0]?.measure?.value}, 800 m → ${far.items[0]?.measure?.value}`
+);
+
 /* ── small talk, and the fence around it ─────────────────────────────────── */
 
 // The fence is the whole reason chat is allowed at all, so it is checked here rather

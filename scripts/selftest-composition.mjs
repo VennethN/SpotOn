@@ -69,10 +69,18 @@ const cell = (demand, supply, access, listings, price = null) => ({
 	listing: { kopi: listings },
 	d: { kopi: demand },
 	propCovered: price !== null,
+	// One entry per radius, keyed by it — the shape `join-property.mjs` writes. Every
+	// stop carries the same figures here, because this fixture is about the cost
+	// multiplier rather than about how a catchment changes with the radius.
 	prop:
 		price === null
 			? undefined
-			: { n400: 4, n800: 4, u400: 4, u800: 4, p400: price, p800: price, q400: 4, q800: 4, by: { ruko: 4 } }
+			: {
+					r: Object.fromEntries(
+						[400, 500, 600, 700, 800].map((m) => [m, { n: 4, u: 4, p: price, q: 4 }])
+					),
+					by: { ruko: 4 }
+				}
 });
 
 const SCALE = 100;
