@@ -6,7 +6,14 @@
 	 * nine tenths of the nodes, so the other three modes would shrink to unreadable
 	 * slivers. Four labelled rows are honest about that imbalance, and do not demand
 	 * that the eye separate four adjacent colours.
+	 *
+	 * The fills run out from the left as the block is scrolled to, top row first. Same
+	 * curve and the same beat as the column chart above it, so the two charts on this
+	 * page read as one family rather than as two components that happen to sit near each
+	 * other.
 	 */
+	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
+
 	interface Row {
 		nm: string;
 		v: number;
@@ -16,13 +23,41 @@
 
 	const max = $derived(Math.max(1, ...rows.map((r) => r.v)));
 	const fmt = (n: number) => n.toLocaleString('id-ID');
+
+	let host = $state<HTMLElement | null>(null);
+	let grown = $state(false);
+
+	$effect(() => {
+		if (!host) return;
+		if (prefersReducedMotion()) {
+			grown = true;
+			return;
+		}
+		const io = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) {
+					grown = true;
+					io.disconnect();
+				}
+			},
+			{ threshold: 0.3 }
+		);
+		io.observe(host);
+		return () => io.disconnect();
+	});
 </script>
 
-<ul class="bars">
-	{#each rows as r (r.nm)}
+<ul class="bars" class:grown bind:this={host}>
+	{#each rows as r, i (r.nm)}
 		<li>
 			<span class="nm">{r.nm}</span>
-			<span class="track"><span class="fill" style:width={`${(r.v / max) * 100}%`}></span></span>
+			<span class="track"
+				><span
+					class="fill"
+					style:width={`${(r.v / max) * 100}%`}
+					style:--step={`${i * 60}ms`}
+				></span></span
+			>
 			<span class="v">{fmt(r.v)}</span>
 			{#if r.note}<span class="note">{r.note}</span>{/if}
 		</li>
@@ -61,6 +96,21 @@
 		border-radius: 999px;
 		background-color: color-mix(in srgb, var(--accent) 55%, transparent);
 		background-image: var(--lift-bar);
+		/* Scaled from its left edge rather than animated on `width`, so the growth is a
+		   compositor job and the row's layout is never recalculated mid-flight. */
+		transform: scaleX(0);
+		transform-origin: left;
+	}
+	.bars.grown .fill {
+		transform: none;
+		transition: transform 620ms cubic-bezier(0.32, 0.72, 0, 1) var(--step, 0ms);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.fill,
+		.bars.grown .fill {
+			transform: none;
+			transition: none;
+		}
 	}
 	.v {
 		text-align: right;

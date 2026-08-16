@@ -122,7 +122,7 @@ export const en: Copy = {
 		pois: { label: 'competitors mapped', sub: 'OpenStreetMap (ODbL)' },
 		cats: {
 			label: 'business types scored',
-			sub: 'coffee, drinks, bakery, warteg, fast food, noodles, seafood, foreign, minimarket, grocery, laundry, repair, pharmacy'
+			sub: 'food, everyday retail, and services'
 		},
 		coverNote: (terdata: string, total: string, nodata: string) =>
 			`${terdata} of ${total} cells sit in a city the MAPID catalogue has been read for. The other ${nodata} are marked as not surveyed yet: we don't guess them, and we don't score them.`
@@ -253,7 +253,7 @@ export const en: Copy = {
 		colBand: 'Up to',
 		colValue: 'Cells',
 		tableCaption: 'Cells per business-density band',
-		peak: 'fullest up to',
+		axisUnit: 'businesses',
 		unit: 'cells',
 		upTo: (batas: string) => `up to ${batas} businesses`,
 		label: (total: string, batas: string, puncak: string, unit: string) =>
