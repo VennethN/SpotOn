@@ -905,6 +905,11 @@ export const id = {
 		filteredOut: (n: number) => `${num(n)} lagi disaring keluar`,
 		unmeasured: (n: number, ukuran: string) =>
 			`${num(n)} lagi tidak diperingkat karena ${ukuran.toLowerCase()}-nya belum terukur`,
+		rampLow: 'bawah daftar',
+		rampHigh: 'atas daftar',
+		rampNodata: 'belum terukur, tidak ikut diperingkat',
+		rampNote: (ukuran: string) =>
+			`Warna titik di peta mengikuti urutan daftar ini, bukan skor petaknya. Yang paling pekat adalah yang teratas menurut ${ukuran.toLowerCase()}.`,
 		none: 'Tidak ada tempat yang lolos saringan ini. Longgarkan salah satunya.',
 		more: (n: number) => `+${num(n)} lagi, urutkan atau saring untuk mempersempit`,
 		cellScore: (nilai: string) => `skor petaknya ${nilai}`,

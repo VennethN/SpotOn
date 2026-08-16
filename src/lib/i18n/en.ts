@@ -895,6 +895,11 @@ export const en: Copy = {
 		filteredOut: (n: number) => `${num(n)} more filtered out`,
 		unmeasured: (n: number, ukuran: string) =>
 			`${num(n)} more are unranked because their ${ukuran.toLowerCase()} is not measured`,
+		rampLow: 'bottom of the list',
+		rampHigh: 'top of the list',
+		rampNodata: 'not measured, so not ranked',
+		rampNote: (ukuran: string) =>
+			`The dots on the map follow this list's order, not the area score. The darkest are the top of it by ${ukuran.toLowerCase()}.`,
 		none: 'Nothing gets through these filters. Loosen one of them.',
 		more: (n: number) => `+${num(n)} more, sort or filter to narrow it down`,
 		cellScore: (nilai: string) => `area scores ${nilai}`,

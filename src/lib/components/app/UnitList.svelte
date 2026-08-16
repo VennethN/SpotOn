@@ -14,6 +14,7 @@
 	 * The list and the map marks are the SAME set. Sorting or filtering here redraws the
 	 * map, so a reader can see what a filter did rather than being told.
 	 */
+	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { UNIT_METRIC_MAP, type UnitMetricKey } from '$lib/domain/units';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -97,6 +98,21 @@
 			{/each}
 		</ul>
 
+		<!-- What the colours on the map mean. It belongs here rather than in the map
+		     legend because the ramp IS the sort: the darkest dots are the top of this
+		     list, whichever measure and direction the chips above are set to. Put across
+		     the map it would be a caption for a control three metres away. -->
+		{#if rows.length > 0}
+			<div class="ramp">
+				<ScoreRamp
+					dense
+					ends={[c.units.rampLow, c.units.rampHigh]}
+					nodata={unmeasured > 0 ? c.units.rampNodata : null}
+				/>
+				<p class="note">{c.units.rampNote(c.units.metrics[app.unitSort])}</p>
+			</div>
+		{/if}
+
 		{#if rows.length === 0}
 			<p class="note">{c.units.none}</p>
 		{:else}
@@ -168,6 +184,11 @@
 		font-size: 0.625rem;
 		line-height: 1.45;
 		color: var(--label-3);
+	}
+	.ramp {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
 	}
 
 	.sorts {

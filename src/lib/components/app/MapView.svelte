@@ -212,7 +212,13 @@
 	 * on every one of them — on every weight change, every hover, every selection.
 	 */
 	function catchmentFC(): FeatureCollection {
-		const rows = heat ? app.rowById : null;
+		// In unit mode the cells stop being the reading and go back to being structure.
+		//
+		// Leaving the fill on meant the map carried the heatmap twice — a hexagon shaded
+		// by its score with a dot on top shaded by the same score — and the louder of the
+		// two was the one the reader was no longer looking at. The grid stays drawn,
+		// faintly, because it is what tells you which units share a catchment.
+		const rows = heat && app.pivot === 'cell' ? app.rowById : null;
 		const colNodata = cssVar('--nodata');
 		const colIdle = cssVar('--cell-idle');
 		const ramp = Array.from({ length: 7 }, (_, i) => cssVar(`--ramp-${i}`));
@@ -496,19 +502,44 @@
 		// same resolution `catchmentFC` does, and it is why a theme change re-runs both.
 		const colNodata = cssVar('--nodata');
 		const ramp = Array.from({ length: 7 }, (_, i) => cssVar(`--ramp-${i}`));
+
+		/**
+		 * The ramp follows THE SORT, not the opportunity score.
+		 *
+		 * It was the score, and that made the map disagree with the panel beside it: sort
+		 * the list by price and you got rows ordered by price over a map coloured by
+		 * something else, with nothing saying so. Here the darkest dots are the top of
+		 * the list the reader is actually looking at, whichever measure and direction
+		 * that is — flip to "most expensive first" and the dark dots are where the money
+		 * is. One rule, and it holds for every measure without needing to know which end
+		 * of each one counts as good.
+		 *
+		 * Position in the ranked array, not the value: the values are prices, areas,
+		 * scores and metres, and a ramp keyed on magnitude would be unreadable on any
+		 * measure with a long tail — which is all of them.
+		 */
+		const n = app.unitRows.length;
+		const rank = new Map(app.unitRows.map(({ unit }, i) => [unit.id, n < 2 ? 1 : 1 - i / (n - 1)]));
+
+		// Every unit the filters left, not just the ranked ones. A sort by price per m²
+		// can rank only half of them, and dropping the rest would take a thousand marks
+		// off the map on a change the reader will read as a filter. They are drawn in the
+		// no-data grey instead, which is the same thing the panel counts out loud.
 		return {
 			type: 'FeatureCollection',
-			features: app.unitRows.map(({ unit }) => ({
-				type: 'Feature' as const,
-				geometry: { type: 'Point' as const, coordinates: [unit.listing.lon, unit.listing.lat] },
-				properties: {
-					id: unit.id,
-					// The no-data grey for a catchment the active category has not been
-					// surveyed in. Never the bottom of the ramp: unsurveyed is not bad.
-					color: unit.row?.score == null ? colNodata : ramp[rampIndex(unit.row.score)],
-					selected: unit.id === app.selectedUnitId
-				}
-			}))
+			features: app.unitFiltered.map((unit) => {
+				const r = rank.get(unit.id);
+				return {
+					type: 'Feature' as const,
+					geometry: { type: 'Point' as const, coordinates: [unit.listing.lon, unit.listing.lat] },
+					properties: {
+						id: unit.id,
+						color: r === undefined ? colNodata : ramp[rampIndex(r)],
+						ranked: r !== undefined,
+						selected: unit.id === app.selectedUnitId
+					}
+				};
+			})
 		};
 	}
 
@@ -774,7 +805,9 @@
 					cssVar('--label-1'),
 					cssVar('--bg-elevated')
 				],
-				'circle-opacity': 0.95
+				// A unit with no reading for the sorted measure is drawn back as well as grey,
+				// so it reads as context rather than as a low-ranking result.
+				'circle-opacity': ['case', ['get', 'ranked'], 0.95, 0.5]
 			}
 		});
 
@@ -1366,6 +1399,9 @@
 		void app.selectedListings;
 		void app.pivot;
 		void app.unitRows;
+		void app.unitFiltered;
+		void app.unitSort;
+		void app.unitOrder;
 		void app.selectedUnitId;
 		void app.weights.radius;
 		const m = map;
