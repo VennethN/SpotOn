@@ -18,7 +18,10 @@
 	import MapChrome from '$lib/components/app/MapChrome.svelte';
 	import MapLegend from '$lib/components/app/MapLegend.svelte';
 	import MapView from '$lib/components/app/MapView.svelte';
+	import MapControls from '$lib/components/app/MapControls.svelte';
 	import SpotCard from '$lib/components/app/SpotCard.svelte';
+	import UnitCard from '$lib/components/app/UnitCard.svelte';
+	import UnitList from '$lib/components/app/UnitList.svelte';
 	import Sheet from '$lib/components/ui/Sheet.svelte';
 	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
 	import TapakToast from '$lib/components/app/TapakToast.svelte';
@@ -33,7 +36,8 @@
 	// The initial data is deliberately fetched once; all state after that lives in AppState.
 	const app = setAppState(
 		untrack(() => data.catchments),
-		untrack(() => data.slice)
+		untrack(() => data.slice),
+		untrack(() => data.meta)
 	);
 	// Tapak is held by the page: the centre question box and the right-hand panel are
 	// two forms of one conversation, not two conversations.
@@ -149,6 +153,9 @@
 <div class="app">
 	<MapView />
 	<MapChrome />
+	{#if started}
+		<MapControls />
+	{/if}
 
 	{#if !started}
 		<!-- A thin dimming: the map is pushed back while the first question is still
@@ -163,11 +170,23 @@
 		     once an area is picked the answer about that area is the more specific
 		     reply to the same question. Here it also clears the top-left corner, which
 		     is where Tapak's remark about that area arrives. -->
-		{#if !app.selectedId}
+		{#if !app.selectedId && app.pivot === 'cell'}
 			<MapLegend />
 		{/if}
+		<!-- One sheet, always holding the conversation, with whatever the map is currently
+		     pointing at stacked above it. Tapak does not take turns with the pivot: it is
+		     the thing that can change the pivot, so a layout where choosing "per tempat"
+		     closes the chat takes away the control that got you there. -->
 		<Sheet bind:index={sheetIndex} detents={[0.12, 0.55, 0.94]}>
-			{#if app.selectedId}
+			{#if app.pivot === 'unit'}
+				<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>
+					{#if app.selectedUnitId}
+						<UnitCard />
+					{:else}
+						<UnitList />
+					{/if}
+				</div>
+			{:else if app.selectedId}
 				<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>
 					<SpotCard />
 				</div>
@@ -175,11 +194,22 @@
 			<TapakPanel {tapak} />
 		</Sheet>
 	{:else}
+		<!-- Tapak is here in BOTH pivots. It is not a mode of the map; it is the thing
+		     that can change the mode, so a control that replaced it would take away the
+		     thing operating it. The pivot switch lives on the map, in `MapControls`. -->
 		<aside class="guide material" aria-label={c.app.tapak} in:arriveFromCentre>
 			<TapakPanel {tapak} />
 		</aside>
 
-		{#if app.selectedId}
+		{#if app.pivot === 'unit'}
+			<aside class="spot material" aria-label={c.units.title} transition:materialize>
+				{#if app.selectedUnitId}
+					<UnitCard />
+				{:else}
+					<UnitList />
+				{/if}
+			</aside>
+		{:else if app.selectedId}
 			<aside class="spot material" aria-label={c.app.mood} transition:materialize>
 				<SpotCard />
 			</aside>

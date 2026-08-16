@@ -138,12 +138,20 @@ metadata. The order matters, because each step reads what the one before it
 wrote.
 
 ```bash
-node scripts/fetch-mapid.mjs    # → src/lib/data/mapid-poi.json   needs MAPID_API_KEY
-node scripts/join-mapid.mjs     # → adds mapid + covered to hexes.json   needs Overpass
-node scripts/build-pois.mjs     # → static/data/pois/<category>.json   local only
-node scripts/build-stops.mjs    # → static/data/stops.json   needs Overpass
-node scripts/build-routes.mjs   # → static/data/routes.json  needs Overpass
+node scripts/fetch-mapid.mjs     # → src/lib/data/mapid-poi.json   needs MAPID_API_KEY
+node scripts/join-mapid.mjs      # → adds mapid + covered to hexes.json   needs Overpass
+node scripts/build-pois.mjs      # → static/data/pois/<category>.json   local only
+node scripts/fetch-property.mjs  # → src/lib/data/mapid-property.json   needs MAPID_API_KEY
+node scripts/join-property.mjs   # → adds prop + propCovered to hexes.json   local only
+node scripts/build-property.mjs  # → static/data/property.json   local only
+node scripts/build-stops.mjs     # → static/data/stops.json   needs Overpass
+node scripts/build-routes.mjs    # → static/data/routes.json  needs Overpass
 ```
+
+`join-property.mjs` has to run after `join-mapid.mjs`, not before. It decides coverage
+per administrative city and reads the city each cell sits in from the cell itself, which
+is what the MAPID join wrote there. Run it on a grid that has never been through that
+step and it covers nothing, which it says and then stops rather than writing zeroes.
 
 **Competitors on the map are named, and this is what keeps them named.** The map
 labels a competitor with its own name the same way it labels a station. That
@@ -174,6 +182,138 @@ number, in the place the number is already being read.
 There is no setting for this in the application.
 
 `npm run selftest` covers the parts of this that a rebuild cannot: the score
-breakdown against the scoring engine, and the competitor pipeline including the
+breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
-in it has a name.
+in it has a name, the cost-of-space layer against the grid on disk, and which
+measure each kind of question is understood to be asking about.
+
+## Questions are a shape and a measure, chosen separately
+
+`domain/metrics` lists every figure a question can be about. The understanding layer
+picks one of those keys plus an intent, and the two vary independently: "where should I
+open", "where is it busiest" and "where is space cheapest" are all rankings, and the
+measure is the only thing that differs. They were not separate once, and the result was
+that "seberapa ramai di sini" came back as an opportunity score.
+
+Add a measure in `domain/metrics` and it reaches the model's tool schema, the fallback
+parser, the sort, the filters and the answer sentence together. Two things are load
+bearing:
+
+- A filter names a **band**, never a threshold: `rendah`, `tinggi` or `ada`. The bands
+  are the grid's own terciles, computed when the query runs. There is deliberately no
+  way for the understanding layer to say "under 30 million", because that number would
+  be the only figure in the answer that came from nobody's data.
+- `read` returns null where a cell was never measured, and a null is DROPPED from a
+  ranking rather than sorted to the bottom of it. An unsurveyed catchment at the top of
+  "fewest competitors" is indistinguishable from a real finding, which is the same
+  mistake as reading an unsurveyed count as zero.
+
+## Where things live, and which way the arrows point
+
+```
+types.ts        the shapes and the key unions. The leaf: imports nothing from src.
+utils/          format, geo. Depend on nothing.
+domain/         the engine. Pure functions over the types. No Svelte, no DOM, no fetch.
+map/            what the map is given to draw. Depends on domain + state, not on MapLibre.
+state/          the runes. Owns what the reader has chosen and what has been fetched.
+components/     the pixels.
+server/         the data source and the model layer. Never imported by the client.
+i18n/           every user-visible string, in both languages.
+```
+
+The rule is that the arrows only point downwards. `types.ts` in particular imports
+nothing from `src` — it briefly imported two key unions back from `domain/`, and a
+type-only cycle is still a cycle: the module everything depends on had come to depend on
+two modules that depend on it. Key unions (`CategoryKey`, `MetricKey`, `UnitMetricKey`,
+`PropertyType`, `ChatTopic`) are declared there; the tables that give them meaning live
+in the domain, as `Record<Key, …>` so a key without a definition is a compile error.
+
+Two shared pieces worth knowing before writing a third copy of either:
+
+- `domain/rank` holds ranking and band-filtering for BOTH pivots. What varies between a
+  catchment and a unit is the row type and the list of measures; the rules — bands are
+  thirds of the current set, unmeasured rows are dropped rather than sorted last,
+  filters compose in order — are the same rules, and were written twice before they were
+  written once.
+- `map/sources` holds every GeoJSON builder. They were methods on `MapView`, closing over
+  its `app`, `c`, `heat` and `cssVar`, which is how that file reached 1,855 lines. What
+  goes on the map is the thing feature work changes, and it should be readable without
+  the layer definitions, event wiring and marker bookkeeping around it.
+
+## Two pivots: the area, and the place standing in it
+
+`domain/units` is the second one. Everything else ranks catchments, which is the right
+shape for "where should I open" and the wrong shape for what a reader does next, because
+nobody rents a hexagon. In unit mode each unit on the market is a row and its catchment
+travels with it as context.
+
+The rule that makes it work is that **each unit gets exactly one home cell**, the nearest
+centre within the walking radius. That is deliberately NOT the rule `join-property.mjs`
+uses: the join counts a listing into every catchment that reaches it, which is correct
+for a count and fatal for a list — the same shophouse would appear five times with five
+different scores beside it. A unit with no cell centre in range is dropped rather than
+handed the figures of a cell it cannot walk to.
+
+Everything else follows the rules the cell pivot already follows. Filters are bands
+(thirds of the current set), never thresholds. A unit with nothing measured for the
+sorted figure is dropped from the ranking, not sorted to the bottom of it.
+
+One thing the data forced, and it is worth knowing before changing the default sort:
+every listing carries a total asking price, and only half carry a price per m². Sorting
+cheapest-first leads with the least trustworthy rows — a "Komersial lain" asking Rp 100
+juta, a kiosk on 6 m² — so the list opens on the home cell's score instead.
+
+## Small talk is allowed, and fenced in code
+
+Tapak can say hello, say what SpotOn is, and talk generally about running a small
+business. It could not before, and a greeting met with "that is outside what I can
+answer" reads as broken rather than rigorous.
+
+This is the one place the model writes a sentence the reader sees, which makes it the
+one place a fabricated figure could get in. "Warteg biasanya balik modal dalam 8 bulan"
+is fluent, plausible, entirely invented, and would sit in the same thread as figures
+that are traceable to a source. So `domain/chat` enforces what the prompt asks for:
+
+- **No digits.** Any digit at all, and the reply is thrown away rather than repaired,
+  replaced by this interface's own canned line for the topic. Blunt on purpose — a
+  clever rule grows exceptions, and the first exception is where "sekitar 8 bulan" gets
+  through. A rejected "24 jam" costs one canned sentence; the alternative costs trust.
+- **Two sentences, three topics.** Anything outside greetings, what SpotOn is, and
+  general business talk still goes to "I cannot answer that from this data".
+- **The map never moves.** No items, no highlight, no category change. `query` on a
+  chat turn is only the fallback parser's reading of the sentence, and it will happily
+  find "warteg" inside "makasih, warteg emang enak".
+
+Without a model key only greetings are reachable, by rule, and a greeting counts only
+when it is the whole message: "oke berapa harga tempat di sini" is a question with a
+courtesy in front of it, and answering it with hello throws away what was asked.
+
+## What space costs, and the word this product will not use
+
+MAPID's premium catalogue has no rent for Jakarta. That is a measurement, not a guess:
+`fetch-property.mjs` reads every property dataset published for the province and tallies
+the sale-or-rent column on every run, 30,629 rows across 83 datasets, and the answer
+comes back a sale every time. 176 rows do carry the word SEWA, all of them inside the
+advertising copy in `ALAMAT` ("DI JUAL SEWA APARTEMEN KEMANG MANSION FULL FURNISHED"),
+which is why that column is not carried into the app at all.
+
+So the cost signal is an **asking price to buy**, and it is called that everywhere it
+travels: `price`, `pricePerM2`, `costFactor`, never `rent`. A monthly rent could be
+produced from it with a yield assumption. It is not, because that assumption would be
+the only figure on the screen that came from nobody's data, in a product whose whole
+claim is that its figures do not.
+
+The tally is recomputed rather than written down, and `selftest-property.mjs` asserts on
+it, so the day MAPID publishes a SEWA row the test fails and says the interface is now
+wrong. That is the intended way to find out.
+
+Two rules follow from the same place as the rest of this file:
+
+- The multiplier never goes above 1. A catchment nobody has priced is multiplied by
+  exactly 1, and the panel says which of five reasons that is. Treating it as
+  median-priced instead would put an invented price on an unsurveyed place and let it
+  move a ranking.
+- A median is read from at least three priced units, and a catchment is ranked only
+  against a grid carrying at least eight prices. The listings hold real errors, a ruko
+  at Rp 9.6 billion per m² among them, and one of those alone in a catchment would cost
+  it a quarter of its score on the strength of a typo.

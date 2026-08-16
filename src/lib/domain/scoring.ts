@@ -1,4 +1,5 @@
 import { CATEGORY_KEYS, CATEGORY_MAP } from './categories';
+import { costFactor, priceLadder, priceLevel, priceOf, unitsOf } from './cost';
 import { ACCESS_FLOOR, ACCESS_SPAN } from './transit';
 import type { Hex, HexBase, CategoryKey, PoiSource, ScoredHex, Typology, Weights } from '$lib/types';
 
@@ -110,18 +111,29 @@ function typologyOf(
  * The Opportunity Score of one catchment for one category.
  *
  *   Gap   = (wd·demand − ws·supply) / (wd + ws)
- *   Score = clamp(Gap + 0.5) × commercial_space_gate
+ *   Score = clamp(Gap + 0.5) × space_gate × transit_access × cost_of_space
  *
  * Supply is not merely a competitor count: density is weighted by how busy those
  * competitors are, so busy competitors push the opportunity down harder than quiet
  * ones. The availability of commercial space is treated as a gate — with no space
  * the opportunity cannot be acted on at all, it is not just more expensive.
+ *
+ * WHAT THE SPACE COSTS IS THE ONE THAT IS ONLY EXPENSIVE
+ *
+ * The cost of space enters last and as a multiplier of at most 1, so it can shade a
+ * ranking without deciding it, and so an unpriced catchment is never given a made-up
+ * price to be judged on. `domain/cost` holds the reasoning and the constants, and the
+ * panel reads them from there so the explanation cannot drift from the arithmetic.
+ *
+ * These are ASKING PRICES FOR SALE. MAPID publishes no rent for Jakarta, which
+ * `scripts/fetch-property.mjs` re-establishes on every run.
  */
 export function scoreOne(
 	c: Hex,
 	cat: CategoryKey,
 	w: Weights,
-	scale: number
+	scale: number,
+	ladder: number[] = []
 ): ScoredHex {
 	const base = {
 		id: c.id,
@@ -138,9 +150,22 @@ export function scoreOne(
 
 	const count = poiCount(c, cat, w.source, w.radius);
 
+	// What is on the market here, and what that costs. Read for every branch below,
+	// including the ones with no score: the listings are real MAPID data and stay true
+	// whether or not the mission attributes for this cell exist, exactly as the transit
+	// counts do. A panel that can say nothing about the opportunity can still say what
+	// space is going for.
+	const price = priceOf(c, w.radius);
+	const level = priceLevel(price, ladder);
+	const cost = costFactor(level);
+	const units = unitsOf(c, w.radius);
+	const propCovered = c.propCovered ?? false;
+	const space = { price, priceLevel: level, costFactor: cost, units, propCovered };
+
 	if (c.nodata) {
 		return {
 			...base,
+			...space,
 			osm: 0,
 			source: w.source,
 			covered: false,
@@ -164,6 +189,7 @@ export function scoreOne(
 	if (count === null) {
 		return {
 			...base,
+			...space,
 			osm: 0,
 			source: w.source,
 			covered: false,
@@ -198,12 +224,13 @@ export function scoreOne(
 	// explain THIS multiplication, not one that resembles it.
 	const accessFactor = ACCESS_FLOOR + ACCESS_SPAN * c.access;
 	const gap = (w.wd * demand - w.ws * supply) / Math.max(0.0001, w.wd + w.ws);
-	const score = Math.max(0, Math.min(1, gap + BALANCE_POINT)) * gate * accessFactor;
+	const score = Math.max(0, Math.min(1, gap + BALANCE_POINT)) * gate * accessFactor * cost;
 	const hourly = c.hourly ?? [];
 	const peak = hourly.length ? hourly.indexOf(Math.max(...hourly)) : -1;
 
 	return {
 		...base,
+		...space,
 		osm: count,
 		source: w.source,
 		covered: true,
@@ -224,7 +251,13 @@ export function scoreOne(
 /** Score every catchment for one category. */
 export function scoreAll(all: Hex[], cat: CategoryKey, w: Weights): ScoredHex[] {
 	const scale = maxPoi(all, cat, w.source, w.radius);
-	return all.map((c) => scoreOne(c, cat, w, scale));
+	// The price scale, built once for the whole run exactly as `scale` is. Not filtered
+	// to the cells with mission data: what a shopfront is being asked for is real MAPID
+	// data and does not stop being true because the sample attributes for that cell were
+	// never generated. Leaving those cells out would shorten the ladder every catchment
+	// is ranked against, and move prices nobody disputes.
+	const ladder = priceLadder(all, w.radius);
+	return all.map((c) => scoreOne(c, cat, w, scale, ladder));
 }
 
 /**
@@ -245,11 +278,16 @@ export function scoreAcrossCategories(
 ): Array<{ key: CategoryKey; score: number | null }> {
 	const target = all.find((c) => c.id === id);
 	if (!target) return [];
+	// One ladder for the whole comparison. The cost of space is a property of the place,
+	// not of the business type going into it, so it is the same figure in every row —
+	// rebuilding it per category would be 13 passes over the grid to reach 13 identical
+	// answers.
+	const ladder = priceLadder(all, w.radius);
 	// The display order is `categories.ts`'s, not the order the columns happened to
 	// arrive in — otherwise the list reshuffles itself as each request lands.
 	const wanted = new Set(keys);
 	return CATEGORY_KEYS.filter((key) => wanted.has(key)).map((key) => ({
 		key,
-		score: scoreOne(target, key, w, maxPoi(all, key, w.source, w.radius)).score
+		score: scoreOne(target, key, w, maxPoi(all, key, w.source, w.radius), ladder).score
 	}));
 }

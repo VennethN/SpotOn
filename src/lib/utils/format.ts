@@ -36,6 +36,28 @@ export function formatHour(hour: number): string {
 	return `${String(h).padStart(2, '0')}.${String(m).padStart(2, '0')}`;
 }
 
+/**
+ * The scales a rupiah figure gets written on. Property asking prices run from six
+ * digits to twelve, and printed in full they stop being read as quantities at all.
+ */
+export type MoneyScale = 'unit' | 'thousand' | 'million' | 'billion';
+
+/**
+ * A rupiah figure split into a small number and the scale it sits on.
+ *
+ * The WORDS belong to the locale files — "jt" and "million" are not the same string —
+ * but the thresholds belong here, because the two languages have to break at the same
+ * place. Written out twice they would sooner or later disagree, and the same price
+ * would read "Rp 950 jt" on one side and "Rp 1.0 billion" on the other.
+ */
+export function moneyScale(v: number): { value: number; scale: MoneyScale } {
+	const abs = Math.abs(v);
+	if (abs >= 1e9) return { value: v / 1e9, scale: 'billion' };
+	if (abs >= 1e6) return { value: v / 1e6, scale: 'million' };
+	if (abs >= 1e3) return { value: v / 1e3, scale: 'thousand' };
+	return { value: v, scale: 'unit' };
+}
+
 /** Position 0..6 on the opportunity colour ramp. */
 export function rampIndex(score: number): number {
 	return Math.max(0, Math.min(6, Math.round(score * 6)));
