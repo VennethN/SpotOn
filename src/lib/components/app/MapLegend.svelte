@@ -97,7 +97,7 @@
 
 		{#if open}
 			<div class="body" id="legend-body">
-				<ScoreRamp dense nodata={c.app.legendNodata(coverage.withoutData)} />
+				<ScoreRamp dense nodata={c.app.legendNodata(coverage.notCovered)} />
 
 				{#if uncovered > 0}
 					<p class="uncovered" class:blocking={coverage.scored === 0}>
