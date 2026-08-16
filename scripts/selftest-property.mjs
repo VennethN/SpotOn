@@ -41,12 +41,13 @@ async function load() {
 		logLevel: 'error'
 	});
 	const cost = await server.ssrLoadModule('/src/lib/domain/cost.ts');
+	const weights = await server.ssrLoadModule('/src/lib/domain/weights.ts');
 	await server.close();
-	return cost;
+	return { ...cost, RADII: weights.RADII };
 }
 
 const cost = await load();
-const { COST_FLOOR, MIN_LADDER, costFactor, priceLadder, priceLevel, readCost } = cost;
+const { COST_FLOOR, MIN_LADDER, RADII, costFactor, priceLadder, priceLevel, readCost } = cost;
 
 let failures = 0;
 const check = (label, ok, detail = '') => {
@@ -102,7 +103,7 @@ const meta = grid.meta?.property;
 check('the grid carries a property block', Boolean(meta), 'run `node scripts/join-property.mjs`');
 
 if (meta) {
-	for (const radius of [400, 800]) {
+	for (const radius of RADII) {
 		const ladder = priceLadder(cells, radius);
 		const readings = cells.map((c) => readCost(c, ladder, radius));
 		const priced = readings.filter((r) => r.level !== null);
@@ -158,6 +159,26 @@ if (meta) {
 		'no catchment is both uncovered and priced',
 		cells.every((c) => !(c.propCovered === false && c.prop))
 	);
+	// The slider's stops and the join's stops are two lists in two files, and a stop in
+	// one and not the other is an empty price with nothing saying why.
+	const declared = (meta.radii ?? []).map(Number).sort((a, b) => a - b);
+	const stored = [
+		...new Set(cells.flatMap((c) => Object.keys(c.prop?.r ?? {}).map(Number)))
+	].sort((a, b) => a - b);
+	check(
+		`every declared radius has readings on the grid (${declared.join(', ')})`,
+		declared.length > 0 && declared.every((r) => stored.includes(r)),
+		`declared ${declared.join(', ')} · stored ${stored.join(', ')}`
+	);
+	check(
+		'every radius the engine offers is one the join computed',
+		RADII.every((r) => stored.includes(r)),
+		`engine offers ${RADII.join(', ')} · join stored ${stored.join(', ')}`
+	);
+	for (const r of RADII) {
+		const ladder = priceLadder(cells, r);
+		check(`${r} m: ${ladder.length} catchments carry a price`, ladder.length >= MIN_LADDER);
+	}
 	check(
 		`the join wrote its own threshold (${meta.minPriced}) into the grid`,
 		typeof meta.minPriced === 'number' && meta.minPriced > 0

@@ -687,6 +687,11 @@ export const id = {
 	/* ── app ──────────────────────────────────────────────────────────────── */
 
 	app: {
+		radiusLabel: 'Jangkauan',
+		radiusValue: (m: number) => `${m} m`,
+		radiusAria: 'Jangkauan jalan kaki yang dinilai',
+		radiusHint:
+			'Sejauh apa dari titik tengah yang dihitung, untuk petak maupun tempat. Harga tiap jangkauan dihitung sendiri, bukan ditaksir dari jangkauan lain.',
 		categoryLabel: 'Jenis usaha',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} petak · ${poi} pesaing terdata`,
@@ -860,6 +865,13 @@ export const id = {
 			`Menurut ${ukuran}, ${name} yang teratas: ${nilai}. Ini ${n} yang teratas menurut catatan saya.`,
 		rankTop: (name: string, nilai: string | null, n: number) =>
 			`Kalau saya yang pilih, ${name} dulu${nilai ? `, nilainya ${nilai} dari 100` : ''}. Ini ${n} yang teratas menurut catatan saya.`,
+		/* Ditambahkan cuma kalau pertanyaannya memang minta ganti mode. Yang saya
+		   sebut di atas selalu kawasan, karena hitungannya jalan di atas kisi;
+		   yang di panel sebelah adalah tempat-tempat yang berdiri di dalamnya.
+		   Dua-duanya benar, dan keduanya bukan daftar yang sama. */
+		nowByUnit:
+			'Petanya saya ganti ke per tempat, jadi yang jadi barisnya tempat usahanya sendiri, bukan kawasannya.',
+		nowByCell: 'Petanya saya balikkan ke per petak, jadi barisnya kawasan lagi.',
 		remarkNodata: (name: string, osm: number, cat: string) =>
 			`${name} belum ada datanya, jadi saya tidak berani menilai. Yang saya tahu cuma ada ${osm} ${cat} di sekitarnya menurut peta terbuka.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
@@ -939,17 +951,34 @@ export const id = {
 			}
 			return num(Math.round(v));
 		},
+		/* ── Penanda kepala kartu ───────────────────────────────────────────
+		   Kedua kartunya sengaja dibikin mirip, jadi lencana inilah yang
+		   membedakan 800 m kota dari satu pintu depan. */
+		markCell: 'Satu petak kawasan',
+		markUnit: 'Satu tempat yang dipasarkan',
+
 		/* ── Kartu satu tempat ─────────────────────────────────────────────── */
 		cardIn: (petak: string) => `di petak ${petak}`,
 		cardWalk: (m: number) => `${num(m)} m dari pusat petak`,
 		cardAbout: 'Tentang tempatnya',
 		cardArea: 'Tentang kawasannya',
+		cardFigures: 'Lihat kolom lengkap listingnya',
 		cardNoScore:
 			'Petak ini belum tercakup data pesaing untuk jenis usaha yang dipilih, jadi belum ada skornya. Keterangan tempatnya di atas tetap berlaku.',
-		cardRivals: (n: number, cat: string, r: number) =>
-			`${num(n)} ${cat} dalam radius ${r} m`,
-		cardStops: (n: number) => `${num(n)} simpul transit dalam jarak jalan kaki`,
-		cardOpen: 'Buka petaknya'
+		/* Baris tabel kolom listingnya. Kolom yang kosong dilewat, bukan diisi
+		   strip: separuh katalognya tidak mengisi jumlah lantai atau sertifikat,
+		   dan tabel penuh strip terbaca seperti unit yang tidak punya keterangan. */
+		rows: {
+			type: 'Jenis',
+			cell: 'Petaknya',
+			distance: 'Jarak ke pusat petak',
+			price: 'Harga jual diminta',
+			ppm: 'Harga per m² tanah',
+			land: 'Luas tanah',
+			build: 'Luas bangunan',
+			floors: 'Jumlah lantai',
+			cert: 'Sertifikat'
+		}
 	},
 
 	query: {
@@ -958,6 +987,12 @@ export const id = {
 		within: (r: number) => `dalam ${r} m jalan kaki dari titik transit`,
 		hasSpace: 'ada tempat yang disewakan',
 		cheap: 'sewa kelas bawah',
+		/* Dua hal yang diubah jawabannya di PETA, bukan di peringkatnya. Disebut
+		   supaya pembaca yang melihat petanya bergerak tahu bagian mana yang
+		   memang dia minta. */
+		pivotCell: 'dibaca per petak',
+		pivotUnit: 'dibaca per tempat',
+		radius: (r: number) => `dihitung dalam ${r} m jalan kaki`,
 		/* ── Ukuran yang bisa ditanyakan ────────────────────────────────────
 		   Kuncinya dari `domain/metrics`, jadi ukuran baru di sana harus ada
 		   namanya di sini dan di en.ts. `harga_tempat` sengaja tidak dinamai

@@ -59,24 +59,30 @@ export const MIN_LADDER = 8;
     means no unit was listed within reach, or too few were priced for the join to read
     a median off them. It never means space here is free. */
 export function priceOf(c: Pick<Hex, 'prop'>, radius: number): number | null {
-	const p = c.prop;
-	if (!p) return null;
-	return (radius === 400 ? p.p400 : p.p800) ?? null;
+	return atRadius(c, radius)?.p ?? null;
+}
+
+/**
+ * One cell's property reading at one radius.
+ *
+ * The join writes a stop for every radius the interface offers, so this is a lookup
+ * rather than arithmetic. An unknown radius returns nothing rather than the nearest
+ * stop: a price labelled 650 m that was measured at 800 m is a figure with the wrong
+ * number attached, which is worse than no figure.
+ */
+export function atRadius(c: Pick<Hex, 'prop'>, radius: number) {
+	return c.prop?.r?.[String(radius)] ?? null;
 }
 
 /** Premises on the market within reach, at the active radius. */
 export function unitsOf(c: Pick<Hex, 'prop'>, radius: number): number {
-	const p = c.prop;
-	if (!p) return 0;
-	return radius === 400 ? p.u400 : p.u800;
+	return atRadius(c, radius)?.u ?? 0;
 }
 
 /** How many priced units the median was read from. Zero is what tells "nothing listed"
     apart from "listed, but none of them published a price". */
 export function pricedOf(c: Pick<Hex, 'prop'>, radius: number): number {
-	const p = c.prop;
-	if (!p) return 0;
-	return radius === 400 ? p.q400 : p.q800;
+	return atRadius(c, radius)?.q ?? 0;
 }
 
 /**

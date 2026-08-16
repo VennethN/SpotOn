@@ -162,6 +162,23 @@ export const isUnitMetric = (v: unknown): v is UnitMetricKey =>
  */
 export const DEFAULT_UNIT_METRIC: UnitMetricKey = 'skor_petak';
 
+/**
+ * Which direction a list of units actually runs, given what the question asked for.
+ *
+ * One place, so the rule parser and the model reader cannot disagree about it — the
+ * unit pivot's counterpart to `resolveOrder` in `domain/metrics`, and kept apart from it
+ * for the reason that function's own registry is kept apart: the two disagree about
+ * which end is "best" often enough for a shared answer to be wrong quietly. `pesaing`
+ * wants the fewest first and `luas_bangunan` wants the largest, and a direction settled
+ * for one and applied to the other answers backwards without erroring.
+ *
+ * No hour among these measures, so there is no equivalent of that function's second
+ * rule: every unit measure is a quantity, and having more or less of it means something.
+ */
+export function resolveUnitOrder(key: UnitMetricKey, asked?: 'asc' | 'desc'): 'asc' | 'desc' {
+	return asked ?? UNIT_METRIC_MAP[key].best;
+}
+
 /** A band filter, exactly as the cell pivot expresses one: a third of the current set,
     computed from the set, never a threshold anybody typed. */
 export type UnitFilter = Band<UnitMetricKey>;

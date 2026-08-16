@@ -149,34 +149,37 @@ export interface Hex {
  * copies of the same figure.
  */
 export interface PropertyStats {
-	/** Every commercial listing within 400 m / 800 m, premises or not. */
-	n400: number;
-	n800: number;
+	/** One reading per walking radius, keyed by it. `scripts/join-property.mjs` writes a
+	    stop for every radius the interface can be set to. */
+	r: Record<string, PropertyAtRadius>;
+	/** How the listings within the widest radius break down by type. */
+	by: Record<string, number>;
+}
+
+/** What is on the market inside one radius. */
+export interface PropertyAtRadius {
+	/** Every commercial listing in range, premises or not. */
+	n: number;
 	/** Of those, the ones a small business could occupy. */
-	u400: number;
-	u800: number;
+	u: number;
 	/**
 	 * Median asking price per m² of those premises, in rupiah.
 	 *
-	 * `null` means not one unit in range published a price. It is never 0: space that
-	 * nobody priced and space that costs nothing are different claims.
+	 * `null` means not one unit in range published a price. Never 0: space that nobody
+	 * priced and space that costs nothing are different claims.
 	 *
-	 * Computed separately per radius rather than rescaled from the other. A count can be
-	 * scaled by area, a median cannot.
+	 * Computed per radius rather than rescaled from another. A count can be scaled by
+	 * area, a median cannot — half a median is not the price of anything.
 	 */
-	p400: number | null;
-	p800: number | null;
+	p: number | null;
 	/**
 	 * How many priced premises that median was read from.
 	 *
 	 * Kept even where the median came back null, because it is what tells "nothing is
 	 * listed here" apart from "two units are listed and two is too thin to read a price
-	 * off". `scripts/join-property.mjs` needs three before it writes one.
+	 * off". The join needs three before it writes one.
 	 */
-	q400: number;
-	q800: number;
-	/** How the 800 m listings break down by type, e.g. `{ ruko: 12, gudang: 1 }`. */
-	by: Record<string, number>;
+	q: number;
 }
 
 /** The `Hex` fields that hold one entry per business category. */
@@ -319,7 +322,40 @@ export interface StructuredQuery {
 	intent: Intent;
 	metrik: string;
 	kategori: CategoryKey;
+	/**
+	 * The walking radius the answer was computed over.
+	 *
+	 * Was always a copy of whatever the reader had set, i.e. an output. It is now an
+	 * input too: a question that names a distance is answered at that distance, and the
+	 * map follows so the figures on screen are the figures in the reply. Snapped to a
+	 * stop the property data actually holds — see `domain/weights`.
+	 */
 	radius_m: number;
+	/**
+	 * What the answer is a list OF: catchments, or the units standing in them.
+	 *
+	 * Optional, and absent means "leave the mode alone". That is the important half:
+	 * most questions say nothing about the shape of the answer, and a query object that
+	 * always carried a pivot would flip the map back to catchments on every unrelated
+	 * question the reader asked while looking at units.
+	 */
+	pivot?: 'cell' | 'unit';
+	/**
+	 * Which figure a list of UNITS is sorted by — the unit pivot's counterpart to
+	 * `ukuran`. Kept apart from it because the two registries measure different things:
+	 * a unit has an asking price and a floor count, a catchment has neither.
+	 */
+	ukuran_unit?: UnitMetricKey;
+	/**
+	 * Which way that list of units runs.
+	 *
+	 * Its own field rather than a second reading of `urut`, which is resolved against the
+	 * CATCHMENT measure. The two registries disagree about which end is "best" often
+	 * enough for the reuse to be wrong quietly: `pesaing` counts rivals and wants the
+	 * fewest first, `luas_bangunan` measures floor area and wants the largest, and a
+	 * direction settled for one applied to the other silently answers backwards.
+	 */
+	urut_unit?: 'asc' | 'desc';
 	/**
 	 * WHICH figure the question is about, as a key from `domain/metrics`.
 	 *
