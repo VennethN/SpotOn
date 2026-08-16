@@ -17,13 +17,18 @@ import type { ScoredHex, Weights } from '$lib/types';
  * own total would discredit the number it exists to explain.
  *
  * Transit is pulled out twice on purpose. It is a step like any other in the
- * waterfall, AND it is the only input built from real data rather than sample
+ * waterfall, AND it is one of the two inputs built from real data rather than sample
  * attributes — so the split of the final score into "what any cell would keep" and
  * "what these stations added" is stated separately, in points rather than in the
  * percentage `accessUplift` gives.
+ *
+ * The cost of space is the other real one, and it is the last step: a multiplier of at
+ * most 1, taken off the end. On a catchment where no asking price could be read it is
+ * exactly 1 and the row says so, rather than being dropped — a step that disappears
+ * when it finds nothing is indistinguishable from a step that found nothing to charge.
  */
 
-export type StepKey = 'start' | 'demand' | 'supply' | 'clamp' | 'gate' | 'access';
+export type StepKey = 'start' | 'demand' | 'supply' | 'clamp' | 'gate' | 'access' | 'cost';
 
 export interface CompositionStep {
 	key: StepKey;
@@ -50,6 +55,12 @@ export interface Composition {
 	transitPoints: number;
 	/** The most transit could add to this cell, i.e. what a perfectly served one gets. */
 	transitCeiling: number;
+	/** The cost-of-space multiplier, and whether it actually cost this cell anything.
+	    It is 1, and bites nothing, wherever no price could be read. */
+	costFactor: number;
+	costBites: boolean;
+	/** Score points the asking price took off, as a positive number. Zero when unpriced. */
+	costPoints: number;
 	/** The final score, 0–100, rounded exactly as the panel prints it. */
 	score: number;
 }
@@ -73,7 +84,13 @@ export function composeScore(row: ScoredHex, w: Weights): Composition | null {
 	const gate = w.gate && row.listings === 0 ? GATE_BLOCKED : 1;
 	const gated = balance * gate;
 	const accessFactor = ACCESS_FLOOR + ACCESS_SPAN * row.access;
-	const score = gated * accessFactor;
+	const travelled = gated * accessFactor;
+	// Read off the row rather than recomputed from the price. The engine has already
+	// decided what the cost of space was worth here, including the cases where it was
+	// worth nothing because no price could be read, and a second derivation of the same
+	// number is a second thing to keep in step.
+	const costFactor = row.costFactor;
+	const score = travelled * costFactor;
 
 	/**
 	 * Every step is rounded against the RUNNING TOTAL, and each delta is the
@@ -93,7 +110,13 @@ export function composeScore(row: ScoredHex, w: Weights): Composition | null {
 	// a step that otherwise does not add up.
 	if (balance !== raw) marks.push({ key: 'clamp', at: balance, factor: null });
 	marks.push({ key: 'gate', at: gated, factor: gate });
-	marks.push({ key: 'access', at: score, factor: accessFactor });
+	marks.push({ key: 'access', at: travelled, factor: accessFactor });
+	// Shown on every cell, including the ones it did not move. Unlike the clamp, this
+	// step is not a rule nobody needed to know: a reader comparing two catchments has to
+	// be able to see that one of them was marked down for its asking price and the other
+	// was left alone because nothing there is priced. Dropping the row on the second
+	// would make the two look identically untouched.
+	marks.push({ key: 'cost', at: score, factor: costFactor });
 
 	const steps: CompositionStep[] = [];
 	let running = 0;
@@ -111,7 +134,11 @@ export function composeScore(row: ScoredHex, w: Weights): Composition | null {
 	// The floor is what every cell keeps whatever its transit; the rest is what these
 	// particular stations bought. Derived by subtraction from the printed score rather
 	// than rounded on its own, so the two halves add up to the total exactly.
-	const withoutTransit = pts(gated * ACCESS_FLOOR);
+	//
+	// Both halves are measured AFTER the cost of space, so they still add up to the
+	// score printed above them. Splitting the pre-cost total instead would leave the two
+	// segments summing to a number the panel never shows.
+	const withoutTransit = pts(gated * ACCESS_FLOOR * costFactor);
 
 	return {
 		steps,
@@ -121,7 +148,10 @@ export function composeScore(row: ScoredHex, w: Weights): Composition | null {
 		accessFactor,
 		withoutTransit,
 		transitPoints: pts(score) - withoutTransit,
-		transitCeiling: pts(gated) - withoutTransit,
+		transitCeiling: pts(gated * costFactor) - withoutTransit,
+		costFactor,
+		costBites: costFactor !== 1,
+		costPoints: pts(travelled) - pts(score),
 		score: pts(score)
 	};
 }

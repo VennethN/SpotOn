@@ -4,6 +4,7 @@
 		ExpressionSpecification,
 		GeoJSONSource,
 		Map as MapLibreMap,
+		MapLayerMouseEvent,
 		Marker,
 		StyleSpecification
 	} from 'maplibre-gl';
@@ -15,6 +16,20 @@
 	import { boundsOf, emptyFC, ringCoords } from '$lib/utils/geo';
 	import { railTotal, stopTotal } from '$lib/domain/transit';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
+	import { basemapStyle } from '$lib/map/basemap';
+	import { hatchImage, rivalImage, unitImage } from '$lib/map/icons';
+	import {
+		catchmentFC,
+		labelText,
+		poiFC,
+		poiLinksFC,
+		propertyFC,
+		reachFC,
+		stopLinksFC,
+		stopsFC,
+		unitsFC,
+		type MapCtx
+	} from '$lib/map/sources';
 	import { pct, rampIndex } from '$lib/utils/format';
 	import { cellName } from '$lib/domain/scoring';
 	import { base } from '$app/paths';
@@ -31,6 +46,9 @@
 	let ready = $state(false);
 	let gl: typeof import('maplibre-gl') | null = null;
 	let markers = new Map<string, { marker: Marker; el: HTMLButtonElement; rank: number }>();
+	/** Price tags on the units the selected cell captures. Kept apart from `markers`
+	    because they come and go with the selection rather than with the ranking. */
+	let unitTags = new Map<string, { marker: Marker; el: HTMLDivElement }>();
 	let labelFrame = 0;
 
 	/**
@@ -138,325 +156,38 @@
 	const cssVar = (name: string) =>
 		getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-	function basemapStyle(theme: 'light' | 'dark'): string | StyleSpecification {
-		// MAPID MAPS is the mandatory basemap for the finished product; until the style
-		// key is available, an open raster with equally valid attribution is used.
-		//
-		// The value has to be a URL, and it is checked rather than trusted. A bare
-		// style id pasted in here (they look like `f3b5f5f0…`) is not rejected by
-		// MapLibre — it is resolved as a path relative to the page, 404s, and leaves a
-		// blank canvas with no basemap and no error anywhere the user can see. Falling
-		// back to the open raster and saying so in the console turns a map that is
-		// silently broken into a map that works plus one line explaining what to fix.
-		const configured = env.PUBLIC_MAPID_STYLE_URL?.trim();
-		if (configured) {
-			if (/^(https?:)?\/\//.test(configured) || configured.startsWith('/')) return configured;
-			console.warn(
-				`[SpotOn] PUBLIC_MAPID_STYLE_URL is not a URL ("${configured}"), so the open raster basemap is being used instead. ` +
-					'MapLibre needs the full MAPID MAPS style URL, not the style id on its own.'
-			);
-		}
-		const variant = theme === 'dark' ? 'dark_all' : 'light_all';
-		return {
-			version: 8,
-			sources: {
-				base: {
-					type: 'raster',
-					tiles: [
-						`https://a.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}.png`,
-						`https://b.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}.png`,
-						`https://c.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}.png`
-					],
-					tileSize: 256,
-					attribution:
-						'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a> · basemap final: MAPID MAPS'
-				}
-			},
-			layers: [{ id: 'base', type: 'raster', source: 'base' }]
-		} satisfies StyleSpecification;
-	}
-
-	/** Hatching for catchments with no data — absent data must never look like a low score. */
-	function hatchImage(): ImageData {
-		const size = 10;
-		const c = document.createElement('canvas');
-		c.width = c.height = size;
-		const ctx = c.getContext('2d')!;
-		ctx.fillStyle = cssVar('--fill-1') || 'rgba(120,128,140,0.1)';
-		ctx.fillRect(0, 0, size, size);
-		ctx.strokeStyle = cssVar('--nodata');
-		ctx.globalAlpha = 0.5;
-		ctx.lineWidth = 2;
-		ctx.beginPath();
-		ctx.moveTo(-size, size);
-		ctx.lineTo(size, -size);
-		ctx.moveTo(0, size * 2);
-		ctx.lineTo(size * 2, 0);
-		ctx.stroke();
-		return ctx.getImageData(0, 0, size, size);
-	}
-
 	/**
-	 * The cell polygons.
+	 * What the source builders need, gathered at call time.
 	 *
-	 * Built from the BASE grid, not from scored rows, so the map draws the moment the
-	 * page has its geometry — before any category has been chosen, and whether or not
-	 * the heatmap is on. Scores, when there are any, only decide the fill colour.
-	 *
-	 * Every colour is read once here rather than inside the loop. `cssVar` calls
-	 * `getComputedStyle(document.documentElement)`, and doing that per feature meant
-	 * 562 forced style recalculations for a palette of nine colours that is identical
-	 * on every one of them — on every weight change, every hover, every selection.
+	 * A function rather than a `$derived`: these run inside the effect that pushes new
+	 * data to MapLibre, and `cssVar` reads the live document, so the context has to be
+	 * the one that exists at the moment of the call rather than the one that existed
+	 * when a derived last recomputed.
 	 */
-	function catchmentFC(): FeatureCollection {
-		const rows = heat ? app.rowById : null;
-		const colNodata = cssVar('--nodata');
-		const colIdle = cssVar('--cell-idle');
-		const ramp = Array.from({ length: 7 }, (_, i) => cssVar(`--ramp-${i}`));
-		const selectedId = app.selectedId;
-		const showNodata = app.layers.nodata;
-
-		return {
-			type: 'FeatureCollection',
-			features: app.base
-				.filter((h) => !h.nodata || showNodata)
-				.map((h, i) => {
-					const row = rows?.get(h.id) ?? null;
-					const nodata = Boolean(h.nodata);
-					return {
-						type: 'Feature' as const,
-						// MapLibre's feature-state needs a numeric id; the row index is used because an
-						// H3 id is a hexadecimal string that cannot be turned into a number.
-						id: i,
-						geometry: {
-							type: 'Polygon' as const,
-							// Cell boundaries are computed once at build time, so the client never
-							// has to load the H3 library at all.
-							coordinates: [[...h.boundary, h.boundary[0]]]
-						},
-						properties: {
-							id: h.id,
-							name: cellName(h),
-							nodata,
-							// A real cell left unscored because the active source does not
-							// cover its city. Kept distinct from `nodata` so it does not look
-							// like an empty cell — and given no colour at all, because any
-							// colour would read as a score.
-							//
-							// Only ever claimed while the heatmap is on: with no category
-							// loaded nothing has been checked yet, and dashing every cell
-							// would report a coverage gap that has not been looked for.
-							uncovered: Boolean(row) && !nodata && row!.score === null,
-							color: nodata ? colNodata : row ? ramp[rampIndex(row.score ?? 0)] : colIdle,
-							// Carries a score right now, so the fill means something. An idle cell
-							// is drawn as structure instead: faint fill, crisper edge.
-							scored: Boolean(row) && !nodata && row!.score !== null,
-							saturated: row?.typology === 'saturated',
-							selected: h.id === selectedId
-						}
-					};
-				})
-		};
-	}
-
-	/**
-	 * The transit nodes the SELECTED cell captures — never the whole city's 1,105.
-	 *
-	 * This is the picture of the sentence the area panel just wrote. Drawing every
-	 * stop in Jakarta would answer a question nobody asked and bury the cell's own
-	 * under it; drawing only the captured ones makes "what this area reaches" a thing
-	 * you can see rather than a number you have to trust.
-	 */
-	function stopsFC(): FeatureCollection {
-		if (!app.layers.stops) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedStops.map((s) => ({
-				type: 'Feature' as const,
-				geometry: { type: 'Point' as const, coordinates: [s.lon, s.lat] },
-				properties: {
-					mode: s.mode,
-					name: s.name,
-					// Written only when there IS a name, so `['has', 'label']` can filter on
-					// it. An empty string is a label as far as MapLibre is concerned, and it
-					// reserves collision space for a label nobody can read.
-					...(s.name ? { label: labelText(s.name) } : {}),
-					// Rail gets a bigger mark. It is a single fixed doorway, and there are
-					// twenty of them against nine hundred and seventy-six halte.
-					rail: s.mode !== 'brt',
-					// Placement priority within its own label layer, lowest first. Nearest
-					// wins, because the stop on the cell's own doorstep is the one its
-					// score leans on hardest. Ranking BETWEEN the classes is the layer
-					// order, not this — see `LABEL_LAYERS`.
-					sort: Math.round(s.distance)
-				}
-			}))
-		};
-	}
-
-	/**
-	 * A line from the selected cell's centre to every node it captures.
-	 *
-	 * The dots alone say "there are stations here". The fan says "these belong to the
-	 * cell you picked" — and because every line starts at the same point, the number of
-	 * them is legible at a glance instead of having to be counted off the basemap. It
-	 * is also literally the measurement the grid made: centre to node, under the
-	 * walking range.
-	 */
-	function stopLinksFC(): FeatureCollection {
-		const cell = app.selectedCell;
-		if (!app.layers.stops || !cell) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedStops.map((s) => ({
-				type: 'Feature' as const,
-				geometry: {
-					type: 'LineString' as const,
-					coordinates: [
-						[cell.lon, cell.lat],
-						[s.lon, s.lat]
-					]
-				},
-				properties: { mode: s.mode, rail: s.mode !== 'brt' }
-			}))
-		};
-	}
-
-	/**
-	 * The walking range, drawn as it was measured.
-	 *
-	 * One ring for both fans, because it is one rule: the transit nodes and the
-	 * competitors are captured by the same test at the same radius from the same
-	 * centre. So it is drawn whenever either of them is on screen, and drawing it
-	 * twice would only put two identical circles on top of each other.
-	 */
-	function reachFC(): FeatureCollection {
-		const cell = app.selectedCell;
-		if (!cell) return emptyFC();
-		if (!app.layers.stops && !app.layers.poi) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: [
-				{
-					type: 'Feature' as const,
-					geometry: {
-						type: 'LineString' as const,
-						coordinates: ringCoords(cell.lon, cell.lat, app.weights.radius)
-					},
-					properties: {}
-				}
-			]
-		};
-	}
-
-	/**
-	 * The competitor mark: a square, not a dot.
-	 *
-	 * Colour alone cannot carry this. `--route-krl` is #e05a5a and `--critical` is
-	 * #d1352b, and in dark mode they are #ff7b74 against #ff6257 — so a red circle for
-	 * a competitor and a red circle for a KRL station are the same mark to anyone not
-	 * holding a swatch, and closer still to a reader with a colour vision deficiency.
-	 * The two mean opposite things: one is why a cell is worth having, the other is
-	 * what stands in the way.
-	 *
-	 * A square separates them by shape, which survives both. Drawn at 2× and handed to
-	 * MapLibre with `pixelRatio: 2` so the edges stay crisp on a retina screen, and
-	 * carrying its own knockout border for the same reason the transit nodes have a
-	 * plate: this sits on a heatmap fill whose colour changes cell to cell.
-	 */
-	function rivalImage(): { data: ImageData; pixelRatio: number } {
-		const size = 16;
-		const c = document.createElement('canvas');
-		c.width = c.height = size;
-		const ctx = c.getContext('2d')!;
-		const inset = 2.5;
-		const side = size - inset * 2;
-		ctx.fillStyle = cssVar('--bg-elevated') || '#ffffff';
-		ctx.strokeStyle = cssVar('--bg-elevated') || '#ffffff';
-		ctx.lineWidth = 3;
-		ctx.lineJoin = 'round';
-		ctx.strokeRect(inset, inset, side, side);
-		ctx.fillStyle = cssVar('--critical');
-		ctx.fillRect(inset, inset, side, side);
-		return { data: ctx.getImageData(0, 0, size, size), pixelRatio: 2 };
-	}
-
-	/**
-	 * The competitors the SELECTED cell captures — real positions, never the whole
-	 * city's.
-	 *
-	 * This used to scatter every cell's competitor COUNT on a Fibonacci spiral around
-	 * its centre: the right number of dots in invented places, on all 562 cells at
-	 * once. It answered "how many", which the panel already answers better, and
-	 * quietly implied a distribution nobody had measured.
-	 *
-	 * These are the MAPID points themselves, captured by the same distance test the
-	 * grid counted them with. So the dots are not an illustration of the count, they
-	 * ARE the count — and where they cluster is a real fact about the cell.
-	 */
-	function poiFC(): FeatureCollection {
-		if (!app.layers.poi) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedPois.map((p) => ({
-				type: 'Feature' as const,
-				geometry: { type: 'Point' as const, coordinates: [p.lon, p.lat] },
-				properties: {
-					// Only when the dataset has one. An unnamed outlet is still drawn: it
-					// is a competitor whose name was never recorded, not a missing point.
-					...(p.name ? { label: labelText(p.name) } : {}),
-					sort: Math.round(p.distance)
-				}
-			}))
-		};
-	}
-
-	/**
-	 * A line from the selected cell's centre to every competitor it captures.
-	 *
-	 * The same device as the transit fan, doing the same job: the dots say "there are
-	 * rivals here", the fan says "these are the ones counted against this cell". It is
-	 * also literally the measurement — centre to point, under the walking radius.
-	 *
-	 * Fainter and thinner than even the bus links, because a cell can capture thirty
-	 * competitors where it captures twenty-odd stops, and at equal weight the fan
-	 * stops being a fan and becomes a smear.
-	 */
-	function poiLinksFC(): FeatureCollection {
-		const cell = app.selectedCell;
-		if (!app.layers.poi || !cell) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedPois.map((p) => ({
-				type: 'Feature' as const,
-				geometry: {
-					type: 'LineString' as const,
-					coordinates: [
-						[cell.lon, cell.lat],
-						[p.lon, p.lat]
-					]
-				},
-				properties: {}
-			}))
-		};
-	}
+	const ctx = (): MapCtx => ({ app, c, heat, cssVar });
 
 	function addLayers(m: MapLibreMap) {
-		if (!m.hasImage('hatch')) m.addImage('hatch', hatchImage());
+		if (!m.hasImage('hatch')) m.addImage('hatch', hatchImage(cssVar));
 		// Both of these bake a theme colour in, so a theme change has to redraw them.
 		// `addLayers` re-runs on `setStyle`, which clears the style's images, and the
 		// guard above is what makes the re-add happen exactly then.
 		if (!m.hasImage('rival')) {
-			const { data, pixelRatio } = rivalImage();
+			const { data, pixelRatio } = rivalImage(cssVar);
 			m.addImage('rival', data, { pixelRatio });
 		}
+		if (!m.hasImage('unit')) {
+			const { data, pixelRatio } = unitImage(cssVar);
+			m.addImage('unit', data, { pixelRatio });
+		}
 
-		m.addSource('catchments', { type: 'geojson', data: catchmentFC() });
-		m.addSource('poi', { type: 'geojson', data: poiFC() });
-		m.addSource('poi-links', { type: 'geojson', data: poiLinksFC() });
-		m.addSource('stops', { type: 'geojson', data: stopsFC() });
-		m.addSource('stop-links', { type: 'geojson', data: stopLinksFC() });
-		m.addSource('reach', { type: 'geojson', data: reachFC() });
+		m.addSource('catchments', { type: 'geojson', data: catchmentFC(ctx()) });
+		m.addSource('poi', { type: 'geojson', data: poiFC(ctx()) });
+		m.addSource('property', { type: 'geojson', data: propertyFC(ctx()) });
+		m.addSource('units', { type: 'geojson', data: unitsFC(ctx()) });
+		m.addSource('poi-links', { type: 'geojson', data: poiLinksFC(ctx()) });
+		m.addSource('stops', { type: 'geojson', data: stopsFC(ctx()) });
+		m.addSource('stop-links', { type: 'geojson', data: stopLinksFC(ctx()) });
+		m.addSource('reach', { type: 'geojson', data: reachFC(ctx()) });
 		// Fetched by URL rather than imported: MapLibre fetches the GeoJSON itself, so
 		// 441 KB of line geometry does not swell the JS bundle and can be cached by the
 		// browser like any other asset.
@@ -608,6 +339,58 @@
 				'icon-ignore-placement': true
 			}
 		});
+		// Every vacancy counted has to be drawn, for the same reason every competitor is:
+		// the panel states a count, and a map quietly showing fewer of them than the
+		// panel claims is the map contradicting the number beside it.
+		// Unit mode: every unit on the market, coloured by the catchment it stands in.
+		// Circles rather than the diamond, because these are the ROWS here rather than a
+		// detail of a chosen cell, and because the colour is the reading — a shape with a
+		// hole in it fights the fill it is carrying.
+		m.addLayer({
+			id: 'unit-pivot',
+			type: 'circle',
+			source: 'units',
+			paint: {
+				'circle-radius': [
+					'interpolate',
+					['linear'],
+					['zoom'],
+					10,
+					['case', ['get', 'selected'], 6, 3.2],
+					15,
+					['case', ['get', 'selected'], 13, 7]
+				],
+				'circle-color': ['get', 'color'],
+				// Three rings, in order of who asked for them: the unit the reader opened,
+				// then the units standing in a catchment Tapak's last answer named, then
+				// everything else with the plain knockout that keeps a dot legible on top
+				// of whatever is under it.
+				'circle-stroke-width': ['case', ['get', 'selected'], 2.4, ['get', 'named'], 2, 1],
+				'circle-stroke-color': [
+					'case',
+					['get', 'selected'],
+					cssVar('--label-1'),
+					['get', 'named'],
+					cssVar('--accent'),
+					cssVar('--bg-elevated')
+				],
+				// A unit with no reading for the sorted measure is drawn back as well as grey,
+				// so it reads as context rather than as a low-ranking result.
+				'circle-opacity': ['case', ['get', 'ranked'], 0.95, 0.5]
+			}
+		});
+
+		m.addLayer({
+			id: 'property-units',
+			type: 'symbol',
+			source: 'property',
+			layout: {
+				'icon-image': 'unit',
+				'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 15, 1.15],
+				'icon-allow-overlap': true,
+				'icon-ignore-placement': true
+			}
+		});
 
 		// The walking range the nodes below were captured within — the rule, drawn.
 		m.addLayer({
@@ -733,6 +516,13 @@
 			});
 		}
 
+		m.on('click', 'unit-pivot', (e) => {
+			const id = e.features?.[0]?.properties?.id;
+			if (typeof id === 'string') app.selectUnit(id);
+		});
+		m.on('mouseenter', 'unit-pivot', () => (m.getCanvas().style.cursor = 'pointer'));
+		m.on('mouseleave', 'unit-pivot', () => (m.getCanvas().style.cursor = ''));
+
 		let hoverId: number | null = null;
 		m.on('mousemove', 'catchment-fill', (e) => {
 			m.getCanvas().style.cursor = 'pointer';
@@ -761,14 +551,18 @@
 			hoverId = null;
 			hovered = null;
 		});
-		m.on('click', 'catchment-fill', (e) => {
+		/* A catchment is only selectable while catchments are what the map is a list of.
+		   In unit mode the selected cell is not something the reader picks: it is wherever
+		   the open unit stands, set by `selectUnit` and described by the card's lower half.
+		   Letting a click on the grid underneath move it would put the card's figures onto
+		   a catchment the unit above them is not in. */
+		const pickCell = (e: MapLayerMouseEvent) => {
+			if (app.pivot !== 'cell') return;
 			const id = e.features?.[0]?.properties?.id;
 			if (typeof id === 'string') app.select(id);
-		});
-		m.on('click', 'catchment-nodata', (e) => {
-			const id = e.features?.[0]?.properties?.id;
-			if (typeof id === 'string') app.select(id);
-		});
+		};
+		m.on('click', 'catchment-fill', pickCell);
+		m.on('click', 'catchment-nodata', pickCell);
 	}
 
 	function positionTip(x: number, y: number) {
@@ -888,26 +682,114 @@
 	}
 
 	/**
+	 * How many units get a price tag.
+	 *
+	 * A dense cell captures thirty-odd premises, and thirty price tags is not a map. The
+	 * nearest eight are tagged and the rest keep their diamond, which is the same
+	 * bargain the cell labels strike: every unit is still drawn, only the naming is
+	 * rationed. Nearest first, because the panel's list is ordered that way too and the
+	 * two have to agree about which units are "the near ones".
+	 */
+	const MAX_UNIT_TAGS = 8;
+
+	/**
+	 * Price tags on the units the selected cell captures.
+	 *
+	 * DOM markers rather than a symbol layer, and that is not a style preference. A
+	 * `text-field` needs a `glyphs` source, and the open raster basemap this falls back
+	 * to when `PUBLIC_MAPID_STYLE_URL` is unset has none — so every symbol label on this
+	 * map renders nothing today, silently, and the names the reader does see are these
+	 * markers. A price drawn the other way would be a feature that works on one
+	 * developer's machine and nowhere else.
+	 *
+	 * The type leads and the price sits under it, because they answer two questions in
+	 * that order: what is it, then what are they asking. A unit with no published price
+	 * gets the type alone rather than a tag reading "Ruko ·" — the panel already counts
+	 * those separately.
+	 */
+	function syncUnitTags() {
+		if (!map || !gl) return;
+		const wanted = app.layers.property
+			? app.selectedListings.filter((l) => l.premises).slice(0, MAX_UNIT_TAGS)
+			: [];
+
+		// Keyed by position in the captured list, not by coordinate: 1,915 of the 3,547
+		// listings share a coordinate with another, so a coordinate key would collapse
+		// four real units in one building into one tag.
+		const keep = new Set(wanted.map((_, i) => String(i)));
+		for (const [id, entry] of unitTags) {
+			if (!keep.has(id)) {
+				entry.marker.remove();
+				unitTags.delete(id);
+			}
+		}
+
+		for (const [i, l] of wanted.entries()) {
+			const id = String(i);
+			let entry = unitTags.get(id);
+			if (!entry) {
+				const el = document.createElement('div');
+				el.className = 'unit-pin';
+				const marker = new gl.Marker({ element: el, anchor: 'center' }).setLngLat([l.lon, l.lat]);
+				marker.addTo(map);
+				entry = { marker, el };
+				unitTags.set(id, entry);
+			}
+			entry.marker.setLngLat([l.lon, l.lat]);
+			const type = c.property.types[l.type] ?? l.type;
+			const price = l.price !== null ? c.property.unitPrice(l.price) : '';
+			entry.el.setAttribute(
+				'aria-label',
+				c.property.mapUnitAria(type, price, Math.round(l.distance))
+			);
+			entry.el.innerHTML =
+				`<span class="unit-mark"></span>` +
+				`<span class="unit-tag"><span class="unit-type">${escapeText(type)}</span>` +
+				(price ? `<span class="unit-price">${escapeText(price)}</span>` : '') +
+				`</span>`;
+		}
+	}
+
+	/** Text going into `innerHTML` above. Every value it is handed comes from the
+	    locale files or the property file, but the rule that it is escaped before it is
+	    interpolated should not depend on where the string came from today. */
+	const escapeText = (s: string) =>
+		s.replace(/[&<>"]/g, (ch) => `&${{ '&': 'amp', '<': 'lt', '>': 'gt', '"': 'quot' }[ch]};`);
+
+	/**
 	 * Colliding labels are hidden rather than drawn on top of each other.
 	 *
 	 * The top fourteen cells often cluster along one corridor, and their names then
 	 * overlap until not one of them reads. The more important ones — the selected
 	 * cell, then the ranked results — get their space first; the rest fall back to a
 	 * dot. The dot is still there, so no cell disappears.
+	 *
+	 * The price tags go through the SAME pass rather than one of their own. Two
+	 * independent collision layouts do not collide with each other, which is exactly how
+	 * a price tag ends up sitting on top of a cell name — each one having correctly
+	 * concluded it had the space to itself. Cell names are laid first because they orient
+	 * the reader on the whole map; a tag that cannot fit falls back to its diamond, which
+	 * the symbol layer draws for every unit regardless.
 	 */
 	function layoutLabels() {
 		if (!map) return;
 		const entries = [...markers.values()].sort((a, b) => a.rank - b.rank);
 		const placed: DOMRect[] = [];
 
+		const labels: HTMLElement[] = [];
 		for (const e of entries) {
 			const label = e.el.querySelector<HTMLElement>('.stn-label');
-			if (!label) continue;
-			label.style.visibility = '';
+			if (label && e.el.style.display !== 'none') labels.push(label);
+			if (label) label.style.visibility = '';
 		}
-		for (const e of entries) {
-			const label = e.el.querySelector<HTMLElement>('.stn-label');
-			if (!label || e.el.style.display === 'none') continue;
+		for (const e of unitTags.values()) {
+			const tag = e.el.querySelector<HTMLElement>('.unit-tag');
+			if (!tag) continue;
+			tag.style.visibility = '';
+			labels.push(tag);
+		}
+
+		for (const label of labels) {
 			const box = label.getBoundingClientRect();
 			const clash = placed.some(
 				(q) =>
@@ -936,27 +818,6 @@
 			''
 		);
 
-	/**
-	 * A name cut down to what a map label can actually carry.
-	 *
-	 * Names run long: the median stop is 16 characters but the tail reaches 57
-	 * ("Direktorat Jenderal Energi Terbarukan dan Konversi Energi"). Wrapped rather
-	 * than cut, that one name becomes a five-line block roughly the height of a
-	 * thumbnail, and because the collision index works on the whole block it evicts
-	 * every neighbour it touches. One halte nobody was looking for costs five labels
-	 * somebody was.
-	 *
-	 * 30 characters is where that stops happening while barely touching the data: 41
-	 * of the 1,104 named nodes are longer, and the p90 is 26. Paired with a 9 em wrap
-	 * this holds every label to at most two lines.
-	 *
-	 * The full name is kept on the feature and is what the panel lists. This is the
-	 * label form, and the ellipsis is there so a cut name is legible AS cut rather
-	 * than passing for a shorter name that does not exist.
-	 */
-	const LABEL_CHARS = 30;
-	const labelText = (n: string): string =>
-		n.length <= LABEL_CHARS ? n : `${n.slice(0, LABEL_CHARS - 1).trimEnd()}…`;
 
 	/**
 	 * The selected cell's transit count, pinned to the cell itself.
@@ -1050,6 +911,7 @@
 			if (labelFrame) cancelAnimationFrame(labelFrame);
 			map?.remove();
 			markers.clear();
+			unitTags.clear();
 		};
 	});
 
@@ -1085,15 +947,25 @@
 		void app.selectedStops;
 		void app.selectedPois;
 		void app.layers.stops;
+		void app.layers.property;
+		void app.selectedListings;
+		void app.pivot;
+		void app.unitRows;
+		void app.unitFiltered;
+		void app.unitSort;
+		void app.unitOrder;
+		void app.selectedUnitId;
 		void app.weights.radius;
 		const m = map;
 		if (!m || !ready) return;
-		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC());
-		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC());
-		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC());
-		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC());
-		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC());
-		(m.getSource('reach') as GeoJSONSource | undefined)?.setData(reachFC());
+		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC(ctx()));
+		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC(ctx()));
+		(m.getSource('property') as GeoJSONSource | undefined)?.setData(propertyFC(ctx()));
+		(m.getSource('units') as GeoJSONSource | undefined)?.setData(unitsFC(ctx()));
+		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC(ctx()));
+		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC(ctx()));
+		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC(ctx()));
+		(m.getSource('reach') as GeoJSONSource | undefined)?.setData(reachFC(ctx()));
 		for (const mode of ROUTE_MODES) {
 			m.setLayoutProperty(`route-${mode.key}`, 'visibility', app.layers.routes ? 'visible' : 'none');
 		}
@@ -1107,6 +979,9 @@
 			cssVar('--separator-strong'),
 			cssVar('--cell-edge')
 		]);
+		// The tags before the layout pass inside `syncMarkers`, so the two sets of labels
+		// are laid out together against one set of occupied rectangles.
+		syncUnitTags();
 		syncMarkers(app.base);
 	});
 
@@ -1382,6 +1257,78 @@
 		color: var(--label-1);
 		background: var(--mat-thick);
 	}
+	/* ── Units on the market ─────────────────────────────────────────────────
+	   A price tag on a doorway the reader could actually take. The type leads and
+	   the asking price sits under it, in that order because that is the order the
+	   questions come in: what is it, then what are they asking for it.
+
+	   Deliberately quieter than a cell name. A cell name is a place on the map; this
+	   is one listing among a dozen, and at equal weight eight of them bury the map
+	   they are drawn on. The diamond stays put when the tag is hidden by the layout
+	   pass, so no unit ever disappears. */
+	/* `unit-pin`, not `unit`. These are `:global` because MapLibre owns the elements, and
+	   a bare `.unit` collapsed the panel's own `<span class="unit">` — the caption beside
+	   the median price — to 0×0 across the whole app. A global class needs a name nothing
+	   else would reach for, which a word as ordinary as "unit" is not. */
+	:global(.unit-pin) {
+		position: relative;
+		display: block;
+		width: 0;
+		height: 0;
+		/* Purely informative, and the panel lists the same units with more about each.
+		   Nothing here is clickable, so nothing here should look it or catch a pointer
+		   travelling to the cell underneath. */
+		pointer-events: none;
+	}
+	/* The diamond, matching the symbol layer's mark so the tag reads as belonging to
+	   it rather than floating beside it. A rotated square: one shape the map does not
+	   already spend on competitors (square) or transit nodes (circles). */
+	:global(.unit-mark) {
+		position: absolute;
+		left: -4px;
+		top: -4px;
+		width: 8px;
+		height: 8px;
+		transform: rotate(45deg);
+		background: var(--bg-elevated);
+		border: 1.5px solid var(--warn);
+		box-shadow: var(--shadow-chip);
+	}
+	:global(.unit-tag) {
+		position: absolute;
+		left: 0.5625rem;
+		top: -0.75rem;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.0625rem;
+		white-space: nowrap;
+		background: var(--mat-thin);
+		-webkit-backdrop-filter: var(--blur-thin);
+		backdrop-filter: var(--blur-thin);
+		border: 1px solid var(--separator);
+		border-left: 2px solid var(--warn);
+		border-radius: 0 var(--r-sm, 6px) var(--r-sm, 6px) 0;
+		padding: 0.0625rem 0.375rem 0.125rem;
+		box-shadow: var(--shadow-chip);
+	}
+	:global(.unit-type) {
+		font-size: 0.625rem;
+		font-weight: 500;
+		line-height: 1.2;
+		color: var(--label-2);
+	}
+	/* The figure the reader came for, so it is the one set in the strong colour and
+	   the tabular numerals. The type above it is the caption, not the other way round. */
+	:global(.unit-price) {
+		font-size: 0.6875rem;
+		font-weight: 650;
+		line-height: 1.15;
+		letter-spacing: -0.01em;
+		color: var(--label-1);
+		font-variant-numeric: tabular-nums;
+	}
+
 	/* What the selected cell captures. Sits under the dot, opposite the name above it,
 	   so the two never fight for the same space. A column, because either chip can be
 	   absent and neither may be left holding a gap where the other would have been. */

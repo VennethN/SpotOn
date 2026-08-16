@@ -97,6 +97,18 @@ export const provenance = {
 		label: 'OSM',
 		note: `${file.meta.stops} simpul transit (MRT ${file.meta.stopsByMode.mrt ?? 0}, KRL ${file.meta.stopsByMode.krl ?? 0}, LRT ${file.meta.stopsByMode.lrt ?? 0}, TransJakarta ${file.meta.stopsByMode.brt ?? 0}) dan ${file.meta.pois} POI pesaing OSM, dari OpenStreetMap via Overpass API (ODbL).`
 	},
+	/* Harga tempat usaha. Ditulis terpisah dari `mock` karena memang bukan contoh, dan
+	   terpisah dari `real` karena sumbernya bukan OSM. Satu hal yang wajib ikut
+	   disebut: yang ada di katalog cuma listing JUAL. `listingType` dan `tipe3` ditulis
+	   oleh skripnya dari hitungan sungguhan, jadi klaim itu terikat ke datanya, bukan
+	   ke ingatan siapa pun. */
+	property: file.meta.property
+		? {
+				label: 'MAPID',
+				note: `${file.meta.property.listings} listing properti komersial dari katalog Data Premium MAPID, ${file.meta.property.coveredCities.length} kota administrasi. ${file.meta.property.cellsPriced} dari ${file.meta.property.cellsCovered} petak tercakup punya harga yang terbaca. SEMUANYA LISTING JUAL: tidak ada satu pun listing sewa untuk Jakarta di katalog, jadi harga di peta adalah harga jual yang diminta penjual, bukan sewa bulanan.`,
+				tipe3: file.meta.property.tipe3
+			}
+		: null,
 	mock: {
 		label: 'MOCK',
 		note: `Atribut misi MAPID (profil jam, Struk Go, Menu Go, Properti Go, metode pembayaran) masih CONTOH karena datasetnya belum publik. Dibangkitkan mengikuti akses transit dan kepadatan usaha yang nyata agar polanya masuk akal secara spasial, bukan acak buta. ${file.meta.nodata} dari ${file.meta.hexes} petak sengaja dibiarkan tanpa data.`

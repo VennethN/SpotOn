@@ -11,6 +11,7 @@
 	 * material. Colour that cannot be read is not encoding anything.
 	 */
 	import CatchmentDiorama from '$lib/components/app/CatchmentDiorama.svelte';
+	import PivotMark from '$lib/components/ui/PivotMark.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { pct, rampIndex } from '$lib/utils/format';
@@ -22,6 +23,10 @@
 
 {#if row}
 	<div class="head">
+		<!-- Which of the two things this card is. Unit cards now carry the same catchment
+		     sections in the same order, so the badge is what tells 800 m of city apart from
+		     one shopfront at a glance. -->
+		<PivotMark kind="cell" />
 		<div class="who">
 			<h2>{row.name}</h2>
 			<p class="sub">
