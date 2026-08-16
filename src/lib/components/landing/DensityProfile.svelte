@@ -1,38 +1,41 @@
 <script lang="ts">
 	/**
-	 * The 24-hour profile of a transit area — the chart itself is shared with the app's
-	 * detail panel (`ui/HourBars`); all that is specific to the landing page is the
-	 * source note and the collapsible table of figures below it, so this reading is
-	 * never the only route to the data.
+	 * How the trade of a transit area is spread across the grid — the chart itself is
+	 * `ui/SpreadBars`; all that is specific to the landing page is the source note and
+	 * the collapsible table of figures below it, so this reading is never the only route
+	 * to the data.
+	 *
+	 * There is no MOCK tag under it any more, because there is nothing left to tag. The
+	 * chart that stood here was a 24-hour transaction profile, and every hour of it was
+	 * generated.
 	 */
-	import HourBars from '$lib/components/ui/HourBars.svelte';
+	import SpreadBars, { type Band } from '$lib/components/ui/SpreadBars.svelte';
 	import { copy } from '$lib/state/lang.svelte';
-	import { formatHour, num } from '$lib/utils/format';
+	import { num } from '$lib/utils/format';
 
-	let { hourly, caption }: { hourly: number[]; caption?: string } = $props();
+	let { bands, caption }: { bands: Band[]; caption?: string } = $props();
 
 	const c = $derived(copy());
 </script>
 
 <div class="prof">
 	<figure>
-		<HourBars {hourly} unit={c.hourChart.unit} />
-		<figcaption>
-			{caption ?? c.hourChart.caption}
-			<span class="tag mock">MOCK</span>
-		</figcaption>
+		<SpreadBars {bands} unit={c.spreadChart.unit} />
+		<figcaption>{caption ?? c.spreadChart.caption}</figcaption>
 	</figure>
 
 	<details>
-		<summary>{c.hourChart.table}</summary>
+		<summary>{c.spreadChart.table}</summary>
 		<table>
-			<caption class="sr">{c.hourChart.tableCaption}</caption>
+			<caption class="sr">{c.spreadChart.tableCaption}</caption>
 			<thead>
-				<tr><th scope="col">{c.hourChart.colHour}</th><th scope="col">{c.hourChart.colValue}</th></tr>
+				<tr>
+					<th scope="col">{c.spreadChart.colBand}</th><th scope="col">{c.spreadChart.colValue}</th>
+				</tr>
 			</thead>
 			<tbody>
-				{#each hourly as v, h (h)}
-					<tr><th scope="row">{formatHour(h)}</th><td>{num(v)}</td></tr>
+				{#each bands as b (b.upTo)}
+					<tr><th scope="row">{c.spreadChart.upTo(num(b.upTo))}</th><td>{num(b.cells)}</td></tr>
 				{/each}
 			</tbody>
 		</table>

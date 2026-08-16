@@ -8,14 +8,19 @@
 	 * one as it is about to pass out the top. That way the reader never feels their
 	 * scroll has been hijacked a second time.
 	 *
-	 * Its contents are deliberately not accurate, and it says so on screen: what it
-	 * shows is how to read a grid, not any particular area.
+	 * The heights are real opportunity scores, sampled across the whole grid by the
+	 * server and handed to the scene. What is schematic is where each one is placed —
+	 * tallest at the middle so the field reads as a landscape — and the mark on screen
+	 * says exactly that: this is how to read a grid, not a picture of one area.
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import type { WorldFactory } from '$lib/scene/world';
+
+	/** A sample of the grid's own scores, in grid order. Null = city not surveyed. */
+	let { field = [] }: { field?: Array<number | null> } = $props();
 
 	const c = $derived(copy());
 	let host = $state<HTMLElement | null>(null);
@@ -30,7 +35,7 @@
 
 	const load = async (): Promise<WorldFactory> => {
 		const { GridWorld } = await import('$lib/scene/grid');
-		return (canvas, opts) => new GridWorld(canvas, opts);
+		return (canvas, opts) => new GridWorld(canvas, { ...opts, field });
 	};
 
 	$effect(() => {
