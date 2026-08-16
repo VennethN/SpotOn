@@ -15,8 +15,7 @@ import {
 	buildUnits,
 	rankUnits,
 	type ScoredUnit,
-	type UnitFilter,
-	type UnitMetricKey
+	type UnitFilter
 } from '$lib/domain/units';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
@@ -32,6 +31,7 @@ import type {
 	HexBase,
 	PoiSource,
 	ScoredHex,
+	UnitMetricKey,
 	Weights
 } from '$lib/types';
 

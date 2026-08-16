@@ -16,10 +16,11 @@
 	 */
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
-	import { UNIT_METRIC_MAP, type UnitMetricKey } from '$lib/domain/units';
+	import { UNIT_METRIC_MAP } from '$lib/domain/units';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { pct } from '$lib/utils/format';
+	import type { UnitMetricKey } from '$lib/types';
 
 	/** How many rows get drawn. The market runs to a couple of thousand units, and a
 	    panel that renders all of them is a scroll nobody reaches the end of. The count

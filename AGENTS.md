@@ -208,6 +208,38 @@ bearing:
   "fewest competitors" is indistinguishable from a real finding, which is the same
   mistake as reading an unsurveyed count as zero.
 
+## Where things live, and which way the arrows point
+
+```
+types.ts        the shapes and the key unions. The leaf: imports nothing from src.
+utils/          format, geo. Depend on nothing.
+domain/         the engine. Pure functions over the types. No Svelte, no DOM, no fetch.
+map/            what the map is given to draw. Depends on domain + state, not on MapLibre.
+state/          the runes. Owns what the reader has chosen and what has been fetched.
+components/     the pixels.
+server/         the data source and the model layer. Never imported by the client.
+i18n/           every user-visible string, in both languages.
+```
+
+The rule is that the arrows only point downwards. `types.ts` in particular imports
+nothing from `src` — it briefly imported two key unions back from `domain/`, and a
+type-only cycle is still a cycle: the module everything depends on had come to depend on
+two modules that depend on it. Key unions (`CategoryKey`, `MetricKey`, `UnitMetricKey`,
+`PropertyType`, `ChatTopic`) are declared there; the tables that give them meaning live
+in the domain, as `Record<Key, …>` so a key without a definition is a compile error.
+
+Two shared pieces worth knowing before writing a third copy of either:
+
+- `domain/rank` holds ranking and band-filtering for BOTH pivots. What varies between a
+  catchment and a unit is the row type and the list of measures; the rules — bands are
+  thirds of the current set, unmeasured rows are dropped rather than sorted last,
+  filters compose in order — are the same rules, and were written twice before they were
+  written once.
+- `map/sources` holds every GeoJSON builder. They were methods on `MapView`, closing over
+  its `app`, `c`, `heat` and `cssVar`, which is how that file reached 1,855 lines. What
+  goes on the map is the thing feature work changes, and it should be readable without
+  the layer definitions, event wiring and marker bookkeeping around it.
+
 ## Two pivots: the area, and the place standing in it
 
 `domain/units` is the second one. Everything else ranks catchments, which is the right
