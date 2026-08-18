@@ -103,7 +103,6 @@ export const id = {
 		lotBody:
 			'Kotak tembus pandang di atasnya bukan bangunan yang sudah ada. Itu usaha yang bisa Anda buka di situ. Permintaan sebesar apa pun tidak ada gunanya kalau tempatnya tidak bisa disewa, jadi ketersediaan tempat kami pakai sebagai syarat, bukan nilai tambah.',
 		lotProv: 'Simpul transit & pesaing: OpenStreetMap · Tempat usaha: katalog MAPID',
-		clockNote: 'ramainya ilustrasi, angkanya cacah sungguhan',
 		reading: (nama: string, n: number) => `${nama} · ${n} usaha dalam radius jalan kaki`,
 		sceneLabel: (nama: string, n: number, pesaing: number) =>
 			`Blok jalan di kawasan ${nama}. Ramainya mengikuti jumlah usaha yang benar-benar berdiri di radius jalan kaki petak itu, ${n} usaha, ${pesaing} di antaranya sejenis.`

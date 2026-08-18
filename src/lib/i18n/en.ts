@@ -101,7 +101,6 @@ export const en: Copy = {
 		lotBody:
 			'The see-through box above it is not a building that exists. It is the business you could open there. Demand is worth nothing if there is no space you can actually rent, so we treat available space as a requirement, not a bonus.',
 		lotProv: 'Stops & competitors: OpenStreetMap · Premises: MAPID catalogue',
-		clockNote: 'the crowd is an illustration, the figure is a real count',
 		reading: (nama: string, n: number) => `${nama} · ${n} businesses within walking range`,
 		sceneLabel: (nama: string, n: number, pesaing: number) =>
 			`A street block in ${nama}. How busy it looks follows the businesses actually standing within walking range of that cell: ${n} of them, ${pesaing} of the same kind.`
