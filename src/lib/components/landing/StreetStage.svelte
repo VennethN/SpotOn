@@ -182,12 +182,18 @@
 
 		<!-- The one element always present, because it is what explains the scene. The
 		     clock is the light and says so: the reading beside it is a count of what
-		     stands around this cell, and it does not move with the sun. -->
+		     stands around this cell, and it does not move with the sun.
+		
+		     A fourth line used to sit here saying the crowd was an illustration and the
+		     figure a real count. It was true and it was in the wrong place: four lines
+		     stacked in a corner is a footnote, and the section this scene belongs to
+		     makes the same point in full a moment later ("Bukan dari firasat dan bukan
+		     dari survei yang belum pernah ada"). The scene's own label carries it too,
+		     for a reader who never sees the corner at all. -->
 		<div class="clock">
 			<span class="time">{formatHour(hour)}</span>
 			<span class="phase">{c.phase[day.phase]}</span>
 			<span class="reading">{c.stage.reading(cell.name, cell.businesses)}</span>
-			<span class="tag">{c.stage.clockNote}</span>
 		</div>
 
 		<div class="copy hero" style:opacity={showHero} aria-hidden={showHero < 0.5}>
@@ -283,23 +289,6 @@
 		color: var(--ink-muted);
 		max-width: 16ch;
 	}
-	/* A permanent marker: no figure on this page may be taken for live data. */
-	.tag {
-		margin-top: 0.4rem;
-		font-family: var(--font-display);
-		font-size: 0.5625rem;
-		font-weight: 700;
-		letter-spacing: 0.14em;
-		text-transform: uppercase;
-		color: var(--ink-muted);
-		border: 1px solid currentColor;
-		border-radius: 3px;
-		padding: 0.05rem 0.3rem;
-		/* This marker has to read against a bright midday sky, not merely be present. A
-		   thin dark backing is more honest than raising the ink's opacity. */
-		background: rgba(0, 0, 0, 0.28);
-	}
-
 	.copy {
 		position: absolute;
 		left: clamp(1rem, 5vw, 4.5rem);
