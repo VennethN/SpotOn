@@ -124,9 +124,7 @@ export const en: Copy = {
 		cats: {
 			label: 'business types scored',
 			sub: 'food, everyday retail, and services'
-		},
-		coverNote: (terdata: string, total: string, nodata: string) =>
-			`${terdata} of ${total} cells have complete data. The other ${nodata} are marked, not guessed.`
+		}
 	},
 
 	problem: {
