@@ -90,9 +90,6 @@
 				</Reveal>
 			{/each}
 		</ul>
-		<Reveal delay={220} distance={8}>
-			<p class="fig-note">{c.stats.coverNote(n(k.surveyed), n(k.hexes), n(k.unsurveyed))}</p>
-		</Reveal>
 	</section>
 
 	<!-- ── the problem ──────────────────────────────────────────────────── -->
@@ -455,13 +452,6 @@
 		font-size: 0.6875rem;
 		line-height: 1.45;
 		color: var(--ink-3);
-	}
-	.fig-note {
-		padding-top: var(--s-group);
-		font-size: 0.875rem;
-		line-height: 1.6;
-		color: var(--ink-2);
-		max-width: 68ch;
 	}
 
 	/* Half a band above and half below, so the space BETWEEN two sections is one

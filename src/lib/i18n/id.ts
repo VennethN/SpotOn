@@ -126,9 +126,7 @@ export const id = {
 		cats: {
 			label: 'jenis usaha dinilai',
 			sub: 'kuliner, ritel harian, dan jasa'
-		},
-		coverNote: (terdata: string, total: string, nodata: string) =>
-			`${terdata} dari ${total} petak datanya lengkap. Sisanya ${nodata} kami tandai, tidak kami tebak.`
+		}
 	},
 
 	problem: {
