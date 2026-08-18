@@ -66,11 +66,14 @@ export const en: Copy = {
 	},
 
 	nav: {
+		/* The order follows the page, and the page has been reordered: the data first,
+		   then how it is turned into a score, then how to ask. Explaining a score before
+		   the reader knows where its numbers come from is back to front. */
 		sections: [
 			{ href: '#masalah', label: 'Problem' },
+			{ href: '#data', label: 'Data' },
 			{ href: '#cara-kerja', label: 'How it works' },
-			{ href: '#ai', label: 'AI' },
-			{ href: '#data', label: 'Data' }
+			{ href: '#ai', label: 'Ask' }
 		],
 		aria: 'Page sections'
 	},
@@ -100,7 +103,6 @@ export const en: Copy = {
 		lotTitle: 'That outlined plot is still empty.',
 		lotBody:
 			'The see-through box above it is not a building that exists. It is the business you could open there. Demand is worth nothing if there is no space you can actually rent, so we treat available space as a requirement, not a bonus.',
-		lotProv: 'Stops & competitors: OpenStreetMap · Premises: MAPID catalogue',
 		reading: (nama: string, n: number) => `${nama} · ${n} businesses within walking range`,
 		sceneLabel: (nama: string, n: number, pesaing: number) =>
 			`A street block in ${nama}. How busy it looks follows the businesses actually standing within walking range of that cell: ${n} of them, ${pesaing} of the same kind.`
@@ -118,88 +120,64 @@ export const en: Copy = {
 	stats: {
 		hexes: { label: 'cells scored', sub: (r: number) => `H3 hexagons, ${r} m walk` },
 		stops: { label: 'transit stops mapped', sub: 'MRT, KRL, LRT, TransJakarta' },
-		pois: { label: 'competitors mapped', sub: 'OpenStreetMap (ODbL)' },
+		pois: { label: 'businesses mapped', sub: 'within walking range' },
 		cats: {
 			label: 'business types scored',
 			sub: 'food, everyday retail, and services'
 		},
 		coverNote: (terdata: string, total: string, nodata: string) =>
-			`${terdata} of ${total} cells sit in a city the MAPID catalogue has been read for. The other ${nodata} are marked as not surveyed yet: we don't guess them, and we don't score them.`
+			`${terdata} of ${total} cells have complete data. The other ${nodata} are marked, not guessed.`
 	},
 
 	problem: {
 		mark: 'Problem',
-		title: 'Three things decide whether a location works. Until now nobody looked at all three together.',
+		title: 'Pick the wrong spot and it is your capital that burns.',
 		rows: [
 			{
-				t: 'How busy it is was never counted per location',
-				d: 'Everybody knows the blocks around a station are busy. But nobody has ever counted, cell by cell, how many businesses already live off that crowd, so nobody knows which areas are actually short of a particular kind of business.'
+				t: 'Nobody counted how busy it is',
+				d: 'Everyone knows the blocks around a station are busy. Nobody knows which blocks.'
 			},
 			{
-				t: 'The competition is not mapped',
-				d: 'Opening a coffee shop where coffee shops are already stacked on top of each other is a way to lose money. But no map shows where similar businesses cluster, or how dense they are against everything else trading around them.'
+				t: 'The competition is invisible',
+				d: 'Opening a coffee shop on a street already full of them is a way to lose money.'
 			},
 			{
-				t: 'The space itself is never counted',
-				d: 'An opportunity only matters if there is somewhere to put it. Yet shophouses, kiosks and units on the market are never tied back to how busy the area is or to how many rivals sit next door.'
+				t: 'The space is never counted',
+				d: 'A good area with nothing to rent is not an opportunity.'
 			}
 		],
 		statement:
-			'The blocks around stations are the busiest trading ground in Jakarta. People still pick a location on instinct, and when they get it wrong it is their capital that burns.',
+			'The blocks around stations are the busiest trading ground in Jakarta, and people still pick a location on instinct.',
 		chartTitle: 'Busy is not spread evenly.',
 		chartBody:
-			'Each bar is the number of cells holding that many businesses within walking range. Most cells are quiet and only a few are genuinely dense, and it is that spread which makes the choice of location worth making.'
+			'Each bar: how many cells hold that many businesses within walking range. Most are quiet, a few are dense.'
 	},
 
 	how: {
 		mark: 'How it works',
-		title: 'From raw data to one number you can defend.',
+		title: 'One score per cell, per business type.',
 		steps: [
 			{
 				t: 'Cells one walk wide',
 				d: (radius: number, hexes: string) =>
-					`We cover Jakarta with a hexagonal grid. Only cells with a transit stop within ${radius === 800 ? 'an' : 'a'} ${radius} m walk get scored, which comes to ${hexes}. The grid exists so overlapping catchments don't count the same shoppers twice.`
+					`Jakarta is covered with a hexagonal grid. Only the ${hexes} cells with a transit stop within ${radius} m get scored.`
 			},
 			{
 				t: 'Three sources joined',
-				d: 'Business points, transit stops and commercial listings are matched to the cell they fall in. That leaves three numbers per cell: how many other businesses are around it, how many of them are of your kind, and whether anything is on the market.'
+				d: 'Business points, transit stops and premises on the market, each matched to the cell it falls in.'
 			},
 			{
-				t: 'An opportunity score per business type',
-				d: 'The gap between how busy an area is and how dense its rivals of your kind are is worked out for each business type, multiplied by transit access and the price of space, and then has to clear one requirement: premises actually on the market.'
+				t: 'Worked out per business type',
+				d: 'Busy minus rivals of your kind, then multiplied by transit access and the price of space.'
 			},
 			{
-				t: 'A ranking, with the reasons attached',
-				d: 'Cells are ranked per business type and labelled: still underserved, competitive, saturated, or busy but hard to find space in.'
+				t: 'Ranked, with the reasons',
+				d: 'Every cell gets a label: underserved, competitive, or saturated.'
 			}
 		],
-		plain:
-			'Opportunity = how busy an area is with businesses other than the kind you asked about, minus how dense that kind already is. Then one requirement: there has to be a unit actually on the market.',
-		note:
-			'Rivals of your kind are taken out of the busyness figure first, so a street full of coffee shops is never read as proof that it needs another coffee shop. And however good the number looks, an opportunity you cannot occupy cannot be acted on, which is why available space is a requirement rather than a bonus. You can move the weight between busyness and competition yourself.',
-		scaleCap: 'The result is one scale, and it is also the map legend',
-		formulaSummary: 'The exact formula'
+		plain: 'Find an area that is busy, still thin on your kind of rival, and has somewhere to rent.'
 	},
 
-	signal: {
-		demand: {
-			nm: 'Busyness',
-			src: 'OSM + MAPID',
-			d: 'Businesses of every kind already standing within walking range.'
-		},
-		supply: {
-			nm: 'Competition',
-			src: 'OSM + MAPID',
-			d: 'Only the ones of your kind, against the densest cell on the grid.'
-		},
-		gate: {
-			nm: 'Premises',
-			src: 'MAPID catalogue',
-			ok: 'units on the market → opportunity stands',
-			no: 'none available → opportunity near zero',
-			d: 'A requirement, not a bonus. An opportunity you cannot occupy is not one.'
-		}
-	},
 
 	grid: {
 		mark: 'schematic, not a specific area',
@@ -217,8 +195,8 @@ export const en: Copy = {
 		mark: 'Ask the map',
 		title: 'Ask in plain language, and the map changes.',
 		p1: 'Say what you want to open and the whole city recolours for that business. No formula to fill in and no jargon to memorise.',
-		p2: 'Before answering, the map shows what it understood from your question. If it picked something up wrong, you see it immediately. Every answer says why, and how much data it rests on.',
-		p3: 'We wrote the questions, but not the numbers. Every colour, name and value here is computed by the same scoring engine the app uses, from the same data, when this page was built.',
+		p2: 'Before answering, the map shows what it understood. If it picked something up wrong, you see it immediately.',
+		p3: 'The questions are samples. The numbers are not: every colour and value here comes from the same engine the app runs.',
 		mapEmpty: 'Map of 562 catchments around Jakarta transit, waiting for the first question.',
 		mapLabel: (kind: string) =>
 			`Map of 562 catchments around Jakarta transit, coloured by opportunity score for ${kind}.`,
@@ -232,22 +210,16 @@ export const en: Copy = {
 
 	data: {
 		mark: 'Data',
-		title: 'Every figure traces back to where it came from.',
-		body: 'Two surveys, read together and never added up. Each area is read from whichever survey reached it, so the figure is a floor rather than an estimate.',
-		gridWithData: 'cells in a surveyed city',
-		gridEmpty: 'not in the MAPID catalogue yet',
+		title: 'Every cell is counted on its own.',
+		body: 'The businesses already standing, the transit stops, and the premises on the market. Counted one by one in each cell, not inferred from a city average.',
+		gridWithData: 'cells with data',
+		gridEmpty: 'no data yet',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
-			`A grid of ${total} cells: ${terdata} sit in a surveyed city, ${nodata} do not.`,
-		realTitle: 'What is real',
-		realUnit: (stops: string) =>
-			`${stops} transit stops across four modes, with their route geometry, from OpenStreetMap via the Overpass API (ODbL). Each cell's transit access is computed from this.`,
-		poiTitle: 'Competitors mapped, by business type',
-		poiUnit: (pois: string) =>
-			`${pois} similar businesses, also from OpenStreetMap. This is the competitor count the scoring engine uses, not an estimate.`
+			`A grid of ${total} cells: ${terdata} sit in a surveyed city, ${nodata} do not.`
 	},
 
 	spreadChart: {
-		caption: 'Cells by how many businesses stand within walking range, MAPID catalogue.',
+		caption: 'Cells by how many businesses stand within walking range.',
 		table: 'The figures per band',
 		colBand: 'Up to',
 		colValue: 'Cells',
@@ -262,18 +234,22 @@ export const en: Copy = {
 
 	scale: { low: '0 · low', high: '100 · high', nodata: 'not surveyed, left unscored' },
 
+	/* Names alone, with no sentence under each. Every row used to carry one, and the
+	   sentence was padding around the only part that mattered, which was the name. */
 	audience: {
 		mark: 'Who it is for',
-		title: 'One map, thirteen kinds of decision.',
+		/* Not capped at thirteen. It is thirteen today, and putting the number in the
+		   heading makes it read as a limit when it is only the count of what has been
+		   added so far. */
+		title: 'One map, all kinds of decision.',
+		typesLabel: 'The business types scored',
 		rows: [
-			{ t: 'Retail & F&B investors', d: 'Pick the next branch from data instead of instinct.' },
-			{ t: 'Small businesses on a tight budget', d: 'Find a good location where the rent still makes sense.' },
-			{
-				t: 'First-time owners',
-				d: '“What kind of business makes sense around here?” Answered, with the reasoning.'
-			},
-			{ t: 'Expansion teams', d: 'Shortlist and rank candidate sites along the transit corridors.' },
-			{ t: 'Property owners & agents', d: 'Know what a unit suits, and who the right tenant is.' }
+			'Retail & F&B investors',
+			'Small businesses on a tight budget',
+			'First-time owners',
+			'Expansion teams',
+			'Property owners & agents',
+			'Site finders'
 		]
 	},
 
@@ -795,7 +771,7 @@ export const en: Copy = {
 		needsCategory:
 			'Before I answer, what do you want to open? An opportunity score is always for one kind of business, because 83 for a coffee shop is not 83 for a laundry.',
 		notUnderstood: (why: string) =>
-			`${why} All I know is the areas around Jakarta transit, for thirteen kinds of business. Want me to look at one of those?`,
+			`${why} All I know is the areas around Jakarta transit, for a set of business types. Want me to look at one of those?`,
 		coverageNone: 'Every area has data.',
 		coverageSome: (n: number) =>
 			`There are ${n} areas I have no data for at all. I'm not scoring them. Rather than make something up, I'd rather say I don't know.`,

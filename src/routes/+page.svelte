@@ -3,14 +3,13 @@
 	import GridStage from '$lib/components/landing/GridStage.svelte';
 	import DensityProfile from '$lib/components/landing/DensityProfile.svelte';
 	import LandingNav from '$lib/components/landing/LandingNav.svelte';
+	import Marquee from '$lib/components/landing/Marquee.svelte';
 	import SectionMark from '$lib/components/landing/SectionMark.svelte';
-	import SignalFlow from '$lib/components/landing/SignalFlow.svelte';
-	import SourceBars from '$lib/components/landing/SourceBars.svelte';
 	import StreetStage from '$lib/components/landing/StreetStage.svelte';
 	import QueryMap from '$lib/components/landing/QueryMap.svelte';
 	import TapakDemo from '$lib/components/landing/TapakDemo.svelte';
 	import Reveal from '$lib/components/ui/Reveal.svelte';
-	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
+	import { CATEGORY_KEYS } from '$lib/domain/categories';
 	import { copy, lang } from '$lib/state/lang.svelte';
 	import type { PageData } from './$types';
 
@@ -30,13 +29,6 @@
 		{ v: n(k.categories), l: c.stats.cats.label, s: c.stats.cats.sub }
 	]);
 
-	const MODES = $derived([
-		{ nm: 'TransJakarta', v: k.stopsByMode.brt ?? 0 },
-		{ nm: 'KRL', v: k.stopsByMode.krl ?? 0 },
-		{ nm: 'LRT', v: k.stopsByMode.lrt ?? 0 },
-		{ nm: 'MRT', v: k.stopsByMode.mrt ?? 0 }
-	]);
-
 	/**
 	 * Which question the conversation is on, and whether its answer has landed.
 	 *
@@ -50,13 +42,9 @@
 		answered: demoStep.answered
 	});
 
-	const POIS = $derived([
-		{ nm: c.category.minimarket.name, v: k.poisByCategory.minimarket ?? 0 },
-		{ nm: c.category.kopi.name, v: k.poisByCategory.kopi ?? 0 },
-		{ nm: c.category.cepatsaji.name, v: k.poisByCategory.cepatsaji ?? 0 },
-		{ nm: c.category.apotek.name, v: k.poisByCategory.apotek ?? 0 },
-		{ nm: c.category.roti.name, v: k.poisByCategory.roti ?? 0 }
-	]);
+	/* The thirteen types the engine scores, for the second rail. Read from the domain
+	   rather than typed out, so a type added there appears here on its own. */
+	const CATEGORY_NAMES = $derived(CATEGORY_KEYS.map((key) => c.category[key].name));
 </script>
 
 <svelte:head>
@@ -141,12 +129,31 @@
 		</Reveal>
 	</section>
 
+	<!-- ── data honesty ─────────────────────────────────────────────────── -->
+	<section id="data" class="band">
+		<Reveal distance={16}>
+			<header class="head">
+				<div>
+					<SectionMark n="02" label={c.data.mark} />
+					<h2>{c.data.title}</h2>
+				</div>
+				<p class="lead">{c.data.body}</p>
+			</header>
+		</Reveal>
+
+		<Reveal delay={60} distance={12}>
+			<div class="panel">
+				<CoverageGrid map={data.coverage} surveyed={k.surveyed} unsurveyed={k.unsurveyed} />
+			</div>
+		</Reveal>
+	</section>
+
 	<!-- ── how it works ─────────────────────────────────────────────────── -->
 	<section id="cara-kerja" class="band">
 		<Reveal distance={16}>
 			<header class="head">
 				<div>
-					<SectionMark n="02" label={c.how.mark} />
+					<SectionMark n="03" label={c.how.mark} />
 					<h2>{c.how.title}</h2>
 				</div>
 				<p class="lead">{c.how.plain}</p>
@@ -162,10 +169,6 @@
 			</div>
 		</Reveal>
 
-		<Reveal distance={14}>
-			<div class="panel"><SignalFlow /></div>
-		</Reveal>
-
 		<!-- The numbering is kept because the order genuinely carries information: step 3
 		     cannot run before step 2. Two columns rather than four rules across the full
 		     width, where a four-word title left a hand's width of empty line beside it. -->
@@ -179,23 +182,6 @@
 			{/each}
 		</ol>
 
-		<Reveal distance={14}>
-			<div class="panel quiet">
-				<p class="body">{c.how.note}</p>
-				<div class="scale-slot">
-					<span class="cap">{c.how.scaleCap}</span>
-					<ScoreRamp nodata={c.scale.nodata} />
-				</div>
-				<details>
-					<summary>{c.how.formulaSummary}</summary>
-					<code class="mono"
-						>Gap = (w<sub>d</sub> · {c.signal.demand.nm} − w<sub>s</sub> · {c.signal.supply.nm}) / (w<sub
-							>d</sub
-						> + w<sub>s</sub>)</code
-					>
-				</details>
-			</div>
-		</Reveal>
 	</section>
 
 	<!-- ── AI ───────────────────────────────────────────────────────────── -->
@@ -203,7 +189,7 @@
 		<Reveal distance={16}>
 			<header class="head">
 				<div>
-					<SectionMark n="03" label={c.ai.mark} />
+					<SectionMark n="04" label={c.ai.mark} />
 					<h2>{c.ai.title}</h2>
 				</div>
 				<p class="lead">{c.ai.p1}</p>
@@ -238,40 +224,6 @@
 		</Reveal>
 	</section>
 
-	<!-- ── data honesty ─────────────────────────────────────────────────── -->
-	<section id="data" class="band">
-		<Reveal distance={16}>
-			<header class="head">
-				<div>
-					<SectionMark n="04" label={c.data.mark} />
-					<h2>{c.data.title}</h2>
-				</div>
-				<p class="lead">{c.data.body}</p>
-			</header>
-		</Reveal>
-
-		<Reveal delay={60} distance={12}>
-			<div class="panel">
-				<CoverageGrid map={data.coverage} surveyed={k.surveyed} unsurveyed={k.unsurveyed} />
-			</div>
-		</Reveal>
-
-		<!-- Both counts on ONE panel, divided by a rule. They are two readings of the same
-		     survey, and two separate panels made them look like two separate sources. -->
-		<Reveal delay={60} distance={12}>
-			<div class="panel sources">
-				<div>
-					<h3 class="lede"><span class="tag real">OSM</span> {c.data.realTitle}</h3>
-					<SourceBars rows={MODES} unit={c.data.realUnit(n(k.stops))} />
-				</div>
-				<div>
-					<h3 class="lede">{c.data.poiTitle}</h3>
-					<SourceBars rows={POIS} unit={c.data.poiUnit(n(k.pois))} />
-				</div>
-			</div>
-		</Reveal>
-	</section>
-
 	<!-- ── who it is for ────────────────────────────────────────────────── -->
 	<section class="band">
 		<Reveal distance={16}>
@@ -285,14 +237,14 @@
 				</div>
 			</header>
 		</Reveal>
-		<ul class="who">
-			{#each c.audience.rows as a, i (a.t)}
-				<Reveal as="li" delay={i * 50} distance={9}>
-					<h3>{a.t}</h3>
-					<p>{a.d}</p>
-				</Reveal>
-			{/each}
-		</ul>
+		<!-- Names, not paragraphs. Who it is for on the way out, what it scores on the
+		     way back, so the pair reads as one texture rather than as two tickers. -->
+		<Reveal distance={12}>
+			<div class="rails">
+				<Marquee items={c.audience.rows} label={c.audience.mark} />
+				<Marquee items={CATEGORY_NAMES} label={c.audience.typesLabel} reverse speed={54} />
+			</div>
+		</Reveal>
 	</section>
 
 	<!-- ── closing ──────────────────────────────────────────────────────── -->
@@ -458,6 +410,13 @@
 	/* ── Figures ───────────────────────────────────────────────────────────
 	   Four counts, four columns. No panel: these are the page's opening
 	   statement, not an object. */
+	/* Two rows travelling against each other. The gap is tight on purpose: they are one
+	   texture rather than two lists, and spacing them apart makes them read as two. */
+	.rails {
+		display: grid;
+		gap: 0.5rem;
+	}
+
 	.figures {
 		padding-top: var(--s-wide);
 	}
@@ -539,16 +498,6 @@
 			box-shadow: inset 0 1px 0 var(--lift-edge);
 		}
 	}
-	/* The formula and its caveats are an aside, so the field is drawn rather than
-	   filled: the shape of a panel without the presence of one. */
-	.panel.quiet {
-		background: transparent;
-		box-shadow: none;
-		border-style: dashed;
-		display: flex;
-		flex-direction: column;
-		gap: var(--s-group);
-	}
 	.panel.model {
 		padding: clamp(0.75rem, 1.4vw, 1.125rem);
 	}
@@ -563,60 +512,14 @@
 		flex-direction: column;
 		gap: var(--s-tight);
 	}
-	.sources {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: var(--s-wide);
-	}
-	.sources > div + div {
-		padding-left: var(--s-wide);
-		border-left: 1px solid var(--panel-line);
-	}
-	.sources h3 {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: var(--s-group);
-	}
-
-	.scale-slot {
-		max-width: 30rem;
-	}
-	.scale-slot .cap {
-		display: block;
-		font-size: 0.6875rem;
-		color: var(--ink-3);
-		margin-bottom: 0.5rem;
-	}
-	.panel details {
-		border-top: 1px solid var(--panel-line);
-		padding-top: var(--s-group);
-	}
-	.panel summary {
-		font-size: 0.75rem;
-		color: var(--ink-3);
-		cursor: pointer;
-		transition: color 140ms ease-out;
-	}
-	.panel summary:hover {
-		color: var(--ink-2);
-	}
-	.panel details code {
-		display: block;
-		margin-top: 0.75rem;
-		color: var(--ink-2);
-		letter-spacing: 0;
-	}
 
 	/* ── Columns of short things ───────────────────────────────────────────
-	   The problem, the steps and the audience were three long lists of ruled
-	   rows, each one a short title in a wide left column with a paragraph beside
-	   it. Read down the page they were indistinguishable from one another. Set in
-	   columns each becomes a shape, and each item is short enough to take in at a
-	   glance. */
+	   The problem and the steps were two long lists of ruled rows, each one a short
+	   title in a wide left column with a paragraph beside it. Read down the page they
+	   were indistinguishable. Set in columns each becomes a shape, and each item is
+	   short enough to take in at a glance. */
 	.tri,
-	.steps,
-	.who {
+	.steps {
 		list-style: none;
 		margin: 0;
 		padding: 0;
@@ -626,20 +529,17 @@
 	.tri {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
 	}
-	.steps,
-	.who {
+	.steps {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: var(--s-block) var(--s-wide);
 	}
 	.tri :global(li),
-	.steps :global(li),
-	.who :global(li) {
+	.steps :global(li) {
 		border-top: 1px solid var(--paper-line);
 		padding-top: var(--s-group);
 	}
 	.tri p,
-	.steps p,
-	.who p {
+	.steps p {
 		margin-top: 0.5rem;
 		font-size: 0.875rem;
 		line-height: 1.6;
@@ -819,20 +719,9 @@
 			gap: var(--s-block) var(--s-wide);
 		}
 		.tri,
-		.steps,
-		.who {
+		.steps {
 			grid-template-columns: minmax(0, 1fr);
 			gap: var(--s-block);
-		}
-		.sources {
-			grid-template-columns: minmax(0, 1fr);
-			gap: var(--s-block);
-		}
-		.sources > div + div {
-			padding-left: 0;
-			padding-top: var(--s-block);
-			border-left: 0;
-			border-top: 1px solid var(--panel-line);
 		}
 	}
 	@media (max-width: 30rem) {

@@ -16,7 +16,8 @@
 	 * have all left: the first is a statistic nobody acts on mid-task, and the other
 	 * two now sit next to what they actually change.
 	 */
-		import LangToggle from '$lib/components/ui/LangToggle.svelte';
+		import BrandMark from '$lib/components/ui/BrandMark.svelte';
+	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import { base } from '$app/paths';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -27,7 +28,7 @@
 </script>
 
 <a class="brand material" href="{base}/" aria-label={c.app.home}>
-	<span class="mark" aria-hidden="true"></span>
+	<BrandMark size={13} />
 	<span class="name">{c.brand.name}</span>
 </a>
 
@@ -62,13 +63,6 @@
 	/* Feedback on the press, not on the release. */
 	.brand:active {
 		transform: scale(0.97);
-	}
-	.mark {
-		width: 0.75rem;
-		height: 0.75rem;
-		border-radius: 4px;
-		background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 82%, white), var(--accent));
-		box-shadow: var(--shadow-chip);
 	}
 	.name {
 		/* Size up, tracking in. */

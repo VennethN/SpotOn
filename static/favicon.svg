@@ -1,5 +1,31 @@
+<!--
+  The SpotOn mark: a lot with its corner clipped, the same shape the site header and
+  the app header draw. It used to be a target of concentric circles, which was a
+  different mark entirely, so the browser tab showed one company and the page another.
+
+  The diagonal carries no stroke, exactly as the CSS version does not: the corner is
+  meant to be missing rather than chamfered, so the outline is clipped rather than
+  drawn round the cut.
+
+  Given a solid tile rather than left as a bare outline. At 16 px a thin stroke on a
+  transparent ground disappears against a dark tab strip.
+-->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+	<defs>
+		<clipPath id="lot">
+			<polygon points="9,9 23,9 23,17.7 17.7,23 9,23" />
+		</clipPath>
+	</defs>
 	<rect width="32" height="32" rx="7" fill="#0071e3" />
-	<circle cx="16" cy="16" r="9.5" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="2" />
-	<circle cx="16" cy="16" r="3.6" fill="#ffffff" />
+	<rect
+		x="10.2"
+		y="10.2"
+		width="11.6"
+		height="11.6"
+		rx="2.4"
+		fill="none"
+		stroke="#ffffff"
+		stroke-width="2.4"
+		clip-path="url(#lot)"
+	/>
 </svg>
