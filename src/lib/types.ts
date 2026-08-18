@@ -230,7 +230,16 @@ export type Typology =
 	/** Trade all around it, and not one unit of premises on the market. */
 	| 'busy-limited-space'
 	/** The active source has not surveyed this city — different from "no competitors". */
-	| 'not-covered';
+	| 'not-covered'
+	/**
+	 * No business type has been named yet, so there is no opportunity to profile.
+	 *
+	 * Kept apart from `not-covered` because the two are opposite kinds of silence. That
+	 * one is a gap in the survey and this one is a question nobody has asked: the cell
+	 * has been counted perfectly well, and what is missing is the business type to
+	 * count it FOR.
+	 */
+	| 'no-type';
 
 /** Weights & gates the user can set directly in the interface. */
 export interface Weights {
@@ -459,6 +468,16 @@ export interface AiAnswer {
 	 * instead, in the reader's language.
 	 */
 	chat?: { topik: ChatTopic; text?: string };
+	/**
+	 * The question was understood and cannot be answered yet: it asks for a figure that
+	 * needs a business type, and none has been named.
+	 *
+	 * Kept apart from `notUnderstood`, which it would otherwise be mistaken for. That
+	 * one is a dead end — the data cannot answer this at all — and this one is a
+	 * question waiting on one more word. The interface says so and offers the types,
+	 * rather than apologising for a limitation that is not there.
+	 */
+	needsCategory?: true;
 	headline: string;
 	items: Recommendation[];
 	/** Ids of the catchments highlighted on the map. */

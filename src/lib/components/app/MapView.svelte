@@ -1082,8 +1082,22 @@
 <div class="tip material" bind:this={tipEl} class:show={!!hovered} aria-hidden="true">
 	{#if hovered}
 		<strong>{hovered.name}</strong>
-		{#if hovered.row && hovered.row.score === null}
+		{#if hovered.row && !hovered.row.covered}
 			<span class="tip-sub">{c.app.tipNodata}</span>
+		{:else if hovered.row && hovered.row.score === null}
+			<!-- Counted, but no business type has been named, so the reading is the trade
+			     standing here rather than an opportunity. Not the "no data" line above:
+			     this cell was surveyed perfectly well, and what is missing is the
+			     question, not the survey. -->
+			{@const row = hovered.row}
+			<span class="tip-score" style:color={`var(--ramp-${rampIndex(row.demand ?? 0)})`}>
+				{row.density}
+				<span class="tip-unit">{c.app.tipDensity}</span>
+			</span>
+			<span class="tip-sub">
+				{row.source === 'mapid' ? 'MAPID' : 'OSM'}, r={app.weights.radius} m ·
+				{c.app.tipUnits(row.units)}
+			</span>
 		{:else if hovered.row}
 			{@const row = hovered.row}
 			<span class="tip-score" style:color={`var(--ramp-${rampIndex(row.score ?? 0)})`}>

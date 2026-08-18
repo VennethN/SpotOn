@@ -29,6 +29,15 @@
 	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
 	const catName = $derived(categoryNames(app.categories, c));
+	/**
+	 * Which of the two things the colours mean right now.
+	 *
+	 * The legend is the one surface whose whole job is to say what a colour is, so it
+	 * is the one that must not have a default. Before a business type is named there is
+	 * no opportunity score to be a key to, and a key headed "opportunity score" over a
+	 * map of busyness would be the most expensive kind of wrong thing on screen.
+	 */
+	const scoring = $derived(app.basis === 'skor');
 	/* Colours actually on screen — the key only describes what is being drawn, so
 	   between the button press and the data landing it stays a loading state rather
 	   than explaining a ramp nobody can see yet. */
@@ -80,8 +89,8 @@
 			aria-expanded={open}
 			aria-controls="legend-body"
 		>
-			<span class="cat">{catName}</span>
-			<span class="lbl">{c.app.legendUnit}</span>
+			<span class="cat">{scoring ? catName : c.app.basisDensity}</span>
+			<span class="lbl">{scoring ? c.app.legendUnit : c.app.basisDensityUnit}</span>
 			<span class="chev" aria-hidden="true" class:up={open}>
 				<svg viewBox="0 0 10 10" width="9" height="9">
 					<path
@@ -98,14 +107,26 @@
 
 		{#if open}
 			<div class="body" id="legend-body">
-				<ScoreRamp dense nodata={c.app.legendNodata(coverage.notCovered)} />
+				{#if scoring}
+					<ScoreRamp dense nodata={c.app.legendNodata(coverage.notCovered)} />
 
-				{#if uncovered > 0}
-					<p class="uncovered" class:blocking={coverage.scored === 0}>
-						{coverage.scored === 0
-							? c.app.legendUncoveredAll(catName, srcName, otherSrcName)
-							: c.app.legendUncovered(uncovered, catName, srcName)}
-					</p>
+					{#if uncovered > 0}
+						<p class="uncovered" class:blocking={coverage.scored === 0}>
+							{coverage.scored === 0
+								? c.app.legendUncoveredAll(catName, srcName, otherSrcName)
+								: c.app.legendUncovered(uncovered, catName, srcName)}
+						</p>
+					{/if}
+				{:else}
+					<!-- The ramp runs from quiet to busiest rather than from low to high
+					     score, and it says so at both ends. A ramp is only readable if its
+					     ends are named, and these two ends are not the ones above. -->
+					<ScoreRamp
+						dense
+						ends={[c.app.basisDensityLow, c.app.basisDensityHigh]}
+						nodata={uncovered > 0 ? c.app.basisDensityCells(uncovered) : null}
+					/>
+					<p class="uncovered">{c.app.basisDensityHint}</p>
 				{/if}
 
 				<!-- The competitor source used to sit in the title bar, three metres from

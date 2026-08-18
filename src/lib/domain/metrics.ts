@@ -42,6 +42,20 @@ export interface MetricDef extends Measure<ScoredHex> {
 	kind: MetricKind;
 	/** Only meaningful for a MAPID-sourced figure that a city may not be covered for. */
 	sourced?: 'mapid';
+	/**
+	 * Cannot be read without a business type behind it.
+	 *
+	 * Five of these nine measures can: how busy a cell is, what space costs, how much of
+	 * it is on the market, and both transit readings are all facts about the PLACE. The
+	 * other four are facts about a place AND a trade — rivals of what, saturated with
+	 * what, a good opportunity for what — and asked with no trade named they have no
+	 * answer at all rather than a weak one.
+	 *
+	 * Marked here rather than checked in the query layer so the two cannot drift: a
+	 * measure added to the table declares this about itself, in the same place it
+	 * declares which end is best.
+	 */
+	needsType?: true;
 }
 
 /**
@@ -54,9 +68,12 @@ export interface MetricDef extends Measure<ScoredHex> {
  * "every measure has a definition" stops being true without anything saying so.
  */
 export const METRIC_MAP: Record<MetricKey, MetricDef> = {
-	skor: { read: (r) => r.score, kind: 'pct', best: 'desc' },
+	skor: { read: (r) => r.score, kind: 'pct', best: 'desc', needsType: true },
+	// Not marked: with no business type named there is nothing to subtract, so this is
+	// the trade around the cell outright — which is a real reading and the one the
+	// opening map is painted from.
 	permintaan: { read: (r) => r.demand, kind: 'pct', best: 'desc' },
-	penawaran: { read: (r) => r.supply, kind: 'pct', best: 'asc' },
+	penawaran: { read: (r) => r.supply, kind: 'pct', best: 'asc', needsType: true },
 	pesaing: {
 		// Null rather than the stored 0 when this cell's city has not been surveyed for
 		// the active category. Sorting an unsurveyed cell to the top of "fewest
@@ -64,7 +81,8 @@ export const METRIC_MAP: Record<MetricKey, MetricDef> = {
 		read: (r) => (r.covered ? r.osm : null),
 		kind: 'count',
 		best: 'asc',
-		sourced: 'mapid'
+		sourced: 'mapid',
+		needsType: true
 	},
 	// The same trade the demand side is scaled from, left as the count it is. Kept as
 	// its own measure because "where is it busiest around here" is a question people
@@ -108,6 +126,10 @@ export const isMetric = (v: unknown): v is MetricKey =>
 
 /** The measure a plain "where should I open" is about. */
 export const DEFAULT_METRIC: MetricKey = 'skor';
+
+/** Can this question be answered at all with no business type named? */
+export const needsBusinessType = (key: MetricKey): boolean =>
+	Boolean(METRIC_MAP[key]?.needsType);
 
 /**
  * Which direction a ranking actually runs, given what the question asked for.

@@ -51,7 +51,15 @@ export function catchmentFC(ctx: MapCtx): FeatureCollection {
 	// by its score with a dot on top shaded by the same score — and the louder of the
 	// two was the one the reader was no longer looking at. The grid stays drawn,
 	// faintly, because it is what tells you which units share a catchment.
-	const rows = ctx.heat && ctx.app.pivot === 'cell' ? ctx.app.rowById : null;
+	const on = ctx.heat && ctx.app.pivot === 'cell';
+	const rows = on ? ctx.app.rowById : null;
+	/* WHAT THE FILL MEANS, decided in one place upstream rather than read off `score`
+	   here. It was read off `score`, which was safe while a score was the only thing
+	   this layer could be drawing and became a quiet falsehood the moment it was not:
+	   with no business type named every score is null, and this would have dashed all
+	   562 cells as unsurveyed. `heatById` hands over the number that is genuinely on
+	   screen, whichever basis produced it. */
+	const heat = on ? ctx.app.heatById : null;
 	const colIdle = ctx.cssVar('--cell-idle');
 	const ramp = Array.from({ length: 7 }, (_, i) => ctx.cssVar(`--ramp-${i}`));
 	const selectedId = ctx.app.selectedId;
@@ -61,6 +69,7 @@ export function catchmentFC(ctx: MapCtx): FeatureCollection {
 		features: ctx.app.base
 			.map((h, i) => {
 				const row = rows?.get(h.id) ?? null;
+				const v = heat?.get(h.id) ?? null;
 				return {
 					type: 'Feature' as const,
 					// MapLibre's feature-state needs a numeric id; the row index is used because an
@@ -84,11 +93,11 @@ export function catchmentFC(ctx: MapCtx): FeatureCollection {
 						// Only ever claimed while the heatmap is on: with no category
 						// loaded nothing has been checked yet, and dashing every cell
 						// would report a coverage gap that has not been looked for.
-						uncovered: Boolean(row) && row!.score === null,
-						color: row ? ramp[rampIndex(row.score ?? 0)] : colIdle,
-						// Carries a score right now, so the fill means something. An idle cell
+						uncovered: Boolean(row) && v === null,
+						color: v === null ? colIdle : ramp[rampIndex(v)],
+						// Carries a reading right now, so the fill means something. An idle cell
 						// is drawn as structure instead: faint fill, crisper edge.
-						scored: Boolean(row) && row!.score !== null,
+						scored: v !== null,
 						saturated: row?.typology === 'saturated',
 						selected: h.id === selectedId
 					}
