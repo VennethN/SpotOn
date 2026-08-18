@@ -625,8 +625,6 @@ export const id = {
 		basisDensityUnit: 'semua jenis usaha',
 		basisDensityLow: '0 · sepi',
 		basisDensityHigh: 'terpadat',
-		basisDensityHint:
-			'Skor peluang butuh jenis usaha, karena 83 untuk kedai kopi bukan 83 untuk laundry. Sebutkan mau buka apa dan peta ini berganti jadi skornya.',
 		basisDensityCells: (n: number) => `${n} petak kotanya belum disurvei, tidak dihitung`,
 		sourceLabel: 'Sumber data pesaing',
 		sourceBothLabel: 'Keduanya',
@@ -744,8 +742,11 @@ export const id = {
 	},
 
 	tapak: {
-		greet: (total: number, terdata: number) =>
-			`Halo, saya Tapak. Saya sudah keliling ${total} petak di sekitar MRT, KRL, LRT, dan koridor TransJakarta, dan ${terdata} di antaranya sudah ada datanya. Lagi kepikiran buka usaha apa?`,
+		/* Dulu menyebut dua angka: berapa petak, lalu berapa yang sudah ada datanya.
+		   Sejak dua survei dibaca sekaligus, dua angka itu sama besar, dan kalimatnya
+		   jadi berbunyi "562 petak, 562 di antaranya sudah ada datanya". */
+		greet: (total: number) =>
+			`Halo, saya Tapak. Saya sudah keliling ${total} petak di sekitar MRT, KRL, LRT, dan koridor TransJakarta. Lagi kepikiran buka usaha apa?`,
 		/* Pertanyaan ini dulu berbunyi "Modalnya kira-kira bagaimana?" dengan pilihan
 		   "Pas-pasan" dan "Agak longgar" — dua kata yang tidak memberi tahu apa pun
 		   soal apa yang akan berubah. Yang sebenarnya dipilih di sini cuma satu:

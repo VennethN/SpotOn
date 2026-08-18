@@ -125,13 +125,20 @@
 				{:else}
 					<!-- The ramp runs from quiet to busiest rather than from low to high
 					     score, and it says so at both ends. A ramp is only readable if its
-					     ends are named, and these two ends are not the ones above. -->
+					     ends are named, and these two ends are not the ones above.
+
+					     A sentence used to follow it explaining that an opportunity score
+					     needs a business type, because 83 for a coffee shop is not 83 for a
+					     laundry. That is the reasoning behind the design, not something a
+					     reader needs: the heading already says the colours are businesses
+					     around, and the question box is the whole right-hand side of the
+					     screen. Printed here it read as an apology for a map that is
+					     working perfectly. -->
 					<ScoreRamp
 						dense
 						ends={[c.app.basisDensityLow, c.app.basisDensityHigh]}
 						nodata={uncovered > 0 ? c.app.basisDensityCells(uncovered) : null}
 					/>
-					<p class="uncovered">{c.app.basisDensityHint}</p>
 				{/if}
 
 				<!-- The competitor source used to sit in the title bar, three metres from

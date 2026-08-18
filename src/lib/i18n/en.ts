@@ -623,8 +623,6 @@ export const en: Copy = {
 		basisDensityUnit: 'every business type',
 		basisDensityLow: '0 · quiet',
 		basisDensityHigh: 'busiest',
-		basisDensityHint:
-			'An opportunity score needs a business type, because 83 for a coffee shop is not 83 for a laundry. Say what you want to open and this map becomes that score.',
 		basisDensityCells: (n: number) => `${n} cells sit in an unsurveyed city, not counted`,
 		sourceLabel: 'Competitor data source',
 		sourceBothLabel: 'Both',
@@ -739,8 +737,11 @@ export const en: Copy = {
 	},
 
 	tapak: {
-		greet: (total: number, terdata: number) =>
-			`Hello, I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors, and ${terdata} of them have data. What are you thinking of opening?`,
+		/* This used to quote two numbers: how many cells, then how many of them have
+		   data. Since both surveys are read together the two are the same number, and
+		   the sentence read "562 cells, and 562 of them have data". */
+		greet: (total: number) =>
+			`Hello, I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors. What are you thinking of opening?`,
 		/* This used to ask "How is the budget looking?" and offer "Tight" or
 		   "Reasonably open" — two words that say nothing about what will change. The
 		   only thing actually chosen here is whether the results are narrowed to
