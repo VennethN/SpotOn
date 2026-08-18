@@ -68,11 +68,14 @@ export const id = {
 	},
 
 	nav: {
+		/* Urutannya mengikuti urutan halaman, dan halamannya diurutkan ulang: datanya
+		   dulu, baru cara menghitungnya, baru cara bertanya. Menjelaskan skor sebelum
+		   pembaca tahu angkanya dari mana itu terbalik. */
 		sections: [
 			{ href: '#masalah', label: 'Masalah' },
+			{ href: '#data', label: 'Data' },
 			{ href: '#cara-kerja', label: 'Cara kerja' },
-			{ href: '#ai', label: 'AI' },
-			{ href: '#data', label: 'Data' }
+			{ href: '#ai', label: 'Tanya' }
 		],
 		aria: 'Bagian halaman'
 	},
@@ -102,7 +105,6 @@ export const id = {
 		lotTitle: 'Petak bergaris putih itu masih kosong.',
 		lotBody:
 			'Kotak tembus pandang di atasnya bukan bangunan yang sudah ada. Itu usaha yang bisa Anda buka di situ. Permintaan sebesar apa pun tidak ada gunanya kalau tempatnya tidak bisa disewa, jadi ketersediaan tempat kami pakai sebagai syarat, bukan nilai tambah.',
-		lotProv: 'Simpul transit & pesaing: OpenStreetMap · Tempat usaha: katalog MAPID',
 		reading: (nama: string, n: number) => `${nama} · ${n} usaha dalam radius jalan kaki`,
 		sceneLabel: (nama: string, n: number, pesaing: number) =>
 			`Blok jalan di kawasan ${nama}. Ramainya mengikuti jumlah usaha yang benar-benar berdiri di radius jalan kaki petak itu, ${n} usaha, ${pesaing} di antaranya sejenis.`
@@ -120,88 +122,64 @@ export const id = {
 	stats: {
 		hexes: { label: 'petak kawasan dinilai', sub: (r: number) => `heksagon H3, jalan kaki ${r} m` },
 		stops: { label: 'titik transit terdata', sub: 'MRT, KRL, LRT, TransJakarta' },
-		pois: { label: 'gerai pesaing terdata', sub: 'OpenStreetMap (ODbL)' },
+		pois: { label: 'gerai usaha terdata', sub: 'dalam radius jalan kaki' },
 		cats: {
 			label: 'jenis usaha dinilai',
 			sub: 'kuliner, ritel harian, dan jasa'
 		},
 		coverNote: (terdata: string, total: string, nodata: string) =>
-			`${terdata} dari ${total} petak kotanya sudah ada di katalog MAPID. Sisanya ${nodata} kami tandai belum disurvei: tidak kami tebak, tidak kami beri nilai.`
+			`${terdata} dari ${total} petak datanya lengkap. Sisanya ${nodata} kami tandai, tidak kami tebak.`
 	},
 
 	problem: {
 		mark: 'Masalah',
-		title: 'Ada tiga hal yang menentukan lokasi usaha jalan atau tidak. Selama ini ketiganya tidak pernah dilihat bersamaan.',
+		title: 'Salah pilih lokasi, modalnya yang hangus.',
 		rows: [
 			{
-				t: 'Ramainya tidak pernah dihitung per lokasi',
-				d: 'Semua orang tahu kawasan stasiun itu ramai. Tapi tidak ada yang pernah menghitung, petak demi petak, berapa banyak usaha yang sudah hidup di situ, sehingga tidak ada yang tahu kawasan mana yang sebenarnya masih kekurangan satu jenis usaha.'
+				t: 'Ramainya belum pernah dihitung',
+				d: 'Semua tahu kawasan stasiun itu ramai. Tidak ada yang tahu petak mananya.'
 			},
 			{
-				t: 'Pesaingnya tidak terpetakan',
-				d: 'Buka kedai kopi di tempat yang kedai kopinya sudah berjubel itu resep bangkrut. Tapi tidak ada peta yang menunjukkan di mana usaha sejenis menumpuk, dan sepadat apa dibanding usaha lain di sekitarnya.'
+				t: 'Pesaingnya tidak kelihatan',
+				d: 'Buka kedai kopi di jalan yang sudah penuh kedai kopi itu resep bangkrut.'
 			},
 			{
 				t: 'Tempatnya tidak ikut dihitung',
-				d: 'Peluang baru berarti kalau ada tempatnya. Tapi ruko, kios, dan ruang usaha yang dipasarkan tidak pernah dihubungkan dengan ramai sepinya kawasan atau jumlah pesaing di sekitarnya.'
+				d: 'Kawasan bagus yang tidak ada rukonya bukan peluang.'
 			}
 		],
 		statement:
-			'Sekitar stasiun itu tempat dagang paling ramai di Jakarta. Tapi orang masih memilih lokasi pakai firasat, dan kalau salah, modalnya yang hangus.',
+			'Sekitar stasiun itu tempat dagang paling ramai di Jakarta, dan orang masih memilih lokasi pakai firasat.',
 		chartTitle: 'Ramainya tidak rata.',
 		chartBody:
-			'Tiap batang adalah jumlah petak yang punya sekian usaha dalam radius jalan kaki. Kebanyakan petak sepi, dan cuma sedikit yang benar-benar padat. Justru sebaran inilah yang membuat pilihan lokasi jadi ada artinya.'
+			'Tiap batang: berapa petak yang punya sekian usaha dalam radius jalan kaki. Kebanyakan sepi, sedikit yang padat.'
 	},
 
 	how: {
 		mark: 'Cara kerja',
-		title: 'Dari data mentah jadi satu angka yang bisa dipertanggungjawabkan.',
+		title: 'Satu skor per petak, per jenis usaha.',
 		steps: [
 			{
 				t: 'Petak sejauh jalan kaki',
 				d: (radius: number, hexes: string) =>
-					`Jakarta kami tutup dengan kisi heksagon. Yang dinilai cuma petak yang punya titik transit dalam ${radius} m jalan kaki, jumlahnya ${hexes}. Kisi dipakai supaya kawasan yang bertumpuk tidak menghitung pembeli yang sama dua kali.`
+					`Jakarta ditutup kisi heksagon. Yang dinilai cuma ${hexes} petak yang punya titik transit dalam ${radius} m.`
 			},
 			{
-				t: 'Tiga data digabung',
-				d: 'Titik usaha, simpul transit, dan listing properti komersial dicocokkan ke petaknya masing-masing. Hasilnya tiga angka per petak: berapa banyak usaha lain di sekitarnya, berapa yang sejenis, dan ada tidaknya tempat yang dipasarkan.'
+				t: 'Tiga data dicocokkan',
+				d: 'Titik usaha, simpul transit, dan tempat yang dipasarkan, masing-masing masuk ke petaknya.'
 			},
 			{
-				t: 'Skor peluang per jenis usaha',
-				d: 'Selisih antara ramainya kawasan dan padatnya pesaing sejenis dihitung untuk tiap jenis usaha, lalu dikali akses transit dan harga tempat, dan disyaratkan punya tempat yang benar-benar dipasarkan.'
+				t: 'Dihitung per jenis usaha',
+				d: 'Ramai dikurangi pesaing sejenis, lalu dikali akses transit dan harga tempat.'
 			},
 			{
-				t: 'Urutan, lengkap dengan alasannya',
-				d: 'Petak diurutkan per jenis usaha dan diberi keterangan: masih kurang dilayani, sudah bersaing ketat, sudah terlalu penuh, atau ramai tapi tempatnya susah dicari.'
+				t: 'Diurutkan, dengan alasannya',
+				d: 'Tiap petak dapat keterangan: kurang dilayani, bersaing ketat, atau sudah penuh.'
 			}
 		],
-		plain:
-			'Peluang = seramai apa kawasannya oleh usaha selain jenis yang Anda tanyakan, dikurangi sepadat apa pesaing sejenisnya. Lalu satu syarat: harus ada tempat yang benar-benar dipasarkan.',
-		note:
-			'Pesaing sejenis dikeluarkan dulu dari hitungan keramaian, supaya jalan yang penuh kedai kopi tidak dibaca sebagai bukti bahwa kawasan itu butuh kedai kopi lagi. Dan sebagus apa pun angkanya, kalau tidak ada tempat yang bisa ditempati, peluang itu tidak bisa dijalankan. Karena itu ketersediaan tempat jadi syarat, bukan bonus. Bobot keramaian dan persaingannya bisa Anda geser sendiri.',
-		scaleCap: 'Hasilnya satu skala, dan itu juga legenda petanya',
-		formulaSummary: 'Rumus persisnya'
+		plain: 'Cari kawasan yang ramai, pesaing sejenisnya masih sedikit, dan tempatnya ada.'
 	},
 
-	signal: {
-		demand: {
-			nm: 'Keramaian',
-			src: 'OSM + MAPID',
-			d: 'Jumlah usaha lain yang sudah berdiri dalam radius jalan kaki.'
-		},
-		supply: {
-			nm: 'Pesaing',
-			src: 'OSM + MAPID',
-			d: 'Yang sejenis saja, dibanding petak paling padat sekisi.'
-		},
-		gate: {
-			nm: 'Tempat usaha',
-			src: 'Katalog MAPID',
-			ok: 'ada yang dipasarkan → peluang berlaku',
-			no: 'tidak ada → peluang nyaris nol',
-			d: 'Syarat, bukan bonus. Peluang yang tidak bisa ditempati bukan peluang.'
-		}
-	},
 
 	grid: {
 		mark: 'skema, bukan kawasan tertentu',
@@ -219,8 +197,8 @@ export const id = {
 		mark: 'Tanya petanya',
 		title: 'Tanya pakai bahasa sehari-hari, petanya yang berubah.',
 		p1: 'Sebutkan mau buka usaha apa, dan seluruh kota berganti warna untuk usaha itu. Tidak ada rumus yang harus diisi dan tidak ada istilah yang harus dihafal.',
-		p2: 'Sebelum menjawab, peta menunjukkan apa yang dia tangkap dari pertanyaan Anda. Kalau ada yang salah tangkap, Anda langsung tahu. Jawabannya selalu menyebut alasan dan berapa banyak data yang jadi dasarnya.',
-		p3: 'Pertanyaannya memang sudah kami siapkan, tapi angkanya tidak. Tiap warna, nama, dan nilai di sini dihitung mesin skor yang sama dengan yang dipakai aplikasinya, dari data yang sama, saat halaman ini dibangun.',
+		p2: 'Sebelum menjawab, peta menunjukkan apa yang dia tangkap. Kalau salah tangkap, Anda langsung tahu.',
+		p3: 'Pertanyaannya contoh. Angkanya tidak: tiap warna dan nilai di sini dihitung mesin yang sama dengan aplikasinya.',
 		mapEmpty: 'Peta 562 petak kawasan transit Jakarta, menunggu pertanyaan pertama.',
 		mapLabel: (jenis: string) =>
 			`Peta 562 petak kawasan transit Jakarta, diwarnai menurut skor peluang untuk ${jenis}.`,
@@ -234,22 +212,16 @@ export const id = {
 
 	data: {
 		mark: 'Data',
-		title: 'Tiap angka bisa ditelusuri sampai ke sumbernya.',
-		body: 'Dua survei, dibaca bersamaan dan tidak pernah dijumlahkan. Tiap petak dibaca dari survei yang memang menjangkaunya, jadi angkanya batas bawah, bukan taksiran.',
-		gridWithData: 'petak kotanya sudah disurvei',
-		gridEmpty: 'belum ada di katalog MAPID',
+		title: 'Tiap petak dihitung sendiri.',
+		body: 'Usaha yang sudah berdiri, titik transit, dan tempat yang sedang dipasarkan. Dihitung satu per satu di tiap petak, bukan dikira-kira dari rata-rata kota.',
+		gridWithData: 'petak sudah ada datanya',
+		gridEmpty: 'belum ada datanya',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
-			`Kisi ${total} petak: ${terdata} kotanya sudah disurvei, ${nodata} belum.`,
-		realTitle: 'Yang nyata',
-		realUnit: (stops: string) =>
-			`${stops} titik transit empat moda, lengkap dengan geometri jalurnya, dari OpenStreetMap lewat Overpass API (ODbL). Akses transit tiap petak dihitung dari sini.`,
-		poiTitle: 'Pesaing terdata, per jenis usaha',
-		poiUnit: (pois: string) =>
-			`${pois} titik usaha sejenis, juga dari OpenStreetMap. Inilah angka pesaing yang dipakai mesin skor, bukan perkiraan.`
+			`Kisi ${total} petak: ${terdata} kotanya sudah disurvei, ${nodata} belum.`
 	},
 
 	spreadChart: {
-		caption: 'Sebaran petak menurut jumlah usaha dalam radius jalan kaki, katalog MAPID.',
+		caption: 'Sebaran petak menurut jumlah usaha dalam radius jalan kaki.',
 		table: 'Angka per kelompoknya',
 		colBand: 'Sampai',
 		colValue: 'Petak',
@@ -264,18 +236,23 @@ export const id = {
 
 	scale: { low: '0 · kecil', high: '100 · besar', nodata: 'belum disurvei, tidak diberi nilai' },
 
+	/* Nama saja, tanpa kalimat penjelas. Dulu tiap baris punya satu kalimat di
+	   bawahnya, dan kalimat itu cuma pengisi di sekeliling satu-satunya isi yang
+	   penting, yaitu namanya. */
 	audience: {
 		mark: 'Untuk siapa',
-		title: 'Satu peta, tiga belas jenis keputusan.',
+		/* Tidak dipatok di tiga belas. Angkanya memang tiga belas hari ini, dan menulis
+		   angkanya di judul membuatnya terbaca sebagai batas, padahal itu cuma jumlah
+		   jenis usaha yang sudah masuk. */
+		title: 'Satu peta, macam-macam keputusan.',
+		typesLabel: 'Jenis usaha yang dinilai',
 		rows: [
-			{ t: 'Pemodal ritel & kuliner', d: 'Memilih lokasi cabang baru dari data, bukan dari firasat.' },
-			{ t: 'UMKM bermodal pas-pasan', d: 'Cari lokasi bagus yang sewanya masih masuk akal.' },
-			{
-				t: 'Calon wirausaha rumahan',
-				d: '“Usaha apa yang masuk akal di sekitar sini?” dijawab lengkap dengan alasannya.'
-			},
-			{ t: 'Tim pembukaan cabang', d: 'Menyaring dan mengurutkan calon lokasi di sepanjang jalur transit.' },
-			{ t: 'Pemilik & agen properti', d: 'Tahu tempatnya cocok untuk usaha apa, dan siapa penyewa yang pas.' }
+			'Pemodal ritel & kuliner',
+			'UMKM bermodal pas-pasan',
+			'Calon wirausaha rumahan',
+			'Tim pembukaan cabang',
+			'Pemilik & agen properti',
+			'Pencari lokasi cabang'
 		]
 	},
 
@@ -800,7 +777,7 @@ export const id = {
 		needsCategory:
 			'Sebelum saya jawab, mau buka usaha apa? Skor peluang selalu untuk satu jenis usaha, karena 83 untuk kedai kopi bukan 83 untuk laundry.',
 		notUnderstood: (why: string) =>
-			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk tiga belas jenis usaha. Mau saya carikan salah satunya?`,
+			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk sejumlah jenis usaha. Mau saya carikan salah satunya?`,
 		coverageNone: 'Semua kawasan sudah ada datanya.',
 		coverageSome: (n: number) =>
 			`Ada ${n} kawasan yang datanya belum saya punya sama sekali. Saya tidak menilainya. Daripada saya karang, lebih baik saya bilang belum tahu.`,

@@ -213,7 +213,6 @@
 		<div class="copy mid" style:opacity={showLot} aria-hidden={showLot < 0.5}>
 			<h2>{c.stage.lotTitle}</h2>
 			<p>{c.stage.lotBody}</p>
-			<span class="prov">{c.stage.lotProv}</span>
 		</div>
 	</div>
 </section>
@@ -361,13 +360,6 @@
 	.hint {
 		font-size: 0.72rem;
 		letter-spacing: 0.04em;
-		color: var(--ink-muted);
-	}
-	.prov {
-		display: block;
-		margin-top: 1rem;
-		font-size: 0.66rem;
-		letter-spacing: 0.05em;
 		color: var(--ink-muted);
 	}
 
