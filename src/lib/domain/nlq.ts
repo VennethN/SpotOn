@@ -1,6 +1,6 @@
 import { id as ID } from '$lib/i18n/id';
 import { pct } from '$lib/utils/format';
-import { CATEGORY_MAP } from './categories';
+import { CATEGORY_MAP, orderCategories } from './categories';
 import {
 	DEFAULT_METRIC,
 	METRIC_MAP,
@@ -35,10 +35,18 @@ import type {
 } from '$lib/types';
 
 /**
- * Matched in order, first match wins — so the specific has to sit above the
- * general. `boba` before `minuman`, and both before `warung`, which catches the
- * word "makan": without that order "kedai minuman" would read as a warung, because
- * the question almost always contains the word makan or jajan.
+ * The business types a question names — ALL of them, not the first.
+ *
+ * "Kedai kopi dan toko roti" is one question about two types, and reading only the
+ * first was the whole reason the map could never answer it: the reply named bakeries
+ * and the map coloured itself for cafes. Every pattern here is tried and every hit is
+ * kept, so a sentence naming three types comes back with three.
+ *
+ * These are the SPECIFIC patterns. The catch-all below them is not in this list, and
+ * that separation is what makes collecting every match safe: it matches the bare word
+ * "makan", which sits inside almost every question about food, so gathered alongside
+ * the others it would attach a rice warung to "restoran jepang" and to "toko roti"
+ * alike. It fires only when nothing specific did — exactly the fallback it always was.
  */
 const KEYWORDS: Array<[RegExp, CategoryKey]> = [
 	[/kopi|coffee|kafe|cafe|espresso|latte/i, 'kopi'],
@@ -59,12 +67,30 @@ const KEYWORDS: Array<[RegExp, CategoryKey]> = [
 	[
 		/jepang|japanese|korea|korean|sushi|thai|cina|chinese|western|\basing\b|italia|pizza|steak/i,
 		'restoasing'
-	],
-	// Last and loosest: anything mentioning food without naming a type lands here,
-	// because a rice warung really is the most sensible default for the question
-	// "I want to open somewhere to eat".
-	[/warteg|warung|rumah makan|nasi|padang|soto|resto|makan|food/i, 'warteg']
+	]
 ];
+
+/**
+ * Last and loosest: anything mentioning food without naming a type lands here, because
+ * a rice warung really is the most sensible default for "I want to open somewhere to
+ * eat". Kept out of the list above so it can only ever be a fallback — see the note there.
+ */
+const ANY_FOOD: [RegExp, CategoryKey] = [
+	/warteg|warung|rumah makan|nasi|padang|soto|resto|makan|food/i,
+	'warteg'
+];
+
+/**
+ * Every business type a question names, in display order and without repeats.
+ *
+ * Empty when the question names none, which is the caller's cue to use whatever the
+ * reader already had in force rather than to guess at one.
+ */
+export function categoriesIn(q: string): CategoryKey[] {
+	const hits = KEYWORDS.filter(([re]) => re.test(q)).map(([, cat]) => cat);
+	if (!hits.length && ANY_FOOD[0].test(q)) hits.push(ANY_FOOD[1]);
+	return orderCategories(hits);
+}
 
 /**
  * Which figure a question is about, when it names one.
@@ -166,11 +192,19 @@ const RADIUS_WORDS = /(\d{3,4})\s*(?:m\b|meter|metre|metres|meters)/i;
  * Neither of them computes anything: they choose an operation, a measure and a
  * direction, and the scoring engine produces every number from the data.
  */
-export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): StructuredQuery {
+export function parseQuestion(
+	q: string,
+	w: Weights,
+	fallback: CategoryKey | readonly CategoryKey[]
+): StructuredQuery {
+	// Every type the question names, or the ones the reader already had if it names
+	// none. Never a hard-coded default: a question that said nothing about the business
+	// type is asking about the one on screen, not about coffee.
+	const named = categoriesIn(q);
 	const out: StructuredQuery = {
 		intent: 'RANK',
 		metrik: 'gap permintaan − penawaran',
-		kategori: fallback,
+		kategori: named.length ? named : orderCategories(typeof fallback === 'string' ? [fallback] : fallback),
 		ukuran: DEFAULT_METRIC,
 		radius_m: w.radius,
 		filter: {},
@@ -178,13 +212,6 @@ export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): Str
 		urut: 'desc',
 		limit: 5
 	};
-
-	for (const [re, cat] of KEYWORDS) {
-		if (re.test(q)) {
-			out.kategori = cat;
-			break;
-		}
-	}
 
 	// Unit before cell: "ruko mana di kawasan Blok M" names both, and the thing being
 	// ranked is the one in the subject position.
@@ -272,6 +299,18 @@ export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): Str
 	return out;
 }
 
+/**
+ * A list of names as one Indonesian phrase: "A", "A dan B", "A, B, dan C".
+ *
+ * Indonesian on purpose, like every other sentence in this file: it is API output, and
+ * the interface rebuilds what the reader sees from the structured fields beside it. See
+ * the note at the top.
+ */
+function joinID(parts: string[]): string {
+	if (parts.length < 2) return parts[0] ?? '';
+	return `${parts.slice(0, -1).join(', ')} dan ${parts[parts.length - 1]}`;
+}
+
 /** Matches catchment names mentioned in the question (for the COMPARE intent). */
 function matchNames(q: string, rows: ScoredHex[]): ScoredHex[] {
 	const ql = q.toLowerCase();
@@ -315,7 +354,7 @@ export function answer(
 	question: string,
 	catchments: Hex[],
 	w: Weights,
-	fallback: CategoryKey
+	fallback: CategoryKey | readonly CategoryKey[]
 ): AiAnswer {
 	return runQuery(parseQuestion(question, w, fallback), question, catchments, w);
 }
@@ -334,8 +373,21 @@ export function runQuery(
 	catchments: Hex[],
 	weights: Weights
 ): AiAnswer {
-	const cat = query.kategori;
-	const def = CATEGORY_MAP[cat];
+	const cats = query.kategori;
+	const defs = cats.map((k) => CATEGORY_MAP[k]);
+	/* The names of the types this answer was computed over, written out.
+	   Every sentence below used to take one definition and quote it; with a set, quoting
+	   the first would name one business type in a reply whose figures counted several,
+	   which is the one kind of mistake this file exists to avoid. */
+	const def = {
+		name: joinID(defs.map((d) => d.name)),
+		/* The premises count is NOT per business type — it is every commercial listing in
+		   range, which is why the same figure serves all thirteen. Naming one property
+		   category beside it is a fair shorthand for a question about one type; joined
+		   across several it reads as a split that was never made ("12 unit Coffee Shop
+		   dan Retail F&B"), so the set drops the label and says what the figure is. */
+		propertyCategory: defs.length === 1 ? defs[0].propertyCategory : 'komersial'
+	};
 	/* The query's radius, not the reader's, and this is the whole reason `radius_m`
 	   stopped being a copy of the settings. A question that names a distance has to be
 	   ANSWERED at that distance: computing at 800 m and then moving the map's slider to
@@ -344,13 +396,19 @@ export function runQuery(
 	   `join-property` computed. */
 	const w: Weights = { ...weights, radius: snapRadius(query.radius_m) };
 	query.radius_m = w.radius;
-	const rows = scoreAll(catchments, cat, w);
+	const rows = scoreAll(catchments, cats, w);
 	const provenance = [
 		`Alur: pertanyaan → parsing niat → function-calling ke daftar operasi spasial terbatas → PostGIS mengeksekusi → peta & panel diperbarui.`,
 		`Angka tidak dikarang model: LLM hanya memilih operasi dan mengisi argumen; seluruh nilai dihitung basis data dan ditautkan ke titik sumbernya.`,
 		w.source === 'mapid'
-			? `Sumber pesaing: MAPID Data Premium, ${def.mapidSet}, around:${w.radius}.`
-			: `Sumber pesaing: OpenStreetMap via Overpass API, ${def.osmTag}, around:${w.radius}.`,
+			? `Sumber pesaing: MAPID Data Premium, ${defs.map((d) => d.mapidSet).join(' + ')}, around:${w.radius}.`
+			: `Sumber pesaing: OpenStreetMap via Overpass API, ${defs.map((d) => d.osmTag ?? 'tidak ada tag OSM').join(' + ')}, around:${w.radius}.`,
+		/* Said out loud whenever more than one type was asked about, because it is the
+		   arithmetic the reader cannot see: the outlets of all of them are counted as one
+		   pool of rivals, and all of them come back out of the trade around the cell. */
+		cats.length > 1
+			? `${cats.length} jenis usaha ditanyakan sekaligus: pesaingnya dijumlahkan jadi satu, dan semuanya sama-sama dikeluarkan dari hitungan usaha lain di sekitarnya. Satu petak yang salah satu jenisnya belum disurvei tidak diberi nilai sama sekali.`
+			: `Satu jenis usaha yang ditanyakan: ${defs[0].name}.`,
 		`Sisi permintaan: jumlah usaha lain dalam radius yang sama, sumber yang sama, dikurangi pesaing sejenis.`,
 		`Harga dan unit yang dipasarkan: katalog properti komersial MAPID. Semuanya harga JUAL, bukan sewa.`
 	];

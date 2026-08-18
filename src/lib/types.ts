@@ -303,7 +303,19 @@ export type Intent = 'RANK' | 'FLAG_SATURATED' | 'COMPARE' | 'COVERAGE';
 export interface StructuredQuery {
 	intent: Intent;
 	metrik: string;
-	kategori: CategoryKey;
+	/**
+	 * The business type — or types — the question was about.
+	 *
+	 * A LIST, and that is a change in the contract rather than a widening of it. A
+	 * question can name more than one ("kedai kopi dan toko roti"), and answering it by
+	 * keeping only the first quietly threw half the question away: the map coloured
+	 * itself for cafes while the sentence above it claimed to have considered bakeries
+	 * too. One name is a list of one, so nothing about a single-type question changes.
+	 *
+	 * Never empty. A question naming no type at all is answered for whatever the reader
+	 * already had in force, which is what `fallback` carries in.
+	 */
+	kategori: CategoryKey[];
 	/**
 	 * The walking radius the answer was computed over.
 	 *

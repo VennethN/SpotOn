@@ -21,13 +21,14 @@
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import Segmented from '$lib/components/ui/Segmented.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 	import type { PoiSource } from '$lib/types';
 
 	const app = getAppState();
 	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
-	const catName = $derived(c.category[app.category].name);
+	const catName = $derived(categoryNames(app.categories, c));
 	/* Colours actually on screen — the key only describes what is being drawn, so
 	   between the button press and the data landing it stays a loading state rather
 	   than explaining a ramp nobody can see yet. */

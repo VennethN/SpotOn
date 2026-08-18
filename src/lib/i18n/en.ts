@@ -612,6 +612,14 @@ export const en: Copy = {
 		radiusHint:
 			'How far from the centre counts, for areas and for places alike. Each range has its own price, measured rather than interpolated from another.',
 		categoryLabel: 'Business type',
+		/* The chips over the map. A read-out first and a control second: what shows is
+		   what the last answer covered, and the way to add one is to say so when you
+		   ask. */
+		catRemove: (name: string) => `Take ${name} off the map`,
+		catOnlyOne: 'Keep at least one business type',
+		catAdd: 'Add a business type',
+		catAddClose: 'Close the business type list',
+		catAskInstead: 'It is usually quicker to just say it when you ask, for instance "coffee shops and bakeries near the MRT".',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} cells · ${poi} competitors mapped`,
 		/* The competitor count only exists once a category's columns are loaded. Until
@@ -895,6 +903,9 @@ export const en: Copy = {
 	},
 
 	query: {
+		/* The conjunction for a list of business types asked about at once. Here rather
+		   than in the code, because each language joins a list its own way. */
+		and: 'and',
 		saturated: 'already crowded',
 		coverage: 'with no data yet',
 		within: (r: number) => `within ${r === 800 ? 'an' : 'a'} ${r} m walk of a transit stop`,

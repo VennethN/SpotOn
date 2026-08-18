@@ -14,12 +14,13 @@
 	 */
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 
 	const app = getAppState();
 	const c = $derived(copy());
 
-	const catMany = $derived(c.category[app.category].many.toLowerCase());
+	const catMany = $derived(categoryNames(app.categories, c, 'many'));
 	/* The dots actually drawn, not the scored row's figure. This panel is a caption
 	   for the map, so it counts what the map is showing. */
 	const drawn = $derived(app.selectedPois.length);
