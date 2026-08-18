@@ -215,24 +215,27 @@ export const en: Copy = {
 
 	ai: {
 		mark: 'Ask the map',
-		title: 'Ask the map in plain language.',
-		p1: 'No formula to fill in and no jargon to memorise. Tapak starts the conversation: it asks first, offers answers you can just tap, then replies with a list of places and the reasons behind them.',
+		title: 'Ask in plain language, and the map changes.',
+		p1: 'Say what you want to open and the whole city recolours for that business. No formula to fill in and no jargon to memorise.',
 		p2: 'Before answering, the map shows what it understood from your question. If it picked something up wrong, you see it immediately. Every answer says why, and how much data it rests on.',
-		p3: 'The conversation beside this runs on its own. We wrote the questions, but not the numbers: every name and every value there is computed by the same scoring engine the map uses. Tap a business type to jump to another conversation.',
+		p3: 'We wrote the questions, but not the numbers. Every colour, name and value here is computed by the same scoring engine the app uses, from the same data, when this page was built.',
+		mapEmpty: 'Map of 562 catchments around Jakarta transit, waiting for the first question.',
+		mapLabel: (kind: string) =>
+			`Map of 562 catchments around Jakarta transit, coloured by opportunity score for ${kind}.`,
+		mapCaption: (kind: string) => `Opportunity score for ${kind}, 562 catchments, computed just now.`,
 		caught: 'What the map understood',
 		thinking: 'One moment, let me check my notes…',
 		more: (n: number) => `+${n} more in the app`,
 		play: 'Play conversation',
-		pause: 'Pause conversation',
-		foot: 'The questions are samples, but the answers come from the same scoring engine as the app.'
+		pause: 'Pause conversation'
 	},
 
 	data: {
 		mark: 'Data',
-		title: 'Areas we have no data for are shown as exactly that.',
-		body: "When an area's city is not in the catalogue, we don't invent a number to stand in for it. It is marked empty and goes into the queue to be surveyed first.",
+		title: 'Every figure traces back to where it came from.',
+		body: 'Two surveys, read together and never added up. Each area is read from whichever survey reached it, so the figure is a floor rather than an estimate.',
 		gridWithData: 'cells in a surveyed city',
-		gridEmpty: 'not surveyed, not scored, queued',
+		gridEmpty: 'not in the MAPID catalogue yet',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
 			`A grid of ${total} cells: ${terdata} sit in a surveyed city, ${nodata} do not.`,
 		realTitle: 'What is real',
@@ -240,10 +243,7 @@ export const en: Copy = {
 			`${stops} transit stops across four modes, with their route geometry, from OpenStreetMap via the Overpass API (ODbL). Each cell's transit access is computed from this.`,
 		poiTitle: 'Competitors mapped, by business type',
 		poiUnit: (pois: string) =>
-			`${pois} similar businesses, also from OpenStreetMap. This is the competitor count the scoring engine uses, not an estimate.`,
-		mockTitle: 'What is deliberately absent',
-		mockNote:
-			'Not one figure in this product is generated. There is no 24-hour profile, no receipt count, no cashless share, and no per-category rental listing. All of those were once in this product as generated sample data, and all of them have been removed. The MAPID catalogue holds no rental listings for Jakarta either, so the price shown is an asking price for sale and is called one. Something unmeasured is better off absent from the screen than present and invented.'
+			`${pois} similar businesses, also from OpenStreetMap. This is the competitor count the scoring engine uses, not an estimate.`
 	},
 
 	spreadChart: {
@@ -964,15 +964,13 @@ export const en: Copy = {
 		count: (v: number) => num(Math.round(v))
 	},
 
+	/* The sample questions on the landing page, written whole, the way somebody who
+	   already knows what they want types them. They used to be split across four turns
+	   of back-and-forth, which on a sales page is a long time to wait before anything
+	   is answered. */
 	demo: {
-		coverageAsk: 'Hold on, is the data complete?',
-		coverageChip: 'Data coverage',
-		coverageReply: "Not all of it. Want me to show you which ones are missing?",
-		coverageYes: 'Show me',
-		coveragePreface: 'These are the ones I have no data for.',
-		saturatedChip: 'Saturated',
-		saturatedAsk: 'Minimarket, alright. Shall I find the good ones, or the ones to avoid?',
-		saturatedYes: 'The ones to avoid',
-		saturatedPreface: 'Sure. These have the tightest competition.'
+		askOpen: (kind: string) => `Where should I open ${kind} near a station?`,
+		askCheap: (kind: string) => `Where can I open ${kind} on a small budget near the MRT?`,
+		askSaturated: (kind: string) => `Which areas are already too crowded with ${kind}?`
 	}
 };

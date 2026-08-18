@@ -5,6 +5,7 @@ import { scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
 import { DICT, LANGS, type Copy, type Lang } from '$lib/i18n';
 import { grid, loadHexes } from '$lib/server/source';
+import { rampIndex } from '$lib/utils/format';
 import type { CategoryKey, Hex, StructuredQuery } from '$lib/types';
 import type { PageServerLoad } from './$types';
 
@@ -40,7 +41,7 @@ interface Script {
 	id: string;
 	category: CategoryKey;
 	/** Pulls the conversation's text from the requested language's dictionary. */
-	lines: (c: Copy) => { choice: string; chip: string; ask: string; answer: string; preface: string };
+	lines: (c: Copy) => { choice: string; question: string };
 	query: StructuredQuery;
 }
 
@@ -49,11 +50,10 @@ const W = DEFAULT_WEIGHTS;
 export interface DemoSet {
 	id: string;
 	category: CategoryKey;
+	/** The business type, for the map's caption. Not spoken as a turn. */
 	choice: string;
-	chip: string;
-	ask: string;
-	answer: string;
-	preface: string;
+	/** The whole question, asked in one go rather than drawn out over four turns. */
+	question: string;
 	captured: string[];
 	sentence: string;
 	results: Array<{ name: string; value: number | null }>;
@@ -79,16 +79,22 @@ function scriptFor(category: CategoryKey, smallBudget: boolean): Script {
 		category,
 		lines: (c) => ({
 			choice: c.category[category].name,
-			chip: c.category[category].short,
-			ask: c.tapak.budgetAsk(c.category[category].name.toLowerCase()),
-			answer: smallBudget ? c.tapak.budgetTight : c.tapak.budgetLoose,
-			preface: smallBudget ? c.tapak.prefaceTight : c.tapak.prefaceLoose
+			question: smallBudget
+				? c.demo.askCheap(c.category[category].many)
+				: c.demo.askOpen(c.category[category].many)
 		}),
 		query: rank(category, smallBudget)
 	};
 }
 
-/** The small-budget branch alternates so both sides of the conversation are seen. */
+/**
+ * The small-budget branch alternates so both sides of the conversation are seen.
+ *
+ * A sixth script asking about data coverage used to close the loop, and it has gone
+ * because it stopped having anything to show. Reading both surveys rather than one
+ * closed the gap it was built to admit: it now answers "0 cells unsurveyed" and paints
+ * an empty map, which is a demonstration of nothing.
+ */
 const SCRIPTS: Script[] = [
 	scriptFor('kopi', true),
 	scriptFor('warteg', false),
@@ -97,10 +103,7 @@ const SCRIPTS: Script[] = [
 		category: 'minimarket',
 		lines: (c) => ({
 			choice: c.category.minimarket.name,
-			chip: c.demo.saturatedChip,
-			ask: c.demo.saturatedAsk,
-			answer: c.demo.saturatedYes,
-			preface: c.demo.saturatedPreface
+			question: c.demo.askSaturated(c.category.minimarket.many)
 		}),
 		query: {
 			intent: 'FLAG_SATURATED',
@@ -112,26 +115,7 @@ const SCRIPTS: Script[] = [
 		}
 	},
 	scriptFor('laundry', true),
-	scriptFor('apotek', false),
-	{
-		id: 'coverage',
-		category: 'kopi',
-		lines: (c) => ({
-			choice: c.demo.coverageAsk,
-			chip: c.demo.coverageChip,
-			ask: c.demo.coverageReply,
-			answer: c.demo.coverageYes,
-			preface: c.demo.coveragePreface
-		}),
-		query: {
-			intent: 'COVERAGE',
-			metrik: 'petak yang kotanya belum disurvei sumber aktif',
-			kategori: ['kopi'],
-			radius_m: W.radius,
-			urut: 'asc',
-			limit: 99
-		}
-	}
+	scriptFor('apotek', false)
 ];
 
 /**
@@ -166,6 +150,38 @@ export const load: PageServerLoad = () => {
 	   own count rather than a number chosen to look good in a screenshot. */
 	const busiest = scored.reduce((a, r) => (r.density > (a?.density ?? -1) ? r : a), scored[0]);
 	const topDensity = Math.max(1, ...scored.map((r) => r.density));
+
+	/**
+	 * WHAT THE MAP LOOKS LIKE AFTER EACH QUESTION.
+	 *
+	 * The conversation on this page used to be a chat box on its own, which asked the
+	 * visitor to take on trust the one thing the product is: that asking repaints a map.
+	 * So the map is here, it is the real grid at its real coordinates, and it is scored
+	 * by the same engine the app runs — ask about coffee and the coffee map appears,
+	 * ask about minimarkets and every cell moves.
+	 *
+	 * Computed ONCE and not per language, because a map has no language. Sent as a
+	 * string of one character per cell, in the same order as `coverage.pts`, so the
+	 * whole five-question sequence costs under three kilobytes: a digit is the cell's
+	 * step on the seven-colour ramp, and a dot is a cell the active source has not
+	 * surveyed, which is drawn as an outline rather than as a low score.
+	 */
+	const queryMaps = Object.fromEntries(
+		SCRIPTS.map((s) => {
+			const rows = scoreAll(hexes, s.query.kategori, W);
+			const ans = runQuery(s.query, '', hexes, W);
+			// The places the answer actually named, as indices into the same point array.
+			// Five at most: this is a picture of an answer, not a table of one.
+			const named = new Set(ans.highlight.slice(0, 5));
+			return [
+				s.id,
+				{
+					bands: rows.map((r) => (r.score === null ? '.' : String(rampIndex(r.score)))).join(''),
+					marks: hexes.flatMap((h, i) => (named.has(h.id) ? [i] : []))
+				}
+			];
+		})
+	);
 
 	// One computation per script, two scripts' worth of copy. The figures are identical
 	// across languages because they come from the very same `runQuery`.
@@ -206,6 +222,7 @@ export const load: PageServerLoad = () => {
 			listings: grid.property?.listings ?? 0
 		},
 		coverage: coverageMap(hexes),
+		queryMaps,
 		spread,
 		field,
 		stage: {
