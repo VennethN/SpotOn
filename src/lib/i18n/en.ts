@@ -654,6 +654,11 @@ export const en: Copy = {
 			'An opportunity score needs a business type, because 83 for a coffee shop is not 83 for a laundry. Say what you want to open and this map becomes that score.',
 		basisDensityCells: (n: number) => `${n} cells sit in an unsurveyed city, not counted`,
 		sourceLabel: 'Competitor data source',
+		sourceBothLabel: 'Both',
+		/* "Both" is not a sum, and this line is what keeps it from being read as one.
+		   The two surveys read the same city, so adding them counts the same shops
+		   twice. */
+		sourceBoth: 'Each area is read from whichever survey reached it, the fuller one where both did. Never added together.',
 		sourceOsm: 'OpenStreetMap: even coverage, volunteered',
 		sourceMapid: 'MAPID: surveyed, all 5 Jakarta cities',
 		legendUncovered: (n: number, cat: string, src: string) =>

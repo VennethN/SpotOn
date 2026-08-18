@@ -76,6 +76,28 @@ export const GATE_BLOCKED = 0.15;
  * opportunities — the exact opposite of what the user is looking for.
  */
 function oneCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
+	/**
+	 * BOTH SURVEYS: the larger of the two readings, never their sum.
+	 *
+	 * They are two surveys of the same city rather than two halves of one. The MAPID
+	 * catalogue holds 4,753 cafes in the surveyed cells and OpenStreetMap holds 1,569,
+	 * and those 1,569 are overwhelmingly the same cafes — there is no shared id to match
+	 * them on, so adding them would report a street of eight coffee shops as having
+	 * fourteen and inflate the competition side of every score by an amount nobody could
+	 * account for.
+	 *
+	 * The larger reading is a floor: at least this many exist, because one of the two
+	 * surveys went and counted them. Null only when NEITHER survey can speak for this
+	 * cell — where one can, its count stands on its own, which is what closes the gap of
+	 * 100 cells the catalogue has never read.
+	 */
+	if (source === 'both') {
+		const a = oneCount(c, cat, 'mapid', radius);
+		const b = oneCount(c, cat, 'osm', radius);
+		if (a === null) return b;
+		if (b === null) return a;
+		return Math.max(a, b);
+	}
 	if (source === 'mapid') {
 		if (!c.covered?.[cat]) return null;
 		return Math.round((c.mapid?.[cat] ?? 0) * areaFactor(radius));
@@ -152,7 +174,16 @@ function maxPoi(all: Hex[], cats: readonly CategoryKey[], source: PoiSource, rad
  * applies: a zero would call an unread city empty of trade.
  */
 function otherTrade(c: Hex, cats: readonly CategoryKey[], source: PoiSource, radius: number): number | null {
-	const total = source === 'mapid' ? c.dens?.mapid : c.dens?.osm;
+	// The same rule as `oneCount`, applied to the total: the fuller survey speaks for
+	// the cell, and the two are never added. See the note there.
+	const total =
+		source === 'both'
+			? (c.dens?.mapid ?? null) === null
+				? c.dens?.osm
+				: Math.max(c.dens?.mapid ?? 0, c.dens?.osm ?? 0)
+			: source === 'mapid'
+				? c.dens?.mapid
+				: c.dens?.osm;
 	if (total === null || total === undefined) return null;
 	// Every type asked about comes out, not just the first. Ask about cafes and bakeries
 	// on a street of cafes and bakeries and leaving either one in would count that
