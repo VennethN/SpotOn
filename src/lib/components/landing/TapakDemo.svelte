@@ -29,47 +29,77 @@
 	export interface DemoSet {
 		id: string;
 		category: CategoryKey;
+		/** The business type, for the map's caption. Not spoken as a turn. */
 		choice: string;
-		chip: string;
-		ask: string;
-		answer: string;
-		preface: string;
+		/** The whole question, asked in one go. */
+		question: string;
 		captured: string[];
 		sentence: string;
 		results: DemoResult[];
 		more: number;
 	}
 
-	let { sets, greeting }: { sets: DemoSet[]; greeting: string } = $props();
+	interface Props {
+		sets: DemoSet[];
+		greeting: string;
+		/**
+		 * Called whenever the conversation moves, so the map beside it can follow.
+		 *
+		 * The map is a sibling rather than a child because it is the bigger half of the
+		 * section: this panel is the question, the map is the answer, and nesting the
+		 * answer inside the question would size the answer to the question's column.
+		 */
+		onstep?: (state: { index: number; answered: boolean }) => void;
+	}
+	let { sets, greeting, onstep }: Props = $props();
 
 	const c = $derived(copy());
 
-	/* Conversation steps. Zero means only the greeting; six means the answer is
-	   complete and just held for a moment before moving on. */
-	const LAST = 6;
-	/** Delay per step, in ms. The final step is held longer so it can be read. */
-	const BEAT = [1500, 1100, 1500, 1100, 1200, 6500];
+	/**
+	 * Four steps: greeting, the question, a moment of work, the answer.
+	 *
+	 * It used to be seven. The reader named a business type, Tapak asked back about
+	 * rent, the reader answered that, Tapak repeated it, then thought, then answered —
+	 * a courteous exchange that took the better part of half a minute before saying
+	 * anything. On a landing page nobody waits that long to find out what a product
+	 * does, and the back-and-forth was demonstrating the manner rather than the work.
+	 *
+	 * So the question is asked whole, the way somebody who knows what they want would
+	 * type it, and the answer follows. The app still has the conversation; this is the
+	 * trailer, not the film.
+	 */
+	const LAST = 3;
+	/** How long each step is held, in ms. Only the answer is held long enough to read. */
+	const BEAT = [1100, 900, 560, 6200];
 
 	const reduced = prefersReducedMotion();
 
 	let i = $state(0);
 	let step = $state(reduced ? LAST : 0);
 	let playing = $state(!reduced);
-	let onScreen = $state(false);
+	/**
+	 * On screen, and in a tab somebody is looking at. Two flags rather than one, and
+	 * that is a fix rather than a refinement: they used to share a variable, and the
+	 * visibility handler could only ever clear it. Once the tab had been hidden the
+	 * conversation stopped for good, and nothing short of scrolling it out of view and
+	 * back would start it again.
+	 */
+	let inView = $state(false);
+	let visible = $state(true);
 	let host = $state<HTMLElement | null>(null);
 
 	const set = $derived(sets[i] ?? sets[0]);
 
-	function jumpTo(n: number) {
-		if (n === i) return;
-		i = n;
-		step = reduced ? LAST : 0;
-	}
+	/* Reported rather than read from outside, so there is one clock: the conversation
+	   decides when an answer has landed and everything else in the section follows it. */
+	$effect(() => {
+		onstep?.({ index: i, answered: step >= LAST });
+	});
 
 	// The player: a single timer taking turns, not an interval running continuously.
 	// It is re-armed each step so each step can have its own tempo.
 	$effect(() => {
-		if (!playing || !onScreen || reduced) return;
+		if (!playing || !inView || !visible || reduced) return;
 		const wait = BEAT[Math.min(step, BEAT.length - 1)];
 		const t = setTimeout(() => {
 			if (step < LAST) step += 1;
@@ -84,11 +114,11 @@
 	$effect(() => {
 		if (!host || reduced) return;
 		const el = host;
-		const io = new IntersectionObserver(([e]) => (onScreen = e.isIntersecting), {
-			threshold: 0.25
+		const io = new IntersectionObserver(([e]) => (inView = e.isIntersecting), {
+			threshold: 0.2
 		});
 		io.observe(el);
-		const onVis = () => (onScreen = !document.hidden && onScreen);
+		const onVis = () => (visible = !document.hidden);
 		document.addEventListener('visibilitychange', onVis);
 		return () => {
 			io.disconnect();
@@ -100,20 +130,11 @@
 <div class="demo" bind:this={host}>
 	<div class="bar">
 		<span class="who"><TapakFigure size={18} walking={false} /> {c.app.tapak}</span>
-		<ul class="jump">
-			{#each sets as s, n (s.id)}
-				<li>
-					<button
-						type="button"
-						class:on={n === i}
-						aria-current={n === i}
-						onclick={() => jumpTo(n)}
-					>
-						{s.chip}
-					</button>
-				</li>
-			{/each}
-		</ul>
+		<!-- A row of six buttons naming the business types used to sit here, and it was
+		     the wrong offer. This panel is a demonstration, not a control surface: the
+		     one thing to do about it is watch it, and the one control worth having is
+		     the ability to stop it. -->
+		<span class="spacer"></span>
 		{#if !reduced}
 			<button
 				type="button"
@@ -149,37 +170,12 @@
 			<p class="bub">{greeting}</p>
 		</div>
 
+		<!-- The whole question in one go, the way somebody who knows what they want
+		     types it. -->
 		{#if step >= 1}
-			<div class="turn mine"><p class="bub said">{set.choice}</p></div>
+			<div class="turn mine"><p class="bub said">{set.question}</p></div>
 		{/if}
-		{#if step >= 2}
-			<div class="turn tapak">
-				<span class="av"><TapakFigure size={22} walking={false} /></span>
-				<p class="bub">{set.ask}</p>
-			</div>
-		{/if}
-		{#if step >= 3}
-			<div class="turn mine"><p class="bub said">{set.answer}</p></div>
-		{/if}
-		{#if step >= 4}
-			<div class="turn tapak">
-				<span class="av"><TapakFigure size={22} walking={false} /></span>
-				<div class="bub">
-					<p>{set.preface}</p>
-					<!-- What the map understood, before a single number is computed. This is what
-					     lets the asker catch a misreading rather than have it hidden. -->
-					<div class="caught">
-						<span class="cap">{c.ai.caught}</span>
-						<ul>
-							{#each set.captured as t (t)}
-								<li>{t}</li>
-							{/each}
-						</ul>
-					</div>
-				</div>
-			</div>
-		{/if}
-		{#if step === 5}
+		{#if step === 2}
 			<div class="turn tapak">
 				<span class="av"><TapakFigure size={22} walking={false} /></span>
 				<p class="bub think">{c.ai.thinking}</p>
@@ -189,7 +185,18 @@
 			<div class="turn tapak">
 				<span class="av"><TapakFigure size={22} walking={false} /></span>
 				<div class="bub">
-					<p>{set.sentence}</p>
+					<!-- What the map understood, before a single number. Moved in here with the
+					     preface turn it used to follow: it belongs to the answer, and as a turn
+					     of its own it was a beat the reader had to wait through. -->
+					<div class="caught">
+						<span class="cap">{c.ai.caught}</span>
+						<ul>
+							{#each set.captured as t (t)}
+								<li>{t}</li>
+							{/each}
+						</ul>
+					</div>
+					<p class="said-after">{set.sentence}</p>
 					{#if set.results.length}
 						<ol class="places">
 							{#each set.results as r, k (r.name)}
@@ -213,9 +220,6 @@
 		{/if}
 	</div>
 
-	<!-- The MOCK tag that stood here, and the sentence after it admitting the mission
-	     attributes were samples, are gone with the attributes themselves. -->
-	<p class="foot">{c.ai.foot}</p>
 </div>
 
 <style>
@@ -223,13 +227,18 @@
 	   length would make the whole page below it jump every dozen seconds or so — and
 	   that is far more disruptive than one old turn being clipped at the top.
 	   */
+	/* Shaped like the panel it is a picture of. Tapak floats over the map in the app
+	   as a rounded, raised surface, and a square-cornered box on the landing page was
+	   showing the reader something they will not find when they open it. */
 	.demo {
 		border: 1px solid var(--paper-line);
+		border-radius: var(--r-xl);
+		overflow: hidden;
 		background-image: var(--lift-panel);
 		box-shadow: inset 0 1px 0 var(--lift-edge);
 		display: flex;
 		flex-direction: column;
-		height: clamp(29rem, 66vh, 36rem);
+		height: clamp(26rem, 58vh, 32rem);
 	}
 
 	.bar {
@@ -248,32 +257,8 @@
 		font-weight: 600;
 		flex: none;
 	}
-	.jump {
-		list-style: none;
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25rem;
-		margin: 0 auto 0 0;
-		padding: 0;
-	}
-	.jump button {
-		border: 1px solid transparent;
-		background: none;
-		color: var(--label-3);
-		border-radius: 999px;
-		padding: 0.125rem 0.5rem;
-		font-size: 0.6875rem;
-		cursor: pointer;
-		transition:
-			color 140ms ease-out,
-			border-color 140ms ease-out;
-	}
-	.jump button:hover {
-		color: var(--label-1);
-	}
-	.jump button.on {
-		color: var(--label-1);
-		border-color: var(--separator-strong);
+	.spacer {
+		flex: 1;
 	}
 	.pp {
 		display: grid;
@@ -323,24 +308,26 @@
 		margin-top: 0.125rem;
 	}
 
+	/* The same bubble the app draws: a filled surface with no outline, and the reader's
+	   own turns in the accent. An outlined bubble on this page and a filled one in the
+	   app is the sort of small inconsistency that makes a demo look like a mock-up. */
 	.bub {
-		border: 1px solid var(--paper-line);
 		border-radius: var(--r-md);
 		padding: 0.5rem 0.6875rem;
+		background: var(--fill-1);
 		font-size: 0.8125rem;
 		line-height: 1.5;
 		color: var(--label-1);
 		max-width: 34ch;
 	}
 	.bub.said {
-		background: var(--label-1);
-		color: var(--paper);
-		border-color: transparent;
+		background: var(--accent);
+		color: var(--accent-ink);
 	}
 	.bub.think {
 		color: var(--label-3);
 	}
-	.bub p + .caught {
+	.said-after {
 		margin-top: 0.5rem;
 	}
 
@@ -410,14 +397,6 @@
 	.more {
 		margin-top: 0.4375rem;
 		font-size: 0.6875rem;
-		color: var(--label-3);
-	}
-
-	.foot {
-		border-top: 1px solid var(--paper-line);
-		padding: 0.5rem 0.75rem;
-		font-size: 0.6875rem;
-		line-height: 1.5;
 		color: var(--label-3);
 	}
 
