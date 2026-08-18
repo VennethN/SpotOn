@@ -89,9 +89,9 @@ export class AppState {
 	 * of none has no rivals to count, and the engine reads no rivals as the best
 	 * opportunity there is — the whole grid would light up.
 	 *
-	 * It is set by ASKING, not by pointing. The chips at the top of the map show what
-	 * the last answer covered and can drop one, but the way to add a type is to say so,
-	 * which is what the question box is for.
+	 * It is set by ASKING. There is no other way in: the chips at the top of the map
+	 * report what the last answer covered and nothing on them is pressable, so this
+	 * field only ever moves because somebody asked a question.
 	 */
 	categories = $state<CategoryKey[]>([DEFAULT_CATEGORY]);
 	weights = $state<Weights>({ ...DEFAULT_WEIGHTS });
@@ -751,11 +751,6 @@ export class AppState {
 	/** Score this one type and nothing else. */
 	setCategory(cat: CategoryKey) {
 		this.setCategories([cat]);
-	}
-
-	/** Take one type out of the set. The last one cannot be removed — see `setCategories`. */
-	removeCategory(cat: CategoryKey) {
-		this.setCategories(this.categories.filter((k) => k !== cat));
 	}
 
 	/**
