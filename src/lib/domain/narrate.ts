@@ -2,7 +2,14 @@ import type { Copy } from '$lib/i18n';
 import { formatHour, pct } from '$lib/utils/format';
 import { METRIC_MAP } from './metrics';
 import { DEFAULT_WEIGHTS } from './weights';
-import type { AiAnswer, MetricKey, Recommendation, ScoredHex, StructuredQuery } from '$lib/types';
+import type {
+	AiAnswer,
+	CategoryKey,
+	MetricKey,
+	Recommendation,
+	ScoredHex,
+	StructuredQuery
+} from '$lib/types';
 
 /**
  * One measured value, in the reader's language.
@@ -21,6 +28,29 @@ export function metricValue(m: NonNullable<Recommendation['measure']>, c: Copy):
 
 /** What a measure is called, for saying which figure an answer is about. */
 export const metricName = (k: MetricKey, c: Copy): string => c.query.metrics[k] ?? k;
+
+/**
+ * The business types an answer covers, written as one phrase in the reader's language.
+ *
+ * ONE PLACE, because a set of types is named in seven different sentences across the
+ * app and the landing page, and seven hand-rolled joins would disagree about the
+ * conjunction the first time anybody touched one. The joining word comes from the
+ * locale files: Indonesian puts "dan" before the last item, English "and", and a
+ * hard-coded comma would read as a list of separate answers rather than as one.
+ *
+ * `form` picks which name: `name` is the title case one for a heading, `many` the
+ * lower-case plural for the middle of a sentence, `short` the one that has to fit on a
+ * chip.
+ */
+export function categoryNames(
+	cats: readonly CategoryKey[],
+	c: Copy,
+	form: 'name' | 'many' | 'short' = 'name'
+): string {
+	const parts = cats.map((k) => c.category[k][form]);
+	if (parts.length < 2) return parts[0] ?? '';
+	return `${parts.slice(0, -1).join(', ')} ${c.query.and} ${parts[parts.length - 1]}`;
+}
 
 /**
  * Turns the scoring engine's output into one sentence anybody can read.
@@ -42,7 +72,7 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 	// was computed, so nothing else on screen changes.
 	if (ans.chat) return ans.chat.text ?? c.chat[ans.chat.topik];
 
-	const cat = c.category[ans.query.kategori].name.toLowerCase();
+	const cat = categoryNames(ans.query.kategori, c, 'many');
 	const n = ans.items.length;
 
 	/**
@@ -95,7 +125,7 @@ export function narrate(ans: AiAnswer, c: Copy): string {
  * check what the map understood — but without syntax only a programmer can read.
  */
 export function describeQuery(q: StructuredQuery, c: Copy): string[] {
-	const out = [c.category[q.kategori].name.toLowerCase()];
+	const out = [categoryNames(q.kategori, c, 'many')];
 	if (q.intent === 'FLAG_SATURATED') out.push(c.query.saturated);
 	if (q.intent === 'COVERAGE') out.push(c.query.coverage);
 	// Which figure, and which end of it. Only when it is not the opportunity score,

@@ -1,5 +1,5 @@
 import { CATEGORIES } from '$lib/domain/categories';
-import { narrate } from '$lib/domain/narrate';
+import { categoryNames, narrate } from '$lib/domain/narrate';
 import { copy } from '$lib/state/lang.svelte';
 import { pct } from '$lib/utils/format';
 import type { AppState } from '$lib/state/app.svelte';
@@ -157,7 +157,7 @@ export class Tapak {
 
 		if (action.kind === 'budget') {
 			this.smallBudget = action.small;
-			const cat = c.category[this.#app.category].name.toLowerCase();
+			const cat = categoryNames(this.#app.categories, c, 'many');
 			// It is the phrase "modal kecil" (small budget) that makes the engine filter
 			// down to areas where commercial space is genuinely available — not small talk.
 			const q = action.small
@@ -221,7 +221,7 @@ export class Tapak {
 		if (ans.chat) return categoryChips();
 
 		const c = copy();
-		const cat = c.category[this.#app.category].name.toLowerCase();
+		const cat = categoryNames(this.#app.categories, c, 'many');
 		const chips: Chip[] = [];
 
 		if (ans.query.intent !== 'FLAG_SATURATED') {
@@ -263,12 +263,11 @@ export class Tapak {
 		this.#lastRemarked = row.name;
 
 		const c = copy();
-		const def = c.category[this.#app.category];
-		const cat = def.name.toLowerCase();
+		const cat = categoryNames(this.#app.categories, c, 'many');
 		// Unscored means the active source has never read this cell's city. Saying so is
 		// the whole remark: a verdict here would be a number about a place nobody counted.
 		if (row.score === null) {
-			this.#note(c.narrate.remarkUncovered(row.name, def.many));
+			this.#note(c.narrate.remarkUncovered(row.name, cat));
 			return;
 		}
 		const verdict =

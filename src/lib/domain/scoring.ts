@@ -32,6 +32,23 @@ export const cellName = (c: Pick<HexBase, 'id' | 'name'>): string =>
 const areaFactor = (radius: number) => Math.pow(radius / 800, 2);
 
 /**
+ * One business type, or several asked about together.
+ *
+ * A question naming one type and a question naming three differ only in the LENGTH of
+ * this list, so there is one code path through the whole engine and the single
+ * category is not a special case of anything. What "several" means arithmetically is
+ * stated once, in `poiCount` and `otherTrade` below: the types compete for the same
+ * customer, so their outlets are counted together as rivals and taken out of the trade
+ * around the cell together.
+ *
+ * A bare key is still accepted because most callers have exactly one and writing
+ * `['kopi']` at every one of them would be noise around a decision they are not making.
+ */
+export type Cats = CategoryKey | readonly CategoryKey[];
+
+const catList = (c: Cats): readonly CategoryKey[] => (typeof c === 'string' ? [c] : c);
+
+/**
  * Where a cell sits before a single figure has been read: dead level, demand and
  * competition cancelling out. The gap is a deviation FROM this, in both directions.
  */
@@ -58,7 +75,7 @@ export const GATE_BLOCKED = 0.15;
  * as zero, the areas that have been examined least would be crowned the best
  * opportunities — the exact opposite of what the user is looking for.
  */
-function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
+function oneCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
 	if (source === 'mapid') {
 		if (!c.covered?.[cat]) return null;
 		return Math.round((c.mapid?.[cat] ?? 0) * areaFactor(radius));
@@ -84,11 +101,39 @@ function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): 
 	return typeof n === 'number' ? Math.round(n * areaFactor(radius)) : null;
 }
 
+/**
+ * Rivals for the whole set of business types asked about, added together.
+ *
+ * Added rather than averaged, because that is what a rival IS. Somebody weighing a
+ * cafe that also sells bread is competing with every cafe on the street AND every
+ * bakery on it; the two counts are of different shops, so the total is the number of
+ * doors already selling to the customer they want.
+ *
+ * ONE UNCOUNTED TYPE MAKES THE WHOLE SET UNCOUNTED. If MAPID has not read this city
+ * for bakeries, then "cafes and bakeries here" has no answer — and a sum that quietly
+ * skipped the missing half would report the cafes alone as though they were the lot,
+ * which is the same lie as reading a null as a zero, told at set level.
+ *
+ * An empty set is null for the same reason and not 0: no business type asked about
+ * means no rivals to count, and a zero there would make every cell on the map look
+ * competitor-free, which is the best score this product can award.
+ */
+function poiCount(c: Hex, cats: readonly CategoryKey[], source: PoiSource, radius: number): number | null {
+	if (!cats.length) return null;
+	let total = 0;
+	for (const cat of cats) {
+		const n = oneCount(c, cat, source, radius);
+		if (n === null) return null;
+		total += n;
+	}
+	return total;
+}
+
 /** Normalisation scale for supply: the densest catchment in this category. Cells
     that are not yet covered must not get a say in setting the scale. */
-function maxPoi(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number): number {
+function maxPoi(all: Hex[], cats: readonly CategoryKey[], source: PoiSource, radius: number): number {
 	const counts = all
-		.map((c) => poiCount(c, cat, source, radius))
+		.map((c) => poiCount(c, cats, source, radius))
 		.filter((n): n is number => n !== null);
 	return Math.max(1, ...counts);
 }
@@ -106,17 +151,20 @@ function maxPoi(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number)
  * Null means the source has not surveyed here, and the same rule as `poiCount`
  * applies: a zero would call an unread city empty of trade.
  */
-function otherTrade(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
+function otherTrade(c: Hex, cats: readonly CategoryKey[], source: PoiSource, radius: number): number | null {
 	const total = source === 'mapid' ? c.dens?.mapid : c.dens?.osm;
 	if (total === null || total === undefined) return null;
-	const own = poiCount(c, cat, source, radius) ?? 0;
+	// Every type asked about comes out, not just the first. Ask about cafes and bakeries
+	// on a street of cafes and bakeries and leaving either one in would count that
+	// street's own rivals as the footfall they are supposed to be living off.
+	const own = poiCount(c, cats, source, radius) ?? 0;
 	return Math.max(0, Math.round(total * areaFactor(radius)) - own);
 }
 
 /** Normalisation scale for demand, set the same way `maxPoi` sets supply's. */
-function maxTrade(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number): number {
+function maxTrade(all: Hex[], cats: readonly CategoryKey[], source: PoiSource, radius: number): number {
 	const counts = all
-		.map((c) => otherTrade(c, cat, source, radius))
+		.map((c) => otherTrade(c, cats, source, radius))
 		.filter((n): n is number => n !== null);
 	return Math.max(1, ...counts);
 }
@@ -138,7 +186,8 @@ function typologyOf(demand: number, supply: number, units: number): Typology {
 }
 
 /**
- * The Opportunity Score of one catchment for one category.
+ * The Opportunity Score of one catchment for one business type, or for several
+ * asked about at once.
  *
  *   Gap   = (wd·demand − ws·supply) / (wd + ws)
  *   Score = clamp(Gap + 0.5) × space_gate × transit_access × cost_of_space
@@ -162,12 +211,13 @@ function typologyOf(demand: number, supply: number, units: number): Typology {
  */
 export function scoreOne(
 	c: Hex,
-	cat: CategoryKey,
+	cat: Cats,
 	w: Weights,
 	scale: number,
 	ladder: number[] = [],
 	tradeScale = 1
 ): ScoredHex {
+	const cats = catList(cat);
 	const base = {
 		id: c.id,
 		name: cellName(c),
@@ -178,8 +228,8 @@ export function scoreOne(
 		access: c.access
 	};
 
-	const count = poiCount(c, cat, w.source, w.radius);
-	const trade = otherTrade(c, cat, w.source, w.radius);
+	const count = poiCount(c, cats, w.source, w.radius);
+	const trade = otherTrade(c, cats, w.source, w.radius);
 
 	// What is on the market here, and what that costs. Read for every branch below,
 	// including the one with no score: the property catalogue is a separate survey with
@@ -243,18 +293,31 @@ export function scoreOne(
 	};
 }
 
-/** Score every catchment for one category. */
-export function scoreAll(all: Hex[], cat: CategoryKey, w: Weights): ScoredHex[] {
-	const scale = maxPoi(all, cat, w.source, w.radius);
-	const tradeScale = maxTrade(all, cat, w.source, w.radius);
+/**
+ * Score every catchment for the business type — or types — being asked about.
+ *
+ * Both scales are built over the SET, not per type and then combined. The densest
+ * street for "cafes and bakeries" is the street with the most of the two together, and
+ * that is the only cell that should read 100% supply; scaling each type against its own
+ * busiest street and adding the results would let a set of three exceed 1 on a street
+ * that is nowhere near the busiest for any of them.
+ */
+export function scoreAll(all: Hex[], cat: Cats, w: Weights): ScoredHex[] {
+	const cats = catList(cat);
+	const scale = maxPoi(all, cats, w.source, w.radius);
+	const tradeScale = maxTrade(all, cats, w.source, w.radius);
 	// The price scale, built once for the whole run exactly as the other two are.
 	const ladder = priceLadder(all, w.radius);
-	return all.map((c) => scoreOne(c, cat, w, scale, ladder, tradeScale));
+	return all.map((c) => scoreOne(c, cats, w, scale, ladder, tradeScale));
 }
 
 /**
  * Score one catchment across every category — for the "opportunity per business type"
  * panel.
+ *
+ * One type at a time here even when the map is showing several, and deliberately: this
+ * panel answers "which single business would do best on this corner", so combining them
+ * would be answering a question nobody asked it.
  *
  * `keys` exists because the client loads categories one at a time: a category whose
  * columns have not arrived is left OUT of the comparison rather than scored from
@@ -282,11 +345,11 @@ export function scoreAcrossCategories(
 		key,
 		score: scoreOne(
 			target,
-			key,
+			[key],
 			w,
-			maxPoi(all, key, w.source, w.radius),
+			maxPoi(all, [key], w.source, w.radius),
 			ladder,
-			maxTrade(all, key, w.source, w.radius)
+			maxTrade(all, [key], w.source, w.radius)
 		).score
 	}));
 }

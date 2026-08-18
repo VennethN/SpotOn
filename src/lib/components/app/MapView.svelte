@@ -34,6 +34,7 @@
 	import { cellName } from '$lib/domain/scoring';
 	import { base } from '$app/paths';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 	import type { HexBase, ScoredHex } from '$lib/types';
 	import type { FeatureCollection } from 'geojson';
@@ -1087,7 +1088,7 @@
 			{@const row = hovered.row}
 			<span class="tip-score" style:color={`var(--ramp-${rampIndex(row.score ?? 0)})`}>
 				{pct(row.score)}
-				<span class="tip-unit">{c.app.tipScore(c.category[app.category].name.toLowerCase())}</span>
+				<span class="tip-unit">{c.app.tipScore(categoryNames(app.categories, c, 'many'))}</span>
 			</span>
 			<span class="tip-sub">
 				{c.app.tipBusy(row.density)} · {c.app.tipRivals(row.osm)}<br />

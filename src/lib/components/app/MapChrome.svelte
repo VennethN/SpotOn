@@ -6,18 +6,17 @@
 	 * over the map and the map flows underneath: identity on the left, language and
 	 * theme on the right.
 	 *
-	 * The business type sits between them, as marks rather than as a rank of thirteen
-	 * words. It was taken out entirely for a while, on the argument that a permanent
-	 * row of buttons makes the product read as a menu of thirteen things. That holds
-	 * for thirteen labels, and it is why only the one in force is named here. But the
-	 * map is always scoring one business type and a reader who arrived knowing what
-	 * they want to open should not have to ask for it in a sentence.
+	 * Between them sit the business types the map is currently scoring, as chips. They
+	 * are a read-out before they are a control: the question box sets them, and what is
+	 * on screen is what the last answer covered. The full list of thirteen is folded
+	 * away behind a "+", because a permanent row of thirteen buttons makes the product
+	 * read as a menu of everything it does rather than as a map answering a question.
 	 *
 	 * The coverage pill, the competitor-source switch and the advanced drawer button
 	 * have all left: the first is a statistic nobody acts on mid-task, and the other
 	 * two now sit next to what they actually change.
 	 */
-	import CategorySwitcher from '$lib/components/app/CategorySwitcher.svelte';
+	import CategoryChips from '$lib/components/app/CategoryChips.svelte';
 	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import { base } from '$app/paths';
@@ -33,7 +32,7 @@
 	<span class="name">{c.brand.name}</span>
 </a>
 
-<CategorySwitcher />
+<CategoryChips />
 
 <div class="tools material">
 	<LangToggle />
