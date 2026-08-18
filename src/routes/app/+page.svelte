@@ -15,6 +15,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	import AskLauncher from '$lib/components/app/AskLauncher.svelte';
+	import CategoryChips from '$lib/components/app/CategoryChips.svelte';
 	import MapChrome from '$lib/components/app/MapChrome.svelte';
 	import MapLegend from '$lib/components/app/MapLegend.svelte';
 	import MapView from '$lib/components/app/MapView.svelte';
@@ -153,7 +154,14 @@
 <div class="app">
 	<MapView />
 	<MapChrome />
+	<!-- Both wait for the map to be reachable, and the chips wait for the same reason
+	     the controls do: until something has been asked there is no answer for them to
+	     report, and a chip reading "Kopi" over an unasked question claims the map has
+	     scored a business type nobody named. Once the launcher has gone the map really
+	     is scoring one, whether it was answered or simply skipped past, and then saying
+	     which is the honest thing. -->
 	{#if started}
+		<CategoryChips />
 		<MapControls />
 	{/if}
 

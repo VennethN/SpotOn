@@ -6,18 +6,17 @@
 	 * over the map and the map flows underneath: identity on the left, language and
 	 * theme on the right.
 	 *
-	 * Between them sit the business types the map is currently scoring, as chips. They
-	 * are a read-out before they are a control: the question box sets them, and what is
-	 * on screen is what the last answer covered. The full list of thirteen is folded
-	 * away behind a "+", because a permanent row of thirteen buttons makes the product
-	 * read as a menu of everything it does rather than as a map answering a question.
+	 * The business types the map is scoring used to sit between them, and they have
+	 * moved out to the page. Not for layout: this component is on screen from the first
+	 * frame, and before anything has been asked there is no answer to report. A chip
+	 * reading "Kopi" over an unasked question claims the map has scored something the
+	 * reader never asked for — see `CategoryChips`.
 	 *
 	 * The coverage pill, the competitor-source switch and the advanced drawer button
 	 * have all left: the first is a statistic nobody acts on mid-task, and the other
 	 * two now sit next to what they actually change.
 	 */
-	import CategoryChips from '$lib/components/app/CategoryChips.svelte';
-	import LangToggle from '$lib/components/ui/LangToggle.svelte';
+		import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import { base } from '$app/paths';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -31,8 +30,6 @@
 	<span class="mark" aria-hidden="true"></span>
 	<span class="name">{c.brand.name}</span>
 </a>
-
-<CategoryChips />
 
 <div class="tools material">
 	<LangToggle />

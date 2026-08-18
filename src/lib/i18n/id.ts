@@ -612,14 +612,6 @@ export const id = {
 		radiusHint:
 			'Sejauh apa dari titik tengah yang dihitung, untuk petak maupun tempat. Harga tiap jangkauan dihitung sendiri, bukan ditaksir dari jangkauan lain.',
 		categoryLabel: 'Jenis usaha',
-		/* Keping jenis usaha di atas peta. Isinya laporan dulu, baru kendali: yang
-		   tampil adalah jenis yang barusan dijawab, dan cara menambahnya adalah
-		   dengan menyebutkannya waktu bertanya. */
-		catRemove: (nama: string) => `Keluarkan ${nama} dari peta`,
-		catOnlyOne: 'Sisakan setidaknya satu jenis usaha',
-		catAdd: 'Tambah jenis usaha',
-		catAddClose: 'Tutup daftar jenis usaha',
-		catAskInstead: 'Biasanya lebih cepat disebut saja waktu bertanya, misalnya "kedai kopi dan toko roti dekat MRT".',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} petak disurvei · ${poi} pesaing terdata`,
 		/* Cacah pesaing baru ada setelah kolom satu kategori dimuat. Sebelum itu
