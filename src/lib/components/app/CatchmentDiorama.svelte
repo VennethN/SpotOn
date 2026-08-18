@@ -53,8 +53,23 @@
 	const hour = localHour();
 	const day = $derived(daylightAt(hour));
 
-	/** Nothing counted here: the catalogue has never read this cell's city. */
-	const blank = $derived(row?.score === null);
+	/**
+	 * Nothing counted here: the catalogue has never read this cell's city.
+	 *
+	 * Read off `covered` rather than off a null score. The two used to agree, and they
+	 * stopped agreeing the moment the map could be open with no business type named:
+	 * there every score is null while every count is perfectly good, and this would
+	 * have told the reader their cell had never been surveyed.
+	 */
+	const blank = $derived(row ? !row.covered : false);
+	/**
+	 * Counted, but nobody has said what they want to open yet.
+	 *
+	 * The panel still has plenty to say — how busy it is, what it captures, what is on
+	 * the market — and one thing it must not say, which is a score. The rivals sentence
+	 * goes too: rivals OF WHAT is the question that has not been asked.
+	 */
+	const noType = $derived(Boolean(row) && !blank && row!.score === null);
 	/** How busy, 0..1 — the trade around the cell against the busiest cell on the grid. */
 	const busyness = $derived(row?.demand ?? 0);
 
@@ -76,7 +91,9 @@
 	     worth looking at. -->
 	<div class="empty">
 		<p>{c.app.emptyMood}</p>
-		{#if best}
+		<!-- Only offered once there is a business type to be best FOR. Without one the
+		     button would rank cells by a score that does not exist. -->
+		{#if best && catName}
 			<button type="button" class="btn" onclick={() => app.select(best.id)}>
 				{c.app.pickBest(catName.toLowerCase())}
 			</button>
@@ -95,7 +112,11 @@
 				vacancies={row.units}
 				label={c.mood.sceneLabel(
 					row.name,
-					blank ? c.mood.sceneNodata : c.mood.sceneBody(row.density, row.osm, catMany, row.units)
+					blank
+						? c.mood.sceneNodata
+						: noType
+							? c.mood.sceneNoType(row.density, row.units)
+							: c.mood.sceneBody(row.density, row.osm, catMany, row.units)
 				)}
 			/>
 			<span class="mark">{c.app.schema}</span>
@@ -103,6 +124,28 @@
 
 		{#if blank}
 			<p class="read">{c.mood.nodata}</p>
+		{:else if noType}
+			<!-- Every figure here is counted and none of them needs a business type. The
+			     one sentence that would is left out rather than filled in with a blank. -->
+			<p class="read">
+				{c.mood.reading(row.density, busyWord)}
+				{#if row.units > 0}
+					{c.mood.listings(row.units)}
+				{:else}
+					{c.mood.noListings}
+				{/if}
+				{c.mood.askForScore}
+			</p>
+
+			<details class="numbers">
+				<summary>{c.app.fullNumbers}</summary>
+				<dl>
+					<div><dt>{c.mood.rows.around}</dt><dd>{row.density}</dd></div>
+					<div><dt>{c.mood.rows.access}</dt><dd>{pct(row.access)}</dd></div>
+					<div><dt>{c.mood.rows.space}</dt><dd>{row.units}</dd></div>
+				</dl>
+				<p class="prov">{c.mood.prov}</p>
+			</details>
 		{:else}
 			<p class="read">
 				{c.mood.reading(row.density, busyWord)}

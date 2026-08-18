@@ -80,10 +80,15 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!question) throw error(400, 'Pertanyaan kosong.');
 	if (question.length > 500) throw error(413, 'Pertanyaan terlalu panjang.');
 
-	/* What the question is answered ABOUT when it does not name a business type itself.
-	   A list, because the reader can have several in force at once — and `kopi` is only
-	   reached when the request carried nothing recognisable at all. */
-	const fallback: CategoryKey[] = normalizeCategories(body.kategori, ['kopi']);
+	/* What the question is answered ABOUT when it does not name a business type itself:
+	   whatever the reader already had in force, and NOTHING if they had nothing.
+	
+	   This used to fall back to coffee, and that was the last place the old default was
+	   hiding. A reader who has named no business and asks "where is busiest" is asking
+	   about the city, not about coffee — and one who asks "where should I open" is
+	   asking a question that is one word short, which `runQuery` answers by asking for
+	   the word rather than by choosing a business on their behalf. */
+	const fallback: CategoryKey[] = normalizeCategories(body.kategori, []);
 	const weights: Weights = normalizeWeights(body.weights);
 
 	const catchments = loadHexes();

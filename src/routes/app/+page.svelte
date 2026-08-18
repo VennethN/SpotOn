@@ -37,7 +37,6 @@
 	// The initial data is deliberately fetched once; all state after that lives in AppState.
 	const app = setAppState(
 		untrack(() => data.catchments),
-		untrack(() => data.slice),
 		untrack(() => data.meta)
 	);
 	// Tapak is held by the page: the centre question box and the right-hand panel are

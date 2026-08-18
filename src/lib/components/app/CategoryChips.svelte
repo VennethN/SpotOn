@@ -86,25 +86,30 @@
 	});
 </script>
 
-<ul class="cats material" bind:this={rail} aria-label={c.app.categoryLabel}>
-	{#each active as key (key)}
-		<li class="chip" data-key={key}>
-			<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-				{#each ICONS[key] as d (d)}
-					<path
-						{d}
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.6"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					/>
-				{/each}
-			</svg>
-			<span class="lbl">{c.category[key].short}</span>
-		</li>
-	{/each}
-</ul>
+<!-- Nothing named, nothing to report. The map is open on the trade around each cell,
+     which belongs to no business type, so an empty pill floating over it would be a
+     label with nothing to label. -->
+{#if active.length}
+	<ul class="cats material" bind:this={rail} aria-label={c.app.categoryLabel}>
+		{#each active as key (key)}
+			<li class="chip" data-key={key}>
+				<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+					{#each ICONS[key] as d (d)}
+						<path
+							{d}
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					{/each}
+				</svg>
+				<span class="lbl">{c.category[key].short}</span>
+			</li>
+		{/each}
+	</ul>
+{/if}
 
 <style>
 	.cats {

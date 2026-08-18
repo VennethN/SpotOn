@@ -213,6 +213,11 @@ export class Tapak {
 		// offering routes that can actually be answered.
 		if (ans.notUnderstood) return categoryChips();
 
+		// Understood, and waiting on a business type. The thirteen are offered directly,
+		// because the reply just asked which one and making the reader type it out again
+		// would be asking twice.
+		if (ans.needsCategory) return categoryChips();
+
 		// Small talk gets the same treatment, and this is the "not too much" part of
 		// allowing it at all: a casual turn always ends holding the door open to a
 		// question the map can answer. Without it, chat is a room with no exit — the

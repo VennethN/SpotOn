@@ -72,6 +72,11 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 	// was computed, so nothing else on screen changes.
 	if (ans.chat) return ans.chat.text ?? c.chat[ans.chat.topik];
 
+	/* Understood, and one word short of answerable. Said before the category name is
+	   read below, because there is no category name to read: this is the branch where
+	   the reader has not named one and the figure they asked for needs one. */
+	if (ans.needsCategory) return c.narrate.needsCategory;
+
 	const cat = categoryNames(ans.query.kategori, c, 'many');
 	const n = ans.items.length;
 
