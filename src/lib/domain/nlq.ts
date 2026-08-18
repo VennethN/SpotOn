@@ -338,7 +338,8 @@ function matchNames(q: string, rows: ScoredHex[]): ScoredHex[] {
  * names the wrong source. In a product whose whole promise is figures you can
  * trace, misnaming where a figure came from is the most expensive mistake there is.
  */
-const sourceLabel = (s: PoiSource | undefined) => (s === 'mapid' ? 'MAPID' : 'OSM');
+const sourceLabel = (s: PoiSource | undefined) =>
+	s === 'mapid' ? 'MAPID' : s === 'osm' ? 'OSM' : 'MAPID/OSM';
 
 /* Every figure quoted here is a count somebody published. The line used to lead with
    a tally of mission points that were generated, which put an invented N in front of
@@ -435,7 +436,14 @@ export function runQuery(
 		`Angka tidak dikarang model: LLM hanya memilih operasi dan mengisi argumen; seluruh nilai dihitung basis data dan ditautkan ke titik sumbernya.`,
 		w.source === 'mapid'
 			? `Sumber pesaing: MAPID Data Premium, ${defs.map((d) => d.mapidSet).join(' + ')}, around:${w.radius}.`
-			: `Sumber pesaing: OpenStreetMap via Overpass API, ${defs.map((d) => d.osmTag ?? 'tidak ada tag OSM').join(' + ')}, around:${w.radius}.`,
+			: w.source === 'osm'
+				? `Sumber pesaing: OpenStreetMap via Overpass API, ${defs.map((d) => d.osmTag ?? 'tidak ada tag OSM').join(' + ')}, around:${w.radius}.`
+				: `Sumber pesaing: dua survei sekaligus. MAPID Data Premium (${defs.map((d) => d.mapidSet).join(' + ')}) dan OpenStreetMap via Overpass API (${defs.map((d) => d.osmTag ?? 'tidak ada tag OSM').join(' + ')}), around:${w.radius}.`,
+		...(w.source === 'both'
+			? [
+					`Dua survei TIDAK dijumlahkan. Keduanya mensurvei kota yang sama, jadi cacahnya sebagian besar toko yang sama dihitung dua kali, dan tidak ada id bersama untuk menyandingkannya. Tiap petak dibaca dari survei yang memang menjangkaunya, dan dari yang mencatat lebih banyak kalau dua-duanya menjangkau. Angkanya jadi batas bawah: setidaknya sekian, karena ada yang benar-benar menghitungnya.`
+				]
+			: []),
 		/* Said out loud whenever more than one type was asked about, because it is the
 		   arithmetic the reader cannot see: the outlets of all of them are counted as one
 		   pool of rivals, and all of them come back out of the trade around the cell. */
