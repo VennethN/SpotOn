@@ -429,20 +429,27 @@ menjadi satu satunya angka dalam jawaban yang tidak berasal dari data siapa pun.
 **Bagan alur AI**
 
 ```mermaid
-flowchart TD
-  U["Pengguna<br/>pertanyaan bahasa Indonesia"] --> P["Panel Tapak<br/>di dalam WebGIS"]
-  P --> API["Backend<br/>POST /api/ai/query"]
-  API --> R{"OPENROUTER_API_KEY<br/>terpasang?"}
-  R -- "ya" --> LLM["AI Router OpenRouter<br/>function calling, tool_choice wajib<br/>rantai model dicoba berurutan"]
-  R -- "tidak" --> RB["Pengurai aturan<br/>domain/nlq.ts"]
-  LLM -- "alat query" --> SQ["Query terstruktur<br/>intent, ukuran, kategori,<br/>radius, filter, urutan, limit"]
-  LLM -- "tidak_dimengerti" --> NU["Antarmuka mengaku<br/>tidak paham"]
-  LLM -- "obrolan" --> CH["Balasan pendek<br/>maksimal 2 kalimat, tanpa angka"]
-  RB --> SQ
-  SQ --> ENG["Mesin skor<br/>domain/scoring.ts<br/>SELURUH ANGKA DIHITUNG DI SINI"]
-  ENG --> OUT["Jawaban<br/>peringkat, alasan, bukti,<br/>sorotan petak di peta"]
-  OUT --> V["Validasi bagi pembaca<br/>query terstruktur tampil apa adanya,<br/>jumlah data menyertai klaim,<br/>parsedBy menyatakan jalurnya"]
-  V --> U
+flowchart TB
+  A["INPUT<br/>pertanyaan pengguna<br/>di panel Tapak"]
+  B["Backend<br/>/api/ai/query"]
+  E["AI Router OpenRouter<br/>function calling"]
+  D["Pengurai aturan<br/>cadangan"]
+  F["Mengaku<br/>tidak paham"]
+  G["Obrolan<br/>tanpa angka"]
+  H["PROSES<br/>query terstruktur"]
+  I["Mesin skor<br/>SELURUH ANGKA<br/>DIHITUNG DI SINI"]
+  J["OUTPUT<br/>peringkat, alasan,<br/>bukti, sorotan peta"]
+  K["VALIDASI<br/>query tampil apa adanya,<br/>jumlah data, parsedBy"]
+
+  A --> B
+  B -- "ada kunci" --> E
+  B -- "tanpa kunci" --> D
+  E -- "tidak_dimengerti" --> F
+  E -- "obrolan" --> G
+  E -- "alat query" --> H
+  D --> H
+  H --> I --> J --> K
+  K --> A
 ```
 
 ### Output
@@ -494,36 +501,40 @@ flowchart TD
 ### Technology Architecture
 
 ```mermaid
-flowchart LR
+flowchart TB
+  U(["Pengguna"])
+
   subgraph klien["Peramban pengguna"]
-    UI["WebGIS SvelteKit<br/>MapLibre GL, panel, Tapak"]
-    SC["Mesin skor<br/>domain/scoring.ts<br/>salinan yang sama"]
+    direction LR
+    UI["WebGIS SvelteKit<br/>MapLibre GL, Tapak"]
+    SC["Mesin skor<br/>salinan yang sama"]
     UI <--> SC
   end
 
+  subgraph luar["Layanan luar saat berjalan"]
+    direction LR
+    MAPS["MAPID MAPS<br/>basemap"]
+    AIR["AI Router<br/>OpenRouter"]
+  end
+
   subgraph vercel["Vercel"]
-    BE["Endpoint SvelteKit<br/>/api/catchments, /api/scores,<br/>/api/meta, /api/ai/query"]
-    DATA[("Berkas data terbentuk<br/>hexes.json, mapid-poi.json,<br/>mapid-property.json")]
+    direction LR
+    BE["Endpoint SvelteKit<br/>4 endpoint /api"]
+    DATA[("Berkas data<br/>terbentuk")]
     BE --> DATA
   end
 
-  subgraph luar["Layanan luar"]
-    MAPS["MAPID MAPS<br/>basemap"]
-    MAPIDAPI["MAPID API<br/>Data Premium, Mission Data"]
-    OSM["Overpass API<br/>OpenStreetMap"]
-    AIR["AI Router OpenRouter<br/>function calling"]
+  subgraph build["Waktu bangun data"]
+    direction LR
+    SUM["MAPID API<br/>Overpass API"]
+    SCR["Skrip<br/>pembangun"]
+    SUM --> SCR
   end
 
-  subgraph build["Waktu bangun data, bukan waktu jalan"]
-    SCR["Skrip pembangun<br/>build-hexes, fetch-mapid, join-mapid,<br/>fetch-property, join-property, fetch-mission"]
-  end
-
-  U(["Pengguna"]) --> UI
-  UI --> BE
+  U --> UI
   UI --> MAPS
+  UI --> BE
   BE --> AIR
-  MAPIDAPI --> SCR
-  OSM --> SCR
   SCR --> DATA
 ```
 

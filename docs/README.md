@@ -17,6 +17,7 @@ proposal-drafting repository (`MapID/`) so that the context lives alongside the 
 
 | File | Contents |
 |---|---|
+| `assets/TripleT_SpotOn.pdf` | The PRD as an A4 PDF, ready to submit. Generated from [05-prd-spoton.md](05-prd-spoton.md), so edit the Markdown and rebuild rather than the PDF. |
 | `assets/Proposal_SpotOn.pdf` | The PDF version of the proposal sent to the organisers. |
 | `assets/fig1_peta.png` … `fig4_pipeline.png` | The figures used in the proposal (map, AI panel, detail panel, end-to-end flow). |
 | `assets/mockup-proposal.html` | The single-file mockup built for the proposal. This application's scoring engine and sample dataset originate here. |
