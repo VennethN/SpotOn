@@ -17,10 +17,6 @@ export type MetricKey =
 	| 'penawaran'
 	| 'pesaing'
 	| 'keramaian'
-	| 'kunjungan'
-	| 'jam_puncak'
-	| 'nontunai'
-	| 'listing'
 	| 'harga_tempat'
 	| 'unit_dipasarkan'
 	| 'akses_transit'
@@ -72,11 +68,6 @@ export type CategoryKey =
 
 export type PerCategory<T> = Record<CategoryKey, T>;
 
-/**
- * One station catchment with its raw indicators — exactly the shape the API
- * returns. The columns deliberately follow the MAPID mission datasets so the mock
- * source can be swapped for the MAPID API without touching the UI.
- */
 /** Count of transit nodes within walking range, per mode. */
 export interface TransitCounts {
 	mrt: number;
@@ -85,6 +76,16 @@ export interface TransitCounts {
 	brt: number;
 }
 
+/**
+ * One cell of the grid, with every figure that was measured for it.
+ *
+ * EVERY FIELD HERE IS COUNTED FROM A PUBLISHED DATASET. Nothing is generated, and
+ * nothing may be: the product's whole claim is that a reader can trace any number on
+ * screen back to OpenStreetMap or to the MAPID catalogue. The invented mission
+ * columns this shape used to carry (a 24-hour profile, receipt and menu tallies, a
+ * cashless share, a per-category busy share, rental listings that do not exist) are
+ * gone, along with the random flag that declared one cell in six dataless.
+ */
 export interface Hex {
 	/** H3 cell index (resolution 8). */
 	id: string;
@@ -100,24 +101,19 @@ export interface Hex {
 	access: number;
 	/** Number of competitor POIs per category within a 800 m radius (OSM/Overpass). */
 	osm: PerCategory<number>;
-	/** Number of Struk Go points in the catchment. */
-	nStruk: number;
-	/** Number of Menu Go points. */
-	nMenu: number;
-	/** Number of Properti Go points. */
-	nProp: number;
-	/** Not a single mission point in this catchment — the score is not interpolated. */
-	nodata?: boolean;
-	/** Share of cashless transactions (Struk Go, a proxy for spending power). */
-	cashless?: number;
-	/** 24-hour transaction profile (Struk Go, the `Waktu Transaksi` column). */
-	hourly?: number[];
-	/** Share of competitors in a busy state (Menu Go, the `Kondisi Pembeli` column). */
-	busy?: PerCategory<number>;
-	/** Commercial listings matching the category (Properti Go, `Kategori Properti` column). */
-	listing?: PerCategory<number>;
-	/** Normalised demand signal per category (Struk Go). */
-	d?: PerCategory<number>;
+	/**
+	 * Every counted business in walking range, whatever its category, per source.
+	 *
+	 * This is the demand side of the score, and it is the same points as `osm` and
+	 * `mapid` totalled rather than a second survey — a place ringed by trade is a place
+	 * people already come to. The category being asked about is subtracted before it is
+	 * read, so what remains is the OTHER trade around it and a street's own rivals never
+	 * count as its footfall.
+	 *
+	 * `mapid` is null where that city was never surveyed, exactly as the counts are: a
+	 * zero would call an unread city empty.
+	 */
+	dens: { osm: number; mapid: number | null };
 	/** The administrative city this cell falls in (OSM admin_level=5 boundaries); null if outside. */
 	city?: string | null;
 	/** MAPID competitor counts per category; null means not yet covered. */
@@ -183,25 +179,23 @@ export interface PropertyAtRadius {
 }
 
 /** The `Hex` fields that hold one entry per business category. */
-export const CATEGORY_FIELDS = ['osm', 'mapid', 'covered', 'busy', 'listing', 'd'] as const;
+export const CATEGORY_FIELDS = ['osm', 'mapid', 'covered'] as const;
 export type CategoryField = (typeof CATEGORY_FIELDS)[number];
 
 /**
  * A cell without its per-category columns — what the first request carries.
  *
- * Those six dictionaries are two thirds of the grid's weight (464 KB of 693 KB) and
- * they grow with every category added, while the reader looks at ONE category at a
- * time. So they travel separately, as `CategorySlice`, and the page starts with the
- * geometry and the per-cell figures that every category shares.
+ * Those dictionaries grow with every category added, while the reader looks at ONE
+ * category at a time. So they travel separately, as `CategorySlice`, and the page
+ * starts with the geometry and the per-cell figures that every category shares.
  */
 export type HexBase = Omit<Hex, CategoryField>;
 
 /**
  * One category's columns for the whole grid, aligned BY INDEX to the base array.
  *
- * Columnar rather than one object per cell: repeating six key names across 562 cells
- * costs more bytes than the numbers themselves. A slice is ~17 KB against the ~44 KB
- * the same figures take as objects.
+ * Columnar rather than one object per cell: repeating the key names across 562 cells
+ * costs more bytes than the numbers themselves.
  *
  * `n` exists to be checked. The alignment is positional, so a slice served by a
  * different build than the base would silently attach every figure to the wrong
@@ -217,18 +211,28 @@ export interface CategorySlice {
 	/** Competitor counts (MAPID). `null` = this city has not been surveyed. */
 	mapid: (number | null)[];
 	covered: boolean[];
-	busy: number[];
-	listing: number[];
-	d: number[];
 }
 
 /**
- * The competitor data source. The two are deliberately kept apart and never mixed
- * into one score: OSM is volunteered and widespread but uneven, MAPID is surveyed
- * and uniform but covers only some cities so far. Merging them would produce a
- * number whose provenance nobody could account for.
+ * Which survey the competitor counts are read from.
+ *
+ * `both` is the default and it does NOT add the two together. They are two surveys of
+ * the same city, not two halves of one: 1,569 cafes in OpenStreetMap and 4,753 in the
+ * MAPID catalogue are mostly the SAME cafes counted twice, and there is no shared id
+ * to match them on. Added, a street with eight coffee shops would be reported as
+ * having fourteen, and the competition side of every score would be inflated by an
+ * amount nobody could account for.
+ *
+ * What `both` does instead is read each cell from whichever survey actually reached
+ * it, and where both did, from the one that found more. Nothing is ever counted twice,
+ * every figure still comes from a single named survey, and the result is a floor
+ * rather than a guess: at least this many, because somebody counted them.
+ *
+ * The two are still selectable on their own, which is the other half of why they are
+ * not merged into one number — a reader comparing the surveys has to be able to see
+ * each of them as it is.
  */
-export type PoiSource = 'osm' | 'mapid';
+export type PoiSource = 'osm' | 'mapid' | 'both';
 
 /** Opportunity profile of a cell. These are internal keys — the label the reader
     sees comes from the `typology` dictionary in the locale files. */
@@ -236,11 +240,19 @@ export type Typology =
 	| 'underserved'
 	| 'competitive'
 	| 'saturated'
+	/** Trade all around it, and not one unit of premises on the market. */
 	| 'busy-limited-space'
-	/** No mission points in this cell. */
-	| 'no-data'
 	/** The active source has not surveyed this city — different from "no competitors". */
-	| 'not-covered';
+	| 'not-covered'
+	/**
+	 * No business type has been named yet, so there is no opportunity to profile.
+	 *
+	 * Kept apart from `not-covered` because the two are opposite kinds of silence. That
+	 * one is a gap in the survey and this one is a question nobody has asked: the cell
+	 * has been counted perfectly well, and what is missing is the business type to
+	 * count it FOR.
+	 */
+	| 'no-type';
 
 /** Weights & gates the user can set directly in the interface. */
 export interface Weights {
@@ -267,21 +279,22 @@ export interface ScoredHex {
 	transit: TransitCounts;
 	/** Transit access 0..1 (OSM, real) — a multiplier on the final score. */
 	access: number;
-	nodata: boolean;
-	/** 0..1 — null when there is no data yet. */
+	/** 0..1 — null when the active source has not surveyed this city. */
 	score: number | null;
+	/**
+	 * How much trade there is around this cell OTHER than the category asked about,
+	 * 0..1 against the busiest cell on the grid. Null when uncovered.
+	 */
 	demand: number | null;
 	supply: number | null;
-	/** Share of competitors that are busy, 0..1. */
-	busy: number;
+	/** Businesses of every kind in range, the count `demand` is scaled from. */
+	density: number;
 	/** The source used for the `osm` figure above. */
 	source?: PoiSource;
 	/** Whether this cell is covered by the active source; false → score is null. */
 	covered?: boolean;
 	/** Number of competitors at the active radius, according to the active source. */
 	osm: number;
-	/** Commercial listings matching the category at the active radius. */
-	listings: number;
 	/**
 	 * Median ASKING PRICE FOR SALE per m² of premises within the active radius, rupiah.
 	 * Null when nothing in range published one. Never a rent — MAPID publishes none.
@@ -296,15 +309,6 @@ export interface ScoredHex {
 	units: number;
 	/** Has this cell's city been read from the property catalogue at all. */
 	propCovered: boolean;
-	/** Total mission data points (receipts + menus + properties). */
-	nTot: number;
-	nStruk: number;
-	nMenu: number;
-	nProp: number;
-	cashless: number;
-	hourly: number[];
-	/** Peak transaction hour, -1 when there is no data. */
-	peakHour: number;
 	typology: Typology;
 }
 
@@ -321,7 +325,19 @@ export type Intent = 'RANK' | 'FLAG_SATURATED' | 'COMPARE' | 'COVERAGE';
 export interface StructuredQuery {
 	intent: Intent;
 	metrik: string;
-	kategori: CategoryKey;
+	/**
+	 * The business type — or types — the question was about.
+	 *
+	 * A LIST, and that is a change in the contract rather than a widening of it. A
+	 * question can name more than one ("kedai kopi dan toko roti"), and answering it by
+	 * keeping only the first quietly threw half the question away: the map coloured
+	 * itself for cafes while the sentence above it claimed to have considered bakeries
+	 * too. One name is a list of one, so nothing about a single-type question changes.
+	 *
+	 * Never empty. A question naming no type at all is answered for whatever the reader
+	 * already had in force, which is what `fallback` carries in.
+	 */
+	kategori: CategoryKey[];
 	/**
 	 * The walking radius the answer was computed over.
 	 *
@@ -418,7 +434,6 @@ export interface GridMeta {
 	resolution: number;
 	walkRadius: number;
 	hexes: number;
-	nodata: number;
 	/** Transit nodes captured by the grid (OSM). */
 	stops: number;
 	stopsByMode: Record<string, number>;
@@ -466,6 +481,16 @@ export interface AiAnswer {
 	 * instead, in the reader's language.
 	 */
 	chat?: { topik: ChatTopic; text?: string };
+	/**
+	 * The question was understood and cannot be answered yet: it asks for a figure that
+	 * needs a business type, and none has been named.
+	 *
+	 * Kept apart from `notUnderstood`, which it would otherwise be mistaken for. That
+	 * one is a dead end — the data cannot answer this at all — and this one is a
+	 * question waiting on one more word. The interface says so and offers the types,
+	 * rather than apologising for a limitation that is not there.
+	 */
+	needsCategory?: true;
 	headline: string;
 	items: Recommendation[];
 	/** Ids of the catchments highlighted on the map. */

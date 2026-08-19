@@ -1,13 +1,13 @@
 import type { CategoryKey, Weights } from '$lib/types';
 
 /**
- * The business type the map opens on.
+ * The business type the LANDING PAGE illustrates its scored field with.
  *
- * A named constant because the page load has to fetch this category's columns
- * before the first paint — the heatmap is on from the start, so the load and the
- * interface state have to agree on which category that is. Hard-coded in two places,
- * they would sooner or later disagree, and the map would open having downloaded one
- * category and be showing another.
+ * The app no longer opens on one. It used to, and a reader who had said nothing about
+ * coffee was handed a map coloured for it; the app now opens with no business type at
+ * all and paints the trade around each cell instead. This constant survives for the
+ * one place a single type still has to be picked by hand: the illustration on the way
+ * down the landing page, which needs something concrete to be a picture OF.
  */
 export const DEFAULT_CATEGORY: CategoryKey = 'kopi';
 
@@ -20,7 +20,7 @@ export const DEFAULT_CATEGORY: CategoryKey = 'kopi';
  * the other rejects.
  */
 /**
- * The default `source` is MAPID, not OSM.
+ * The default `source` is BOTH surveys, not one of them.
  *
  * It used to be OSM, and the reasoning held at the time: MAPID covered only one
  * city for one category, so making it the default meant greeting the user with a
@@ -35,14 +35,21 @@ export const DEFAULT_CATEGORY: CategoryKey = 'kopi';
  * most likely to ask about — would see the entire map marked "not covered" before
  * touching anything.
  *
- * OSM is still on the switch, and is still never mixed into a single score.
+ * Both of them is now the default, and "both" is not a merge. The two are surveys of
+ * the same city, so their counts are the same shops seen twice and adding them would
+ * invent competitors: `domain/scoring` reads each cell from whichever survey reached
+ * it, and from the fuller one where both did. That closes the 100-cell hole the
+ * catalogue has never read without a single figure coming from two places at once.
+ *
+ * Each survey is still selectable on its own, which is the point of keeping them
+ * apart: a reader comparing them has to be able to see each as it is.
  */
 export const DEFAULT_WEIGHTS: Weights = {
 	wd: 0.5,
 	ws: 0.5,
 	gate: true,
 	radius: 800,
-	source: 'mapid'
+	source: 'both'
 };
 
 const clamp01 = (v: unknown, fallback: number): number =>
@@ -96,6 +103,9 @@ export function normalizeWeights(partial: Partial<Weights> | undefined): Weights
 		// 'osm'. This once read `? 'mapid' : 'osm'`, which meant the real source
 		// default lived in two places — and moving it in DEFAULT_WEIGHTS would have
 		// had no effect here at all.
-		source: p.source === 'mapid' || p.source === 'osm' ? p.source : DEFAULT_WEIGHTS.source
+		source:
+			p.source === 'mapid' || p.source === 'osm' || p.source === 'both'
+				? p.source
+				: DEFAULT_WEIGHTS.source
 	};
 }

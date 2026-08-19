@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BrandMark from '$lib/components/ui/BrandMark.svelte';
 	import { browser } from '$app/environment';
 	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
@@ -45,7 +46,7 @@
 <header class="nav" class:scrolled>
 	<div class="bar">
 		<a class="brand" href="#top">
-			<span class="mark" aria-hidden="true"></span>
+			<BrandMark size={13} />
 			{c.brand.name}
 		</a>
 
@@ -146,14 +147,6 @@
 	}
 	.nav.scrolled .brand {
 		color: var(--label-1);
-	}
-	/* The mark: a single lot with a clipped corner — the shape of a rental lot in the model. */
-	.mark {
-		width: 0.8125rem;
-		height: 0.8125rem;
-		border: 1.5px solid currentColor;
-		border-radius: 3px;
-		clip-path: polygon(0 0, 100% 0, 100% 62%, 62% 100%, 0 100%);
 	}
 
 	nav {

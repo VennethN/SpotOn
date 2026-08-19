@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RADIUS = 340;
+/** How many cells to pull geometry for. The diorama only ever stands in one at a time. */
+const STATION_COUNT = 13;
 const ENDPOINTS = [
 	'https://overpass-api.de/api/interpreter',
 	'https://overpass.kumi.systems/api/interpreter'
@@ -118,9 +120,15 @@ function heightOf(tags = {}, footprint) {
 const r1 = (n) => Math.round(n * 10) / 10;
 
 async function main() {
-	const stations = JSON.parse(
-		readFileSync(resolve(ROOT, 'src/lib/data/stations.json'), 'utf8')
-	);
+	/* The cells the grid itself holds, best-served first. This used to read a
+	   `stations.json` that carried a hand-made set of thirteen stations along with
+	   generated receipt, menu and property figures for each. The figures are gone and so
+	   is the file, and the coordinates it was actually used for are in the grid. */
+	const grid = JSON.parse(readFileSync(resolve(ROOT, 'src/lib/data/hexes.json'), 'utf8'));
+	const stations = grid.hexes
+		.filter((h) => h.name)
+		.slice(0, STATION_COUNT)
+		.map((h) => ({ name: h.name, lat: h.lat, lon: h.lon }));
 
 	const out = [];
 	let totalB = 0;

@@ -21,13 +21,23 @@
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import Segmented from '$lib/components/ui/Segmented.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 	import type { PoiSource } from '$lib/types';
 
 	const app = getAppState();
 	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
-	const catName = $derived(c.category[app.category].name);
+	const catName = $derived(categoryNames(app.categories, c));
+	/**
+	 * Which of the two things the colours mean right now.
+	 *
+	 * The legend is the one surface whose whole job is to say what a colour is, so it
+	 * is the one that must not have a default. Before a business type is named there is
+	 * no opportunity score to be a key to, and a key headed "opportunity score" over a
+	 * map of busyness would be the most expensive kind of wrong thing on screen.
+	 */
+	const scoring = $derived(app.basis === 'skor');
 	/* Colours actually on screen — the key only describes what is being drawn, so
 	   between the button press and the data landing it stays a loading state rather
 	   than explaining a ramp nobody can see yet. */
@@ -43,7 +53,12 @@
 	   OSM source: picking Warteg on OSM dashes EVERY cell, and it is exactly in that
 	   state that the note was being suppressed. */
 	const uncovered = $derived(coverage.notCovered);
-	const srcName = $derived(app.weights.source === 'mapid' ? 'MAPID' : 'OSM');
+	const srcName = $derived(
+		app.weights.source === 'mapid' ? 'MAPID' : app.weights.source === 'osm' ? 'OSM' : 'MAPID + OSM'
+	);
+	/* What to try instead when the current reading cannot score a single cell. Reading
+	   both is the widest of the three, so from there the suggestion is not another
+	   source but another business type. */
 	const otherSrcName = $derived(app.weights.source === 'mapid' ? 'OSM' : 'MAPID');
 
 	let open = $state(true);
@@ -79,8 +94,8 @@
 			aria-expanded={open}
 			aria-controls="legend-body"
 		>
-			<span class="cat">{catName}</span>
-			<span class="lbl">{c.app.legendUnit}</span>
+			<span class="cat">{scoring ? catName : c.app.basisDensity}</span>
+			<span class="lbl">{scoring ? c.app.legendUnit : c.app.basisDensityUnit}</span>
 			<span class="chev" aria-hidden="true" class:up={open}>
 				<svg viewBox="0 0 10 10" width="9" height="9">
 					<path
@@ -97,14 +112,33 @@
 
 		{#if open}
 			<div class="body" id="legend-body">
-				<ScoreRamp dense nodata={c.app.legendNodata(coverage.withoutData)} />
+				{#if scoring}
+					<ScoreRamp dense nodata={c.app.legendNodata(coverage.notCovered)} />
 
-				{#if uncovered > 0}
-					<p class="uncovered" class:blocking={coverage.scored === 0}>
-						{coverage.scored === 0
-							? c.app.legendUncoveredAll(catName, srcName, otherSrcName)
-							: c.app.legendUncovered(uncovered, catName, srcName)}
-					</p>
+					{#if uncovered > 0}
+						<p class="uncovered" class:blocking={coverage.scored === 0}>
+							{coverage.scored === 0
+								? c.app.legendUncoveredAll(catName, srcName, otherSrcName)
+								: c.app.legendUncovered(uncovered, catName, srcName)}
+						</p>
+					{/if}
+				{:else}
+					<!-- The ramp runs from quiet to busiest rather than from low to high
+					     score, and it says so at both ends. A ramp is only readable if its
+					     ends are named, and these two ends are not the ones above.
+
+					     A sentence used to follow it explaining that an opportunity score
+					     needs a business type, because 83 for a coffee shop is not 83 for a
+					     laundry. That is the reasoning behind the design, not something a
+					     reader needs: the heading already says the colours are businesses
+					     around, and the question box is the whole right-hand side of the
+					     screen. Printed here it read as an apology for a map that is
+					     working perfectly. -->
+					<ScoreRamp
+						dense
+						ends={[c.app.basisDensityLow, c.app.basisDensityHigh]}
+						nodata={uncovered > 0 ? c.app.basisDensityCells(uncovered) : null}
+					/>
 				{/if}
 
 				<!-- The competitor source used to sit in the title bar, three metres from
@@ -119,8 +153,9 @@
 						value={app.weights.source}
 						onchange={(v: PoiSource) => app.setSource(v)}
 						options={[
-							{ value: 'osm', label: 'OSM', hint: c.app.sourceOsm },
-							{ value: 'mapid', label: 'MAPID', hint: c.app.sourceMapid }
+							{ value: 'both', label: c.app.sourceBothLabel, hint: c.app.sourceBoth },
+							{ value: 'mapid', label: 'MAPID', hint: c.app.sourceMapid },
+							{ value: 'osm', label: 'OSM', hint: c.app.sourceOsm }
 						]}
 					/>
 				</div>

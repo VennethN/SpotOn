@@ -8,14 +8,19 @@
 	 * one as it is about to pass out the top. That way the reader never feels their
 	 * scroll has been hijacked a second time.
 	 *
-	 * Its contents are deliberately not accurate, and it says so on screen: what it
-	 * shows is how to read a grid, not any particular area.
+	 * The heights are real opportunity scores, sampled across the whole grid by the
+	 * server and handed to the scene. What is schematic is where each one is placed —
+	 * tallest at the middle so the field reads as a landscape — and the mark on screen
+	 * says exactly that: this is how to read a grid, not a picture of one area.
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import type { WorldFactory } from '$lib/scene/world';
+
+	/** A sample of the grid's own scores, in grid order. Null = city not surveyed. */
+	let { field = [] }: { field?: Array<number | null> } = $props();
 
 	const c = $derived(copy());
 	let host = $state<HTMLElement | null>(null);
@@ -30,7 +35,7 @@
 
 	const load = async (): Promise<WorldFactory> => {
 		const { GridWorld } = await import('$lib/scene/grid');
-		return (canvas, opts) => new GridWorld(canvas, opts);
+		return (canvas, opts) => new GridWorld(canvas, { ...opts, field });
 	};
 
 	$effect(() => {
@@ -105,24 +110,24 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.625rem;
+		gap: 1rem;
 	}
+	/* No border of its own. This figure now stands on a panel, and a framed frame
+	   reads as two objects where there is one. What separates the model from the
+	   surface it sits on is a slightly recessed ground, not a second outline. */
 	.frame {
 		position: relative;
 		aspect-ratio: 16 / 7;
-		border: 1px solid var(--paper-line);
 		border-radius: var(--r-md);
 		overflow: hidden;
-		/* A base lifted slightly at its top edge — the same light that falls on
-		   the model, rather than a flat field. */
-		background: var(--lift-panel, var(--paper));
+		background: var(--fill-1);
 	}
 	/* A permanent marker: this scene is schematic and must not be taken for a map. */
 	.mark {
 		position: absolute;
-		left: 0.625rem;
-		bottom: 0.5rem;
-		font-size: 0.5625rem;
+		left: 0.75rem;
+		bottom: 0.625rem;
+		font-size: 0.625rem;
 		letter-spacing: 0.04em;
 		color: var(--label-3);
 	}
@@ -131,9 +136,11 @@
 		grid-template-columns: minmax(0, 1fr) minmax(9rem, 13rem);
 		gap: 0.75rem 2rem;
 		align-items: start;
-		font-size: 0.75rem;
-		line-height: 1.55;
-		color: var(--label-2);
+		/* A step up from 0.75rem: this caption is what tells the reader that the
+		   heights are real scores, which is the whole claim of the figure. */
+		font-size: 0.8125rem;
+		line-height: 1.6;
+		color: var(--ink-2, var(--label-2));
 	}
 	figcaption p {
 		max-width: 54ch;
