@@ -18,6 +18,7 @@
 	 * one it offered.
 	 */
 	import { onMount } from 'svelte';
+	import AskGlow from '$lib/components/ui/AskGlow.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { CATEGORIES } from '$lib/domain/categories';
 	import { copy, lang } from '$lib/state/lang.svelte';
@@ -48,6 +49,14 @@
 
 	let draft = $state('');
 	let field = $state<HTMLInputElement | null>(null);
+
+	/**
+	 * The box is inviting a question: nothing is being worked out, and nothing has
+	 * been typed. An empty field is still actionable here, because the example on show
+	 * is what an empty field sends, so the glow is honest about what pressing the
+	 * arrow would do.
+	 */
+	const inviting = $derived(!tapak.busy && !draft.trim());
 
 	/** The example being shown in full — what an empty field submits. */
 	let suggestion = $state('');
@@ -125,11 +134,17 @@
 </script>
 
 <div class="launcher material">
-	<span class="face" aria-hidden="true"><TapakFigure size={40} /></span>
+	<!-- While an answer is being worked out the figure paces: a few steps one way, a
+	     turn, a few steps back. It is the same figure that will do the answering, so
+	     the wait is Tapak thinking rather than a machine being busy. -->
+	<span class="face" aria-hidden="true"><TapakFigure size={40} pacing={tapak.busy} /></span>
 
 	<h1>{c.app.launchTitle}</h1>
 
-	<form onsubmit={send}>
+	<form onsubmit={send} class:inviting>
+		<!-- Full reach here. This box stands alone in the middle of the screen with the
+		     map behind it, so there is room for the motes to come in from a distance. -->
+		<AskGlow on={inviting} />
 		<input
 			bind:this={field}
 			bind:value={draft}
@@ -214,6 +229,7 @@
 	}
 
 	form {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: 0.375rem;
@@ -222,10 +238,13 @@
 		border: 1px solid var(--separator-strong);
 		border-radius: 999px;
 		background: var(--bg-elevated);
-		transition: border-color 140ms ease-out;
+		transition: border-color 420ms ease-in-out;
 	}
 	form:focus-within {
 		border-color: var(--accent);
+	}
+	form.inviting {
+		border-color: color-mix(in srgb, var(--accent) 66%, var(--separator-strong));
 	}
 	input {
 		flex: 1;
