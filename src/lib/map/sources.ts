@@ -268,12 +268,11 @@ export function unitsFC(ctx: MapCtx): FeatureCollection {
 	 * is. One rule, and it holds for every measure without needing to know which end
 	 * of each one counts as good.
 	 *
-	 * Position in the ranked array, not the value: the values are prices, areas,
-	 * scores and metres, and a ramp keyed on magnitude would be unreadable on any
-	 * measure with a long tail — which is all of them.
+	 * The positions come from `domain/units` rather than being worked out here, because
+	 * the hover readout paints its figure from the same ladder. Two copies of it would
+	 * eventually put a tooltip in one shade beside the dot it describes in another.
 	 */
-	const n = ctx.app.unitRows.length;
-	const rank = new Map(ctx.app.unitRows.map(({ unit }, i) => [unit.id, n < 2 ? 1 : 1 - i / (n - 1)]));
+	const rank = ctx.app.unitRanks;
 
 	/**
 	 * The catchments Tapak's last answer named, carried over to this mode.
@@ -299,7 +298,7 @@ export function unitsFC(ctx: MapCtx): FeatureCollection {
 				geometry: { type: 'Point' as const, coordinates: [unit.listing.lon, unit.listing.lat] },
 				properties: {
 					id: unit.id,
-					color: r === undefined ? colNodata : ramp[rampIndex(r)],
+					color: r === undefined ? colNodata : ramp[rampIndex(r.fraction)],
 					ranked: r !== undefined,
 					selected: unit.id === ctx.app.selectedUnitId,
 					named: named.has(unit.cellId)
