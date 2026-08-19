@@ -10,6 +10,7 @@ proposal-drafting repository (`MapID/`) so that the context lives alongside the 
 | [02-konteks-eksplorasi.md](02-konteks-eksplorasi.md) | Idea-exploration notes: the reality of the MAPID datasets, the six concepts considered, and why SpotOn was chosen. |
 | [03-status-implementasi.md](03-status-implementasi.md) | Each mandatory component mapped to the part of the code that implements it, along with what is still outstanding. |
 | [04-data-mapid.md](04-data-mapid.md) | How MAPID data is fetched, which endpoints have been verified, how far coverage reaches today, and what else the premium catalogue holds. |
+| [05-prd-spoton.md](05-prd-spoton.md) | The Product Requirement Document, written into the organisers' official PRD template. In Bahasa Indonesia, because that is the language of the template and of the submission. |
 | [mapid-layers.md](mapid-layers.md) | The list of MAPID datasets SpotOn reads, with a link to each layer. **Script-generated** — do not edit by hand. |
 
 ## Assets
