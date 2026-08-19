@@ -197,6 +197,39 @@ export const rankUnits = (
 		({ row, value }) => ({ unit: row, value })
 	);
 
+/** Where one unit sits in the ranked list, and the figure that put it there. */
+export interface UnitRank {
+	/** Position in the list as 0..1, with 1 at the top of it. */
+	fraction: number;
+	/** The reading of the measure the list is sorted by. */
+	value: number;
+}
+
+/**
+ * The ranked list, by unit id.
+ *
+ * POSITION, NOT MAGNITUDE. The values are prices, areas, scores and metres, and a scale
+ * keyed on magnitude is unreadable on any measure with a long tail, which is all of them.
+ *
+ * Written once because two surfaces read it and they must not drift: the map colours each
+ * dot from it, and the hover readout colours the figure it prints beside that dot. They
+ * were the same rule in two places for a while, which is how a tooltip comes to describe
+ * a dot in one shade while wearing another.
+ *
+ * A unit the sort could not rank is absent rather than given a position. That is what the
+ * no-data grey is drawn from, and it is the same rule the ranking itself follows: an
+ * unmeasured row is dropped, never sorted to the bottom as though it had been measured
+ * and come last.
+ */
+export const unitRanks = (
+	rows: ReadonlyArray<{ unit: ScoredUnit; value: number }>
+): Map<string, UnitRank> => {
+	const n = rows.length;
+	return new Map(
+		rows.map(({ unit, value }, i) => [unit.id, { fraction: n < 2 ? 1 : 1 - i / (n - 1), value }])
+	);
+};
+
 /** How many transit nodes the unit's home cell captures. Read from the cell's own
     counts, so it is right before `stops.json` has arrived. */
 export const unitStops = (u: ScoredUnit, cells: HexBase[]): number => {
