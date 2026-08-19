@@ -3,10 +3,26 @@
 	 * The landing page's scroll stage.
 	 *
 	 * The canvas is sticky for several screens, and the scroll position drives two
-	 * things at once: the camera moves along the corridor, and the clock runs forward
-	 * from the visitor's machine hour, one full turn, back to the same hour. The
-	 * pedestrian density is not invented — the figures are the 24-hour profile of the
-	 * Bundaran HI catchment, normalised against its own peak hour.
+	 * things at once: the camera moves along the corridor, and the light runs forward
+	 * from the visitor's machine hour, one full turn, back to the same hour.
+	 *
+	 * WHAT THE SCENE CLAIMS, AND WHAT IT DOES NOT
+	 *
+	 * The crowd thins and thickens as the clock turns, because a street that holds the
+	 * same number of figures at 03.00 and at 19.00 is not a street. That rise and fall is
+	 * ILLUSTRATION and is labelled as such on screen: a morning shoulder, a midday rise,
+	 * an evening peak, the small hours empty. It is not a reading, and no number is put
+	 * on it.
+	 *
+	 * What IS a reading is its ceiling. The scene never gets busier than the cell it
+	 * stands in deserves: the crowd is scaled by that cell's real share of the busiest
+	 * cell on the grid, and the figure printed beside the clock is that cell's own count
+	 * of businesses within walking range.
+	 *
+	 * The version before this drove the crowd off a 24-hour profile of receipts for the
+	 * Bundaran HI catchment and printed "142 receipts at this hour" under it. That
+	 * profile was generated hour by hour by a random number generator. The shape stays,
+	 * the claim goes.
 	 *
 	 * Two things were fixed from the previous version, both about pacing:
 	 *
@@ -26,37 +42,42 @@
 	import { formatHour } from '$lib/utils/format';
 	import { copy } from '$lib/state/lang.svelte';
 	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
-	import stations from '$lib/data/stations.json';
 	import type { CategoryKey } from '$lib/types';
+
+	/** One real cell, counted by the server. Every figure the scene shows comes from here. */
+	export interface StageCell {
+		name: string;
+		/** Businesses of any kind within walking range. */
+		businesses: number;
+		/** Of those, the ones of the category on stage. */
+		rivals: number;
+		/** Premises on the market within the same range. */
+		units: number;
+		/** Its business count against the busiest cell on the grid, 0..1. */
+		share: number;
+	}
 
 	interface Props {
 		category?: CategoryKey;
+		cell: StageCell;
 	}
-	let { category = 'kopi' as CategoryKey }: Props = $props();
+	let { category = 'kopi' as CategoryKey, cell }: Props = $props();
 
 	const c = $derived(copy());
-	const STATION = stations[0];
-	/** A hex with no hourly profile genuinely has no data — not an invented zero. */
-	const HOURLY: number[] = STATION?.hourly ?? [];
-	const HAS_DATA = HOURLY.length === 24;
-	const PEAK = HAS_DATA ? Math.max(...HOURLY) : 0;
-	const PEAK_HOUR = HAS_DATA ? HOURLY.indexOf(PEAK) : 12;
 
-	/** Density at a fractional hour — interpolated between the two whole hours. */
-	function densityAt(h: number): number {
-		if (!HAS_DATA || PEAK <= 0) return 0;
-		const i = Math.floor(((h % 24) + 24) % 24);
-		const f = h - Math.floor(h);
-		const v = HOURLY[i] * (1 - f) + HOURLY[(i + 1) % 24] * f;
-		return v / PEAK;
-	}
-	/** Receipt count at that hour. Interpolated exactly like the density, so the number
-	    and the percentage shown beside it never contradict each other. */
-	function receiptsAt(h: number): number {
-		if (!HAS_DATA) return 0;
-		const i = Math.floor(((h % 24) + 24) % 24);
-		const f = h - Math.floor(h);
-		return Math.round(HOURLY[i] * (1 - f) + HOURLY[(i + 1) % 24] * f);
+	/**
+	 * The shape of a day on a trading street, 0..1. Illustration, not measurement.
+	 *
+	 * Three humps and a floor: the morning going to work, the middle of the day, the
+	 * evening coming back. Written as arithmetic rather than as a stored table so that
+	 * nobody can mistake it for a dataset, and so it cannot be quoted as one.
+	 */
+	function dayShape(h: number): number {
+		const at = ((h % 24) + 24) % 24;
+		const hump = (centre: number, width: number, height: number) =>
+			Math.exp(-((at - centre) ** 2) / width) * height;
+		const night = at >= 1 && at <= 4 ? 0 : 0.06;
+		return Math.max(0, Math.min(1, hump(7.5, 5, 0.55) + hump(12.5, 7, 0.78) + hump(19, 8, 1) + night));
 	}
 
 	const START_HOUR = localHour();
@@ -113,9 +134,10 @@
 		};
 	});
 
-	const hour = $derived(reduced ? PEAK_HOUR : hourSpring.current);
+	const hour = $derived(reduced ? 19 : hourSpring.current);
 	const day = $derived(daylightAt(hour));
-	const density = $derived(densityAt(hour));
+	/* The illustrated day, held under the ceiling this cell's own count sets. */
+	const density = $derived(dayShape(hour) * cell.share);
 
 	// This hour's ink is broadcast to :root so the chrome floating over the scene (the
 	// nav bar) changes with the sky rather than using a theme token that happens to be
@@ -151,23 +173,27 @@
 			{density}
 			{category}
 			cameraT={camSpring.current}
-			label={c.stage.sceneLabel(STATION.name, formatHour(hour), String(receiptsAt(hour)))}
+			rivals={cell.rivals}
+			vacancies={cell.units}
+			label={c.stage.sceneLabel(cell.name, cell.businesses, cell.rivals)}
 		/>
 
 		<div class="scrim" style:--scrim={day.scrim}></div>
 
-		<!-- the running clock: the one element always present, because it is what explains the scene -->
+		<!-- The one element always present, because it is what explains the scene. The
+		     clock is the light and says so: the reading beside it is a count of what
+		     stands around this cell, and it does not move with the sun.
+		
+		     A fourth line used to sit here saying the crowd was an illustration and the
+		     figure a real count. It was true and it was in the wrong place: four lines
+		     stacked in a corner is a footnote, and the section this scene belongs to
+		     makes the same point in full a moment later ("Bukan dari firasat dan bukan
+		     dari survei yang belum pernah ada"). The scene's own label carries it too,
+		     for a reader who never sees the corner at all. -->
 		<div class="clock">
 			<span class="time">{formatHour(hour)}</span>
 			<span class="phase">{c.phase[day.phase]}</span>
-			<span class="reading">
-				{#if density > 0}
-					{c.stage.reading(String(receiptsAt(hour)), Math.round(density * 100))}
-				{:else}
-					{c.stage.noReading}
-				{/if}
-			</span>
-			<span class="tag">{c.stage.sample}</span>
+			<span class="reading">{c.stage.reading(cell.name, cell.businesses)}</span>
 		</div>
 
 		<div class="copy hero" style:opacity={showHero} aria-hidden={showHero < 0.5}>
@@ -187,7 +213,6 @@
 		<div class="copy mid" style:opacity={showLot} aria-hidden={showLot < 0.5}>
 			<h2>{c.stage.lotTitle}</h2>
 			<p>{c.stage.lotBody}</p>
-			<span class="prov">{c.stage.lotProv}</span>
 		</div>
 	</div>
 </section>
@@ -263,23 +288,6 @@
 		color: var(--ink-muted);
 		max-width: 16ch;
 	}
-	/* A permanent marker: no figure on this page may be taken for live data. */
-	.tag {
-		margin-top: 0.4rem;
-		font-family: var(--font-display);
-		font-size: 0.5625rem;
-		font-weight: 700;
-		letter-spacing: 0.14em;
-		text-transform: uppercase;
-		color: var(--ink-muted);
-		border: 1px solid currentColor;
-		border-radius: 3px;
-		padding: 0.05rem 0.3rem;
-		/* This marker has to read against a bright midday sky, not merely be present. A
-		   thin dark backing is more honest than raising the ink's opacity. */
-		background: rgba(0, 0, 0, 0.28);
-	}
-
 	.copy {
 		position: absolute;
 		left: clamp(1rem, 5vw, 4.5rem);
@@ -352,13 +360,6 @@
 	.hint {
 		font-size: 0.72rem;
 		letter-spacing: 0.04em;
-		color: var(--ink-muted);
-	}
-	.prov {
-		display: block;
-		margin-top: 1rem;
-		font-size: 0.66rem;
-		letter-spacing: 0.05em;
 		color: var(--ink-muted);
 	}
 

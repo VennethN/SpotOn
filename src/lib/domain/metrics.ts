@@ -36,12 +36,26 @@ import type { MetricKey, ScoredHex } from '$lib/types';
  */
 
 /** How a value is written out. The words belong to the locale files; this is the shape. */
-export type MetricKind = 'pct' | 'count' | 'hour' | 'rupiah';
+export type MetricKind = 'pct' | 'count' | 'rupiah';
 
 export interface MetricDef extends Measure<ScoredHex> {
 	kind: MetricKind;
 	/** Only meaningful for a MAPID-sourced figure that a city may not be covered for. */
 	sourced?: 'mapid';
+	/**
+	 * Cannot be read without a business type behind it.
+	 *
+	 * Five of these nine measures can: how busy a cell is, what space costs, how much of
+	 * it is on the market, and both transit readings are all facts about the PLACE. The
+	 * other four are facts about a place AND a trade — rivals of what, saturated with
+	 * what, a good opportunity for what — and asked with no trade named they have no
+	 * answer at all rather than a weak one.
+	 *
+	 * Marked here rather than checked in the query layer so the two cannot drift: a
+	 * measure added to the table declares this about itself, in the same place it
+	 * declares which end is best.
+	 */
+	needsType?: true;
 }
 
 /**
@@ -54,9 +68,12 @@ export interface MetricDef extends Measure<ScoredHex> {
  * "every measure has a definition" stops being true without anything saying so.
  */
 export const METRIC_MAP: Record<MetricKey, MetricDef> = {
-	skor: { read: (r) => r.score, kind: 'pct', best: 'desc' },
+	skor: { read: (r) => r.score, kind: 'pct', best: 'desc', needsType: true },
+	// Not marked: with no business type named there is nothing to subtract, so this is
+	// the trade around the cell outright — which is a real reading and the one the
+	// opening map is painted from.
 	permintaan: { read: (r) => r.demand, kind: 'pct', best: 'desc' },
-	penawaran: { read: (r) => r.supply, kind: 'pct', best: 'asc' },
+	penawaran: { read: (r) => r.supply, kind: 'pct', best: 'asc', needsType: true },
 	pesaing: {
 		// Null rather than the stored 0 when this cell's city has not been surveyed for
 		// the active category. Sorting an unsurveyed cell to the top of "fewest
@@ -64,19 +81,19 @@ export const METRIC_MAP: Record<MetricKey, MetricDef> = {
 		read: (r) => (r.covered ? r.osm : null),
 		kind: 'count',
 		best: 'asc',
+		sourced: 'mapid',
+		needsType: true
+	},
+	// The same trade the demand side is scaled from, left as the count it is. Kept as
+	// its own measure because "where is it busiest around here" is a question people
+	// actually ask, and this is the one figure on the row that can answer it without
+	// anybody inventing a footfall.
+	keramaian: {
+		read: (r) => (r.covered ? r.density : null),
+		kind: 'count',
+		best: 'desc',
 		sourced: 'mapid'
 	},
-	keramaian: { read: (r) => (r.nodata ? null : r.busy), kind: 'pct', best: 'desc' },
-	kunjungan: { read: (r) => (r.nodata ? null : r.nStruk), kind: 'count', best: 'desc' },
-	jam_puncak: {
-		// -1 is the engine's "no hourly profile", and an hour is not a quantity to be
-		// ranked by size anyway — it is reported, and sorted only so the list is stable.
-		read: (r) => (r.peakHour >= 0 ? r.peakHour : null),
-		kind: 'hour',
-		best: 'asc'
-	},
-	nontunai: { read: (r) => (r.nodata ? null : r.cashless), kind: 'pct', best: 'desc' },
-	listing: { read: (r) => (r.nodata ? null : r.listings), kind: 'count', best: 'desc' },
 	harga_tempat: {
 		read: (r) => r.price,
 		kind: 'rupiah',
@@ -110,22 +127,21 @@ export const isMetric = (v: unknown): v is MetricKey =>
 /** The measure a plain "where should I open" is about. */
 export const DEFAULT_METRIC: MetricKey = 'skor';
 
+/** Can this question be answered at all with no business type named? */
+export const needsBusinessType = (key: MetricKey): boolean =>
+	Boolean(METRIC_MAP[key]?.needsType);
+
 /**
  * Which direction a ranking actually runs, given what the question asked for.
  *
- * One place, so the rule parser and the model reader cannot disagree about it. Two
- * rules, and the second is the interesting one:
+ * One place, so the rule parser and the model reader cannot disagree about it.
  *
- * 1. No direction asked for → the measure's own idea of "best".
- * 2. An HOUR ignores the direction asked for entirely. "Jam berapa paling ramai" — what
- *    hour is busiest — contains the words "paling ramai", which read as "most" and
- *    would sort the catchments by latest peak hour. The superlative in that sentence
- *    describes the busyness, not the clock, and an hour is not a quantity to have more
- *    of. It is reported, and sorted only so the list comes back in a stable order.
+ * One rule: no direction asked for → the measure's own idea of "best". A second used to
+ * stand here for hours of the day, which were reported and never ranked. The hourly
+ * profile it read was generated, so both it and the rule are gone.
  */
 export function resolveOrder(key: MetricKey, asked?: 'asc' | 'desc'): 'asc' | 'desc' {
 	const def = METRIC_MAP[key] ?? METRIC_MAP[DEFAULT_METRIC];
-	if (def.kind === 'hour') return def.best;
 	return asked ?? def.best;
 }
 

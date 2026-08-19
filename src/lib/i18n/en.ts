@@ -66,11 +66,14 @@ export const en: Copy = {
 	},
 
 	nav: {
+		/* The order follows the page, and the page has been reordered: the data first,
+		   then how it is turned into a score, then how to ask. Explaining a score before
+		   the reader knows where its numbers come from is back to front. */
 		sections: [
 			{ href: '#masalah', label: 'Problem' },
+			{ href: '#data', label: 'Data' },
 			{ href: '#cara-kerja', label: 'How it works' },
-			{ href: '#ai', label: 'AI' },
-			{ href: '#data', label: 'Data' }
+			{ href: '#ai', label: 'Ask' }
 		],
 		aria: 'Page sections'
 	},
@@ -92,20 +95,17 @@ export const en: Copy = {
 		 */
 		heroTitle: "Don't guess where to open.\nAsk the map.",
 		heroBody:
-			'SpotOn reads footfall, competitors and rentable space across every transit area in Jakarta, then tells you where to open and why. The figures on this page are still samples.',
-		heroHint: 'scroll to watch a full day',
-		dayTitle: 'How busy it is changes by the hour.',
+			'SpotOn counts the businesses already standing, the competitors of your kind, the transit stops and the premises on the market across every transit area in Jakarta, then tells you where to open and why.',
+		heroHint: 'scroll to walk one block',
+		dayTitle: 'Busy is something you can count.',
 		dayBody:
-			'A pavement that is empty at 10am can be full at 7pm. You pay rent for all 24 hours, so which hours are busy decides what kind of business belongs there.',
+			'Not from a hunch, and not from a survey nobody has run. What is counted is the businesses already standing within walking range: if a block supports dozens of them, people plainly come past.',
 		lotTitle: 'That outlined plot is still empty.',
 		lotBody:
 			'The see-through box above it is not a building that exists. It is the business you could open there. Demand is worth nothing if there is no space you can actually rent, so we treat available space as a requirement, not a bonus.',
-		lotProv: 'Struk Go, Menu Go, Properti Go: sample · Stops & competitors: OSM',
-		sample: 'sample data',
-		reading: (struk: string, persen: number) => `${struk} receipts · ${persen}% of peak hour`,
-		noReading: 'no transactions at this hour',
-		sceneLabel: (nama: string, jam: string, struk: string) =>
-			`A street block near ${nama} at ${jam}. Pedestrian density follows this cell's 24-hour transaction profile: ${struk} receipts in that hour.`
+		reading: (nama: string, n: number) => `${nama} · ${n} businesses within walking range`,
+		sceneLabel: (nama: string, n: number, pesaing: number) =>
+			`A street block in ${nama}. How busy it looks follows the businesses actually standing within walking range of that cell: ${n} of them, ${pesaing} of the same kind.`
 	},
 
 	phase: {
@@ -120,159 +120,134 @@ export const en: Copy = {
 	stats: {
 		hexes: { label: 'cells scored', sub: (r: number) => `H3 hexagons, ${r} m walk` },
 		stops: { label: 'transit stops mapped', sub: 'MRT, KRL, LRT, TransJakarta' },
-		pois: { label: 'competitors mapped', sub: 'OpenStreetMap (ODbL)' },
+		pois: { label: 'businesses mapped', sub: 'within walking range' },
 		cats: {
 			label: 'business types scored',
-			sub: 'coffee, drinks, bakery, warteg, fast food, noodles, seafood, foreign, minimarket, grocery, laundry, repair, pharmacy'
-		},
-		coverNote: (terdata: string, total: string, nodata: string) =>
-			`${terdata} of ${total} cells have data. The other ${nodata} are marked as not surveyed yet: we don't guess them, and we don't score them.`
+			sub: 'food, everyday retail, and services'
+		}
 	},
 
 	problem: {
 		mark: 'Problem',
-		title: 'Three things decide whether a location works. Until now nobody looked at all three together.',
+		title: 'Pick the wrong spot and it is your capital that burns.',
 		rows: [
 			{
-				t: 'Nobody knows the demand',
-				d: 'What people spend around a station is recorded in millions of receipts, but never collected by location. So nobody knows which areas are actually short of a particular kind of business.'
+				t: 'Nobody counted how busy it is',
+				d: 'Everyone knows the blocks around a station are busy. Nobody knows which blocks.'
 			},
 			{
-				t: 'The competition is not mapped',
-				d: 'Opening a coffee shop where coffee shops are already stacked on top of each other is a way to lose money. But no map shows where similar businesses cluster, or how busy they are.'
+				t: 'The competition is invisible',
+				d: 'Opening a coffee shop on a street already full of them is a way to lose money.'
 			},
 			{
-				t: 'The space itself is never counted',
-				d: 'An opportunity only matters if there is somewhere to put it. Yet shophouses, kiosks and units for rent are never tied back to footfall or to how many rivals sit next door.'
+				t: 'The space is never counted',
+				d: 'A good area with nothing to rent is not an opportunity.'
 			}
 		],
 		statement:
-			'The blocks around stations are the busiest trading ground in Jakarta. People still pick a location on instinct, and when they get it wrong it is their capital that burns.',
-		chartTitle: 'You pay rent for 24 hours. It is not busy for 24 hours.',
+			'The blocks around stations are the busiest trading ground in Jakarta, and people still pick a location on instinct.',
+		chartTitle: 'Busy is not spread evenly.',
 		chartBody:
-			'A pavement that is empty at 10am can be full at 7pm. This is the profile driving the model above, and the one the map reads inside the app.'
+			'Each bar: how many cells hold that many businesses within walking range. Most are quiet, a few are dense.'
 	},
 
 	how: {
 		mark: 'How it works',
-		title: 'From raw data to one number you can defend.',
+		title: 'One score per cell, per business type.',
 		steps: [
 			{
 				t: 'Cells one walk wide',
 				d: (radius: number, hexes: string) =>
-					`We cover Jakarta with a hexagonal grid. Only cells with a transit stop within ${radius === 800 ? 'an' : 'a'} ${radius} m walk get scored, which comes to ${hexes}. The grid exists so overlapping catchments don't count the same shoppers twice.`
+					`Jakarta is covered with a hexagonal grid. Only the ${hexes} cells with a transit stop within ${radius} m get scored.`
 			},
 			{
 				t: 'Three sources joined',
-				d: 'Spending data, competitor data and listings data are matched to the cell they fall in. That leaves three numbers per cell: how much is spent, how busy the rivals are, and whether there is anywhere to rent.'
+				d: 'Business points, transit stops and premises on the market, each matched to the cell it falls in.'
 			},
 			{
-				t: 'An opportunity score per business type',
-				d: 'The gap between what is spent and what is already served is worked out for each business type. Busy competitors count for more, and the result then has to clear one requirement: rentable space.'
+				t: 'Worked out per business type',
+				d: 'Busy minus rivals of your kind, then multiplied by transit access and the price of space.'
 			},
 			{
-				t: 'A ranking, with the reasons attached',
-				d: 'Cells are ranked per business type and labelled: still underserved, competitive, saturated, or busy but hard to find space in.'
+				t: 'Ranked, with the reasons',
+				d: 'Every cell gets a label: underserved, competitive, or saturated.'
 			}
 		],
-		plain:
-			'Opportunity = how much money gets spent there, minus how busy the similar businesses are. Then one requirement: there has to be space you can actually rent.',
-		note:
-			"Competitors are not just counted. The shop next door that is always full pushes your opportunity down much harder than the one sitting empty, so the two don't count the same. And however good the number looks, an opportunity you cannot occupy cannot be acted on, which is why available space is a requirement rather than a bonus. You can move the weight between demand and competition yourself.",
-		scaleCap: 'The result is one scale, and it is also the map legend',
-		formulaSummary: 'The exact formula'
+		plain: 'Find an area that is busy, still thin on your kind of rival, and has somewhere to rent.'
 	},
 
-	signal: {
-		demand: { nm: 'Demand', src: 'Struk Go', d: 'How much money people spend there.' },
-		supply: {
-			nm: 'Competition',
-			src: 'Menu Go',
-			d: 'Not just how many. The ones that are always full push harder.'
-		},
-		gate: {
-			nm: 'Rentable space',
-			src: 'Properti Go',
-			ok: 'space available → opportunity stands',
-			no: 'none available → opportunity near zero',
-			d: 'A requirement, not a bonus. An opportunity you cannot occupy is not one.'
-		}
-	},
 
 	grid: {
 		mark: 'schematic, not a specific area',
 		caption: {
 			lead: 'One hexagon, one cell.',
 			strong: 'Height and colour both carry the opportunity score',
-			rest: ', on the same scale the map uses inside the app. The sunken, colourless ones have no data yet. The dashed circle is the walking distance used when the grid was built.'
+			rest: ", sampled from the grid's own real scores, on the same scale the map uses inside the app. The sunken, colourless ones sit in a city nobody has surveyed. The dashed circle is the walking distance used when the grid was built."
 		},
-		outOfScale: 'no data yet, outside the scale',
+		outOfScale: 'not surveyed, outside the scale',
 		label:
-			'A model of the hexagonal grid. Each cell is one hexagon, and both its height and its colour represent the opportunity score on the same scale as the map. Cells without data are left sunken and colourless. The dashed circle marks the walking distance from the cell being measured.'
+			'A model of the hexagonal grid. Height and colour are real opportunity scores, sampled evenly across the whole grid, on the same scale as the map. Only the arrangement is schematic: the tallest are placed in the middle. Cells whose city has not been surveyed are left sunken and colourless.'
 	},
 
 	ai: {
 		mark: 'Ask the map',
-		title: 'Ask the map in plain language.',
-		p1: 'No formula to fill in and no jargon to memorise. Tapak starts the conversation: it asks first, offers answers you can just tap, then replies with a list of places and the reasons behind them.',
-		p2: 'Before answering, the map shows what it understood from your question. If it picked something up wrong, you see it immediately. Every answer says why, and how much data it rests on.',
-		p3: 'The conversation beside this runs on its own. We wrote the questions, but not the numbers: every name and every value there is computed by the same scoring engine the map uses. Tap a business type to jump to another conversation.',
+		title: 'Ask in plain language, and the map changes.',
+		p1: 'Say what you want to open and the whole city recolours for that business. No formula to fill in and no jargon to memorise.',
+		p2: 'Before answering, the map shows what it understood. If it picked something up wrong, you see it immediately.',
+		p3: 'The questions are samples. The numbers are not: every colour and value here comes from the same engine the app runs.',
+		mapEmpty: 'Map of 562 catchments around Jakarta transit, waiting for the first question.',
+		mapLabel: (kind: string) =>
+			`Map of 562 catchments around Jakarta transit, coloured by opportunity score for ${kind}.`,
+		mapCaption: (kind: string) => `Opportunity score for ${kind}, 562 catchments, computed just now.`,
 		caught: 'What the map understood',
 		thinking: 'One moment, let me check my notes…',
 		more: (n: number) => `+${n} more in the app`,
 		play: 'Play conversation',
-		pause: 'Pause conversation',
-		foot: 'The questions are samples, but the answers come from the same scoring engine as the app.',
-		footMock: 'mission attributes are still sample data.'
+		pause: 'Pause conversation'
 	},
 
 	data: {
 		mark: 'Data',
-		title: 'Areas we have no data for are shown as exactly that.',
-		body: "When an area has no data, we don't invent a number to stand in for it. It is marked empty and goes into the queue to be surveyed first. Every figure also says how many data points sit behind it, so you can judge for yourself how solid the ground is.",
-		gridWithData: 'cells have data',
-		gridEmpty: 'no data yet, not scored, queued for survey',
+		title: 'Every cell is counted on its own.',
+		body: 'The businesses already standing, the transit stops, and the premises on the market. Counted one by one in each cell, not inferred from a city average.',
+		gridWithData: 'cells with data',
+		gridEmpty: 'no data yet',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
-			`A grid of ${total} cells: ${terdata} have data, ${nodata} do not.`,
-		realTitle: 'What is real',
-		realUnit: (stops: string) =>
-			`${stops} transit stops across four modes, with their route geometry, from OpenStreetMap via the Overpass API (ODbL). Each cell's transit access is computed from this.`,
-		poiTitle: 'Competitors mapped, by business type',
-		poiUnit: (pois: string) =>
-			`${pois} similar businesses, also from OpenStreetMap. This is the competitor count the scoring engine uses, not an estimate.`,
-		mockTitle: 'What is still sample data',
-		mockNote:
-			'The attributes specific to the MAPID mission dataset (Struk Go, Menu Go, Properti Go, including the 24-hour profile and the number of units for rent) are still samples, because the data has only been opened to 50 selected teams. The structure already follows the real columns and all data access goes through a single module, so swapping in the MAPID API will not touch any interface code. Until then, the MOCK marker follows those numbers wherever they appear.'
+			`A grid of ${total} cells: ${terdata} sit in a surveyed city, ${nodata} do not.`
 	},
 
-	hourChart: {
-		caption: 'Transactions per hour, across every area with data.',
-		table: 'The hourly figures',
-		colHour: 'Hour',
-		colValue: 'Receipts',
-		tableCaption: 'Receipts per hour',
-		peak: 'peak',
-		unit: 'receipts',
-		unitApp: 'transactions',
-		label: (total: string, jam: string, puncak: string, unit: string) =>
-			`24-hour profile: ${total} ${unit} in total, busiest at ${jam} with ${puncak} ${unit}.`,
-		bar: (jam: string, nilai: string, unit: string) => `At ${jam}: ${nilai} ${unit}`
+	spreadChart: {
+		caption: 'Cells by how many businesses stand within walking range.',
+		table: 'The figures per band',
+		colBand: 'Up to',
+		colValue: 'Cells',
+		tableCaption: 'Cells per business-density band',
+		axisUnit: 'businesses',
+		unit: 'cells',
+		upTo: (batas: string) => `up to ${batas} businesses`,
+		label: (total: string, batas: string, puncak: string, unit: string) =>
+			`A spread of ${total} ${unit}, fullest in the band up to ${batas} businesses with ${puncak} ${unit}.`,
+		bar: (batas: string, nilai: string, unit: string) => `Up to ${batas} businesses: ${nilai} ${unit}`
 	},
 
-	scale: { low: '0 · low', high: '100 · high', nodata: 'no data yet, left unscored' },
+	scale: { low: '0 · low', high: '100 · high', nodata: 'not surveyed, left unscored' },
 
+	/* Names alone, with no sentence under each. Every row used to carry one, and the
+	   sentence was padding around the only part that mattered, which was the name. */
 	audience: {
 		mark: 'Who it is for',
-		title: 'One map, thirteen kinds of decision.',
+		/* Not capped at thirteen. It is thirteen today, and putting the number in the
+		   heading makes it read as a limit when it is only the count of what has been
+		   added so far. */
+		title: 'One map, all kinds of decision.',
+		typesLabel: 'The business types scored',
 		rows: [
-			{ t: 'Retail & F&B investors', d: 'Pick the next branch from data instead of instinct.' },
-			{ t: 'Small businesses on a tight budget', d: 'Find a good location where the rent still makes sense.' },
-			{
-				t: 'First-time owners',
-				d: '“What kind of business makes sense around here?” Answered, with the reasoning.'
-			},
-			{ t: 'Expansion teams', d: 'Shortlist and rank candidate sites along the transit corridors.' },
-			{ t: 'Property owners & agents', d: 'Know what a unit suits, and who the right tenant is.' }
+			'Retail & F&B investors',
+			'Small businesses on a tight budget',
+			'First-time owners',
+			'Expansion teams',
+			'Property owners & agents',
+			'Site finders'
 		]
 	},
 
@@ -304,8 +279,9 @@ export const en: Copy = {
 		competitive: 'Competitive',
 		saturated: 'Saturated',
 		'busy-limited-space': 'Busy, little space',
-		'no-data': 'No data yet',
-		'not-covered': 'Not yet surveyed'
+		'not-covered': 'Not yet surveyed',
+		/* Not a gap in the data, but a question nobody has asked yet. */
+		'no-type': 'No business type yet'
 	},
 
 	supply: {
@@ -315,34 +291,12 @@ export const en: Copy = {
 		fewQuiet: 'there are few of them and most are quiet'
 	},
 
-	detail: {
-		empty: 'Pick a cell on the map or in the table to see its demand, competition and available space.',
-		catchment: (r: number) => `${r} m catchment`,
-		nodata: (osm: number, cat: string, r: number) =>
-			`No MAPID mission data for this cell yet (N = 0). There are no Struk Go, Menu Go or Properti Go points inside it, so we leave the score blank. It goes on the survey priority list. No data does not mean no business: OSM records ${osm} ${cat} within ${r} m.`,
-		score: (cat: string) => `${cat} score`,
-		demand: 'Demand',
-		nStruk: (n: number) => `N receipts = ${n}`,
-		rivals: 'Competitors',
-		supplyEff: 'Effective supply',
-		busyPct: (p: string) => `${p}% busy`,
-		space: 'Rentable space',
-		listingOf: (n: number) => `listings out of ${n}`,
-		cashless: 'Cashless',
-		cashlessSub: 'proxy for spending power',
-		hourTitle: (n: number) => `Transactions per hour · Struk Go · N = ${n}`,
-		acrossTitle: 'Opportunity by business type, at the current weights',
-		summaryLead: 'Summary.',
-		summary: (jam: string, cat: string, osm: number, r: number, frasa: string, listing: number, kat: string) =>
-			`This cell is busiest at ${jam}. For ${cat}, OSM records ${osm} competitors within ${r} m, and ${frasa}. There are ${listing} listings in the ${kat} category.`,
-		summaryNote:
-			'Competitor counts come from OSM (real), while MAPID mission attributes are still samples. N is shown so it can be checked.'
-	},
 
 	/* ── Score composition ─────────────────────────────────────────────────
 	   The panel that answers "why this number?". The order is deliberate: the
-	   transit nodes lead — the one input built from real data, and the point of
-	   this project — and the step-by-step arithmetic follows. */
+	   transit nodes lead, because they are the point of this project, and the
+	   step-by-step arithmetic follows. This note used to call transit the one input
+	   built from real data. Every input is now, so that reason no longer holds. */
 	breakdown: {
 		title: 'How this score is made',
 		lead: 'The score above is built in order. Every step can be traced back to its data.',
@@ -523,60 +477,7 @@ export const en: Copy = {
 			`${num(n)} commercial property listings from the MAPID Data Premium catalogue, across ${kota} administrative ${kota === 1 ? 'city' : 'cities'}. Every one of them is for sale.`
 	},
 
-	table: {
-		cols: {
-			name: 'Cell',
-			score: 'Score',
-			demand: 'Demand',
-			supply: 'Supply',
-			osm: 'Competitors (OSM)',
-			listings: 'Listings',
-			nTot: 'N mission',
-			typology: 'Type'
-		},
-		empty: 'No cells to show.'
-	},
 
-	control: {
-		weights: 'Opportunity weights',
-		demand: 'Demand',
-		demandHint: 'Struk Go: transaction counts, what is bought, busy hours, and the cashless share.',
-		supply: 'Competition',
-		supplyHint: 'Menu Go: competitor density weighted by how busy they are. Busy rivals push harder.',
-		gate: 'Space requirement',
-		gateLabel: 'Require a listing',
-		gateSub: 'With nowhere to occupy, the opportunity cannot be acted on.',
-		walk: 'Walking distance',
-		walkNote: (r: number) =>
-			`Fixed at ${r} m, about a 10-minute walk. It was applied when the grid was built, to compute transit access and competitors per cell.`,
-		layers: 'Layers',
-		layerNames: {
-			score: 'Opportunity score',
-			routes: 'Transit lines',
-			poi: 'Competitors of the selected cell',
-			nodata: 'Cells with no data',
-			label: 'Stop names',
-			stops: 'Transit nodes of the selected cell'
-		},
-		legend: 'Legend',
-		legendLow: 'Low',
-		legendHigh: 'High',
-		keyNodata: 'No data yet (N = 0)',
-		keySaturated: 'Flagged saturated',
-		keyDot: 'Transit stop, click for detail',
-		honesty: 'Data honesty',
-		honesty1: (terdata: number, total: number, titik: number) =>
-			`${terdata} of ${total} cells have mission data (${titik} sample points).`,
-		honesty2: (poi: number, r: number) => `${poi} competitor POIs counted from OSM within ${r} m.`,
-		honesty3:
-			'Cells without data are not interpolated. They are hatched and put on the survey priority list. Every score carries its N in the panel and the table, so you can judge how solid the ground is.',
-		prov: 'Sources',
-		provReal:
-			'Transit stops across four modes (MRT, KRL, LRT, TransJakarta), their route geometry, and competitor POI counts per radius, from the Overpass API (ODbL).',
-		provMock:
-			'Attributes specific to the MAPID mission dataset (Struk Go, Menu Go, Properti Go), because the data is not public yet. The structure follows the real columns, so it can be swapped in as soon as the MAPID API is available.',
-		provBasemap: 'Required basemap for the final product: MAPID MAPS.'
-	},
 
 	mood: {
 		busiest: 'at its busiest',
@@ -584,22 +485,20 @@ export const en: Copy = {
 		quiet: 'a bit quiet',
 		empty: 'quiet',
 		nodata:
-			'This cell has no data yet, so the street is deliberately left empty. That does not mean it is actually deserted.',
-		reading: (jam: string, kata: string) => `At ${jam} this place is ${kata}.`,
-		peakAt: (jam: string) => `Busiest around ${jam}.`,
-		rivals: (n: number, cat: string) => `There are ${n} other ${cat} nearby`,
-		listings: (n: number) => `and ${n} units up for rent.`,
-		noListings: 'and nothing up for rent.',
+			'This cell sits in a city the catalogue has not been read for, so the street is deliberately left empty. That does not mean it is actually deserted.',
+		reading: (n: number, kata: string) =>
+			`There are ${n} businesses within walking range here, so it is ${kata}.`,
+		rivals: (n: number, cat: string) => `${n} of them are ${cat}`,
+		listings: (n: number) => `and ${n} units are on the market.`,
+		noListings: 'and nothing is on the market.',
 		rows: {
 			score: 'Opportunity score',
-			demand: 'Demand',
+			demand: 'Busyness',
 			supply: 'Effective supply',
-			now: 'Transactions this hour',
-			peak: 'Daily peak',
-			rivals: 'Competitors (OSM)',
-			busy: 'Busy competitors',
-			space: 'Units for rent',
-			points: 'Data points'
+			around: 'Other businesses nearby',
+			rivals: 'Competitors of this kind',
+			access: 'Transit access',
+			space: 'Units on the market'
 		},
 		/* ── Transit access ─────────────────────────────────────────────────
 		   Written for a reader who does not read index numbers. The station names
@@ -672,11 +571,17 @@ export const en: Copy = {
 		rivalsNoPositions:
 			'OSM gives competitor counts but not their positions, so there is nothing to draw. Switch the source to MAPID in the legend to see where they are.',
 		rivalsFailed: 'Could not load the competitor positions. The counts beside them are unaffected.',
-		prov: 'Transactions & space: MAPID sample data. Competitors & stops: OSM.',
-		sceneLabel: (nama: string, jam: string, isi: string) => `Schematic of ${nama} at ${jam}. ${isi}`,
-		sceneNodata: 'There is no data for this area yet, so the street is shown empty.',
-		sceneBody: (n: number, osm: number, cat: string, listing: number) =>
-			`Around ${n} transactions this hour, ${osm} competing ${cat}, and ${listing} units up for rent.`
+		prov: 'Business points & property: MAPID catalogue. Competitors & transit nodes: OSM.',
+		sceneLabel: (nama: string, isi: string) => `Schematic of ${nama}. ${isi}`,
+		sceneNodata: "This area's city has not been surveyed, so the street is shown empty.",
+		sceneBody: (n: number, osm: number, cat: string, unit: number) =>
+			`${n} businesses within walking range, ${osm} of them competing ${cat}, and ${unit} units on the market.`,
+		/* No business type has been named. The counts are still given because they were
+		   genuinely counted; the rivals are not, because rivals of WHAT is precisely the
+		   question that has not been asked. */
+		sceneNoType: (n: number, unit: number) =>
+			`${n} businesses within walking range and ${unit} units on the market.`,
+		askForScore: 'Say what you want to open and I will work out this area\'s opportunity score.'
 	},
 
 	/* ── app ──────────────────────────────────────────────────────────────── */
@@ -694,7 +599,7 @@ export const en: Copy = {
 		   then the sentence stops at the cells — writing "0 competitors mapped" claims
 		   to have counted and found nobody, when nothing has been counted at all. */
 		coverageCells: (terdata: number, total: number) => `${terdata}/${total} cells`,
-		coverageTitle: 'Cells that have data, and the number of similar businesses recorded in OpenStreetMap',
+		coverageTitle: 'Cells in a surveyed city, and the number of similar businesses recorded',
 		advanced: 'Advanced settings',
 		advancedClose: 'Close settings',
 		tapak: 'Tapak',
@@ -711,14 +616,27 @@ export const en: Copy = {
 		zoomOut: 'Zoom out',
 		reset: 'Reset the view',
 		legendUnit: 'opportunity score',
+		/* The opening map: no business type has been named, so there is no opportunity
+		   score to give. The one thing that can be counted without a business type is how
+		   many businesses stand within walking range, whatever they sell. */
+		basisDensity: 'Businesses around',
+		basisDensityUnit: 'every business type',
+		basisDensityLow: '0 · quiet',
+		basisDensityHigh: 'busiest',
+		basisDensityCells: (n: number) => `${n} cells sit in an unsurveyed city, not counted`,
 		sourceLabel: 'Competitor data source',
+		sourceBothLabel: 'Both',
+		/* "Both" is not a sum, and this line is what keeps it from being read as one.
+		   The two surveys read the same city, so adding them counts the same shops
+		   twice. */
+		sourceBoth: 'Each area is read from whichever survey reached it, the fuller one where both did. Never added together.',
 		sourceOsm: 'OpenStreetMap: even coverage, volunteered',
 		sourceMapid: 'MAPID: surveyed, all 5 Jakarta cities',
 		legendUncovered: (n: number, cat: string, src: string) =>
 			`${n} cells are not covered by ${src} data for ${cat}, so they are unscored. That is not the same as having no competitors`,
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} has no competitor data for ${cat}, so nothing can be scored. Try the ${other} source.`,
-		legendNodata: (n: number) => `${n} cells have no data, left unscored`,
+		legendNodata: (n: number) => `${n} cells sit in an unsurveyed city, left unscored`,
 		/* The heatmap states an opinion — which cells are good for one kind of business.
 		   It appears when it is actually asked for: by this button, or by Tapak
 		   answering a question. */
@@ -729,6 +647,9 @@ export const en: Copy = {
 		heatmapAria: 'Opportunity score heatmap',
 		/* The map tooltip before any category is loaded: the cell is named, and nothing
 		   more is claimed. */
+		/* What a cell reads before a business type has been named: a count of the trade
+		   around it, not an opportunity score. */
+		tipDensity: 'businesses around',
 		tipNoCategory: 'Turn the heatmap on to see its score',
 		needCategory: 'No category loaded yet. Turn the heatmap on, or ask Tapak.',
 		ask: 'Or ask your own…',
@@ -792,8 +713,6 @@ export const en: Copy = {
 		home: 'Back to the SpotOn home page',
 		emptyMood: 'No area selected yet. Tap a cell on the map to see what it feels like.',
 		pickBest: (cat: string) => `Pick the best one for a ${cat}`,
-		clock: 'Hour',
-		clockAria: 'Drag to see this area at another hour',
 		schema: 'schematic, not an actual site plan',
 		fullNumbers: 'See the full figures',
 		/* The map's own badge, pinned to the selected cell. Deliberately the count and
@@ -808,15 +727,21 @@ export const en: Copy = {
 		mapRivalsAria: (n: number, r: number) =>
 			`${n} similar ${n === 1 ? 'business' : 'businesses'} within a ${r} m walk of this cell`,
 		mapReach: (r: number) => `${r} m reach`,
-		tipNodata: 'MAPID mission data: N = 0 · survey priority candidate',
+		tipNodata: 'City not surveyed yet · survey priority candidate',
 		tipScore: (cat: string) => `${cat} score`,
+		tipBusy: (n: number) => `${n} businesses nearby`,
+		tipRivals: (n: number) => `${n} competitors`,
+		tipUnits: (n: number) => `${n} units listed`,
 		sheet: 'Information panel',
 		sheetGrip: 'Resize panel'
 	},
 
 	tapak: {
-		greet: (total: number, terdata: number) =>
-			`Hello, I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors, and ${terdata} of them have data. What are you thinking of opening?`,
+		/* This used to quote two numbers: how many cells, then how many of them have
+		   data. Since both surveys are read together the two are the same number, and
+		   the sentence read "562 cells, and 562 of them have data". */
+		greet: (total: number) =>
+			`Hello, I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors. What are you thinking of opening?`,
 		/* This used to ask "How is the budget looking?" and offer "Tight" or
 		   "Reasonably open" — two words that say nothing about what will change. The
 		   only thing actually chosen here is whether the results are narrowed to
@@ -840,8 +765,12 @@ export const en: Copy = {
 	},
 
 	narrate: {
+		/* Understood, and one word short. Not a refusal: what is missing is the business
+		   type, not the data, and an opportunity score means nothing without one. */
+		needsCategory:
+			'Before I answer, what do you want to open? An opportunity score is always for one kind of business, because 83 for a coffee shop is not 83 for a laundry.',
 		notUnderstood: (why: string) =>
-			`${why} All I know is the areas around Jakarta transit, for thirteen kinds of business. Want me to look at one of those?`,
+			`${why} All I know is the areas around Jakarta transit, for a set of business types. Want me to look at one of those?`,
 		coverageNone: 'Every area has data.',
 		coverageSome: (n: number) =>
 			`There are ${n} areas I have no data for at all. I'm not scoring them. Rather than make something up, I'd rather say I don't know.`,
@@ -862,15 +791,15 @@ export const en: Copy = {
 		nowByUnit:
 			'I have switched the map to read by place, so each row is one premises rather than an area.',
 		nowByCell: 'I have switched the map back to reading by area, so each row is an area again.',
-		remarkNodata: (name: string, osm: number, cat: string) =>
-			`${name} has no data yet, so I won't put a number on it. All I know is that open map data shows ${osm} ${cat} nearby.`,
+		remarkUncovered: (name: string, cat: string) =>
+			`${name} sits in a city the catalogue has not been read for, so the ${cat} around it have never been counted and I won't put a number on it. That does not mean it has no competitors.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
 			`${name} is ${verdict} for a ${cat}, scoring ${nilai}. There are ${osm} similar businesses, and ${listing}.`,
 		verdictGood: 'one of the good ones',
 		verdictMid: 'middling',
 		verdictLow: 'honestly not promising',
-		listingSome: (n: number) => `${n} units up for rent`,
-		listingNone: 'nothing up for rent'
+		listingSome: (n: number) => `${n} units on the market`,
+		listingNone: 'nothing on the market'
 	},
 
 	/* ── Small talk ────────────────────────────────────────────────────────
@@ -970,6 +899,9 @@ export const en: Copy = {
 	},
 
 	query: {
+		/* The conjunction for a list of business types asked about at once. Here rather
+		   than in the code, because each language joins a list its own way. */
+		and: 'and',
 		saturated: 'already crowded',
 		coverage: 'with no data yet',
 		within: (r: number) => `within ${r === 800 ? 'an' : 'a'} ${r} m walk of a transit stop`,
@@ -988,14 +920,10 @@ export const en: Copy = {
 		   naming it that would be the one untruth on the screen. */
 		metrics: {
 			skor: 'opportunity score',
-			permintaan: 'demand',
+			permintaan: 'how busy the area is',
 			penawaran: 'effective supply',
 			pesaing: 'competitor count',
-			keramaian: 'how busy it is',
-			kunjungan: 'recorded transactions',
-			jam_puncak: 'peak hour',
-			nontunai: 'cashless share',
-			listing: 'commercial listings',
+			keramaian: 'businesses nearby',
 			harga_tempat: 'asking price to buy',
 			unit_dipasarkan: 'units on the market',
 			akses_transit: 'transit access',
@@ -1011,15 +939,13 @@ export const en: Copy = {
 		count: (v: number) => num(Math.round(v))
 	},
 
+	/* The sample questions on the landing page, written whole, the way somebody who
+	   already knows what they want types them. They used to be split across four turns
+	   of back-and-forth, which on a sales page is a long time to wait before anything
+	   is answered. */
 	demo: {
-		coverageAsk: 'Hold on, is the data complete?',
-		coverageChip: 'Data coverage',
-		coverageReply: "Not all of it. Want me to show you which ones are missing?",
-		coverageYes: 'Show me',
-		coveragePreface: 'These are the ones I have no data for.',
-		saturatedChip: 'Saturated',
-		saturatedAsk: 'Minimarket, alright. Shall I find the good ones, or the ones to avoid?',
-		saturatedYes: 'The ones to avoid',
-		saturatedPreface: 'Sure. These have the tightest competition.'
+		askOpen: (kind: string) => `Where should I open ${kind} near a station?`,
+		askCheap: (kind: string) => `Where can I open ${kind} on a small budget near the MRT?`,
+		askSaturated: (kind: string) => `Which areas are already too crowded with ${kind}?`
 	}
 };

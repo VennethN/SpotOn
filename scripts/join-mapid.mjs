@@ -234,6 +234,14 @@ out geom;`;
 		}
 		h.mapid = mapid;
 		h.covered = covered;
+		// The MAPID half of the density the score reads its demand from. Null where the
+		// city was never surveyed, for the same reason the counts above are: a zero here
+		// would call an unread city empty of trade.
+		const anyCovered = Object.values(covered).some(Boolean);
+		h.dens = {
+			...(h.dens ?? { osm: 0 }),
+			mapid: anyCovered ? Object.values(mapid).reduce((a, n) => a + (n ?? 0), 0) : null
+		};
 	}
 
 	grid.meta.mapid = {

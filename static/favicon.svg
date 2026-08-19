@@ -1,5 +1,45 @@
+<!--
+  The SpotOn mark: a lot with its corner clipped, the same shape the site header and
+  the app header draw. It used to be a target of concentric circles, which was a
+  different mark entirely, so the browser tab showed one company and the page another.
+
+  The diagonal carries no stroke, exactly as the CSS version does not: the corner is
+  meant to be missing rather than chamfered, so the outline is clipped rather than
+  drawn around the cut.
+
+  MONOCHROME, like the mark everywhere else. It was on a blue tile, and blue is the
+  accent this product spends on one thing only — the opportunity ramp on the map. A
+  brand mark wearing the same colour as the data makes the colour mean two things.
+
+  On its own ground rather than transparent, because at 16 px an outline alone
+  disappears against whichever colour the browser paints its tab strip. The ground
+  follows the reader's theme where the browser honours it, and falls back to the dark
+  one where it does not, which reads on either strip.
+-->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-	<rect width="32" height="32" rx="7" fill="#0071e3" />
-	<circle cx="16" cy="16" r="9.5" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="2" />
-	<circle cx="16" cy="16" r="3.6" fill="#ffffff" />
+	<style>
+		.tile { fill: #0b0c0e; }
+		.lot { stroke: #f5f6f7; }
+		@media (prefers-color-scheme: light) {
+			.tile { fill: #eceef1; }
+			.lot { stroke: #0b0c0e; }
+		}
+	</style>
+	<defs>
+		<clipPath id="lot-clip">
+			<polygon points="9,9 23,9 23,17.7 17.7,23 9,23" />
+		</clipPath>
+	</defs>
+	<rect class="tile" width="32" height="32" rx="7" />
+	<rect
+		class="lot"
+		x="10.2"
+		y="10.2"
+		width="11.6"
+		height="11.6"
+		rx="2.4"
+		fill="none"
+		stroke-width="2.4"
+		clip-path="url(#lot-clip)"
+	/>
 </svg>

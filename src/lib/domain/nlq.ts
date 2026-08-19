@@ -1,15 +1,17 @@
 import { id as ID } from '$lib/i18n/id';
-import { formatHour, pct } from '$lib/utils/format';
-import { CATEGORY_MAP } from './categories';
+import { pct } from '$lib/utils/format';
+import { CATEGORY_KEYS, CATEGORY_MAP, orderCategories } from './categories';
 import {
 	DEFAULT_METRIC,
 	METRIC_MAP,
 	applyFilters,
+	needsBusinessType,
 	rankBy,
 	resolveOrder,
 	type MetricFilter
 } from './metrics';
 import { supplyPhrase } from './narrate';
+import { stopTotal } from './transit';
 import { scoreAll } from './scoring';
 import { resolveUnitOrder } from './units';
 import { snapRadius } from './weights';
@@ -34,10 +36,18 @@ import type {
 } from '$lib/types';
 
 /**
- * Matched in order, first match wins — so the specific has to sit above the
- * general. `boba` before `minuman`, and both before `warung`, which catches the
- * word "makan": without that order "kedai minuman" would read as a warung, because
- * the question almost always contains the word makan or jajan.
+ * The business types a question names — ALL of them, not the first.
+ *
+ * "Kedai kopi dan toko roti" is one question about two types, and reading only the
+ * first was the whole reason the map could never answer it: the reply named bakeries
+ * and the map coloured itself for cafes. Every pattern here is tried and every hit is
+ * kept, so a sentence naming three types comes back with three.
+ *
+ * These are the SPECIFIC patterns. The catch-all below them is not in this list, and
+ * that separation is what makes collecting every match safe: it matches the bare word
+ * "makan", which sits inside almost every question about food, so gathered alongside
+ * the others it would attach a rice warung to "restoran jepang" and to "toko roti"
+ * alike. It fires only when nothing specific did — exactly the fallback it always was.
  */
 const KEYWORDS: Array<[RegExp, CategoryKey]> = [
 	[/kopi|coffee|kafe|cafe|espresso|latte/i, 'kopi'],
@@ -58,12 +68,30 @@ const KEYWORDS: Array<[RegExp, CategoryKey]> = [
 	[
 		/jepang|japanese|korea|korean|sushi|thai|cina|chinese|western|\basing\b|italia|pizza|steak/i,
 		'restoasing'
-	],
-	// Last and loosest: anything mentioning food without naming a type lands here,
-	// because a rice warung really is the most sensible default for the question
-	// "I want to open somewhere to eat".
-	[/warteg|warung|rumah makan|nasi|padang|soto|resto|makan|food/i, 'warteg']
+	]
 ];
+
+/**
+ * Last and loosest: anything mentioning food without naming a type lands here, because
+ * a rice warung really is the most sensible default for "I want to open somewhere to
+ * eat". Kept out of the list above so it can only ever be a fallback — see the note there.
+ */
+const ANY_FOOD: [RegExp, CategoryKey] = [
+	/warteg|warung|rumah makan|nasi|padang|soto|resto|makan|food/i,
+	'warteg'
+];
+
+/**
+ * Every business type a question names, in display order and without repeats.
+ *
+ * Empty when the question names none, which is the caller's cue to use whatever the
+ * reader already had in force rather than to guess at one.
+ */
+export function categoriesIn(q: string): CategoryKey[] {
+	const hits = KEYWORDS.filter(([re]) => re.test(q)).map(([, cat]) => cat);
+	if (!hits.length && ANY_FOOD[0].test(q)) hits.push(ANY_FOOD[1]);
+	return orderCategories(hits);
+}
 
 /**
  * Which figure a question is about, when it names one.
@@ -87,15 +115,13 @@ const METRIC_WORDS: Array<[RegExp, MetricKey]> = [
 		/unit|ruko|kios|tempat usaha|tempat kosong|ruang kosong|dipasarkan|dijual|properti|listing|lowong/i,
 		'unit_dipasarkan'
 	],
-	// Above `keramaian`, because both of these are asked with the word "ramai" in the
-	// sentence and only the specific words tell them apart. "Jam berapa paling ramai"
-	// is a question about the clock; "seberapa ramai di sini" is not.
-	[/jam berapa|jam ramai|jam puncak|jam sibuk|puncak|peak hour/i, 'jam_puncak'],
-	[/kunjungan|transaksi|struk|traffic|pengunjung|footfall|omzet|pembeli/i, 'kunjungan'],
-	[/ramai|rame|sepi|keramaian|crowd|busy|sibuk/i, 'keramaian'],
-	// `non[- ]?tunai` and not `non ?tunai`: the hyphenated spelling is the common one and
-	// the space-only version missed every question that used it.
-	[/non[- ]?tunai|cashless|qris|kartu|e-?wallet|debit/i, 'nontunai'],
+	// Busyness is now a count of the trade standing around a cell, so the words that
+	// used to reach for a receipt tally or a clock land here instead. That is the honest
+	// answer to all of them: this is the only thing about the crowd that anybody counted.
+	[
+		/ramai|rame|sepi|keramaian|crowd|busy|sibuk|kunjungan|traffic|pengunjung|footfall|pembeli/i,
+		'keramaian'
+	],
 	[/pesaing|saingan|kompetitor|competitor|rival/i, 'pesaing'],
 	[/permintaan|demand/i, 'permintaan'],
 	[/penawaran|supply|jenuh|saturasi/i, 'penawaran'],
@@ -167,11 +193,19 @@ const RADIUS_WORDS = /(\d{3,4})\s*(?:m\b|meter|metre|metres|meters)/i;
  * Neither of them computes anything: they choose an operation, a measure and a
  * direction, and the scoring engine produces every number from the data.
  */
-export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): StructuredQuery {
+export function parseQuestion(
+	q: string,
+	w: Weights,
+	fallback: CategoryKey | readonly CategoryKey[]
+): StructuredQuery {
+	// Every type the question names, or the ones the reader already had if it names
+	// none. Never a hard-coded default: a question that said nothing about the business
+	// type is asking about the one on screen, not about coffee.
+	const named = categoriesIn(q);
 	const out: StructuredQuery = {
 		intent: 'RANK',
 		metrik: 'gap permintaan − penawaran',
-		kategori: fallback,
+		kategori: named.length ? named : orderCategories(typeof fallback === 'string' ? [fallback] : fallback),
 		ukuran: DEFAULT_METRIC,
 		radius_m: w.radius,
 		filter: {},
@@ -179,13 +213,6 @@ export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): Str
 		urut: 'desc',
 		limit: 5
 	};
-
-	for (const [re, cat] of KEYWORDS) {
-		if (re.test(q)) {
-			out.kategori = cat;
-			break;
-		}
-	}
 
 	// Unit before cell: "ruko mana di kawasan Blok M" names both, and the thing being
 	// ranked is the one in the subject position.
@@ -273,6 +300,18 @@ export function parseQuestion(q: string, w: Weights, fallback: CategoryKey): Str
 	return out;
 }
 
+/**
+ * A list of names as one Indonesian phrase: "A", "A dan B", "A, B, dan C".
+ *
+ * Indonesian on purpose, like every other sentence in this file: it is API output, and
+ * the interface rebuilds what the reader sees from the structured fields beside it. See
+ * the note at the top.
+ */
+function joinID(parts: string[]): string {
+	if (parts.length < 2) return parts[0] ?? '';
+	return `${parts.slice(0, -1).join(', ')} dan ${parts[parts.length - 1]}`;
+}
+
 /** Matches catchment names mentioned in the question (for the COMPARE intent). */
 function matchNames(q: string, rows: ScoredHex[]): ScoredHex[] {
 	const ql = q.toLowerCase();
@@ -299,10 +338,14 @@ function matchNames(q: string, rows: ScoredHex[]): ScoredHex[] {
  * names the wrong source. In a product whose whole promise is figures you can
  * trace, misnaming where a figure came from is the most expensive mistake there is.
  */
-const sourceLabel = (s: PoiSource | undefined) => (s === 'mapid' ? 'MAPID' : 'OSM');
+const sourceLabel = (s: PoiSource | undefined) =>
+	s === 'mapid' ? 'MAPID' : s === 'osm' ? 'OSM' : 'MAPID/OSM';
 
+/* Every figure quoted here is a count somebody published. The line used to lead with
+   a tally of mission points that were generated, which put an invented N in front of
+   the evidence for every claim on screen. */
 const evidence = (r: ScoredHex) =>
-	`N misi = ${r.nTot} (struk ${r.nStruk} · menu ${r.nMenu} · properti ${r.nProp}) · pesaing ${sourceLabel(r.source)} = ${r.osm}`;
+	`Usaha lain di sekitar (${sourceLabel(r.source)}) = ${r.density} · pesaing ${sourceLabel(r.source)} = ${r.osm} · unit dipasarkan (MAPID) = ${r.propCovered ? r.units : 'belum terdata'}`;
 
 /**
  * Runs a structured query against the scoring engine and assembles the
@@ -313,7 +356,7 @@ export function answer(
 	question: string,
 	catchments: Hex[],
 	w: Weights,
-	fallback: CategoryKey
+	fallback: CategoryKey | readonly CategoryKey[]
 ): AiAnswer {
 	return runQuery(parseQuestion(question, w, fallback), question, catchments, w);
 }
@@ -332,8 +375,21 @@ export function runQuery(
 	catchments: Hex[],
 	weights: Weights
 ): AiAnswer {
-	const cat = query.kategori;
-	const def = CATEGORY_MAP[cat];
+	const cats = query.kategori;
+	const defs = cats.map((k) => CATEGORY_MAP[k]);
+	/* The names of the types this answer was computed over, written out.
+	   Every sentence below used to take one definition and quote it; with a set, quoting
+	   the first would name one business type in a reply whose figures counted several,
+	   which is the one kind of mistake this file exists to avoid. */
+	const def = {
+		name: joinID(defs.map((d) => d.name)),
+		/* The premises count is NOT per business type — it is every commercial listing in
+		   range, which is why the same figure serves all thirteen. Naming one property
+		   category beside it is a fair shorthand for a question about one type; joined
+		   across several it reads as a split that was never made ("12 unit Coffee Shop
+		   dan Retail F&B"), so the set drops the label and says what the figure is. */
+		propertyCategory: defs.length === 1 ? defs[0].propertyCategory : 'komersial'
+	};
 	/* The query's radius, not the reader's, and this is the whole reason `radius_m`
 	   stopped being a copy of the settings. A question that names a distance has to be
 	   ANSWERED at that distance: computing at 800 m and then moving the map's slider to
@@ -342,27 +398,78 @@ export function runQuery(
 	   `join-property` computed. */
 	const w: Weights = { ...weights, radius: snapRadius(query.radius_m) };
 	query.radius_m = w.radius;
-	const rows = scoreAll(catchments, cat, w);
+	/**
+	 * NO BUSINESS TYPE NAMED, AND THIS QUESTION NEEDS ONE.
+	 *
+	 * Five of the nine measures are facts about the place and answer perfectly well
+	 * without a trade behind them: how busy it is, what space costs, how much is on the
+	 * market, and the two transit readings. Four are not — rivals of what, saturated
+	 * with what, a good opportunity for what — and the two shaped intents below are in
+	 * the same position.
+	 *
+	 * Asking back is the honest move and it is cheap. The alternative was what this used
+	 * to do: fall back to coffee, and answer a question about coffee that nobody asked,
+	 * with a map that recoloured itself to match.
+	 */
+	const wantsType =
+		query.intent === 'FLAG_SATURATED' ||
+		query.intent === 'COVERAGE' ||
+		(query.intent === 'RANK' && needsBusinessType(query.ukuran ?? DEFAULT_METRIC));
+	if (!cats.length && wantsType) {
+		return {
+			query,
+			needsCategory: true,
+			headline:
+				'Pertanyaan ini perlu jenis usaha dulu, karena 83 untuk kedai kopi bukan 83 untuk laundry. Mau buka usaha apa?',
+			items: [],
+			highlight: [],
+			provenance: [
+				'Tidak ada operasi yang dijalankan: ukuran yang ditanyakan tidak bisa dibaca tanpa jenis usaha.',
+				`Jenis usaha yang tersedia: ${CATEGORY_KEYS.join(', ')}.`
+			]
+		};
+	}
+
+	const rows = scoreAll(catchments, cats, w);
 	const provenance = [
 		`Alur: pertanyaan → parsing niat → function-calling ke daftar operasi spasial terbatas → PostGIS mengeksekusi → peta & panel diperbarui.`,
 		`Angka tidak dikarang model: LLM hanya memilih operasi dan mengisi argumen; seluruh nilai dihitung basis data dan ditautkan ke titik sumbernya.`,
 		w.source === 'mapid'
-			? `Sumber pesaing (nyata): MAPID Data Premium, ${def.mapidSet}, around:${w.radius}.`
-			: `Sumber pesaing (nyata): OpenStreetMap via Overpass API, ${def.osmTag}, around:${w.radius}.`,
-		`Sumber lain (contoh): Struk Go · Menu Go · Properti Go, struktur mengikuti kolom asli.`
+			? `Sumber pesaing: MAPID Data Premium, ${defs.map((d) => d.mapidSet).join(' + ')}, around:${w.radius}.`
+			: w.source === 'osm'
+				? `Sumber pesaing: OpenStreetMap via Overpass API, ${defs.map((d) => d.osmTag ?? 'tidak ada tag OSM').join(' + ')}, around:${w.radius}.`
+				: `Sumber pesaing: dua survei sekaligus. MAPID Data Premium (${defs.map((d) => d.mapidSet).join(' + ')}) dan OpenStreetMap via Overpass API (${defs.map((d) => d.osmTag ?? 'tidak ada tag OSM').join(' + ')}), around:${w.radius}.`,
+		...(w.source === 'both'
+			? [
+					`Dua survei TIDAK dijumlahkan. Keduanya mensurvei kota yang sama, jadi cacahnya sebagian besar toko yang sama dihitung dua kali, dan tidak ada id bersama untuk menyandingkannya. Tiap petak dibaca dari survei yang memang menjangkaunya, dan dari yang mencatat lebih banyak kalau dua-duanya menjangkau. Angkanya jadi batas bawah: setidaknya sekian, karena ada yang benar-benar menghitungnya.`
+				]
+			: []),
+		/* Said out loud whenever more than one type was asked about, because it is the
+		   arithmetic the reader cannot see: the outlets of all of them are counted as one
+		   pool of rivals, and all of them come back out of the trade around the cell. */
+		cats.length > 1
+			? `${cats.length} jenis usaha ditanyakan sekaligus: pesaingnya dijumlahkan jadi satu, dan semuanya sama-sama dikeluarkan dari hitungan usaha lain di sekitarnya. Satu petak yang salah satu jenisnya belum disurvei tidak diberi nilai sama sekali.`
+			: cats.length === 1
+				? `Satu jenis usaha yang ditanyakan: ${defs[0].name}.`
+				: `Tidak ada jenis usaha yang disebut, jadi tidak ada pesaing yang dihitung dan tidak ada skor peluang yang diberikan. Keramaian di bawah ini adalah cacah semua usaha dalam radius, apa pun jenisnya.`,
+		`Sisi permintaan: jumlah usaha lain dalam radius yang sama, sumber yang sama, dikurangi pesaing sejenis.`,
+		`Harga dan unit yang dipasarkan: katalog properti komersial MAPID. Semuanya harga JUAL, bukan sewa.`
 	];
 
+	/* Coverage is now a fact about the survey, not about a flag that was rolled at build
+	   time. A cell is uncovered when the ACTIVE source has never read its city, which is
+	   exactly the condition that makes the engine refuse to score it. */
 	if (query.intent === 'COVERAGE') {
-		const nd = rows.filter((r) => r.nodata);
+		const nd = rows.filter((r) => !r.covered);
 		return {
 			query,
-			headline: `${nd.length} catchment tanpa data misi MAPID. Kawasan tersebut tidak diberi nilai, ditampilkan apa adanya, dan diusulkan sebagai prioritas survey activities berikutnya.`,
+			headline: `${nd.length} petak belum disurvei ${sourceLabel(w.source)} untuk ${def.name}. Petak tersebut tidak diberi nilai, ditampilkan apa adanya, dan diusulkan sebagai prioritas survei berikutnya.`,
 			items: nd.map<Recommendation>((r) => ({
 				id: r.id,
 				name: r.name,
 				value: null,
-				why: `Tidak ada titik Struk/Menu/Properti Go. Namun OSM mencatat ${r.osm} ${def.name.toLowerCase()} di radius ${w.radius} m, indikasi kawasan aktif yang belum tersentuh survei.`,
-				evidence: 'N misi = 0 · estimasi 1 hari lapangan untuk memotret papan menu & storefront'
+				why: `Kotanya belum disurvei ${sourceLabel(w.source)} untuk ${def.name.toLowerCase()}, jadi pesaingnya tidak dihitung, bukan nol. Aksesnya sendiri terukur: ${stopTotal(r.transit)} simpul transit dalam radius ${w.radius} m.`,
+				evidence: evidence(r)
 			})),
 			highlight: nd.map((r) => r.id),
 			provenance
@@ -371,17 +478,17 @@ export function runQuery(
 
 	if (query.intent === 'FLAG_SATURATED') {
 		const sat = rows
-			.filter((r) => !r.nodata)
+			.filter((r) => r.covered)
 			.sort((a, b) => (b.supply ?? 0) - (a.supply ?? 0))
 			.slice(0, 5);
 		return {
 			query,
-			headline: `Lima catchment dengan penawaran efektif tertinggi untuk ${def.name}. Pesaing padat dan mayoritas ramai, sehingga celah pasar paling sempit. Disarankan dihindari.`,
+			headline: `Lima petak dengan pesaing terpadat untuk ${def.name} dibanding usaha lain di sekitarnya. Celah pasarnya paling sempit, jadi sebaiknya dihindari.`,
 			items: sat.map<Recommendation>((r) => ({
 				id: r.id,
 				name: r.name,
 				value: r.supply,
-				why: `${r.osm} pesaing sejenis dalam radius ${w.radius} m, ${pct(r.busy)}% berkondisi ramai. Permintaan ${pct(r.demand)} tidak melampauinya.`,
+				why: `${r.osm} pesaing sejenis dalam radius ${w.radius} m, dari ${r.density} usaha lain di sekitarnya. Sepadat itu jarang menyisakan celah untuk pendatang baru.`,
 				evidence: evidence(r)
 			})),
 			highlight: sat.map((r) => r.id),
@@ -406,8 +513,8 @@ export function runQuery(
 		const lose = win === a ? b : a;
 		const reason =
 			(win.demand ?? 0) > (lose.demand ?? 0)
-				? 'permintaan lebih tinggi'
-				: 'penawaran eksisting lebih lemah';
+				? 'kawasannya lebih ramai'
+				: 'pesaing sejenisnya lebih tipis';
 		return {
 			query,
 			headline: `Untuk ${def.name}, ${win.name} unggul (${pct(win.score)} vs ${pct(lose.score)}), terutama karena ${reason}.`,
@@ -415,7 +522,7 @@ export function runQuery(
 				id: r.id,
 				name: r.name,
 				value: r.score,
-				why: `Permintaan ${pct(r.demand)} · penawaran ${pct(r.supply)} (${r.osm} pesaing OSM, ${pct(r.busy)}% ramai) · ${r.listings} listing ${def.propertyCategory}.`,
+				why: `${r.density} usaha lain di sekitarnya, jadi keramaian ${pct(r.demand)}% · ${r.osm} pesaing ${sourceLabel(r.source)}, jadi penawaran ${pct(r.supply)}% · ${r.units} unit ${def.propertyCategory} dipasarkan.`,
 				evidence: evidence(r)
 			})),
 			highlight: picked.map((r) => r.id),
@@ -428,15 +535,17 @@ export function runQuery(
 	const metric = METRIC_MAP[key] ?? METRIC_MAP[DEFAULT_METRIC];
 	const order = query.urut === 'asc' ? 'asc' : 'desc';
 
-	let pool = rows.filter((r) => !r.nodata);
+	let pool = rows.filter((r) => r.covered);
 	// The old boolean filter still works, and the new ones run alongside it: a query
-	// object built by an older client keeps behaving exactly as it did.
-	if (query.filter?.ruang_sewa_tersedia) pool = pool.filter((r) => r.listings > 0);
+	// object built by an older client keeps behaving exactly as it did. What it reads is
+	// now premises genuinely on the market, since the per-category rental column it used
+	// to read was generated and the catalogue holds no rentals to replace it with.
+	if (query.filter?.ruang_sewa_tersedia) pool = pool.filter((r) => r.units > 0);
 	const beforeFilters = pool.length;
 	pool = applyFilters(pool, (query.filters ?? []) as MetricFilter[]);
 
 	const ranked = rankBy(pool, key, order).slice(0, query.limit);
-	const skipped = rows.filter((r) => r.nodata).length;
+	const skipped = rows.filter((r) => !r.covered).length;
 	// Cells dropped for having no reading on the measure asked about. Counted and said
 	// out loud, because a list of six where the reader expected the whole city is a
 	// finding about the data, not a short answer.
@@ -446,10 +555,10 @@ export function runQuery(
 	return {
 		query,
 		headline:
-			`${ranked.length} catchment teratas untuk ${def.name} menurut ${key} (${order === 'asc' ? 'terkecil' : 'terbesar'} dulu).` +
+			`${ranked.length} catchment teratas ${def.name ? `untuk ${def.name} ` : ''}menurut ${key} (${order === 'asc' ? 'terkecil' : 'terbesar'} dulu).` +
 			(filtered ? ` ${filtered} catchment disaring keluar oleh filter.` : '') +
 			(unmeasured ? ` ${unmeasured} catchment belum terukur untuk ${key} dan tidak diperingkat.` : '') +
-			(skipped ? ` ${skipped} catchment dikecualikan karena belum terdata.` : ''),
+			(skipped ? ` ${skipped} catchment dikecualikan karena kotanya belum disurvei ${sourceLabel(w.source)}.` : ''),
 		items: ranked.map<Recommendation>(({ row: r, value }) => ({
 			id: r.id,
 			name: r.name,
@@ -477,7 +586,6 @@ export function runQuery(
 function metricText(key: MetricKey, v: number): string {
 	const kind = METRIC_MAP[key]?.kind;
 	if (kind === 'pct') return `${pct(v)}%`;
-	if (kind === 'hour') return formatHour(v);
 	if (kind === 'rupiah') return `Rp ${Math.round(v).toLocaleString('id-ID')}/m²`;
 	return String(Math.round(v));
 }
@@ -499,10 +607,10 @@ function whyLine(
 	w: Weights
 ): string {
 	if (key === 'skor') {
-		return `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.peakHour)}, non-tunai ${pct(r.cashless)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.busy)}% ramai, ${supplyPhrase(r, ID)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propertyCategory}.`;
+		return `${r.density} usaha lain dalam radius ${w.radius} m, jadi keramaian ${pct(r.demand)}%. ${r.osm} pesaing sejenis, ${supplyPhrase(r, ID)}, jadi penawaran ${pct(r.supply)}%. ${r.units} unit ${def.propertyCategory} dipasarkan di sekitarnya.`;
 	}
 	const lead = `${key} = ${metricText(key, value)}`;
-	const context = `Skor peluang ${pct(r.score)} · permintaan ${pct(r.demand)} · ${r.osm} pesaing dalam radius ${w.radius} m · ${pct(r.busy)}% ramai`;
+	const context = `Skor peluang ${pct(r.score)} · ${r.density} usaha lain di sekitarnya · ${r.osm} pesaing dalam radius ${w.radius} m`;
 	if (key === 'harga_tempat') {
 		return `${lead}. Harga JUAL yang diminta penjual, bukan sewa — katalog MAPID tidak memuat listing sewa untuk Jakarta. ${r.units} unit komersial dipasarkan di sekitarnya. ${context}.`;
 	}

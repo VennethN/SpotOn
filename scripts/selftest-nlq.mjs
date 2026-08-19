@@ -67,43 +67,186 @@ const CASES = [
 	['di mana sewanya paling murah untuk kedai kopi', 'harga_tempat', 'asc', 'kopi'],
 	['mana yang paling mahal harganya', 'harga_tempat', 'desc', null],
 	['mana yang paling banyak tempat kosong', 'unit_dipasarkan', 'desc', null],
-	['mana yang paling ramai pengunjungnya', 'kunjungan', 'desc', null],
-	['jam berapa paling ramai', 'jam_puncak', null, null],
+	/* Three sentences that used to reach three different measures now all reach the
+	   same one, and that is the point rather than a loss: `kunjungan`, `jam_puncak` and
+	   `nontunai` read columns that were generated, and those columns are gone. The trade
+	   counted around a cell is the only thing about the crowd anybody has measured, so
+	   every question about the crowd lands there. */
+	['mana yang paling ramai pengunjungnya', 'keramaian', 'desc', null],
+	['jam berapa paling ramai', 'keramaian', null, null],
 	['mana yang pesaingnya paling sedikit untuk apotek', 'pesaing', 'asc', 'apotek'],
-	['berapa porsi non-tunai di sekitar sini', 'nontunai', 'desc', null],
 	['mana yang simpul transitnya paling banyak', 'simpul_transit', 'desc', null]
 ];
 
 for (const [q, ukuran, urut, kategori] of CASES) {
-	const parsed = nlq.parseQuestion(q, W, 'kopi');
+	const parsed = nlq.parseQuestion(q, W, ['kopi']);
 	const okMetric = parsed.ukuran === ukuran;
 	const okOrder = urut === null || parsed.urut === urut;
-	const okCat = kategori === null || parsed.kategori === kategori;
+	const okCat = kategori === null || parsed.kategori.join(',') === kategori;
 	check(
 		`"${q}" → ${ukuran}${urut ? ` ${urut}` : ''}`,
 		okMetric && okOrder && okCat,
-		`got ukuran=${parsed.ukuran} urut=${parsed.urut} kategori=${parsed.kategori}`
+		`got ukuran=${parsed.ukuran} urut=${parsed.urut} kategori=${parsed.kategori.join(',')}`
 	);
 }
 
-// An hour is not a quantity, so a superlative in the sentence must not flip it. "Jam
-// berapa paling ramai" contains "paling ramai", which reads as "most".
+// The hour check that stood here is gone with the hourly profile it guarded. What
+// replaces it is the pair that still matters: "ramai" and "sepi" are the same measure
+// read from opposite ends, and a parser that returned the same direction for both would
+// answer "which is quietest" with the busiest cell on the grid.
 check(
-	'a superlative cannot reverse an hour ranking',
-	nlq.parseQuestion('jam berapa paling ramai', W, 'kopi').urut ===
-		nlq.parseQuestion('jam puncak', W, 'kopi').urut
+	'busiest and quietest are the same measure, read opposite ways',
+	nlq.parseQuestion('mana yang paling ramai', W, ['kopi']).urut === 'desc' &&
+		nlq.parseQuestion('mana yang paling sepi', W, ['kopi']).urut === 'asc'
 );
+
+/* ── a question naming several business types comes back with all of them ── */
+
+/* The failure this replaced was silent and total: "kedai kopi dan toko roti" parsed to
+   coffee alone, the map coloured itself for coffee, and the reply named both. Nothing
+   on screen said half the question had been dropped. */
+for (const [q, want] of [
+	['kedai kopi dan toko roti dekat MRT', 'kopi,roti'],
+	['mau buka apotek atau laundry, mana yang lebih masuk', 'laundry,apotek'],
+	['minimarket, kelontong, sama apotek', 'minimarket,kelontong,apotek'],
+	// Display order, not the order the words appeared in. Two questions asking for the
+	// same pair must not produce two different sets of chips.
+	['toko roti dan kedai kopi', 'kopi,roti'],
+	// One type is still one type: nothing about a single-category question changes.
+	['di mana sebaiknya buka kedai kopi', 'kopi'],
+	// The catch-all only fires when nothing specific did. Gathered alongside the rest it
+	// would attach a rice warung to every question with the word "makan" in it.
+	['restoran jepang yang enak buat makan', 'restoasing'],
+	['mau buka tempat makan', 'warteg'],
+	// Names no type at all → whatever the reader had in force, which is what the map is
+	// already showing. Guessing here would swing the map off a question that never
+	// mentioned a business.
+	['mana yang paling ramai', 'minimarket']
+]) {
+	const got = nlq.parseQuestion(q, W, ['minimarket']).kategori;
+	check(`"${q}" → [${want}]`, got.join(',') === want, `got [${got.join(',')}]`);
+}
+
+// And the set is genuinely scored as a set, not just carried in the query object. Two
+// types share a street's customers, so their outlets are counted together as rivals —
+// the pair's count can never be below either one on its own.
+{
+	const kopi = nlq.answer('mana yang pesaingnya paling banyak untuk kedai kopi', cells, W, ['kopi']);
+	const both = nlq.answer(
+		'mana yang pesaingnya paling banyak untuk kedai kopi dan toko roti',
+		cells,
+		W,
+		['kopi']
+	);
+	check(
+		'two business types are counted as one pool of rivals',
+		both.query.kategori.join(',') === 'kopi,roti' &&
+			both.items[0].measure.value >= kopi.items[0].measure.value,
+		`kopi ${kopi.items[0]?.measure?.value} vs kopi+roti ${both.items[0]?.measure?.value}`
+	);
+}
+
+/* ── no business type named: answer what can be answered, ask for the rest ── */
+
+/* The map now opens with no business type at all, because opening on coffee handed a
+   reader a map about a business they never mentioned. That makes "nothing named" a
+   state real questions arrive in, and the split below is the whole of how it behaves:
+   a figure about the PLACE is answered, a figure about a place AND a trade is not. */
+for (const [q, answerable] of [
+	['mana yang paling ramai', true],
+	['di mana harganya paling murah', true],
+	['mana yang paling banyak tempat kosong', true],
+	['mana yang simpul transitnya paling banyak', true],
+	// Rivals of what, saturated with what, best opportunity for what. One word short,
+	// and the honest move is to ask for it rather than to pick a business type.
+	['di mana sebaiknya buka', false],
+	['mana yang pesaingnya paling sedikit', false],
+	['mana yang sudah jenuh', false]
+]) {
+	const ans = nlq.answer(q, cells, W, []);
+	const asked = ans.needsCategory === true;
+	check(
+		`"${q}" with no business type → ${answerable ? 'answered' : 'asks which business'}`,
+		answerable ? !asked && ans.items.length > 0 : asked && ans.items.length === 0,
+		`needsCategory=${asked} items=${ans.items.length}`
+	);
+}
+
+// An empty set must never be scored. No type named means no rivals counted, no rivals
+// is no competition, and no competition is the best score this engine can award — so
+// the failure mode is not a blank map, it is 562 cells reporting excellence.
+{
+	const busy = nlq.answer('mana yang paling ramai', cells, W, []);
+	check(
+		'a question with no business type reports no opportunity score at all',
+		busy.items.length > 0 && busy.items.every((i) => i.value === null),
+		`${busy.items.filter((i) => i.value !== null).length} item(s) came back scored`
+	);
+}
+
+// And the busyness it does report is the full count, not a count with something taken
+// out of it: there is no category to subtract.
+{
+	const none = nlq.answer('mana yang paling ramai', cells, W, []);
+	const kopi = nlq.answer('mana yang paling ramai untuk kedai kopi', cells, W, ['kopi']);
+	check(
+		'with no business type the crowd is counted whole, nothing subtracted',
+		none.items[0].measure.value >= kopi.items[0].measure.value,
+		`none ${none.items[0]?.measure?.value} vs kopi ${kopi.items[0]?.measure?.value}`
+	);
+}
+
+/* ── two surveys, read together, never added ─────────────────────────────── */
+
+/* The whole risk of a "both" reading is that somebody makes it a sum. OpenStreetMap
+   and the MAPID catalogue survey the SAME city, so their counts are largely the same
+   shops seen twice and there is no shared id to match them on. Added, a street with
+   eight coffee shops is reported as having fourteen and the competition side of every
+   score is inflated by an amount nobody can account for. */
+{
+	const W_BOTH = { ...W, source: 'both' };
+	const W_OSM = { ...W, source: 'osm' };
+	const one = nlq.answer('mana yang pesaingnya paling banyak untuk kedai kopi', cells, W, ['kopi']);
+	const osm = nlq.answer('mana yang pesaingnya paling banyak untuk kedai kopi', cells, W_OSM, ['kopi']);
+	const both = nlq.answer('mana yang pesaingnya paling banyak untuk kedai kopi', cells, W_BOTH, ['kopi']);
+	const v = (a) => a.items[0]?.measure?.value ?? 0;
+	check(
+		'reading both surveys never exceeds their sum, and never falls below either',
+		v(both) <= v(one) + v(osm) && v(both) >= Math.max(v(one), v(osm)) && v(both) < v(one) + v(osm),
+		`mapid ${v(one)} · osm ${v(osm)} · both ${v(both)}`
+	);
+
+	// And the point of reading both: the cells the catalogue has never reached stop
+	// being blank, because OpenStreetMap can still speak for them.
+	const gapMapid = nlq.answer('mana yang belum ada datanya', cells, W, ['kopi']).items.length;
+	const gapBoth = nlq.answer('mana yang belum ada datanya', cells, W_BOTH, ['kopi']).items.length;
+	check(
+		`reading both closes the survey gap (${gapMapid} unsurveyed → ${gapBoth})`,
+		gapBoth < gapMapid,
+		`mapid ${gapMapid} vs both ${gapBoth}`
+	);
+
+	// A business type OpenStreetMap cannot count at all is not helped by adding it, and
+	// must not be reported as if it were: warteg has no OSM tag, so both reads as MAPID.
+	const wartegMapid = nlq.answer('mana yang belum ada datanya untuk warteg', cells, W, ['warteg']).items.length;
+	const wartegBoth = nlq.answer('mana yang belum ada datanya untuk warteg', cells, W_BOTH, ['warteg']).items.length;
+	check(
+		'a type OSM cannot count gains nothing from reading both, and claims nothing',
+		wartegMapid === wartegBoth,
+		`mapid ${wartegMapid} vs both ${wartegBoth}`
+	);
+}
 
 /* ── the intents still route ─────────────────────────────────────────────── */
 
-check('coverage still reachable', nlq.parseQuestion('mana yang belum ada datanya', W, 'kopi').intent === 'COVERAGE');
-check('saturation still reachable', nlq.parseQuestion('mana yang sudah jenuh', W, 'kopi').intent === 'FLAG_SATURATED');
-check('compare still reachable', nlq.parseQuestion('bandingkan Blok M dan Dukuh Atas', W, 'kopi').intent === 'COMPARE');
+check('coverage still reachable', nlq.parseQuestion('mana yang belum ada datanya', W, ['kopi']).intent === 'COVERAGE');
+check('saturation still reachable', nlq.parseQuestion('mana yang sudah jenuh', W, ['kopi']).intent === 'FLAG_SATURATED');
+check('compare still reachable', nlq.parseQuestion('bandingkan Blok M dan Dukuh Atas', W, ['kopi']).intent === 'COMPARE');
 
 /* ── the answers actually come back measured ─────────────────────────────── */
 
 for (const [q, ukuran] of CASES) {
-	const ans = nlq.answer(q, cells, W, 'kopi');
+	const ans = nlq.answer(q, cells, W, ['kopi']);
 	const top = ans.items[0];
 	if (!top) {
 		check(`"${q}" returns results`, false, 'no items');
@@ -119,7 +262,7 @@ for (const [q, ukuran] of CASES) {
 
 /* ── a ranking never includes a cell that was never measured ─────────────── */
 
-const priced = nlq.answer('di mana harganya paling murah', cells, W, 'kopi');
+const priced = nlq.answer('di mana harganya paling murah', cells, W, ['kopi']);
 check(
 	'a price ranking lists only catchments that carry a price',
 	priced.items.every((i) => i.measure && Number.isFinite(i.measure.value)),
@@ -128,8 +271,8 @@ check(
 
 // The one that would be invisible: an unsurveyed cell sorted to the top of "fewest
 // competitors" looks exactly like a genuine finding.
-const fewest = nlq.answer('mana yang pesaingnya paling sedikit', cells, W, 'kopi');
-const scored = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, 'kopi');
+const fewest = nlq.answer('mana yang pesaingnya paling sedikit', cells, W, ['kopi']);
+const scored = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']);
 const coveredIds = new Set(scored.items.map((i) => i.id));
 check(
 	`"fewest competitors" returns ${fewest.items.length} catchments, none of them unsurveyed`,
@@ -140,19 +283,19 @@ check(
 
 /* ── filters narrow without inventing a threshold ────────────────────────── */
 
-const cheap = nlq.parseQuestion('kedai kopi modal kecil dekat MRT', W, 'kopi');
+const cheap = nlq.parseQuestion('kedai kopi modal kecil dekat MRT', W, ['kopi']);
 check(
 	'"modal kecil dekat MRT" produces band filters, never a number',
 	(cheap.filters ?? []).length >= 2 &&
 		(cheap.filters ?? []).every((f) => ['rendah', 'tinggi', 'ada'].includes(f.arah)),
 	JSON.stringify(cheap.filters)
 );
-const filtered = nlq.answer('kedai kopi modal kecil dekat MRT', cells, W, 'kopi');
+const filtered = nlq.answer('kedai kopi modal kecil dekat MRT', cells, W, ['kopi']);
 check('a filtered question still returns something', filtered.items.length > 0);
 
 /* ── every registered measure is reachable and readable ──────────────────── */
 
-const rows = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, 'kopi');
+const rows = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']);
 check('every measure has a definition', metrics.METRIC_KEYS.every((k) => metrics.METRIC_MAP[k]));
 check(
 	'every measure declares which end is best',
@@ -192,14 +335,14 @@ for (const [q, pivot] of [
 	['seberapa ramai di sini', undefined],
 	['mana yang paling banyak tempat kosong', undefined]
 ]) {
-	const got = nlq.parseQuestion(q, W, 'kopi').pivot;
+	const got = nlq.parseQuestion(q, W, ['kopi']).pivot;
 	check(`"${q}" → pivot ${pivot ?? '(left alone)'}`, got === pivot, `got ${got ?? '(left alone)'}`);
 }
 
 // A question about which AREA has the most units on the market and a question about
 // which UNIT is cheapest are the pair this parser is most likely to confuse, and they
 // mean opposite things.
-const areaUnits = nlq.parseQuestion('mana yang paling banyak tempat kosong', W, 'kopi');
+const areaUnits = nlq.parseQuestion('mana yang paling banyak tempat kosong', W, ['kopi']);
 check(
 	'"paling banyak tempat kosong" ranks areas by a property count, not doorways',
 	areaUnits.pivot === undefined && areaUnits.ukuran === 'unit_dipasarkan',
@@ -212,7 +355,7 @@ for (const [q, ukuran, urut] of [
 	['tempat mana yang bangunannya paling luas', 'luas_bangunan', 'desc'],
 	['tempat mana yang paling dekat pusat petak', 'jarak_pusat', 'asc']
 ]) {
-	const p = nlq.parseQuestion(q, W, 'kopi');
+	const p = nlq.parseQuestion(q, W, ['kopi']);
 	check(
 		`"${q}" → unit sort ${ukuran} ${urut}`,
 		p.ukuran_unit === ukuran && p.urut_unit === urut,
@@ -225,7 +368,7 @@ for (const [q, ukuran, urut] of [
 // unit list the next time the reader switched pivot by hand.
 check(
 	'a catchment question carries no unit sort',
-	nlq.parseQuestion('di mana sewanya paling murah', W, 'kopi').ukuran_unit === undefined
+	nlq.parseQuestion('di mana sewanya paling murah', W, ['kopi']).ukuran_unit === undefined
 );
 
 /* The radius. A question that names one has to be ANSWERED at it — computing at 800 m
@@ -240,13 +383,13 @@ for (const [q, radius] of [
 	['kedai kopi 10 menit jalan kaki', W.radius],
 	['di mana sebaiknya buka kedai kopi', W.radius]
 ]) {
-	const got = nlq.parseQuestion(q, W, 'kopi').radius_m;
+	const got = nlq.parseQuestion(q, W, ['kopi']).radius_m;
 	check(`"${q}" → radius ${radius} m`, got === radius, `got ${got}`);
 }
 
 // And the answer is genuinely computed at it, rather than the field being decoration.
-const near = nlq.answer('mana yang pesaingnya paling banyak dalam 400 m', cells, W, 'kopi');
-const far = nlq.answer('mana yang pesaingnya paling banyak dalam 800 m', cells, W, 'kopi');
+const near = nlq.answer('mana yang pesaingnya paling banyak dalam 400 m', cells, W, ['kopi']);
+const far = nlq.answer('mana yang pesaingnya paling banyak dalam 800 m', cells, W, ['kopi']);
 check(
 	'a radius named in the question changes the figures, not just the query object',
 	near.query.radius_m === 400 &&

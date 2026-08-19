@@ -51,20 +51,25 @@ export function catchmentFC(ctx: MapCtx): FeatureCollection {
 	// by its score with a dot on top shaded by the same score — and the louder of the
 	// two was the one the reader was no longer looking at. The grid stays drawn,
 	// faintly, because it is what tells you which units share a catchment.
-	const rows = ctx.heat && ctx.app.pivot === 'cell' ? ctx.app.rowById : null;
-	const colNodata = ctx.cssVar('--nodata');
+	const on = ctx.heat && ctx.app.pivot === 'cell';
+	const rows = on ? ctx.app.rowById : null;
+	/* WHAT THE FILL MEANS, decided in one place upstream rather than read off `score`
+	   here. It was read off `score`, which was safe while a score was the only thing
+	   this layer could be drawing and became a quiet falsehood the moment it was not:
+	   with no business type named every score is null, and this would have dashed all
+	   562 cells as unsurveyed. `heatById` hands over the number that is genuinely on
+	   screen, whichever basis produced it. */
+	const heat = on ? ctx.app.heatById : null;
 	const colIdle = ctx.cssVar('--cell-idle');
 	const ramp = Array.from({ length: 7 }, (_, i) => ctx.cssVar(`--ramp-${i}`));
 	const selectedId = ctx.app.selectedId;
-	const showNodata = ctx.app.layers.nodata;
 
 	return {
 		type: 'FeatureCollection',
 		features: ctx.app.base
-			.filter((h) => !h.nodata || showNodata)
 			.map((h, i) => {
 				const row = rows?.get(h.id) ?? null;
-				const nodata = Boolean(h.nodata);
+				const v = heat?.get(h.id) ?? null;
 				return {
 					type: 'Feature' as const,
 					// MapLibre's feature-state needs a numeric id; the row index is used because an
@@ -79,20 +84,20 @@ export function catchmentFC(ctx: MapCtx): FeatureCollection {
 					properties: {
 						id: h.id,
 						name: cellName(h),
-						nodata,
-						// A real cell left unscored because the active source does not
-						// cover its city. Kept distinct from `nodata` so it does not look
-						// like an empty cell — and given no colour at all, because any
-						// colour would read as a score.
+						// A cell left unscored because the active source has not surveyed
+						// its city. Given no colour at all, because any colour would read
+						// as a score. This is the only kind of blank the map has left: the
+						// flag that used to grey out one cell in six was rolled by a
+						// random number generator at build time.
 						//
 						// Only ever claimed while the heatmap is on: with no category
 						// loaded nothing has been checked yet, and dashing every cell
 						// would report a coverage gap that has not been looked for.
-						uncovered: Boolean(row) && !nodata && row!.score === null,
-						color: nodata ? colNodata : row ? ramp[rampIndex(row.score ?? 0)] : colIdle,
-						// Carries a score right now, so the fill means something. An idle cell
+						uncovered: Boolean(row) && v === null,
+						color: v === null ? colIdle : ramp[rampIndex(v)],
+						// Carries a reading right now, so the fill means something. An idle cell
 						// is drawn as structure instead: faint fill, crisper edge.
-						scored: Boolean(row) && !nodata && row!.score !== null,
+						scored: v !== null,
 						saturated: row?.typology === 'saturated',
 						selected: h.id === selectedId
 					}

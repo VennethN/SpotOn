@@ -1,4 +1,4 @@
-import { isCategory } from '$lib/domain/categories';
+import { normalizeCategories } from '$lib/domain/categories';
 import { DEFAULT_WEIGHTS, normalizeWeights } from '$lib/domain/weights';
 import type { CategoryKey, Weights } from '$lib/types';
 
@@ -38,7 +38,16 @@ export function readWeights(url: URL): Weights {
 	});
 }
 
-export function readCategory(url: URL, fallback: CategoryKey = 'kopi'): CategoryKey {
+/**
+ * `?kategori=kopi,roti` → the business types to score together.
+ *
+ * Comma-separated rather than a repeated parameter, so a single type is still written
+ * exactly the way it always was and nothing that already calls this endpoint has to
+ * change. Unknown names are dropped rather than failing the request: the honest answer
+ * to `?kategori=kopi,gudeg` is the coffee half, not a 400 for a word this product does
+ * not know.
+ */
+export function readCategories(url: URL, fallback: CategoryKey = 'kopi'): CategoryKey[] {
 	const raw = url.searchParams.get('kategori') ?? url.searchParams.get('cat');
-	return isCategory(raw) ? raw : fallback;
+	return normalizeCategories(raw, [fallback]);
 }

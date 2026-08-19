@@ -1,6 +1,6 @@
 import { getContext, setContext } from 'svelte';
 import { base } from '$app/paths';
-import { CATEGORY_KEYS, CATEGORY_MAP } from '$lib/domain/categories';
+import { CATEGORY_KEYS, orderCategories } from '$lib/domain/categories';
 import {
 	capturedCompetitors,
 	parseCompetitors,
@@ -19,7 +19,7 @@ import {
 } from '$lib/domain/units';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
-import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS, snapRadius } from '$lib/domain/weights';
+import { DEFAULT_WEIGHTS, snapRadius } from '$lib/domain/weights';
 import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
 import type {
@@ -38,7 +38,7 @@ import type {
 /** What the map is a list OF: catchments, or the units standing in them. */
 export type Pivot = 'cell' | 'unit';
 
-export type LayerKey = 'score' | 'routes' | 'poi' | 'nodata' | 'label' | 'stops' | 'property';
+export type LayerKey = 'score' | 'routes' | 'poi' | 'label' | 'stops' | 'property';
 export type { Theme };
 
 const KEY = Symbol('spoton');
@@ -75,7 +75,37 @@ export class AppState {
 	meta = $state<GridMeta | null>(null);
 	/** Per-category columns, by category, as they arrive. */
 	slices = $state<Partial<Record<CategoryKey, CategorySlice>>>({});
-	category = $state<CategoryKey>(DEFAULT_CATEGORY);
+	/**
+	 * The business types the map is scoring, as one set.
+	 *
+	 * A LIST rather than a single key, and that is the change the whole product turns
+	 * on. A question can name more than one — "kedai kopi dan toko roti" — and the map
+	 * used to answer it by silently keeping the first: the reply spoke about bakeries
+	 * while every colour on screen was about cafes. Now the outlets of every type in
+	 * this set are counted together as rivals and all of them come out of the trade
+	 * around each cell, so the picture is the answer to the question that was asked.
+	 *
+	 * EMPTY UNTIL SOMEBODY ASKS. It opened on coffee, and there was no defending that:
+	 * a reader who had not said a word about coffee was handed a map coloured for it,
+	 * with the legend naming a business type they never chose. Picking a different one
+	 * to open on would have been just as arbitrary, and opening on all thirteen is not
+	 * available either — the trade around a cell IS the thirteen counts added up, so a
+	 * set of all of them subtracts the whole of itself and leaves every cell reading
+	 * zero demand.
+	 *
+	 * So the opening map scores nothing and paints the one figure that needs no
+	 * business type: how much trade stands in walking range. See `basis`.
+	 *
+	 * `setCategories` still refuses to make this empty AGAIN once a type has been
+	 * named, which is not a contradiction of the above but the same rule read forwards:
+	 * the reader asked about something, and silently dropping back to a map about
+	 * nothing would throw their question away.
+	 *
+	 * It is set by ASKING. There is no other way in: the chips at the top of the map
+	 * report what the last answer covered and nothing on them is pressable, so this
+	 * field only ever moves because somebody asked a question.
+	 */
+	categories = $state<CategoryKey[]>([]);
 	weights = $state<Weights>({ ...DEFAULT_WEIGHTS });
 	layers = $state<Record<LayerKey, boolean>>({
 		/**
@@ -105,7 +135,6 @@ export class AppState {
 		 * does it is answering the question the reader just asked by picking it.
 		 */
 		poi: true,
-		nodata: true,
 		label: true,
 		/**
 		 * The transit nodes the SELECTED cell captures — never the whole city's 1,105.
@@ -223,27 +252,42 @@ export class AppState {
 	#poiJobs = new Map<CategoryKey, Promise<void>>();
 	#listingsJob: Promise<void> | null = null;
 
-	constructor(base: HexBase[], initial?: CategorySlice, meta?: GridMeta) {
+	constructor(base: HexBase[], meta?: GridMeta) {
 		this.base = base;
-		// The opening category arrives with the page, so the first paint is already
-		// scored. Anything else is fetched on demand from here on.
-		if (initial) this.slices = { [initial.cat]: initial };
 		this.meta = meta ?? null;
-	}
-
-	get definition() {
-		return CATEGORY_MAP[this.category];
 	}
 
 	/** The categories whose columns are loaded and therefore genuinely scoreable. */
 	loaded = $derived(Object.keys(this.slices) as CategoryKey[]);
 
-	/** Are the active category's columns here yet? */
-	ready = $derived(Boolean(this.slices[this.category]));
+	/**
+	 * WHICH FIGURE the heatmap is painting.
+	 *
+	 * An opportunity score needs a business type behind it, so before one is named
+	 * there is none to paint. What can be painted is the trade standing around each
+	 * cell: a count of every business in walking range whatever it sells, which is as
+	 * real as any other column and belongs to no category at all.
+	 *
+	 * Two bases rather than an empty map, because "just show me the map" has to show
+	 * something, and rather than one basis quietly standing for both, because the two
+	 * answer different questions and the legend has to say which one is on screen.
+	 */
+	basis = $derived<'skor' | 'keramaian'>(this.categories.length ? 'skor' : 'keramaian');
 
-	/** Is the ACTIVE category still on its way, and did it fail? */
-	sliceLoading = $derived(this.pending.includes(this.category));
-	sliceError = $derived(this.sliceErrors[this.category] ?? null);
+	/**
+	 * Are the active set's columns here yet — ALL of them?
+	 *
+	 * All, not any. Scoring a set of two with one half loaded would count the cafes and
+	 * silently leave the bakeries out, and the map would look perfectly normal while
+	 * being the answer to half the question.
+	 */
+	ready = $derived(this.categories.every((k) => Boolean(this.slices[k])));
+
+	/** Is any of the active set still on its way, and did any of it fail? */
+	sliceLoading = $derived(this.categories.some((k) => this.pending.includes(k)));
+	sliceError = $derived(
+		this.categories.map((k) => this.sliceErrors[k]).find((e) => e) ?? null
+	);
 
 	/**
 	 * The base cells with every loaded category's columns stitched back on.
@@ -267,9 +311,6 @@ export class AppState {
 			const osm: Record<string, number> = {};
 			const mapid: Record<string, number | null> = {};
 			const covered: Record<string, boolean> = {};
-			const busy: Record<string, number> = {};
-			const listing: Record<string, number> = {};
-			const d: Record<string, number> = {};
 
 			for (const k of keys) {
 				const s = slices[k]!;
@@ -280,11 +321,8 @@ export class AppState {
 				if (s.osm[i] !== null) osm[k] = s.osm[i] as number;
 				mapid[k] = s.mapid[i];
 				covered[k] = s.covered[i];
-				busy[k] = s.busy[i];
-				listing[k] = s.listing[i];
-				d[k] = s.d[i];
 			}
-			return { ...h, osm, mapid, covered, busy, listing, d } as Hex;
+			return { ...h, osm, mapid, covered } as unknown as Hex;
 		});
 	});
 
@@ -312,11 +350,29 @@ export class AppState {
 	 * a claim about the data rather than about the loading, and not true.
 	 */
 	rows: ScoredHex[] = $derived.by(() =>
-		this.ready ? scoreAll(this.catchments, this.category, this.weights) : []
+		this.ready ? scoreAll(this.catchments, this.categories, this.weights) : []
 	);
 
 	/** Row by id — the map's hover handler needs this on every pointer move. */
 	rowById = $derived(new Map(this.rows.map((r) => [r.id, r])));
+
+	/**
+	 * The single 0..1 the heatmap paints, per cell. Null means nothing may be painted.
+	 *
+	 * Here rather than in the map layer so there is one place that decides what a
+	 * colour on this map MEANS. The layer used to read `score` directly, which was
+	 * fine while a score was the only thing it could be showing and became a quiet
+	 * lie the moment it was not: with no business type every score is null, and the
+	 * layer would have drawn all 562 cells as unsurveyed.
+	 */
+	heatById = $derived(
+		new Map(
+			this.rows.map((r) => [
+				r.id,
+				this.basis === 'skor' ? r.score : r.covered ? r.demand : null
+			])
+		)
+	);
 
 	get selected(): ScoredHex | null {
 		return this.rowById.get(this.selectedId ?? '') ?? null;
@@ -332,22 +388,36 @@ export class AppState {
 		return scoreAcrossCategories(this.catchments, this.selectedId, this.weights, this.loaded);
 	}
 
+	/* Coverage is a fact about the survey now, not about a flag rolled at build time. A
+	   cell counts as covered when the ACTIVE source has read its city for the active
+	   category, which is the same condition the engine refuses to score without. */
 	coverage = $derived.by(() => {
 		const rows = this.rows;
-		const withData = this.base.filter((c) => !c.nodata);
+		// Only the pure-OSM reading covers the whole grid outright. The catalogue has not
+		// read 100 cells, and "both" inherits OSM's reach for them rather than the gap.
+		const everywhere = this.weights.source !== 'mapid';
 		return {
-			// Cell counts come from the base, so the coverage pill and Tapak's greeting
-			// are right from the first frame rather than reading zero until a category
-			// has been picked.
 			total: this.base.length,
-			withData: withData.length,
-			withoutData: this.base.length - withData.length,
-			missionPoints: withData.reduce((a, c) => a + c.nStruk + c.nMenu + c.nProp, 0),
+			/* Cells the source in use has actually read, counted off the density column
+			   because that is null exactly where a city was never surveyed. Read from the
+			   base, so the greeting is right on the first frame rather than waiting for a
+			   category. OSM covers the whole grid: it is one worldwide dataset, and what it
+			   cannot do is per CATEGORY, which `covered` on the scored row says instead. */
+			surveyed: everywhere
+				? this.base.length
+				: this.base.filter((c) => c.dens?.mapid !== null).length,
 			/** Competitor total — needs the active category, so it is 0 until one is loaded. */
 			poi: rows.reduce((a, r) => a + r.osm, 0),
-			/** Real cells left unscored because the active source does not cover them. */
-			notCovered: rows.filter((r) => !r.nodata && r.score === null).length,
-			scored: rows.filter((r) => r.score !== null).length
+			/**
+			 * Cells the active source does not cover, so nothing can be read off them.
+			 *
+			 * Counted off `covered` and not off a null score. The two agreed while a score
+			 * was the only thing the map could show; they stopped agreeing the moment the
+			 * opening map had no business type, where every score is null and this would
+			 * have reported the whole grid as unsurveyed.
+			 */
+			notCovered: rows.filter((r) => !r.covered).length,
+			scored: rows.filter((r) => r.covered).length
 		};
 	});
 
@@ -401,11 +471,22 @@ export class AppState {
 		return job;
 	}
 
+	/**
+	 * Fetch the columns for every type in the active set.
+	 *
+	 * In parallel, because none of them can be scored until all of them are here — the
+	 * map stays on its previous colours either way, so waiting on the slowest is the
+	 * cost of the answer rather than an extra one.
+	 */
+	async loadCategories(cats: readonly CategoryKey[] = this.categories): Promise<void> {
+		await Promise.all(cats.map((k) => this.loadCategory(k)));
+	}
+
 	/** Load every category — what the per-format comparison in the detail panel needs. */
 	async loadAllCategories(): Promise<void> {
-		// The active category goes first and alone. Everything on screen is waiting on
-		// that one; letting twelve others race it only makes it land later.
-		await this.loadCategory(this.category);
+		// The active set goes first and alone. Everything on screen is waiting on those;
+		// letting the other eleven race them only makes them land later.
+		await this.loadCategories();
 		await Promise.all(CATEGORY_KEYS.map((key) => this.loadCategory(key)));
 	}
 
@@ -528,9 +609,15 @@ export class AppState {
 	 */
 	selectedPois = $derived.by(() => {
 		const cell = this.selectedCell;
-		if (!cell || cell.nodata || this.weights.source !== 'mapid') return [];
-		const points = this.pois[this.category];
-		if (!points) return [];
+		// Positions exist only in the MAPID catalogue, so pure OSM draws nothing. Reading
+		// both draws them: the dots are then a subset of what was counted rather than a
+		// different source's shops, and `RivalsPanel` says as much beside them.
+		if (!cell || this.weights.source === 'osm') return [];
+		/* Every type in the set, in one pool of dots — the same pool the engine counted
+		   as this cell's rivals. Drawing only the first type's would put a count of
+		   fourteen in the panel above a map showing nine. */
+		const points = this.categories.flatMap((k) => this.pois[k] ?? []);
+		if (!points.length) return [];
 		return capturedCompetitors(cell, points, this.weights.radius);
 	});
 
@@ -538,9 +625,11 @@ export class AppState {
 	    active source has no coordinates at all (OSM), or this category's file failed
 	    to load. Both leave the count intact and only the positions missing. */
 	poisUnavailable = $derived.by(() => {
-		if (!this.selectedCell || this.selectedCell.nodata) return null;
-		if (this.weights.source !== 'mapid') return 'source' as const;
-		if (this.poisFailed.includes(this.category)) return 'failed' as const;
+		if (!this.selectedCell) return null;
+		if (this.weights.source === 'osm') return 'source' as const;
+		// One type's file failing is enough. The dots left on screen would be a subset of
+		// the rivals the count beside them was taken over, and nothing would say so.
+		if (this.categories.some((k) => this.poisFailed.includes(k))) return 'failed' as const;
 		return null;
 	});
 
@@ -606,7 +695,7 @@ export class AppState {
 		if (p === 'unit') {
 			this.selectedId = null;
 			void this.loadListings();
-			void this.loadCategory(this.category);
+			void this.loadCategories();
 		} else {
 			this.selectedUnitId = null;
 		}
@@ -630,9 +719,9 @@ export class AppState {
 		const unit = id ? this.units.find((u) => u.id === id) : null;
 		this.selectedId = unit?.cellId ?? null;
 		if (id) {
-			void this.loadCategory(this.category);
+			void this.loadCategories();
 			void this.loadStops();
-			void this.loadPois(this.category);
+			void this.loadPoiSet();
 		}
 	}
 
@@ -656,13 +745,13 @@ export class AppState {
 	 */
 	poisLoading = $derived.by(() => {
 		if (this.poisUnavailable || !this.selectedCell) return false;
-		return !this.pois[this.category];
+		return this.categories.some((k) => !this.pois[k]);
 	});
 
-	/** Turn the heatmap on, fetching the active category's columns if they are not here yet. */
+	/** Turn the heatmap on, fetching the active set's columns if they are not here yet. */
 	showHeatmap(): void {
 		this.layers.score = true;
-		void this.loadCategory(this.category);
+		void this.loadCategories();
 	}
 
 	select(id: string | null) {
@@ -670,7 +759,7 @@ export class AppState {
 		if (id) {
 			// Picking a cell is a request for its figures, heatmap or no heatmap — the
 			// area panel and Tapak's remark both read the scored row.
-			void this.loadCategory(this.category);
+			void this.loadCategories();
 			// …and for the stations it captures, which the same panel names and the map
 			// draws. Both are cached after the first selection, so this is one cost paid
 			// once rather than per cell.
@@ -678,22 +767,45 @@ export class AppState {
 			// …and for where its competitors actually stand, which the map draws beside
 			// them. Cached per category, so switching back to a category already seen
 			// costs nothing.
-			void this.loadPois(this.category);
+			void this.loadPoiSet();
 			// …and for what is on the market in it. One file for every category, cached
 			// after the first selection, so this too is a cost paid once.
 			void this.loadListings();
 		}
 	}
 
-	setCategory(cat: CategoryKey) {
-		this.category = cat;
+	/** The competitor positions for every type in the set, fetched once each. */
+	loadPoiSet(cats: readonly CategoryKey[] = this.categories): Promise<void[]> {
+		return Promise.all(cats.map((k) => this.loadPois(k)));
+	}
+
+	/**
+	 * Change which business types the map is scoring.
+	 *
+	 * An empty set is refused rather than accepted, and the reason is arithmetic: no
+	 * types means no rivals to count, the engine reads no rivals as no competition, and
+	 * no competition is the best score this map can award. A request to score nothing
+	 * would light up the whole of Jakarta.
+	 */
+	setCategories(cats: readonly CategoryKey[]) {
+		const next = orderCategories(cats);
+		if (!next.length) return;
+		if (next.length === this.categories.length && next.every((k, i) => k === this.categories[i])) {
+			return;
+		}
+		this.categories = next;
 		this.highlight = [];
-		void this.loadCategory(cat);
-		// A cell is already open: its competitors are on the map and they belong to the
-		// category being left behind. Fetched here rather than waiting for the next
-		// selection, otherwise switching category leaves the previous category's dots
-		// on screen until the user happens to click somewhere.
-		if (this.selectedId) void this.loadPois(cat);
+		void this.loadCategories(next);
+		// A cell is already open: its competitors are on the map and some of them belong
+		// to a type being left behind. Fetched here rather than waiting for the next
+		// selection, otherwise changing the set leaves the old dots on screen until the
+		// user happens to click somewhere.
+		if (this.selectedId) void this.loadPoiSet(next);
+	}
+
+	/** Score this one type and nothing else. */
+	setCategory(cat: CategoryKey) {
+		this.setCategories([cat]);
 	}
 
 	/**
@@ -733,7 +845,7 @@ export class AppState {
 		// Only MAPID carries positions, so switching to it with a cell already open has
 		// to fetch them — otherwise the competitors stay off the map until the next
 		// click, and switching source looks like it did nothing.
-		if (source === 'mapid' && this.selectedId) void this.loadPois(this.category);
+		if (source !== 'osm' && this.selectedId) void this.loadPoiSet();
 	}
 
 	setTheme(theme: Theme) {
@@ -763,7 +875,7 @@ export class AppState {
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({
 					question,
-					kategori: this.category,
+					kategori: this.categories,
 					weights: this.weights,
 					lang: lang()
 				})
@@ -806,24 +918,34 @@ export class AppState {
 				this.unitOrder =
 					data.query.urut_unit ?? UNIT_METRIC_MAP[data.query.ukuran_unit].best;
 			}
-			/* The catchments the answer named. Kept even in unit mode, where they are not
-			   rows any more but still the places the reply is about: `unitsFC` rings every
-			   unit standing in one, so the sentence and the map agree about where to look. */
+			/* THE ANSWER DECIDES WHAT THE MAP IS SCORING. This is the line the whole
+			   question box exists for: ask about cafes and bakeries together and the set
+			   becomes those two, ask about laundries next and it becomes that one. The
+			   reader never has to go and find a control to make the map agree with the
+			   sentence above it.
+
+			   Set through the setter rather than by assignment, so the competitor dots of
+			   a type being left behind are refetched with everything else. Assigning the
+			   field directly is what used to leave the previous category's dots sitting
+			   under the new answer. */
+			const answered = orderCategories(data.query.kategori);
+			if (answered.length) this.setCategories(answered);
+			/* The catchments the answer named, set AFTER the business types and not before.
+			   `setCategories` clears the highlight on purpose — a set changed by hand
+			   invalidates a ranking computed over the old one — so an answer that marked
+			   the map first would have its own places wiped by its own change of set, and
+			   name catchments the map never marked.
+
+			   Kept even in unit mode, where they are not rows any more but still the places
+			   the reply is about: `unitsFC` rings every unit standing in one, so the
+			   sentence and the map agree about where to look. */
 			this.highlight = data.highlight;
-			// The parsed query is allowed to change the active category — the map has to
-			// follow to the category that was actually answered, not stay on the old one.
-			if (data.query.kategori !== this.category) {
-				this.category = data.query.kategori;
-				// Same reason as in `setCategory`: a cell left open would otherwise keep
-				// showing the previous category's competitors under the new answer.
-				if (this.selectedId) void this.loadPois(this.category);
-			}
 			// Tapak has just named places on the map, so the map has to be able to show
-			// them: the answered category's columns are fetched and the heatmap comes on.
-			// This is the path the heatmap is meant to arrive by — the user asked a
-			// question and got an answer, rather than being handed a coloured map to
-			// interpret on their own.
-			await this.loadCategory(data.query.kategori);
+			// them: the answered set's columns are fetched and the heatmap comes on. This
+			// is the path the heatmap is meant to arrive by — the user asked a question and
+			// got an answer, rather than being handed a coloured map to interpret on their
+			// own.
+			await this.loadCategories();
 			this.layers.score = true;
 		} catch (err) {
 			this.aiError = err instanceof Error ? err.message : 'Terjadi kesalahan.';
@@ -833,12 +955,8 @@ export class AppState {
 	}
 }
 
-export function setAppState(
-	base: HexBase[],
-	initial?: CategorySlice,
-	meta?: GridMeta
-): AppState {
-	return setContext(KEY, new AppState(base, initial, meta));
+export function setAppState(base: HexBase[], meta?: GridMeta): AppState {
+	return setContext(KEY, new AppState(base, meta));
 }
 
 export function getAppState(): AppState {
