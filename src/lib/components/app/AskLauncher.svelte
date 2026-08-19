@@ -49,6 +49,14 @@
 	let draft = $state('');
 	let field = $state<HTMLInputElement | null>(null);
 
+	/**
+	 * The box is inviting a question: nothing is being worked out, and nothing has
+	 * been typed. An empty field is still actionable here, because the example on show
+	 * is what an empty field sends, so the glow is honest about what pressing the
+	 * arrow would do.
+	 */
+	const inviting = $derived(!tapak.busy && !draft.trim());
+
 	/** The example being shown in full — what an empty field submits. */
 	let suggestion = $state('');
 	/** How much of it is typed out so far. This is the placeholder. */
@@ -125,11 +133,18 @@
 </script>
 
 <div class="launcher material">
-	<span class="face" aria-hidden="true"><TapakFigure size={40} /></span>
+	<!-- While an answer is being worked out the figure paces: a few steps one way, a
+	     turn, a few steps back. It is the same figure that will do the answering, so
+	     the wait is Tapak thinking rather than a machine being busy. -->
+	<span class="face" aria-hidden="true"><TapakFigure size={40} pacing={tapak.busy} /></span>
 
 	<h1>{c.app.launchTitle}</h1>
 
-	<form onsubmit={send}>
+	<form onsubmit={send} class:inviting>
+		<!-- Two elements, one light. The inner span breathes forever, the outer one
+		     fades that breathing in and out. Both eased, so the glow never arrives or
+		     leaves on a single frame. -->
+		<span class="glow" aria-hidden="true"><span class="pulse"></span></span>
 		<input
 			bind:this={field}
 			bind:value={draft}
@@ -214,6 +229,7 @@
 	}
 
 	form {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: 0.375rem;
@@ -222,10 +238,55 @@
 		border: 1px solid var(--separator-strong);
 		border-radius: 999px;
 		background: var(--bg-elevated);
-		transition: border-color 140ms ease-out;
+		transition: border-color 420ms ease-in-out;
 	}
 	form:focus-within {
 		border-color: var(--accent);
+	}
+	form.inviting {
+		border-color: color-mix(in srgb, var(--accent) 45%, var(--separator-strong));
+	}
+
+	/* Just outside the field's own edge, and never takes a pointer: it is a light, not
+	   a control. */
+	.glow {
+		position: absolute;
+		inset: -1px;
+		border-radius: 999px;
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 520ms ease-in-out;
+	}
+	form.inviting .glow {
+		opacity: 1;
+	}
+	.pulse {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		box-shadow:
+			0 0 0 4px var(--accent-soft),
+			0 0 20px 2px color-mix(in srgb, var(--accent) 30%, transparent);
+		animation: breathe-glow 3.2s ease-in-out infinite;
+	}
+	/* Eased at both ends, so the light swells and settles rather than switching. */
+	@keyframes breathe-glow {
+		0%,
+		100% {
+			opacity: 0.32;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+
+	/* Reduced motion keeps the signal and drops the movement: the box still says it is
+	   ready, it just says it by holding still. */
+	@media (prefers-reduced-motion: reduce) {
+		.pulse {
+			animation: none;
+			opacity: 0.7;
+		}
 	}
 	input {
 		flex: 1;
