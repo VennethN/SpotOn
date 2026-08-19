@@ -179,19 +179,36 @@
 		transform-origin: 13px 32.4px;
 		animation: tread 0.44s ease-in-out infinite;
 	}
+	/**
+	 * The far side of the body runs half a cycle behind the near side. That offset is
+	 * the whole difference between a walk and a hop, and it is carried by a custom
+	 * property rather than by an `animation-delay` rule of its own.
+	 *
+	 * It has to be. `animation` is a shorthand, so it resets `animation-delay` to zero
+	 * along with everything else it does not mention, and the selector carrying the
+	 * offset is the weaker of the two: `.pacing .back` never beats
+	 * `.pacing .limb:not(.arm)`. Written that way the legs both ran at zero and swung
+	 * as one, stuck together like a single thick limb, while the arms — matched by a
+	 * selector of equal weight — offset correctly and hid how it had gone wrong.
+	 *
+	 * A custom property does not take part in that reset, so the offset lands wherever
+	 * it is set and the shorthand simply reads it.
+	 */
+	.pacing .limb {
+		--phase: 0s;
+	}
+	.pacing .back {
+		--phase: -0.44s;
+	}
 	.pacing .limb:not(.arm) {
 		transform-origin: 50% 20px;
-		animation: stride 0.88s ease-in-out infinite;
+		animation: stride 0.88s ease-in-out var(--phase, 0s) infinite;
 	}
+	/* Within one side the arm already opposes the leg, because `swing` starts where
+	   `stride` ends, so the two share a phase. */
 	.pacing .arm {
 		transform-origin: 50% 12px;
-		animation: swing 0.88s ease-in-out infinite;
-	}
-	/* The far side of the body runs half a cycle behind the near side, which is what
-	   makes it a walk rather than a hop. Within one side the arm already opposes the
-	   leg, because `swing` starts where `stride` ends, so the two share a delay. */
-	.pacing .back {
-		animation-delay: -0.44s;
+		animation: swing 0.88s ease-in-out var(--phase, 0s) infinite;
 	}
 
 	/* Reduced motion keeps the figure, and keeps it whole: the frozen one-stride pose
