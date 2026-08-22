@@ -188,8 +188,50 @@ There is no setting for this in the application.
 `npm run selftest` covers the parts of this that a rebuild cannot: the score
 breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
-in it has a name, the cost-of-space layer against the grid on disk, and which
-measure each kind of question is understood to be asking about.
+in it has a name, the cost-of-space layer against the grid on disk, which
+measure each kind of question is understood to be asking about, and the field
+surveys against the two files they produced.
+
+## The field surveys are evidence, and they never reach the score
+
+`scripts/fetch-missions.mjs` reads the three competition surveys, Struk Go, Menu
+Go and Properti Go, plus the community notes filed beside them. They are not in
+the premium catalogue and not in the layer index, and looking for them there is
+what the script this replaced spent its life doing. MAPID Apps serves them from
+its own public endpoints, which need no key, no project and no layer id.
+
+They are a different KIND of data from everything else here, and the difference
+decides how they are used. OpenStreetMap and the MAPID catalogue claim
+completeness for the city they cover, which is what makes a zero from them a
+finding. These are surveys somebody walked. 191 of the 562 catchments carry a
+record, and the other 371 are not quiet streets, they are streets nobody has
+been down.
+
+So three rules hold, and `selftest-field.mjs` asserts all of them:
+
+- **Nothing in `field` enters `scoreOne`.** It rides along the row as evidence
+  beside the score. Folded into the arithmetic, "nobody went here" would be
+  identical to "nothing happens here".
+- **A cell nobody visited has no `field` key**, never a row of zeroes. The two
+  askable measures read null there, so those cells are dropped from a ranking
+  rather than filling the whole of "fewest receipts".
+- **Counts come from one record, shares and medians need three.** A count of one
+  is exactly true. "Everyone here pays by QRIS" off one receipt is a claim about
+  one afternoon, and the threshold is the property join's, recorded in the grid's
+  metadata rather than written into the sentence.
+
+Every label a reader sees says RECORDED, and the panel says outright that this
+is not a census. This is also the only rent in the product: the premium
+catalogue publishes none for Jakarta, the property form asks a different
+question, and some of its records answer Disewa. What the form never asks is the
+price, and the interface says that too.
+
+One rule about the join, because it is the opposite of `join-property.mjs`':
+**each record gets exactly one home cell**, the nearest centre within the walking
+radius. That join counts a listing into every catchment that reaches it, which is
+right for a density and fatal for a list, because these records get listed by
+name. The rule lives in `scripts/lib/home-cell.mjs` so the join that counts and
+the build that lists cannot come to disagree.
 
 ## Questions are a shape and a measure, chosen separately
 
