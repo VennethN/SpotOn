@@ -39,6 +39,14 @@ const rp = (v: number): string => {
     print "7.577" here, which an English reader reads as seven and a half. */
 const num = (v: number): string => v.toLocaleString('en-US');
 
+/** A whole hour, English: 7 → "7am", 19 → "7pm". `format.formatHour` writes "07.00",
+    which is the Indonesian convention and is why hours are written per locale. */
+const hour = (h: number): string => {
+	const clock = ((h % 24) + 24) % 24;
+	const half = clock < 12 ? 'am' : 'pm';
+	return `${clock % 12 === 0 ? 12 : clock % 12}${half}`;
+};
+
 export const en: Copy = {
 	lang: { code: 'en', label: 'English', short: 'EN', switchTo: 'Switch to Indonesian' },
 
@@ -548,6 +556,47 @@ export const en: Copy = {
 			properti: 'Property',
 			catatan: 'Community note'
 		}
+
+	/* ── Opening hours ──────────────────────────────────────────────────────
+	   One word deliberately absent here: busy. What is counted is DOORS open, from
+	   OpenStreetMap's `opening_hours` tag, not people going through them. The chart
+	   is the shape of Google's popular times and a different measurement altogether.
+	   Struk Go and Mission Go carry the spending side, and neither exists yet. */
+	activity: {
+		title: 'When this area is open',
+		dayPicker: 'Pick a day',
+		days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+		dayFull: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+		/* Axis labels every six hours. English reads a bare "18" as a quantity, so this
+		   side keeps the am and pm and drops the minutes instead. */
+		hourShort: (h: number) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`),
+		barTitle: (h: number, n: number, dari: number) =>
+			`${hour(h)}, ${n} of ${dari} businesses open`,
+		/* Jakarta's clock, not the reader's. The doors are in Jakarta. */
+		nowOpen: (h: number, n: number, dari: number) =>
+			`It is ${hour(h)} in Jakarta right now, and ${n} of these ${dari} are open.`,
+		peak: (h: number, n: number, dari: number) =>
+			`Most of them are open from ${hour(h)}, ${n} of the ${dari}.`,
+
+		/* ── Two kinds of silence, kept apart ─────────────────────────────── */
+		thin: (terbaca: number, min: number, usaha: number, r: number) =>
+			`Only ${terbaca} of the ${usaha} businesses on record within ${r} m publish hours that can be read. A curve needs at least ${min}, because one 24-hour minimart among three shops draws a street that never sleeps.`,
+		none: (usaha: number, r: number) =>
+			`Not one of the ${usaha} businesses on record within ${r} m publishes its opening hours. So the hours are left empty rather than guessed at.`,
+
+		/* The count names OpenStreetMap on purpose. The sentence at the top of this panel
+		   counts the thirteen business types SpotOn scores, from OSM and MAPID together.
+		   This one counts every trade OSM has on record, so the two figures differ and a
+		   reader is owed the reason they differ. */
+		basis: (terbaca: number, usaha: number, r: number) =>
+			`${terbaca} of the ${usaha} businesses OpenStreetMap lists within ${r} m publish opening hours that can be read.`,
+		refused: (n: number) =>
+			`${n} more publish them in a form this reader will not guess at, a public holiday rule or "sunset" for instance. Those are left out rather than approximated.`,
+		notFootfall:
+			'This counts doors open, not people walking past. The spending side belongs to Struk Go and Mission Go, and neither has data yet. When they do, the two go side by side.',
+		loading: 'Loading the opening hours…',
+		failed: (n: number) =>
+			`The opening hours could not be loaded, so no curve is drawn. The count of ${n} businesses below still holds, it is read from the grid rather than from that file.`
 	},
 
 

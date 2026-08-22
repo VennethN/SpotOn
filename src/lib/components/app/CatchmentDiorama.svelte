@@ -17,6 +17,7 @@
 	 * The wording is deliberately plain: "how busy", not "demand index". The full
 	 * figures are still there, one click below.
 	 */
+	import ActivityPanel from '$lib/components/app/ActivityPanel.svelte';
 	import FieldPanel from '$lib/components/app/FieldPanel.svelte';
 	import PropertyPanel from '$lib/components/app/PropertyPanel.svelte';
 	import RivalsPanel from '$lib/components/app/RivalsPanel.svelte';
@@ -187,11 +188,17 @@
 			<RivalsPanel />
 		{/if}
 
-		<!-- Both of these sit OUTSIDE the blank branch on purpose. Transit access is
-		     built from OSM and what space costs is built from the MAPID property
-		     catalogue, and the two surveys have their own coverage — so they are what
-		     this panel can still say about a cell whose competitors nobody has counted,
-		     and for that cell they are the only things there are to say. -->
+		<!-- All three of these sit OUTSIDE the blank branch on purpose. When the doors
+		     around here open and how far the transit reaches are built from OSM, what
+		     space costs is built from the MAPID property catalogue, and each survey has
+		     its own coverage — so they are what this panel can still say about a cell
+		     whose competitors nobody has counted, and for that cell they are the only
+		     things there are to say.
+
+		     The clock comes first of the three. It is the closest thing on this panel to
+		     the sentence above it, which is about how much trade stands here: that one
+		     counts the shops, this one says when they are open. -->
+		<ActivityPanel />
 		<PropertyPanel />
 		<TransitPanel />
 
