@@ -200,7 +200,7 @@ export const en: Copy = {
 			`Map of 562 catchments around Jakarta transit, coloured by opportunity score for ${kind}.`,
 		mapCaption: (kind: string) => `Opportunity score for ${kind}, 562 catchments, computed just now.`,
 		caught: 'What the map understood',
-		thinking: 'One moment, let me check my notes…',
+		thinking: 'One moment, let me check my notes',
 		more: (n: number) => `+${n} more in the app`,
 		play: 'Play conversation',
 		pause: 'Pause conversation'

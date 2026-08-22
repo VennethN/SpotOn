@@ -202,7 +202,10 @@ export const id = {
 			`Peta 562 petak kawasan transit Jakarta, diwarnai menurut skor peluang untuk ${jenis}.`,
 		mapCaption: (jenis: string) => `Skor peluang ${jenis}, 562 petak, dihitung saat ini juga.`,
 		caught: 'Yang ditangkap peta',
-		thinking: 'Sebentar, saya cek catatan saya…',
+		/* Tanpa titik-titik di ujungnya. Titik-titiknya sekarang bergerak sendiri,
+		   digambar `ui/Dots`, karena elipsis yang diketik cuma bilang kalimatnya
+		   menggantung, bukan bahwa masih ada yang sedang dikerjakan. */
+		thinking: 'Sebentar, saya cek catatan saya',
 		more: (n: number) => `+${n} lagi di dalam aplikasi`,
 		play: 'Jalankan percakapan',
 		pause: 'Jeda percakapan'
