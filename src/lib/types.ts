@@ -20,7 +20,9 @@ export type MetricKey =
 	| 'harga_tempat'
 	| 'unit_dipasarkan'
 	| 'akses_transit'
-	| 'simpul_transit';
+	| 'simpul_transit'
+	| 'struk_dicatat'
+	| 'sewa_ditawarkan';
 
 /** The measures of one unit on the market — see `domain/units`. */
 export type UnitMetricKey =
@@ -129,6 +131,53 @@ export interface Hex {
 	prop?: PropertyStats;
 	/** Has this cell's city been read from the property catalogue. */
 	propCovered?: boolean;
+	/**
+	 * What surveyors actually recorded inside this catchment (MAPID Apps field surveys).
+	 *
+	 * ABSENT, NEVER ZEROED, where nobody went. 191 of the 562 cells carry one, and that
+	 * ratio is why nothing in here reaches the score: a street somebody walked and a
+	 * street nobody walked are not a high reading and a low one, and an engine given a
+	 * zero cannot tell them apart.
+	 */
+	field?: FieldStats;
+}
+
+/**
+ * What was recorded inside one catchment, by somebody who went there.
+ *
+ * A different KIND of figure from everything else on a cell. The competitor counts and
+ * the property listings are catalogues: they claim to hold every cafe and every unit on
+ * the market, and a count of zero from them is a finding. These are field records, and
+ * they claim nothing of the sort — twelve receipts here and none next door says a
+ * surveyor stood here, not that the street next door has no trade.
+ *
+ * So every name in this shape says RECORDED, and the interface repeats the word. The
+ * counts are exact and the two derived figures need three readings behind them, below
+ * which they are null rather than an average of one afternoon.
+ */
+export interface FieldStats {
+	/** Receipts photographed here (Struk Go). */
+	struk: number;
+	/** Eateries surveyed here (Menu Go). */
+	menu: number;
+	/** Property records filed here (Properti Go). */
+	properti: number;
+	/** Community notes about this place. */
+	catatan: number;
+	/**
+	 * Of the property records, the ones offered for RENT.
+	 *
+	 * The first rental figure this project has ever carried. The MAPID premium
+	 * catalogue publishes none for Jakarta, which is why the score's cost of space is an
+	 * asking price to buy and is called one everywhere it travels. These are a different
+	 * survey with a different question on the form, and they say "Disewa" outright.
+	 */
+	sewa: number;
+	/** Share of the receipts paid without cash, 0..1. Null below three readings. */
+	nontunai: number | null;
+	/** Median of what the eateries here charge on average, rupiah. Null below three
+	    readings, and never cleaned: see `scripts/fetch-missions.mjs`. */
+	harga: number | null;
 }
 
 /**
@@ -309,6 +358,9 @@ export interface ScoredHex {
 	units: number;
 	/** Has this cell's city been read from the property catalogue at all. */
 	propCovered: boolean;
+	/** What surveyors recorded here, or null where nobody went. Rides along the row
+	    untouched by the arithmetic: it is evidence beside the score, not a term in it. */
+	field: FieldStats | null;
 	typology: Typology;
 }
 
@@ -462,6 +514,25 @@ export interface GridMeta {
 		minPriced: number;
 		/** Median asking price per m² across the grid, at 800 m. */
 		medianPrice: number | null;
+	};
+	/** Present once the field surveys have been joined. */
+	mission?: {
+		source: string;
+		/** Records read, across the grid's whole extent. */
+		records: number;
+		/** Of those, the ones that landed in a catchment. */
+		placed: number;
+		/** And the ones inside the extent but outside every catchment in it. */
+		outside: number;
+		/** Cells carrying at least one record. */
+		cells: number;
+		byMission: Record<string, number>;
+		/** Property records offered for rent rather than for sale. */
+		sewa: number;
+		/** Readings a derived figure needs before it is written at all. */
+		minReadings: number;
+		/** Every closed vocabulary the records use, tallied on the run that read them. */
+		vocab: Record<string, Record<string, number>>;
 	};
 }
 

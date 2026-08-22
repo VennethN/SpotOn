@@ -237,6 +237,40 @@ export function propertyFC(ctx: MapCtx): FeatureCollection {
 }
 
 /**
+ * The field records the selected cell holds, at the spots they were filed from.
+ *
+ * ONE MARK FOR ALL FOUR SURVEYS, and that is deliberate. This map already carries red
+ * squares for competitors, amber pins for units on the market and mode-coloured discs
+ * for transit nodes, and four more colours would turn a legend into a colour test.
+ * What these have in common is the thing worth showing: somebody stood here. So they
+ * are drawn as one hollow ring, which no other layer uses.
+ *
+ * The single exception is a place recorded as being up for rent. That is the one fact
+ * this product could never show before, so it is the one mark that gets filled in.
+ *
+ * Nothing is drawn in unit mode. There the map is a list of doorways across the whole
+ * city rather than one catchment's surroundings, and these belong to a catchment.
+ */
+export function fieldFC(ctx: MapCtx): FeatureCollection {
+	if (ctx.app.pivot === 'unit') return emptyFC();
+	if (!ctx.app.layers.field) return emptyFC();
+	return {
+		type: 'FeatureCollection',
+		features: ctx.app.selectedField.map((r) => ({
+			type: 'Feature' as const,
+			geometry: { type: 'Point' as const, coordinates: [r.lon, r.lat] },
+			properties: {
+				kind: r.kind,
+				rent: r.offer === 'sewa',
+				label: ctx.c.field.kinds[r.kind],
+				name: r.place ?? r.title ?? '',
+				sort: r.distance
+			}
+		}))
+	};
+}
+
+/**
  * Every unit on the market, in unit mode — the whole set at once, not one cell's.
  *
  * Coloured by the opportunity score of the catchment each one stands in, so the map
