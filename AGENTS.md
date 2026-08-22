@@ -124,7 +124,8 @@ Copy `.env.example` to `.env` and fill it in.
 | --- | --- |
 | `OPENROUTER_API_KEY` | language understanding. Without it the app still works, questions fall back to the rule parser, and every figure is still computed by the scoring engine. |
 | `OPENROUTER_MODEL` | optional model override |
-| `PUBLIC_MAPID_STYLE_URL` | the MAPID MAPS style **URL**. A bare style id is rejected and the open raster basemap is used instead, with a warning in the console. |
+| `PUBLIC_MAPID_MAP_KEY` | the MAPID MAPS **Map Service key**. The style URL is built from it, and the light or dark style is picked to match the reader's theme. |
+| `PUBLIC_MAPID_STYLE_URL` | a full style **URL**, for a style the app does not know about. Wins over the key, and pins one style regardless of theme. A bare key here is rejected, with a warning naming the variable it belongs in. |
 | `MAPID_API_KEY` | read by the data scripts, not by the application |
 
 The model only ever chooses an operation and fills in its arguments. Every
@@ -146,6 +147,9 @@ node scripts/join-property.mjs   # → adds prop + propCovered to hexes.json   l
 node scripts/build-property.mjs  # → static/data/property.json   local only
 node scripts/build-stops.mjs     # → static/data/stops.json   needs Overpass
 node scripts/build-routes.mjs    # → static/data/routes.json  needs Overpass
+node scripts/fetch-missions.mjs  # → src/lib/data/mission.json   no key needed
+node scripts/join-missions.mjs   # → adds field to hexes.json    local only
+node scripts/build-field.mjs     # → static/data/field.json      local only
 ```
 
 `join-property.mjs` has to run after `join-mapid.mjs`, not before. It decides coverage
