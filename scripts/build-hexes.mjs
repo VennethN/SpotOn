@@ -24,6 +24,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { haversine } from './lib/geo.mjs';
 import { overpass, sleep } from './lib/overpass.mjs';
 import { BBOX, TRANSIT_QUERY, readStops } from './lib/transit.mjs';
 import * as h3 from 'h3-js';
@@ -34,20 +35,6 @@ const RES = 8;
 const WALK_M = 800;
 
 
-/* ── distance ─────────────────────────────────────────────────────────────── */
-
-const R = 6371008.8;
-const rad = (d) => (d * Math.PI) / 180;
-
-function haversine(aLat, aLon, bLat, bLon) {
-	const dLat = rad(bLat - aLat);
-	const dLon = rad(bLon - aLon);
-	const la1 = rad(aLat);
-	const la2 = rad(bLat);
-	const x =
-		Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
-	return 2 * R * Math.asin(Math.sqrt(x));
-}
 
 /** Coarse spatial index: 0.01° buckets (±1.1 km) — plenty for an 800 m radius. */
 function makeIndex(points) {
