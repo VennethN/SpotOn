@@ -11,6 +11,7 @@ proposal-drafting repository (`MapID/`) so that the context lives alongside the 
 | [03-status-implementasi.md](03-status-implementasi.md) | Each mandatory component mapped to the part of the code that implements it, along with what is still outstanding. |
 | [04-data-mapid.md](04-data-mapid.md) | How MAPID data is fetched, which endpoints have been verified, how far coverage reaches today, and what else the premium catalogue holds. |
 | [mapid-layers.md](mapid-layers.md) | The list of MAPID datasets SpotOn reads, with a link to each layer. **Script-generated** — do not edit by hand. |
+| [mapid-missions-api.md](mapid-missions-api.md) | The missions API (Properti Go, Menu Go, Struck Go) and the Activities feed, transcribed from `maps.mapid.io/docs`, with what the endpoints actually answered when called. |
 
 ## Assets
 
