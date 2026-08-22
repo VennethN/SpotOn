@@ -105,6 +105,21 @@ export function categoriesIn(q: string): CategoryKey[] {
  * people actually mix in alongside.
  */
 const METRIC_WORDS: Array<[RegExp, MetricKey]> = [
+	// A receipt is a receipt. Narrow on purpose: "belanja" on its own is shopping in
+	// general and belongs to the busyness measure below.
+	[/struk|receipt|nota\b/i, 'struk_dicatat'],
+	/*
+	 * Premises somebody is OFFERING to let, which is a different question from what
+	 * space costs, and it has to be split from it by hand.
+	 *
+	 * `harga_tempat` owns the bare word "sewa" and keeps it. That measure is the asking
+	 * price to BUY, named that way everywhere because MAPID's catalogue holds no rentals
+	 * for Jakarta, and "berapa sewa di sini" is a question about money that this is the
+	 * only figure for. What lands here instead are the words that ask about the OFFER —
+	 * disewakan, dikontrakkan, for rent — because the field survey now records those and
+	 * nothing else in the product can answer them.
+	 */
+	[/disewakan|dikontrakkan|dikontrakan|for rent|to let|sewaan/i, 'sewa_ditawarkan'],
 	// Price of space, before anything else: "harga" on its own most often means this,
 	// and it is the only measure with a currency attached.
 	[/harga|sewa|biaya|mahal|murah|terjangkau|modal kecil|rp\b|rupiah/i, 'harga_tempat'],
@@ -616,6 +631,22 @@ function whyLine(
 	}
 	if (key === 'unit_dipasarkan') {
 		return `${lead} unit komersial dipasarkan dalam radius ${w.radius} m${r.price !== null ? `, median ${metricText('harga_tempat', r.price)}` : ', tidak satu pun memasang harga'}. ${context}.`;
+	}
+	/* The two field measures say WHO counted and WHEN, because that is the whole
+	   difference between them and everything else on this row. A competitor count is a
+	   catalogue's claim about a street; these are what one person wrote down on one
+	   visit, and a sentence that hid that would be quoting a sample as a census. */
+	if (key === 'struk_dicatat') {
+		const f = r.field;
+		const cash =
+			f?.nontunai === null || f?.nontunai === undefined
+				? 'terlalu sedikit untuk membaca pangsa nontunai'
+				: `${pct(f.nontunai)}% nontunai`;
+		return `${lead} struk dicatat surveyor MAPID Apps di petak ini, ${cash}. Ini hitungan catatan lapangan, bukan jumlah transaksi yang terjadi. ${context}.`;
+	}
+	if (key === 'sewa_ditawarkan') {
+		const total = r.field?.properti ?? 0;
+		return `${lead} tempat tercatat sedang disewakan, dari ${total} catatan properti di petak ini. Surveyor mencatat penawarannya, bukan harganya. ${context}.`;
 	}
 	return `${lead}. ${context}.`;
 }

@@ -402,18 +402,57 @@ real and sample data.
 
 ---
 
-## 4. What remains unavailable
+## 4. The mission data, and the door it was behind all along
 
-Struk Go, Menu Go, and Properti Go are the competition's mission datasets, not part of the
-premium catalogue. For as long as they are absent:
+Struk Go, Menu Go, and Properti Go are the competition's mission datasets. They are read,
+they are in the repository, and they are on the map. What follows is the record of how
+long that took, because the reason is worth keeping: **they are not published as layers at
+all**, and every route tried below was a search of the layer index for something that was
+never in it.
 
-- **Buyer conditions** (how busy competitors are) — stays mock.
-- **Commercial space for rent** — stays mock; the space-availability gate still runs as a
-  clearly marked placeholder.
+MAPID APPS serves them itself, from the same public endpoints its own map calls. No key,
+no project, no `layer_id`:
 
-### Already investigated, and the result was nothing
+```
+POST https://server.mapid.io/web/survei/public/{struckgo|menugo|propertigo}
+     body { feature: <GeoJSON Polygon>, offset, limit }   → geometry + pagination
+GET  https://server.mapid.io/web/survei/public/{mission}?_id=<id>
+                                                          → that record's properties
+POST https://server.mapid.io/mobile/v2/communities/activities/public
+     body { bbox: {min_lng,min_lat,max_lng,max_lat}, limit }
+```
 
-Every route `MAPID_API_KEY` can reach has been tested, not assumed:
+The list endpoint returns `properties: {}` for every feature — the shape without the
+contents — so the detail call is made once per record. There are a few hundred over
+Greater Jakarta, which is why that is affordable and why it happens at build time.
+
+The documented competition endpoints (`/web/competition/<mission>`, `x-api-key`) carry the
+same records with their properties already attached, and would save the second call. They
+want a Map Service key this project does not hold. The public route reaches the identical
+data without one.
+
+`node scripts/fetch-missions.mjs` (plural — it replaces `fetch-mission.mjs`) reads all
+four and writes `src/lib/data/mission.json`. Over the grid's own extent, padded by one
+walking radius:
+
+| Survey | Records | Notes |
+|---|---|---|
+| Struk Go | 195 | payment method: QRIS 131, Tunai 24, E-wallet 21, Debit 12, Kartu Kredit 7 |
+| Menu Go | 99 | `harga_rata_rata` present on every one, `kondisi_tempat` sepi/sedang/ramai |
+| Properti Go | 141 | **86 Dijual, 55 Disewa** |
+| Community notes | 592 | title, description, author, community, photographs |
+
+**The 55 rentals are the headline.** §"What space costs" in `AGENTS.md` records at length
+that the premium catalogue publishes no rent for Jakarta, which is why the cost of space
+in the score is an asking price to buy and is called that everywhere. That is still true
+of the catalogue. This is a different survey with a different question on the form, and it
+is the only rent data this product has. What it does **not** have is a rent figure: the
+form records the offer and never asks the price, and the interface says so.
+
+### Why the catalogue routes all came back empty
+
+Every route `MAPID_API_KEY` can reach was tested, not assumed. All of them were the wrong
+door, and this is the record of that:
 
 | Route | Result |
 |---|---|
@@ -422,9 +461,11 @@ Every route `MAPID_API_KEY` can reach has been tested, not assumed:
 | `get_layer_list` on our own project | 12 layers, all catalogue copies |
 | `missions/*`, `activities/*`, `forms/*`, project listings | all 404 — the endpoints simply do not exist |
 
-This check is not a one-off note: `node scripts/fetch-mission.mjs` with no arguments
-repeats it on every run, so the absence keeps being tested rather than quietly turning into
-an assumption — the same pattern as `missing` in `fetch-mapid.mjs`.
+That probe used to re-run on every invocation, so the absence kept being tested rather
+than quietly turning into an assumption. It was the right instinct pointed at the wrong
+index: no number of repetitions of a search of the layer catalogue was ever going to find
+something MAPID APPS serves from its own API. What replaces it is a fetch that reads the
+data, and a self-test that checks what came back.
 
 Searched again from the public web once egress to `mapid.co.id` was opened, with the same
 result:
@@ -468,25 +509,30 @@ Two things follow from that:
 Setting `MAPID_PROJECT_ID` to someone else's project would in fact take the premium
 catalogue reads down with it, because that ticket has to be a project of our own.
 
-### The right way, once the data exists
-
-All that is needed is each dataset's `layer_id` — the last segment of a layer URL,
-`https://geo.mapid.io/layer/<LAYER_ID>`:
+### How it is read now
 
 ```bash
-MAPID_STRUK_LAYER=<id> MAPID_MENU_LAYER=<id> MAPID_PROP_LAYER=<id> \
-  node scripts/fetch-mission.mjs
+node scripts/fetch-missions.mjs   # → src/lib/data/mission.json   no key, no layer id
+node scripts/join-missions.mjs    # → adds `field` to hexes.json
+node scripts/build-field.mjs      # → static/data/field.json
 ```
 
-The script also picks up layers named `STRUK GO` / `MENU GO` / `PROPERTI GO` by itself if
-they happen to have been imported into our own project, so the manual import route still
-works with no environment variables at all.
+Column names are still matched loosely through a list of aliases, because the real keys
+are whatever the MAPID APPS form fields ended up being called and a form field can be
+renamed without anyone telling us. A column that does not resolve is **reported**, never
+read as empty — a renamed payment column shows up as "resolved on NO record", not as a
+catchment that pays in cash. `node scripts/fetch-missions.mjs --selftest` exercises the
+normaliser without touching the network.
 
-The schemas are transcribed from [§A.4 of the rules](00-ketentuan-kompetisi.md) and column
-names are matched loosely through a list of aliases. A column that does not resolve is
-**reported**, never read as zero — a renamed payment column will show up as "column not
-found", not as a catchment that pays in cash. `node scripts/fetch-mission.mjs --selftest`
-exercises the parser without touching the network.
+New, and worth keeping: every closed vocabulary is tallied on each run and written into
+the output. "55 of the property records are rentals" is therefore a figure read off the
+data rather than one somebody remembered, and the day a payment method nobody has seen
+appears, it shows up by name instead of falling into "other".
+
+The join and what it is allowed to do are in `AGENTS.md` under "The field surveys are
+evidence, and they never reach the score". The short version: one record gets one home
+cell, a cell nobody visited carries no `field` key at all, and none of it enters
+`scoreOne`.
 
 ### The organisers' samples — read, and the reader verified against them
 
@@ -509,13 +555,11 @@ curated set has seen.
 **The data is Bandung, not Jakarta** (and one Menu Go point near Depok). It is good for
 confirming the schema and nothing else — none of it can be scored by SpotOn.
 
-Run the reader over them with:
+The reader was run over them before the live endpoints were found, and that is where the
+two alias traps below were caught. `--verify` is gone with the script that carried it, and
+the aliases it proved are still in `fetch-missions.mjs`.
 
-```bash
-node scripts/fetch-mission.mjs --verify <paths to the .geojson files>
-```
-
-All 635 features across the four files normalise with **zero unresolved columns**. Two
+All 635 features across the four files normalised with **zero unresolved columns**. Two
 columns only resolved because of the alias list, and would have broken an exact-name match:
 
 | Documented in §A.4 | Actually in the data |
