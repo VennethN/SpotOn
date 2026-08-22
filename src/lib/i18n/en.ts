@@ -237,7 +237,12 @@ export const en: Copy = {
 		gridWithData: 'cells with data',
 		gridEmpty: 'no data yet',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
-			`A grid of ${total} cells: ${terdata} sit in a surveyed city, ${nodata} do not.`
+			`A grid of ${total} cells: ${terdata} sit in a surveyed city, ${nodata} do not.`,
+		/* The field notes, mentioned without naming a single product. What a reader
+		   cares about is what they get, not which dataset it came out of. */
+		notesTitle: 'Some areas carry notes from people who went there.',
+		notesBody: (n: string) =>
+			`${n} field notes: receipts, what a meal costs, how busy the place looked when somebody called in, and space being offered to rent. All of it photographed, so the street can be seen first.`
 	},
 
 	spreadChart: {

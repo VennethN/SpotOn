@@ -238,7 +238,12 @@ export const id = {
 		gridWithData: 'petak sudah ada datanya',
 		gridEmpty: 'belum ada datanya',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
-			`Kisi ${total} petak: ${terdata} kotanya sudah disurvei, ${nodata} belum.`
+			`Kisi ${total} petak: ${terdata} kotanya sudah disurvei, ${nodata} belum.`,
+		/* Catatan lapangan. Disebut tanpa menyebut nama produknya sama sekali: yang
+		   dipedulikan pembaca itu apa yang dia dapat, bukan datanya dari mana. */
+		notesTitle: 'Di sebagian kawasan ada catatan dari orang yang datang ke sana.',
+		notesBody: (n: string) =>
+			`${n} catatan lapangan: struk belanjaan, harga sekali makan, seramai apa tempatnya waktu didatangi, dan tempat yang sedang disewakan. Semuanya ada fotonya, jadi rupa jalannya bisa dilihat dulu.`
 	},
 
 	spreadChart: {
