@@ -17,6 +17,7 @@
 	 * The wording is deliberately plain: "how busy", not "demand index". The full
 	 * figures are still there, one click below.
 	 */
+	import FieldPanel from '$lib/components/app/FieldPanel.svelte';
 	import PropertyPanel from '$lib/components/app/PropertyPanel.svelte';
 	import RivalsPanel from '$lib/components/app/RivalsPanel.svelte';
 	import ScoreBreakdown from '$lib/components/app/ScoreBreakdown.svelte';
@@ -193,6 +194,12 @@
 		     and for that cell they are the only things there are to say. -->
 		<PropertyPanel />
 		<TransitPanel />
+
+		<!-- Last, and outside the blank branch with the two above it. Everything before
+		     this point is a catalogue's account of the place. This is the one section
+		     built from somebody going there, and it is the only one that can still say
+		     something about a catchment none of the catalogues has reached. -->
+		<FieldPanel />
 	</div>
 {/if}
 

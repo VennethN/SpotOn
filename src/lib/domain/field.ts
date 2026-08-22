@@ -55,6 +55,15 @@ export type Offer = 'jual' | 'sewa';
  * two fields they all share.
  */
 export interface FieldRecord {
+	/**
+	 * MAPID's own id for this record, and the key every list of them uses.
+	 *
+	 * It has to be this rather than anything visible. 112 of the property records carry
+	 * the same placeholder photograph and several share an address, so a key built from
+	 * what is on screen collides, and a keyed list with two identical keys throws in the
+	 * middle of an update — which shows up as a panel frozen on "loading" forever.
+	 */
+	id: string;
 	/** The catchment this belongs to, decided at build time and not re-decided here. */
 	cell: string;
 	kind: FieldKind;
@@ -94,6 +103,7 @@ export interface FieldRecord {
 
 /** The on-disk shape. Named keys rather than a tuple — see `scripts/build-field.mjs`. */
 interface RawRecord {
+	id: string;
 	cell: string;
 	m: FieldKind;
 	lat: number;
@@ -134,10 +144,11 @@ export interface FieldFile {
  * time and would otherwise walk all 709 records on every click, and the grouping is the
  * same every time.
  */
-export function parseField(file: FieldFile): Map<string, FieldRecord[]> {
-	const out = new Map<string, FieldRecord[]>();
+export function parseField(file: FieldFile): FieldRecord[] {
+	const out: FieldRecord[] = [];
 	for (const r of file.records ?? []) {
 		const rec: FieldRecord = {
+			id: r.id,
 			cell: r.cell,
 			kind: r.m,
 			lat: r.lat,
@@ -159,9 +170,7 @@ export function parseField(file: FieldFile): Map<string, FieldRecord[]> {
 			by: r.by ?? null,
 			community: r.community ?? null
 		};
-		const list = out.get(rec.cell);
-		if (list) list.push(rec);
-		else out.set(rec.cell, [rec]);
+		out.push(rec);
 	}
 	return out;
 }
