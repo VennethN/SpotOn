@@ -73,10 +73,26 @@ export function cleanChatReply(raw: unknown): string | null {
 	if (typeof raw !== 'string') return null;
 	const s = raw.trim().replace(/\s+/g, ' ');
 	if (!s) return null;
-	if (s.length > CHAT_MAX_CHARS) return null;
+	return withinFence(s) ? s : null;
+}
+
+/**
+ * Whether a reply is inside the fence, asked of a PREFIX as well as of a whole one.
+ *
+ * The rule is here, once, because it is now applied twice. The casual reply is streamed
+ * to the reader as the model writes it, and a fence that only ran at the end would put
+ * "warteg biasanya balik modal dalam delapan bulan" on the screen for two seconds
+ * before taking it away — by which time it has been read, which is the entire harm the
+ * fence exists to prevent. So every prefix is held to it as well.
+ *
+ * A prefix can be judged by exactly the same test, and that is not luck: text only
+ * grows, so a digit that appears is a digit that stays, and length only rises. A reply
+ * that fails here at any point was always going to fail.
+ */
+export function withinFence(s: string): boolean {
+	if (s.length > CHAT_MAX_CHARS) return false;
 	// Digits in any script the reply might arrive in.
-	if (/[0-9٠-٩]/.test(s)) return null;
-	return s;
+	return !/[0-9٠-٩]/.test(s);
 }
 
 /**

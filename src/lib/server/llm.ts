@@ -4,6 +4,7 @@ import { CHAT_TOPICS, cleanChatReply, isChatTopic, type ChatTopic } from '$lib/d
 import { DEFAULT_METRIC, METRIC_KEYS, isMetric, resolveOrder } from '$lib/domain/metrics';
 import { UNIT_METRIC_KEYS, isUnitMetric, resolveUnitOrder } from '$lib/domain/units';
 import { RADII, snapRadius } from '$lib/domain/weights';
+import { Preview, readStream, type ChatSink, type ToolCall } from '$lib/server/stream';
 import type {
 	CategoryKey,
 	MetricKey,
@@ -380,22 +381,27 @@ const TOOLS = [
 	}
 ];
 
-interface ToolCall {
-	function?: { name?: string; arguments?: string };
-}
-
 /**
  * Returns `null` when the model layer cannot be used — the caller must treat that
  * as "use the rule-based parser", not as a failure.
+ *
+ * `sink` is optional and changes nothing about the result. With it, the completion is
+ * asked for as a stream and the casual reply is passed on as it is written; without it
+ * the request is made exactly as it always was, in one piece. Both paths end at the
+ * same `ParseResult`, so nothing downstream can tell which was used, and the endpoint's
+ * one-piece JSON reply keeps behaving the way its consumers already expect.
  */
 export async function parseWithLLM(
 	question: string,
 	w: Weights,
 	fallbackCategory: readonly CategoryKey[],
-	lang = 'id'
+	lang = 'id',
+	sink?: ChatSink
 ): Promise<ParseResult> {
 	const key = env.OPENROUTER_API_KEY?.trim();
 	if (!key) return null;
+
+	const preview = sink ? new Preview(sink) : null;
 
 	const body = {
 		messages: [
@@ -442,7 +448,10 @@ export async function parseWithLLM(
 					// Used by OpenRouter for attribution; not required, but polite.
 					'x-title': 'SpotOn'
 				},
-				body: JSON.stringify({ model, ...body })
+				// Streamed only when somebody is waiting to read it. Nothing else in the
+				// answer is worth a fragment of, so a caller that just wants the parse
+				// asks for it the way it always did.
+				body: JSON.stringify(preview ? { model, ...body, stream: true } : { model, ...body })
 			});
 
 			if (!res.ok) {
@@ -455,12 +464,22 @@ export async function parseWithLLM(
 				continue;
 			}
 
-			const data = await res.json();
-			const got: ToolCall | undefined = data?.choices?.[0]?.message?.tool_calls?.[0];
+			let got: ToolCall | undefined;
+			if (preview) {
+				got = await readStream(res, preview);
+			} else {
+				const data = await res.json();
+				got = data?.choices?.[0]?.message?.tool_calls?.[0];
+			}
 			if (!got?.function?.name) {
 				// The model answered, but wrote prose instead of calling a tool. To this
 				// layer that is exactly as useless as a network error.
 				console.error(`[SpotOn] ${model} called no tool; moving on to the next model.`);
+				// Half a sentence from a model that then failed to name an operation is
+				// not an answer to anything, and leaving it on screen while the next
+				// model starts writing over it would read as one reply contradicting
+				// itself.
+				preview?.clear();
 				continue;
 			}
 
@@ -470,6 +489,7 @@ export async function parseWithLLM(
 		} catch (err) {
 			// Includes timeouts (AbortError). Not a reason to fail the request.
 			console.error(`[SpotOn] ${model} failed:`, (err as Error).message);
+			preview?.clear();
 		} finally {
 			clearTimeout(timer);
 		}
@@ -477,6 +497,17 @@ export async function parseWithLLM(
 
 	// The whole chain ran out without a single tool call → rule-based parser.
 	if (!call) return null;
+
+	/* Whatever the preview put on screen survives exactly ONE ending: a casual reply
+	   that cleared the fence, whose sentence the answer is about to repeat word for
+	   word. Every other way out of the block below takes it back down — a rejected
+	   reply, an unreadable argument object, a model that started writing chat and then
+	   named `jalankan_query` after all.
+
+	   Which is why this is a flag and a `finally` rather than a call on each path. The
+	   paths out of here are eight and counting, and the one that gets forgotten is the
+	   one that leaves an invented sentence sitting on the screen. */
+	let keepPreview = false;
 
 	try {
 		const name = call.function?.name;
@@ -497,7 +528,12 @@ export async function parseWithLLM(
 			// The fence, applied rather than requested. `cleanChatReply` returns null for
 			// anything carrying a digit or running long, and the caller then uses the
 			// canned line for the topic — so a misbehaving model costs the reader nothing.
-			return { ok: false, chat: topik, text: cleanChatReply(args.balasan) };
+			const text = cleanChatReply(args.balasan);
+			// The preview showed a prefix of exactly this sentence, so it stays where it
+			// is and the reader sees no seam. A rejected reply is pulled instead, and the
+			// canned line takes its place when the answer lands.
+			keepPreview = Boolean(text);
+			return { ok: false, chat: topik, text };
 		}
 
 		if (name === 'tidak_dimengerti') {
@@ -627,5 +663,7 @@ export async function parseWithLLM(
 		// this layer: drop to the rule-based parser, don't fail the request.
 		console.error('[SpotOn] Could not read the tool call:', (err as Error).message);
 		return null;
+	} finally {
+		if (!keepPreview) preview?.clear();
 	}
 }

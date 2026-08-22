@@ -497,3 +497,40 @@ export interface AiAnswer {
 	highlight: string[];
 	provenance: string[];
 }
+
+/**
+ * What the engine is doing right now, for a reader watching it happen.
+ *
+ * Two steps, because there are two, and they take very different amounts of time.
+ * Understanding the question means a call out to a shared free model, which is where
+ * nearly all of the wait is spent. Computing is the scoring engine on the grid, which
+ * is fast.
+ *
+ * Saying which one is running is the honest version of a progress bar: nothing here is
+ * a percentage of anything, so nothing pretends to be.
+ */
+export type AiStage =
+	/** The question is with the model, being turned into an operation. */
+	| 'reading'
+	/** The operation is understood and the scoring engine is running it on the data. */
+	| 'computing';
+
+/**
+ * One line of a streamed answer.
+ *
+ * The endpoint can answer in one piece, as it always has, or as a stream of these.
+ * `answer` carries exactly the object the one-piece reply carries, so a consumer that
+ * only wants the result can ignore everything before it and lose nothing.
+ *
+ * `delta` is the only place model-written text arrives in pieces, and it is a PREVIEW:
+ * the sentence in the final `answer` is the authoritative one. That matters because the
+ * casual reply has to clear `domain/chat`'s fence, and a reply that fails it is thrown
+ * away rather than repaired. `reset` is what says so — everything streamed so far is
+ * void, drop it.
+ */
+export type AiEvent =
+	| { kind: 'stage'; stage: AiStage }
+	| { kind: 'delta'; text: string }
+	| { kind: 'reset' }
+	| { kind: 'answer'; answer: AiAnswer }
+	| { kind: 'error'; message: string };

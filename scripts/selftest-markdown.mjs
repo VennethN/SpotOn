@@ -1,11 +1,16 @@
 /**
- * Self-test: the markdown reader.
+ * Self-test: the markdown reader, and the fence around a reply arriving in pieces.
  *
  *   node scripts/selftest-markdown.mjs
  *
- * The failure this catches is a silent one. A parser that mis-reads a marker does not
- * raise anything, it puts asterisks in front of a reader, or swallows half a sentence
- * into an italic that never closes.
+ * WHY THESE TWO TOGETHER
+ *
+ * They are the two halves of the same change. The model now writes its casual reply
+ * straight onto the reader's screen, a word at a time, and markdown is how it stresses
+ * words when it does. Both failures are silent ones: a parser that mis-reads a marker
+ * puts asterisks in front of a reader, and a fence that only checks the finished
+ * sentence puts an invented figure in front of them for two seconds, which is long
+ * enough to read.
  *
  * WHAT IS BEING GUARDED
  *
@@ -14,10 +19,10 @@
  *    treats its underscores as emphasis prints `hargatempat` in italics.
  * 2. An unmatched marker stays a character. A lone asterisk that hunts across the rest
  *    of the sentence for a partner swallows the sentence.
- * 3. Nothing the model writes can become markup. That is the whole reason this parses
- *    to a tree of objects rather than to a string of HTML.
- * 4. Cutting the tree at N characters counts prose, never markers, and never leaves a
+ * 3. Cutting the tree at N characters counts prose, never markers, and never leaves a
  *    marker showing. That is what the reveal does sixty times a second.
+ * 4. Every prefix of a rejected reply is rejected. This is the one that matters: the
+ *    fence in `domain/chat` used to run once, at the end.
  *
  * No network and no data files. This is all pure functions over strings.
  */
@@ -37,11 +42,13 @@ async function load() {
 		logLevel: 'error'
 	});
 	const md = await server.ssrLoadModule('/src/lib/domain/markdown.ts');
+	const chat = await server.ssrLoadModule('/src/lib/domain/chat.ts');
+	const stream = await server.ssrLoadModule('/src/lib/server/stream.ts');
 	await server.close();
-	return { md };
+	return { md, chat, stream };
 }
 
-const { md } = await load();
+const { md, chat, stream } = await load();
 
 let failures = 0;
 const check = (label, ok, detail = '') => {
@@ -72,7 +79,7 @@ function shape(blocks) {
 const reads = (src, want) =>
 	check(`${JSON.stringify(src)} reads as ${want}`, shape(md.parseMarkdown(src)) === want, `got ${shape(md.parseMarkdown(src))}`);
 
-console.log('Markdown self-test (no network)\n');
+console.log('Markdown and streamed-reply self-test (no network)\n');
 
 /* ── emphasis is read where it is meant ──────────────────────────────────── */
 
@@ -150,6 +157,182 @@ for (let n = 0; n <= md.textLength(bold); n++) {
 	if (/\*/.test(shape(md.truncate(bold, n)))) clean = false;
 }
 check('no prefix of a reveal ever shows a marker', clean);
+
+/* ── the fence holds on every prefix, not only at the end ────────────────── */
+
+// The sentence the fence exists for: fluent, plausible, entirely invented, and it would
+// sit in the same thread as figures that are traceable to a source.
+const invented = 'Warteg biasanya balik modal dalam 8 bulan.';
+check('the invented figure is rejected whole', chat.cleanChatReply(invented) === null);
+const firstBad = [...invented].findIndex((ch) => /[0-9]/.test(ch));
+check(
+	'and rejected the moment the digit is written, not at the end',
+	chat.withinFence(invented.slice(0, firstBad)) && !chat.withinFence(invented.slice(0, firstBad + 1)),
+	`digit at ${firstBad}`
+);
+// Once it fails it stays failed, so nothing more is ever sent for that reply.
+check(
+	'a rejected reply has no later prefix that passes',
+	[...invented].every((_, i) => (i > firstBad ? !chat.withinFence(invented.slice(0, i + 1)) : true))
+);
+// A good reply passes at every length, so it streams without stopping.
+const fine = 'Halo, saya Tapak. Mau lihat kawasan mana dulu?';
+check(
+	'a clean reply passes at every length',
+	[...fine].every((_, i) => chat.withinFence(fine.slice(0, i + 1)))
+);
+// The leash, applied to a prefix too: a model that keeps going gets cut off at the same
+// place the finished reply would have been.
+const long = 'a'.repeat(chat.CHAT_MAX_CHARS + 1);
+check('the length leash holds on a prefix', !chat.withinFence(long));
+check('and lets the last allowed character through', chat.withinFence(long.slice(0, -1)));
+
+/* ── a tool call read while it is still being written ────────────────────── */
+
+// The model streams its arguments as fragments of JSON, so there is no object to parse
+// until the very end, which is the moment streaming exists to avoid waiting for.
+const arg = (buf) => stream.partialArg(buf, 'balasan');
+
+check('nothing to read before the key appears', arg('{"topik":"sapaan"') === null);
+check('nothing to read before the quote opens', arg('{"balasan":') === null);
+check('an opened but empty string is not nothing', arg('{"balasan":"') === '');
+check('a half-written value reads as far as it got', arg('{"balasan":"Halo, saya Ta') === 'Halo, saya Ta');
+check('a finished value stops at its quote', arg('{"balasan":"Halo","topik":"sapaan"}') === 'Halo');
+check('whitespace around the colon is allowed', arg('{ "balasan" : "Halo') === 'Halo');
+// The escapes. A reply carrying a quotation mark or an accent is not unusual, and each
+// of these arrives split across two fragments as often as not.
+check('an escaped quote is a quote', arg('{"balasan":"kata \\"buka\\" itu') === 'kata "buka" itu');
+check('an escaped newline is a newline', arg('{"balasan":"satu\\ndua') === 'satu\ndua');
+check('a unicode escape is decoded', arg('{"balasan":"caf\\u00e9 dekat') === 'café dekat');
+// Stopping cleanly in the middle of an escape is the whole point: the next fragment
+// finishes it, and a reader that guessed would print a backslash at the reader.
+check('half an escape stops rather than guesses', arg('{"balasan":"caf\\u00') === 'caf');
+check('a lone trailing backslash stops too', arg('{"balasan":"halo\\') === 'halo');
+
+/* ── the preview only ever shows what survived the fence ─────────────────── */
+
+/** Feeds a reply through the preview one character at a time, as the network would. */
+function preview(reply) {
+	let shown = '';
+	const seen = [];
+	const p = new stream.Preview({
+		delta: (t) => {
+			shown += t;
+			seen.push(shown);
+		},
+		reset: () => {
+			shown = '';
+			seen.push(null);
+		}
+	});
+	for (let i = 1; i <= reply.length; i++) p.offer(reply.slice(0, i));
+	return { shown, seen, live: p.live };
+}
+
+const good = preview('Halo, saya Tapak. Mau lihat kawasan mana dulu?');
+check('a clean reply arrives whole', good.shown === 'Halo, saya Tapak. Mau lihat kawasan mana dulu?');
+check('and only ever grew', good.seen.every((s) => s !== null));
+
+const bad = preview('Warteg biasanya balik modal dalam 8 bulan.');
+check('a reply that breaks the fence ends up showing nothing', bad.shown === '');
+check('it was pulled rather than left up', bad.seen.includes(null));
+check(
+	'and nothing at all was shown after the digit',
+	bad.seen.slice(bad.seen.indexOf(null) + 1).length === 0,
+	JSON.stringify(bad.seen.slice(bad.seen.indexOf(null) + 1))
+);
+check('so no prefix on screen ever carried a digit', bad.seen.every((s) => s === null || !/[0-9]/.test(s)));
+
+// A model that broke the fence and then gave up hands the turn to the next model in the
+// chain, and that one gets to say its own sentence. The fence belonged to the reply, not
+// to the reader.
+const shared = [];
+const reusable = new stream.Preview({ delta: (t) => shared.push(t), reset: () => shared.push(null) });
+for (const s of ['Balik modal 8 bulan.']) for (let i = 1; i <= s.length; i++) reusable.offer(s.slice(0, i));
+reusable.clear();
+for (const s of ['Halo, saya Tapak.']) for (let i = 1; i <= s.length; i++) reusable.offer(s.slice(0, i));
+check(
+	'the fence lifts when the attempt it belonged to is abandoned',
+	shared.filter((t) => t !== null).join('').endsWith('Halo, saya Tapak.'),
+	JSON.stringify(shared)
+);
+
+// Whitespace is collapsed the same way `cleanChatReply` collapses it, so the preview
+// and the sentence that replaces it are the same string and the bubble does not reflow.
+const spaced = preview('  Halo,   saya Tapak. ');
+check(
+	'the preview is the same string the finished reply will be',
+	spaced.shown === chat.cleanChatReply('  Halo,   saya Tapak. '),
+	JSON.stringify(spaced.shown)
+);
+
+/* ── the same, over the wire ─────────────────────────────────────────────── */
+
+/**
+ * A completion split into byte chunks that do NOT line up with its lines.
+ *
+ * That is the case worth testing and the one nobody hits by hand: a chunk off the
+ * network stops wherever it stops, regularly halfway through a `data:` line, and a
+ * reader that treats each chunk as whole turns a perfectly good answer into a parse
+ * error the first time the connection is slow.
+ */
+function sse(events, chunkSize) {
+	const body = `${events.map((e) => `data: ${JSON.stringify(e)}`).join('\n\n')}\n\ndata: [DONE]\n\n`;
+	const bytes = new TextEncoder().encode(body);
+	return new Response(
+		new ReadableStream({
+			start(controller) {
+				for (let i = 0; i < bytes.length; i += chunkSize) {
+					controller.enqueue(bytes.slice(i, i + chunkSize));
+				}
+				controller.close();
+			}
+		})
+	);
+}
+
+/** One argument fragment, in the shape OpenRouter sends it. */
+const frag = (name, args) => ({
+	choices: [{ delta: { tool_calls: [{ index: 0, function: { name, arguments: args } }] } }]
+});
+
+const events = [
+	frag('ngobrol', '{"topik":'),
+	frag(undefined, '"sapaan","balasan":"Halo, '),
+	frag(undefined, 'saya Tapak. Mau '),
+	frag(undefined, 'lihat kawasan mana dulu?"}')
+];
+
+for (const size of [1, 7, 64, 4096]) {
+	const shown = [];
+	const call = await stream.readStream(
+		sse(events, size),
+		new stream.Preview({ delta: (t) => shown.push(t), reset: () => shown.push(null) })
+	);
+	const args = JSON.parse(call.function.arguments);
+	check(
+		`a call split into ${size}-byte chunks is stitched back together`,
+		call.function.name === 'ngobrol' && args.balasan === 'Halo, saya Tapak. Mau lihat kawasan mana dulu?',
+		JSON.stringify(call)
+	);
+	check(
+		`  and was previewed in pieces rather than in one go (${size})`,
+		shown.length > 1 && shown.join('') === args.balasan,
+		JSON.stringify(shown)
+	);
+}
+
+// A model that wrote prose instead of calling a tool is, to this layer, exactly as
+// useless as a network error: the caller moves on to the next model.
+const noTool = await stream.readStream(sse([{ choices: [{ delta: { content: 'hai' } }] }], 16), null);
+check('a completion with no tool call reads as nothing', noTool === undefined);
+
+// Only the operation this layer asked for. A second call has nothing sensible to do.
+const second = await stream.readStream(
+	sse([frag('ngobrol', '{"balasan":"Halo"}'), { choices: [{ delta: { tool_calls: [{ index: 1, function: { name: 'lain', arguments: '{}' } }] } }] }], 16),
+	null
+);
+check('a second tool call is ignored', second.function.name === 'ngobrol' && second.function.arguments === '{"balasan":"Halo"}');
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
