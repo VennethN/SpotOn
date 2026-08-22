@@ -336,11 +336,25 @@ Understanding the question means a call out to a shared free model, up to ninety
 before the chain gives up and the rule parser takes over, and one motionless line for
 that long is indistinguishable from a broken interface. So two things travel:
 
-- **Which stage is running**, `reading` or `computing`. It is not a percentage of
-  anything, because nothing here could honestly be one.
+- **Which stage is running.** Reported from where the work actually is, never on a
+  timer, and never as a percentage, because nothing here could honestly be one.
+  `reading` is the question going out. `retrying` is one model dropping out and the
+  next taking over, which is where the longest silences live. `choosing` is the model
+  naming its operation and writing the arguments, which is the first proof it woke up.
+  `computing` is the scoring engine on the grid.
 - **The casual reply, as it is written.** The one sentence in the product the model
   writes for itself. It is a preview: the sentence in the finished answer is the
   authoritative one, and a `reset` event says the preview is void and must come down.
+
+Nothing is ever shown from a tool call's ARGUMENTS as they arrive. Half an enum value is
+not half an answer, and a category that appeared and then changed would be the interface
+reporting a decision the model had not made yet. Only the fact that an operation was
+named travels, which is all the reader needs to know the wait is moving.
+
+A model that narrates a sentence before calling a tool is handled rather than trusted:
+the preamble streams like any other reply, and the moment a tool other than `ngobrol` is
+named it comes back down. Throat clearing must not be left sitting beside figures it
+knows nothing about.
 
 In the interface, `ui/Typed` reads a sentence out at the pace somebody would say it, and
 every Tapak bubble goes through it whether the words were streamed or composed here from

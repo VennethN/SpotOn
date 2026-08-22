@@ -510,8 +510,16 @@ export interface AiAnswer {
  * a percentage of anything, so nothing pretends to be.
  */
 export type AiStage =
-	/** The question is with the model, being turned into an operation. */
+	/** The question is with the model, and nothing has come back yet. */
 	| 'reading'
+	/**
+	 * The model that had it did not answer, and the next one in the chain is taking
+	 * over. This is where the longest silences are: a model that is full still takes
+	 * its full attempt budget to say so.
+	 */
+	| 'retrying'
+	/** The model has named the operation and is writing out its arguments. */
+	| 'choosing'
 	/** The operation is understood and the scoring engine is running it on the data. */
 	| 'computing';
 

@@ -223,7 +223,9 @@ function preview(reply) {
 		reset: () => {
 			shown = '';
 			seen.push(null);
-		}
+		},
+		chose: () => {},
+		retrying: () => {}
 	});
 	for (let i = 1; i <= reply.length; i++) p.offer(reply.slice(0, i));
 	return { shown, seen, live: p.live };
@@ -247,7 +249,12 @@ check('so no prefix on screen ever carried a digit', bad.seen.every((s) => s ===
 // chain, and that one gets to say its own sentence. The fence belonged to the reply, not
 // to the reader.
 const shared = [];
-const reusable = new stream.Preview({ delta: (t) => shared.push(t), reset: () => shared.push(null) });
+const reusable = new stream.Preview({
+	delta: (t) => shared.push(t),
+	reset: () => shared.push(null),
+	chose: () => {},
+	retrying: () => {}
+});
 for (const s of ['Balik modal 8 bulan.']) for (let i = 1; i <= s.length; i++) reusable.offer(s.slice(0, i));
 reusable.clear();
 for (const s of ['Halo, saya Tapak.']) for (let i = 1; i <= s.length; i++) reusable.offer(s.slice(0, i));
@@ -296,6 +303,19 @@ const frag = (name, args) => ({
 	choices: [{ delta: { tool_calls: [{ index: 0, function: { name, arguments: args } }] } }]
 });
 
+/** A preview writing into `shown`, recording every tool it is told about. */
+function watcher(shown, tools = []) {
+	return {
+		preview: new stream.Preview({
+			delta: (t) => shown.push(t),
+			reset: () => shown.push(null),
+			chose: (tool) => tools.push(tool),
+			retrying: () => tools.push('(retrying)')
+		}),
+		tools
+	};
+}
+
 const events = [
 	frag('ngobrol', '{"topik":'),
 	frag(undefined, '"sapaan","balasan":"Halo, '),
@@ -305,10 +325,7 @@ const events = [
 
 for (const size of [1, 7, 64, 4096]) {
 	const shown = [];
-	const { call } = await stream.readStream(
-		sse(events, size),
-		new stream.Preview({ delta: (t) => shown.push(t), reset: () => shown.push(null) })
-	);
+	const { call } = await stream.readStream(sse(events, size), watcher(shown).preview);
 	const args = JSON.parse(call.function.arguments);
 	check(
 		`a call split into ${size}-byte chunks is stitched back together`,
@@ -341,10 +358,8 @@ const proseEvents = ['Halo, ', 'saya Tapak. ', 'Mau lihat kawasan mana dulu?'].m
 	choices: [{ delta: { content: t } }]
 }));
 const proseShown = [];
-const prose = await stream.readStream(
-	sse(proseEvents, 9),
-	new stream.Preview({ delta: (t) => proseShown.push(t), reset: () => proseShown.push(null) })
-);
+const proseWatch = watcher(proseShown);
+const prose = await stream.readStream(sse(proseEvents, 9), proseWatch.preview);
 check(
 	'prose with no tool call is carried back rather than dropped',
 	prose.call === undefined && prose.content === 'Halo, saya Tapak. Mau lihat kawasan mana dulu?',
@@ -366,9 +381,10 @@ check(
 // reader's screen. The preview stops the moment a tool is named, and the caller takes
 // down whatever went up.
 const preambleShown = [];
+const preambleWatch = watcher(preambleShown);
 const preamble = await stream.readStream(
 	sse([{ choices: [{ delta: { content: 'Sebentar ya' } }] }, frag('jalankan_query', '{"intent":"RANK"}')], 6),
-	new stream.Preview({ delta: (t) => preambleShown.push(t), reset: () => preambleShown.push(null) })
+	preambleWatch.preview
 );
 check(
 	'a preamble does not stop the tool call being read',
@@ -376,10 +392,32 @@ check(
 	JSON.stringify(preamble)
 );
 check(
-	'and nothing more is shown once the tool is named',
-	preambleShown.join('').length <= 'Sebentar ya'.length,
+	'and the preamble is taken back down when the tool is named',
+	preambleShown[preambleShown.length - 1] === null,
 	JSON.stringify(preambleShown)
 );
+
+/* ── the reader is told the operation was named ──────────────────────────── */
+
+// The whole point of this signal: it is the first proof the model woke up. Without it
+// the line reads `reading` from the moment the question goes out until the answer
+// lands, which on a busy free model is a minute and a half of nothing moving.
+check(
+	'naming the operation is reported once, with the name',
+	preambleWatch.tools.length === 1 && preambleWatch.tools[0] === 'jalankan_query',
+	JSON.stringify(preambleWatch.tools)
+);
+// A model repeating the name across fragments has not changed its mind, and the
+// reader's line must not move twice for one decision.
+const repeatTools = [];
+await stream.readStream(
+	sse([frag('ngobrol', '{"bal'), frag('ngobrol', 'asan":"Halo"}')], 8),
+	watcher([], repeatTools).preview
+);
+check('a repeated name is reported once, not twice', repeatTools.length === 1, JSON.stringify(repeatTools));
+// Prose is not an operation. Nothing to report, and nothing to move the line for: the
+// reply itself is already filling the bubble.
+check('prose names no operation', proseWatch.tools.length === 0, JSON.stringify(proseWatch.tools));
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

@@ -30,6 +30,13 @@ import type { AiAnswer, AiEvent, CategoryKey, ChatTopic, Weights } from '$lib/ty
  * for that long has no way to tell a slow answer from a broken one. So the stages are
  * said out loud, and the one sentence the model does write is passed on as it is
  * written.
+ *
+ * The stages are reported from where the work actually is, not on a timer. `reading` is
+ * the question going out. `retrying` is one model dropping out and the next taking over,
+ * which is where the longest silences live. `choosing` is the model naming its operation
+ * and writing the arguments, which is the first proof it woke up at all. `computing` is
+ * the scoring engine on the grid. None of them is a fraction of anything, because none
+ * of them could honestly be one.
  */
 
 /**
@@ -129,7 +136,16 @@ export async function resolveQuestion(
 		input.lang === 'en' ? 'en' : 'id',
 		emit && {
 			delta: (text) => emit({ kind: 'delta', text }),
-			reset: () => emit({ kind: 'reset' })
+			reset: () => emit({ kind: 'reset' }),
+			/* Only for `jalankan_query`, and that is the point rather than an oversight.
+			   `ngobrol` is already answering in the reader's own bubble, a word at a
+			   time, so a line saying it is working would be talking over it. And
+			   `tidak_dimengerti` writes one short sentence, which lands before a stage
+			   line would have finished appearing. */
+			chose: (tool) => {
+				if (tool === 'jalankan_query') emit({ kind: 'stage', stage: 'choosing' });
+			},
+			retrying: () => emit({ kind: 'stage', stage: 'retrying' })
 		}
 	);
 
