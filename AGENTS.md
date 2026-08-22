@@ -292,6 +292,26 @@ Without a model key only greetings are reachable, by rule, and a greeting counts
 when it is the whole message: "oke berapa harga tempat di sini" is a question with a
 courtesy in front of it, and answering it with hello throws away what was asked.
 
+**The tools are offered, not forced.** `tool_choice: 'required'` used to be set on the
+request, and it cost more than it bought: free models vary in how well they honour it,
+several answer a plain "halo" with a malformed call or with prose anyway, and prose was
+read as a failure. So somebody saying hello fell through the whole chain to the rule
+parser, which recognises greetings and nothing else.
+
+A completion with no tool call is now read as what it plainly is, a casual reply, and it
+goes through the SAME `cleanChatReply` fence as `ngobrol`'s own. That fence is what makes
+this safe rather than merely lenient: a model that skips the tools and answers a data
+question in fluent invented prose writes a digit while doing it, the reply is thrown away
+rather than shown, and the turn moves on to a model that will call `jalankan_query`, or
+to the rule parser, which computes the figures from data. Prose that fails the fence is
+NOT a chat turn with a canned line, it is not an answer at all, because a model that
+answered a data question in prose has not chatted, it has guessed.
+
+The topic on such a turn is read off the QUESTION, never off the reply. It only decides
+which canned line stands in when there is no sentence, and there is one here, so a wrong
+guess costs nothing and a guess read off the model's own words would be the model
+labelling itself.
+
 The fence runs on every PREFIX of that reply, not only on the finished one. It has to,
 because the reply is now streamed onto the reader's screen as the model writes it, and a
 check that only ran at the end would put "warteg biasanya balik modal dalam 8 bulan" in
