@@ -32,6 +32,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { haversine } from './lib/geo.mjs';
 import { openHours } from './lib/hours.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -53,28 +54,6 @@ export const RADII = [400, 500, 600, 700, 800];
  * three priced units a median needs in `join-property.mjs`.
  */
 export const MIN_READABLE = 8;
-
-/**
- * The same earth this app measures with, not the same one the other joins do.
- *
- * `src/lib/utils/geo.ts` uses the WGS84 equatorial radius and the other join scripts
- * use the mean radius, which differ by 0.11%. Everywhere else that gap is invisible,
- * because one side of the comparison never meets the other. Here it is not: the count
- * this script writes is printed directly above a curve the BROWSER draws with
- * `utils/geo`, over what is supposed to be the same set of businesses. At 800 m the
- * two disagree by 0.9 m of radius, which is enough to put one shop on one side of the
- * line here and the other side there, and `selftest-hours.mjs` found exactly that on
- * cell 888c107991fffff before this constant was changed to match.
- */
-const R = 6378137;
-const rad = (d) => (d * Math.PI) / 180;
-function haversine(aLat, aLon, bLat, bLon) {
-	const dLat = rad(bLat - aLat);
-	const dLon = rad(bLon - aLon);
-	const x =
-		Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLon / 2) ** 2;
-	return 2 * R * Math.asin(Math.sqrt(x));
-}
 
 function main() {
 	const hexPath = resolve(ROOT, 'src/lib/data/hexes.json');
