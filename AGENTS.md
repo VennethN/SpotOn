@@ -145,6 +145,9 @@ node scripts/build-pois.mjs      # → static/data/pois/<category>.json   local 
 node scripts/fetch-property.mjs  # → src/lib/data/mapid-property.json   needs MAPID_API_KEY
 node scripts/join-property.mjs   # → adds prop + propCovered to hexes.json   local only
 node scripts/build-property.mjs  # → static/data/property.json   local only
+node scripts/fetch-hours.mjs     # → src/lib/data/osm-hours.json   needs Overpass
+node scripts/join-hours.mjs      # → adds hours to hexes.json   local only
+node scripts/build-hours.mjs     # → static/data/hours.json   local only
 node scripts/build-stops.mjs     # → static/data/stops.json   needs Overpass
 node scripts/build-routes.mjs    # → static/data/routes.json  needs Overpass
 node scripts/fetch-missions.mjs  # → src/lib/data/mission.json   no key needed
@@ -185,12 +188,18 @@ number, in the place the number is already being read.
 
 There is no setting for this in the application.
 
+The three opening-hours steps run in that order and depend on nothing but the grid
+having cells. `join-hours.mjs` needs no city assignment, unlike the property join: one
+Overpass query covers the whole grid at once, so there is no city that might not have
+been read.
+
 `npm run selftest` covers the parts of this that a rebuild cannot: the score
 breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
-in it has a name, the cost-of-space layer against the grid on disk, which
-measure each kind of question is understood to be asking about, and the field
-surveys against the two files they produced.
+in it has a name, the cost-of-space layer against the grid on disk, the
+opening-hours reader and every cell's activity count against the point file the
+curve is drawn from, which measure each kind of question is understood to be
+asking about, and the field surveys against the two files they produced.
 
 ## The field surveys are evidence, and they never reach the score
 
@@ -363,3 +372,4 @@ Two rules follow from the same place as the rest of this file:
   against a grid carrying at least eight prices. The listings hold real errors, a ruko
   at Rp 9.6 billion per m² among them, and one of those alone in a catchment would cost
   it a quarter of its score on the strength of a typo.
+
