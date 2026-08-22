@@ -6,6 +6,7 @@ import {
 	parseCompetitors,
 	type Competitor
 } from '$lib/domain/competitors';
+import { capturedOpen, parseHours, type OpenPlace } from '$lib/domain/activity';
 import { priceLadder } from '$lib/domain/cost';
 import { parseField, type FieldRecord } from '$lib/domain/field';
 import { capturedListings, parseListings, type Listing } from '$lib/domain/premises';
@@ -290,6 +291,21 @@ export class AppState {
 	    `stopsFailed` is apart from `stops`: the counts on the card come from the grid
 	    and survive this, only the records themselves are lost. */
 	fieldFailed = $state(false);
+	 * The businesses whose opening hours OpenStreetMap publishes, for the activity
+	 * curve of a selected cell.
+	 *
+	 * Fetched on the first selection and kept, exactly like the property listings and
+	 * for the same reason: it is not needed until a cell is open, and then it is needed
+	 * for every cell after that.
+	 *
+	 * Not per category either. When a street wakes up is a fact about the street.
+	 */
+	openPlaces = $state<OpenPlace[] | null>(null);
+	/** The hours file could not be read. Kept apart from `openPlaces` for the same
+	    reason `listingsFailed` is kept apart from `listings`: how many businesses
+	    around a cell publish readable hours comes from the grid and survives this, only
+	    the curve is lost, and the panel can say so instead of waiting forever. */
+	openPlacesFailed = $state(false);
 
 	/** In-flight requests, so two callers asking for the same category share one fetch. */
 	#inFlight = new Map<CategoryKey, Promise<void>>();
@@ -297,6 +313,7 @@ export class AppState {
 	#poiJobs = new Map<CategoryKey, Promise<void>>();
 	#listingsJob: Promise<void> | null = null;
 	#fieldJob: Promise<void> | null = null;
+	#hoursJob: Promise<void> | null = null;
 
 	constructor(base: HexBase[], meta?: GridMeta) {
 		this.base = base;
@@ -652,6 +669,31 @@ export class AppState {
 			}
 		})();
 		return this.#fieldJob;
+	 * Load the businesses' opening hours, once.
+	 *
+	 * Failure is quiet in the same way `loadListings` is. How many businesses stand
+	 * around the cell, how many of them publish hours and how many of those could be
+	 * read all come from the grid, which is already here. Losing this file costs the
+	 * reader the CURVE and nothing else, and the panel says so rather than waiting on a
+	 * request that is never coming back.
+	 */
+	loadHours(): Promise<void> {
+		if (this.openPlaces || this.#hoursJob) return this.#hoursJob ?? Promise.resolve();
+		this.#hoursJob = (async () => {
+			try {
+				const res = await fetch(`${base}/data/hours.json`);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				this.openPlaces = parseHours(await res.json());
+				this.openPlacesFailed = false;
+			} catch {
+				this.openPlacesFailed = true;
+			} finally {
+				// Cleared either way, so a failure can be retried by the next selection
+				// rather than every later one being answered by the request that failed.
+				this.#hoursJob = null;
+			}
+		})();
+		return this.#hoursJob;
 	}
 
 	/**
@@ -731,6 +773,24 @@ export class AppState {
 		const id = this.selectedId;
 		if (!id || !this.fieldByCell) return [];
 		return this.fieldByCell.get(id) ?? [];
+	 * The businesses with readable opening hours the selected cell captures.
+	 *
+	 * The same distance test `join-hours.mjs` used, so the curve drawn from these IS
+	 * the count the grid printed above it rather than a set that resembles it.
+	 */
+	selectedOpen = $derived.by(() => {
+		const cell = this.selectedCell;
+		if (!cell || !this.openPlaces) return [];
+		return capturedOpen(cell, this.openPlaces, this.weights.radius);
+	});
+
+	/** The hours file is on its way and no curve can be drawn yet. Its own flag for the
+	    same reason `listingsLoading` is: an empty capture reads the same whether the
+	    file has not landed or has landed and holds nothing in range, and only one of
+	    those is a finding. */
+	hoursLoading = $derived.by(() => {
+		if (!this.selectedCell || this.openPlacesFailed) return false;
+		return this.openPlaces === null;
 	});
 
 	/**
@@ -828,6 +888,7 @@ export class AppState {
 			void this.loadCategories();
 			void this.loadStops();
 			void this.loadPoiSet();
+			void this.loadHours();
 		}
 	}
 
@@ -888,6 +949,9 @@ export class AppState {
 			// and most cells have nothing in it — which the card says, rather than
 			// leaving a section that never fills.
 			void this.loadField();
+			// …and for when the businesses around it open their doors. One file for the
+			// whole city, cached the same way.
+			void this.loadHours();
 		}
 	}
 
