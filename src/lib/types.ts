@@ -140,6 +140,22 @@ export interface Hex {
 	 * zero cannot tell them apart.
 	 */
 	field?: FieldStats;
+	/**
+	 * How many businesses in walking range publish opening hours anybody can read.
+	 *
+	 * The counting half of the activity signal, and a CATALOGUE figure rather than a
+	 * field one: OpenStreetMap claims to cover the whole city, so a cell where nobody
+	 * publishes hours is a finding about the city and not about where a surveyor walked.
+	 * That is why this carries a denominator and `field` above deliberately does not.
+	 *
+	 * The WHEN lives in `static/data/hours.json` and is matched to a cell in the browser,
+	 * exactly as the property listings are, because a week of 24 hours per cell per
+	 * radius is 118,000 numbers and the panel needs one cell's worth.
+	 *
+	 * Absent means `join-hours.mjs` has not been run on this grid. That is not the same
+	 * as a cell where nobody publishes hours, which is `h: 0` with an `n` beside it.
+	 */
+	hours?: HoursStats;
 }
 
 /**
@@ -533,6 +549,29 @@ export interface GridMeta {
 		minReadings: number;
 		/** Every closed vocabulary the records use, tallied on the run that read them. */
 		vocab: Record<string, Record<string, number>>;
+	};
+	/** Present once the opening-hours join has been run. */
+	hours?: {
+		source: string;
+		/** In words: which OSM tags were counted as a business, and which were not. */
+		counted: string;
+		/** In words: that this counts doors open and not people through them. */
+		note: string;
+		/** Businesses counted in the bounding box, whether or not they publish hours. */
+		businesses: number;
+		/** Of those, how many published an `opening_hours` tag of any kind. */
+		published: number;
+		/** Of those, how many could be read without guessing at them. */
+		readable: number;
+		/** Why the rest were refused, by reason — see `scripts/lib/hours.mjs`. */
+		unreadable: Record<string, number>;
+		/** Readable businesses a cell needs in range before a curve is drawn for it. */
+		minReadable: number;
+		cellsReadable: number;
+		cellsThin: number;
+		cellsEmpty: number;
+		/** How long the average readable business is open, in hours a week. */
+		openHoursPerWeek: number;
 	};
 }
 
