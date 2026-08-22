@@ -935,7 +935,9 @@ export const id = {
 			harga_tempat: 'harga jual tempat usaha',
 			unit_dipasarkan: 'unit yang dipasarkan',
 			akses_transit: 'akses transit',
-			simpul_transit: 'simpul transit'
+			simpul_transit: 'simpul transit',
+			struk_dicatat: 'struk yang tercatat',
+			sewa_ditawarkan: 'tempat yang disewakan'
 		},
 		sortedBy: (ukuran: string, naik: boolean) =>
 			`diurutkan dari ${ukuran} ${naik ? 'terkecil' : 'terbesar'}`,
