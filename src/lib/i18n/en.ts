@@ -15,6 +15,16 @@ import { moneyScale } from '$lib/utils/format';
  */
 
 /**
+ * The zone the week boundary stands in.
+ *
+ * An allowance turns over at midnight on Monday in Jakarta, and that is one instant, not
+ * one date. Written in the reader's own clock the same instant lands on a Sunday for
+ * somebody in Europe, and the sentence about their quota would name a Sunday while the
+ * rule names a Monday. The rule lives in `domain/plans`; this is how it is written down.
+ */
+const JAKARTA = 'Asia/Jakarta';
+
+/**
  * Rupiah, written short: 45000000 → "Rp 45m", 4300000000 → "Rp 4.3bn".
  *
  * The suffixes are English, the thresholds are not: those come from `moneyScale`, so
@@ -1026,6 +1036,10 @@ export const en: Copy = {
 		coverage: 'Which ones have no data?',
 		coverageQ: 'Which areas have no data yet?',
 		retry: 'Try again',
+		/* Said by Tapak inside the thread, separately from the notice over the map. The
+		   question was never sent, so the turn still has to answer something rather than
+		   sitting on "one moment" for good. */
+		outOfQuota: 'There are no questions left this week, so I cannot answer this one.',
 		failed: (err: string) => `Sorry, my notes wouldn't open just now. ${err} Want to ask again?`,
 		nothing: "I haven't found anything for that."
 	},
@@ -1205,6 +1219,122 @@ export const en: Copy = {
 				: `${ukuran} in the ${arah === 'rendah' ? 'bottom' : 'top'} third`,
 		perM2: (v: number) => `${rp(v)}/m²`,
 		count: (v: number) => num(Math.round(v))
+	},
+
+	/* Accounts, plans and what is left of them. Not one allowance is written here:
+	   every sentence below takes its figures as arguments and they all come from
+	   `domain/plans`, so raising a tier changes the pricing page, the account card
+	   and the sentence somebody reads when they run out, in one edit. */
+	account: {
+		title: 'Account',
+		sub: 'The plan you are on, what is left of it, and how to add more.',
+		pageTitle: 'SpotOn · Account and plans',
+		signinTitle: 'SpotOn · Sign in',
+		chip: 'Account and remaining quota',
+		chipLeft: (ai: number, areas: number) => `${num(ai)} questions and ${num(areas)} areas left`,
+		back: 'Back to the map',
+
+		signIn: 'Sign in',
+		signOut: 'Sign out',
+		signUp: 'Create an account',
+		signInHead: 'Sign in to SpotOn',
+		signInSub: 'One account holds your question quota and your area quota.',
+		signUpHead: 'Create a SpotOn account',
+		signUpSub: 'You start on the Free plan. No card is asked for.',
+		toSignUp: 'No account yet? Create one.',
+		toSignIn: 'Already have an account? Sign in.',
+		email: 'Email address',
+		password: 'Password',
+		name: 'What to call you',
+		nameOptional: 'can be left blank',
+		passwordHint: (min: number) => `At least ${min} characters.`,
+		working: 'One moment…',
+
+		demoHead: 'Demo mode',
+		demoEnter: 'Continue on the demo account',
+		demoWhy:
+			'No database is configured, so SpotOn runs on a single example account. Quotas, plans and purchases all behave exactly as they really do, they are just held in the server memory and go when the server stops.',
+		demoBadge: 'Demo account',
+		demoNote: 'This account is not stored anywhere. What is on it goes when the server stops.',
+
+		errors: {
+			credentials: 'That email and password do not match.',
+			taken: 'That address already belongs to an account.',
+			invalid: 'Something is missing, or the password is too short.',
+			unavailable: 'The database could not be reached. Try again shortly.',
+			signedout: 'Your session has ended. Sign in again.'
+		},
+
+		plans: 'Plans',
+		plan: {
+			free: {
+				name: 'Free',
+				blurb: 'Enough to try it. Ask two or three things, then open the places the answers name.'
+			},
+			personal: {
+				name: 'Personal',
+				blurb:
+					'For one person working through a shortlist, with the room to open everything that comes back.'
+			},
+			premier: {
+				name: 'Premier',
+				blurb: 'For a team, or for one person surveying the whole grid inside a week.'
+			}
+		},
+		priceFree: 'No charge',
+		/* Written in full rather than shortened to "Rp 79k". `rp` is for property prices
+		   twelve digits long, which stop being read as quantities at all. This is a figure
+		   somebody is about to be charged, and a figure being charged is written out. */
+		priceMonth: (v: number) => `Rp ${num(v)} a month`,
+		grantAi: (n: number) => `${num(n)} questions a week`,
+		grantAnalysis: (n: number) => `${num(n)} areas or places a week`,
+		currentPlan: 'Current plan',
+		choosePlan: 'Move to this plan',
+		planNote:
+			'A change of plan takes effect at once and the week starts again from nothing. What is left of the week you are in does not come across, and anything bought outright is untouched.',
+
+		balance: 'What is left',
+		meter: {
+			ai: 'Questions for Tapak',
+			analysis: 'Areas and places'
+		},
+		meterNote: {
+			ai: 'One each time you ask, answered or not. What is paid for is the call out to the language model, and that call happens whether or not anything useful comes back.',
+			analysis:
+				'One each time you open an area or a unit yourself. Closing the card costs nothing, reopening what is already open costs nothing, and an area Tapak opens for you is not charged at all.'
+		},
+		weekLeft: (leftOver: number, week: number) => `${num(leftOver)} of ${num(week)} left this week`,
+		extraLeft: (n: number) => `${num(n)} bought outright, and they do not expire`,
+		/* Written in Jakarta time rather than in the reader's own. The boundary really is
+		   midnight on Monday in Jakarta, so read from another zone the same instant falls
+		   on a Sunday, and this sentence would name a Sunday while everything else about
+		   the product names a Monday. */
+		refillOn: (at: number) =>
+			`Refills on ${new Date(at).toLocaleDateString('en-GB', { timeZone: JAKARTA, weekday: 'long', day: 'numeric', month: 'long' })}.`,
+
+		packs: 'Top-ups, bought once',
+		packsNote:
+			'For a week that needs more than the plan grants. What is bought here is not swept away on Monday.',
+		pack: {
+			ai_pack: (n: number) => `${num(n)} questions`,
+			analysis_pack: (n: number) => `${num(n)} areas or places`
+		},
+		buy: (v: number) => `Buy for Rp ${num(v)}`,
+		noPayment:
+			'There is no payment behind any of these buttons. Everything that follows a payment is real, so the plan genuinely moves and the quota genuinely grows.',
+
+		outOf: {
+			ai: 'No questions left this week',
+			analysis: 'No area readings left this week'
+		},
+		outOfNote: {
+			ai: 'Tapak cannot answer again until the quota refills or the plan goes up.',
+			analysis: 'Areas and units cannot be opened again until the quota refills or the plan goes up.'
+		},
+		signedOut: 'Your session has ended',
+		signedOutNote: 'Sign in again to carry on. What is already on the screen stays readable.',
+		seePlans: 'See the plans',
+		dismiss: 'Close'
 	},
 
 	/* The sample questions on the landing page, written whole, the way somebody who
