@@ -104,7 +104,8 @@ src/routes/            pages and API endpoints
 src/lib/
   components/app/        surfaces that only exist inside the app
   components/landing/    surfaces that only exist on the landing page
-  components/ui/         shared between both
+  components/account/    surfaces that only exist on the account page
+  components/ui/         shared between them
   domain/                scoring, natural-language query, categories, narration, markdown
   state/                 app, tapak, lang, theme, account
   server/source.ts       the one place the data source is decided
@@ -191,6 +192,46 @@ difference between a top-up and a plan. `selftest-plans.mjs` asserts all of it a
 table actually in the repository, including that the ladder is monotonic in both price
 and allowance on every meter, because a tier that costs more and grants less on one of
 them is a pricing page arguing with itself.
+
+## Nothing on the account page is a picture of a legible number
+
+Four things are drawn there and each does something its own caption cannot. A meter
+turns a remainder into a PROPORTION, because "1,480 left" is a quantity and the
+question a reader has is whether that is most of the week or the end of it. The week
+strip turns a refill date into a POSITION, because a date has to be held against
+today's date and seven cells with today marked do not. The comparison bars turn three
+tiers into an ORDER, because six numbers across three cards is arithmetic a reader has
+to do to see the ladder they are being sold. The crests turn a tier into a RANK at a
+size no wording is legible at, so the cards are told apart while they are scanned.
+
+The rules those drawings are held to are the rules the rest of the product already
+follows, applied to a page about money:
+
+- **Every figure comes from `domain/plans`.** Not one allowance and not one price is
+  written into the copy or into a component. Even the crest counts its hexagons off the
+  tier's position in `PLAN_KEYS`, and the comparison bars scale against the largest
+  grant that exists rather than against Premier by name, so inserting a tier moves all
+  of it at once.
+- **The comparison scale is linear and the free tier looks as small as it is.** A scale
+  bent to flatter the bottom of the ladder would be a picture disagreeing with the
+  numbers printed beside it.
+- **The one decoration is uniform.** The hexagon field behind the head is the grid this
+  product is made of, drawn at one weight with no fill. One cell darker than another and
+  it would be a map of something, which is the thing this product does not draw.
+- **The week strip is a calendar, not a chart.** Nothing is stored per day, so no cell is
+  weighted differently from another. Cells differ only in whether the day has been
+  reached.
+- **The sections arrive on mount, not on scroll.** `Reveal` waits to be scrolled to,
+  which is right for a landing page read top to bottom and wrong for a page somebody
+  opened to check one figure. It cost the top-ups their whole section once.
+
+Two details worth keeping. The large figure is the TOTAL a reader can spend, because
+that is what the chip in the map chrome shows and two surfaces printing different
+totals for one account is worse than either being harder to read; the bar under it is
+this week's allowance alone, labelled as such, because credits bought outright have no
+weekly grant to be a fraction of. And an empty meter has to LOOK empty: its track is
+kept faint, since with no fill left the track is the only bar on screen and a heavy one
+reads at a glance as a bar that is full.
 
 ## No database is a way of running this, not a failure to configure it
 
