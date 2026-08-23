@@ -556,12 +556,14 @@ export const en: Copy = {
 			properti: 'Property',
 			catatan: 'Community note'
 		}
+	},
 
 	/* ── Opening hours ──────────────────────────────────────────────────────
 	   One word deliberately absent here: busy. What is counted is DOORS open, from
 	   OpenStreetMap's `opening_hours` tag, not people going through them. The chart
 	   is the shape of Google's popular times and a different measurement altogether.
-	   Struk Go and Mission Go carry the spending side, and neither exists yet. */
+	   The field notes carry the spending side, and they hold no hour at all, only a
+	   date. So the two cannot be drawn as one curve. */
 	activity: {
 		title: 'When this area is open',
 		dayPicker: 'Pick a day',
@@ -593,7 +595,7 @@ export const en: Copy = {
 		refused: (n: number) =>
 			`${n} more publish them in a form this reader will not guess at, a public holiday rule or "sunset" for instance. Those are left out rather than approximated.`,
 		notFootfall:
-			'This counts doors open, not people walking past. The spending side belongs to Struk Go and Mission Go, and neither has data yet. When they do, the two go side by side.',
+			'This counts doors open, not people walking past. The receipts surveyors logged are below, kept separate, because those carry a date and no hour.',
 		loading: 'Loading the opening hours…',
 		failed: (n: number) =>
 			`The opening hours could not be loaded, so no curve is drawn. The count of ${n} businesses below still holds, it is read from the grid rather than from that file.`
