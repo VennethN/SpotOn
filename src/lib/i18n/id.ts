@@ -782,6 +782,41 @@ export const id = {
 			'Sebutkan mau buka usaha apa, nanti saya hitung skor peluangnya untuk petak ini.'
 	},
 
+	/* ── panel ────────────────────────────────────────────────────────────────
+	   Kartu kawasan sekarang memimpin dengan satu angka per bagian, dan bagian
+	   lengkapnya dibuka menutupi panelnya. Yang ada di sini keterangan pendek di
+	   bawah tiap angka, plus jalan pulangnya.
+
+	   Judul barisnya TIDAK ditulis ulang di sini. Tiap baris memakai judul bagian
+	   yang dibukanya, jadi yang dijanjikan baris dan yang tertulis di dalamnya
+	   tidak mungkin beda. */
+
+	panel: {
+		back: 'Kembali',
+		backAria: 'Kembali ke ringkasan kawasan',
+		/* Isinya yang disebut, bukan "lihat detail". Pembaca berhak tahu apa yang
+		   akan ditemukan sebelum menekan barisnya. */
+		scoreCap: 'Keramaian, pesaing, akses, dan harganya',
+		scoreAsk: 'Sebutkan dulu mau buka usaha apa',
+		rivalsCap: (cat: string) => `${cat} dalam jarak jalan kaki`,
+		/* Angkanya berapa pintu yang buka SEKARANG, jadi keterangannya wajib menyebut
+		   dari berapa. Tanpa penyebutnya angka itu terbaca sebagai seluruh jalan,
+		   padahal yang mencantumkan jam buka tidak sampai seperenamnya. */
+		hoursNow: (dari: number) => `buka sekarang, dari ${dari} yang terbaca`,
+		hoursThin: 'Belum cukup jam buka yang terbaca di sini',
+		/* Ini harga jual per m², dan keterangan inilah yang menahan angkanya supaya
+		   tidak terbaca sebagai harga satu unit. */
+		costCap: (unit: number) => `per m² tanah · ${unit} unit dipasarkan`,
+		costUnits: (unit: number) => `${unit} unit dipasarkan, tanpa harga median`,
+		/* Tiga diam yang berbeda, dan cuma yang ini berarti belum ada yang melihat. */
+		costUnread: 'Katalog harga belum membaca kota petak ini',
+		costNone: 'Belum ada yang dipasarkan di sini',
+		transitNone: 'Tidak ada dalam jarak jalan kaki',
+		fieldNone: 'Belum ada yang mencatat di sini',
+		loading: 'Memuat…',
+		failed: 'Gagal dimuat'
+	},
+
 	/* ── app ──────────────────────────────────────────────────────────────── */
 
 	app: {

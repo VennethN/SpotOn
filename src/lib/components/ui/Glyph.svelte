@@ -22,7 +22,9 @@
 		| 'field'
 		| 'hours'
 		| 'sign'
+		| 'score'
 		| 'info'
+		| 'chevron'
 		| 'close';
 
 	/** The size the stroke weight below was drawn for. Every other size is scaled to it. */
@@ -75,6 +77,15 @@
 		<rect x="2.2" y="2.2" width="5" height="5" rx="0.6" />
 		<rect x="8.8" y="8.8" width="5" height="5" rx="0.6" />
 		<path d="M8.8 4.7h5M2.2 11.3h5" />
+	{:else if icon === 'score'}
+		<!-- A dial with the needle up: the one figure the engine arrives at. -->
+		<path d="M2.1 11.7a5.9 5.9 0 1 1 11.8 0" />
+		<path d="M8 11.7 11 7.2" />
+		<circle cx="8" cy="11.7" r="0.65" fill="currentColor" stroke="none" />
+	{:else if icon === 'chevron'}
+		<!-- Points at what opening this row leads to. Turned by the caller for a back
+		     control, so the arrow into a section and the arrow out of it are one shape. -->
+		<path d="M6 3.2 10.8 8 6 12.8" />
 	{:else if icon === 'info'}
 		<!-- The mark on the fine print: how the figure above was arrived at. -->
 		<circle cx="8" cy="8" r="6.1" />
