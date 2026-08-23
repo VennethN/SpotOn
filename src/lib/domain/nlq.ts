@@ -448,7 +448,7 @@ export function runQuery(
 	const rows = scoreAll(catchments, cats, w);
 	const provenance = [
 		`Alur: pertanyaan → parsing niat → function-calling ke daftar operasi spasial terbatas → PostGIS mengeksekusi → peta & panel diperbarui.`,
-		`Angka tidak dikarang model: LLM hanya memilih operasi dan mengisi argumen; seluruh nilai dihitung basis data dan ditautkan ke titik sumbernya.`,
+		`Angka tidak dikarang model. LLM cuma memilih operasi dan mengisi argumen, dan seluruh nilai dihitung basis data lalu ditautkan ke titik sumbernya.`,
 		w.source === 'mapid'
 			? `Sumber pesaing: MAPID Data Premium, ${defs.map((d) => d.mapidSet).join(' + ')}, around:${w.radius}.`
 			: w.source === 'osm'
@@ -627,7 +627,7 @@ function whyLine(
 	const lead = `${key} = ${metricText(key, value)}`;
 	const context = `Skor peluang ${pct(r.score)} · ${r.density} usaha lain di sekitarnya · ${r.osm} pesaing dalam radius ${w.radius} m`;
 	if (key === 'harga_tempat') {
-		return `${lead}. Harga JUAL yang diminta penjual, bukan sewa — katalog MAPID tidak memuat listing sewa untuk Jakarta. ${r.units} unit komersial dipasarkan di sekitarnya. ${context}.`;
+		return `${lead}. Harga JUAL yang diminta penjual, bukan sewa, karena katalog MAPID tidak memuat listing sewa untuk Jakarta. ${r.units} unit komersial dipasarkan di sekitarnya. ${context}.`;
 	}
 	if (key === 'unit_dipasarkan') {
 		return `${lead} unit komersial dipasarkan dalam radius ${w.radius} m${r.price !== null ? `, median ${metricText('harga_tempat', r.price)}` : ', tidak satu pun memasang harga'}. ${context}.`;

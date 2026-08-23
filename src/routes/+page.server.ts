@@ -219,7 +219,12 @@ export const load: PageServerLoad = () => {
 			poisByCategory: grid.poisByCategory,
 			categories: CATEGORIES.length,
 			mapidPoints: grid.mapid?.points ?? 0,
-			listings: grid.property?.listings ?? 0
+			listings: grid.property?.listings ?? 0,
+			/* Null until the field surveys have been joined, and the page drops the
+			   sentence about them rather than making a claim the data cannot back. The
+			   figure is the records that actually landed in a catchment, not everything
+			   read, because that is the number a reader can go and find. */
+			fieldNotes: grid.mission ? grid.mission.placed : null
 		},
 		coverage: coverageMap(hexes),
 		queryMaps,
