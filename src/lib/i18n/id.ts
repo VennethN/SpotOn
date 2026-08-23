@@ -1278,6 +1278,28 @@ export const id = {
 			signedout: 'Sesi Anda sudah berakhir. Masuk lagi ya.'
 		},
 
+		/* ── gambar-gambar di halaman ini ─────────────────────────────────────────
+		   Dua-duanya membaca data sungguhan dari kisi yang ada di disk, bukan hiasan
+		   yang dibikin mirip data. Angkanya masuk sebagai argumen, jadi kisi dibangun
+		   ulang dan kalimatnya ikut. Yang diwarnai itu KERAMAIAN, bukan skor peluang,
+		   karena orang yang lagi milih paket belum menyebut jenis usaha apa pun dan skor
+		   peluang tanpa jenis usaha itu skor buat usaha yang tidak pernah disebut. */
+		modelLabel:
+			'Model kisi heksagon: tiap tiang setinggi jumlah usaha di sekitar satu petak.',
+		modelMark: 'model, bukan peta',
+		fieldTitle: 'Kawasan yang bisa dibuka',
+		fieldLead: (petak: number) =>
+			`${num(petak)} petak kawasan, di posisi sebenarnya masing-masing.`,
+		fieldNote: (belum: number) =>
+			belum === 0
+				? 'Warnanya jumlah usaha di sekitar tiap petak, sumber yang sama dengan peta sebelum ada jenis usaha yang disebut.'
+				: `Warnanya jumlah usaha di sekitar tiap petak, sumber yang sama dengan peta sebelum ada jenis usaha yang disebut. ${num(belum)} petak kotanya belum masuk katalog, dan itu digambar kosong, bukan sepi.`,
+		fieldLabel: (petak: number, terbaca: number) =>
+			`Peta ${num(petak)} petak kawasan, ${num(terbaca)} di antaranya terbaca jumlah usahanya.`,
+		fieldLow: 'sepi',
+		fieldHigh: 'terpadat',
+		fieldNoData: 'belum masuk katalog',
+
 		plans: 'Paket',
 		plan: {
 			free: {
