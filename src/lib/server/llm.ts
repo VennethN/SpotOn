@@ -136,6 +136,17 @@ export type ParseResult =
    contract (intent, metrik, kategori, radius, filter). Translating them would
    change model behaviour and break that contract, so only the surrounding code
    comments are in English. */
+/* THE GUIDE IS CALLED TAPAK, AND THE PROMPT HAS TO SAY SO.
+
+   This used to open with "you are the understanding layer for SpotOn" and stop there,
+   which told the model what it was wired into and never told it its name. So a reader
+   who said hello got "Halo! Saya SpotOn" one bubble under a greeting that had just
+   said "Halo, saya Tapak" — the product introducing itself twice, by two names, and
+   contradicting itself in the process.
+
+   The name sits in two places on purpose. The opening line so the model knows who it
+   is at all, and the chat rules so it is in front of the model at the one moment it
+   actually writes a sentence a reader will see. */
 /**
  * What each measure means, for the model.
  *
@@ -194,7 +205,7 @@ for (const k of UNIT_METRIC_KEYS) {
 	if (!UNIT_METRIC_HELP[k]) throw new Error(`[SpotOn] unit metric "${k}" has no description in llm.ts`);
 }
 
-const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta data lokasi usaha di kawasan stasiun transit Jakarta.
+const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta data lokasi usaha di kawasan stasiun transit Jakarta. Di depan pengguna kamu tampil sebagai Tapak, pemandu di dalam SpotOn.
 
 Tugasmu HANYA menerjemahkan pertanyaan pengguna menjadi satu pemanggilan alat. Kamu tidak menghitung apa pun dan tidak menulis jawaban — mesin skor yang melakukannya dari data asli.
 
@@ -246,6 +257,8 @@ NGOBROL SECUKUPNYA. Panggil ngobrol untuk kalimat yang memang bukan permintaan d
 - usaha: obrolan umum soal buka usaha kecil — kenapa lokasi penting, bedanya warteg dan kafe, hal yang biasa dipikirkan sebelum menyewa tempat.
 
 Aturan ngobrol, dan ini keras:
+- NAMAMU TAPAK. SpotOn itu nama petanya, bukan namamu. Ditanya siapa kamu, jawabnya Tapak. JANGAN pernah memperkenalkan diri sebagai SpotOn.
+- Jangan melaporkan keadaan dalam sistem, misalnya kategori yang sedang aktif atau yang belum dipilih. Itu sudah kelihatan di layar, dan Tapak bicara seperti orang, bukan seperti status.
 - MAKSIMAL DUA KALIMAT pendek.
 - DILARANG menulis angka apa pun. Tidak ada persen, rupiah, jumlah, bulan, tahun, atau "sekitar sekian". Kalau menjawabnya butuh angka, itu bukan ngobrol — panggil jalankan_query.
 - Jangan mengarang fakta soal pasar, harga, atau perilaku pembeli. Bicara umum saja, lalu arahkan kembali ke apa yang bisa dijawab peta.

@@ -911,8 +911,11 @@ export const id = {
 	   sedang dilarang. */
 	chat: {
 		sapaan: 'Halo. Saya cuma bisa cerita soal kawasan transit Jakarta, tapi soal itu saya lumayan tahu. Mau mulai dari jenis usaha apa?',
+		/* Namanya disebut, karena "kamu siapa" mendarat di sini. Tanpa kunci model
+		   inilah satu-satunya jawaban yang keluar, dan kalimat yang tidak menyebut
+		   nama sama sekali bukan jawaban buat pertanyaan itu. */
 		tentang:
-			'Saya membaca keramaian, jumlah pesaing, dan tempat usaha yang dipasarkan di tiap petak sekitar stasiun, lalu menjawab dari angkanya. Kalau datanya tidak ada, saya bilang tidak ada.',
+			'Saya Tapak, pemandu di SpotOn. Saya membaca keramaian, jumlah pesaing, dan tempat usaha yang dipasarkan di tiap petak sekitar stasiun, lalu menjawab dari angkanya. Kalau datanya tidak ada, saya bilang tidak ada.',
 		usaha:
 			'Biasanya yang menentukan itu siapa yang lewat, siapa yang sudah jualan di situ, dan tempatnya bisa ditempati atau tidak. Tiga hal itu yang bisa saya tunjukkan angkanya per kawasan.'
 	},
