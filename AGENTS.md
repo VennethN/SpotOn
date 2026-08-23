@@ -464,3 +464,38 @@ same DISTANCE rather than merely declaring the same constant, and `selftest-fiel
 checks the home-cell rule has not grown its own again. `build-hexes.mjs` was switched
 over but not re-run, since nothing recounts its output and its transit counts were
 measured identical under both radii.
+
+## The fetch box is the grid plus one radius, and the pad is checked
+
+Every fetch that answers "what stands within reach of a cell" is bounded by the grid's
+own extent PADDED by one walking radius, from `gridExtent` in `scripts/lib/geo.mjs`.
+Read from the grid rather than typed in, so it follows the grid if that moves, and
+shared so two fetches cannot pad differently and then disagree about which records
+exist.
+
+The pad is not decoration. A cell's catchment reaches a full radius past its own centre,
+and three cells sit closer to the edge than that — all three at Soekarno-Hatta, the
+nearest 32 m from it — so an unpadded fetch left up to 768 m of their catchment unread.
+`fetch-missions.mjs` had the rule first and it was right; `fetch-hours.mjs` did not and
+was refetched over the padded box.
+
+Then the pad itself was five metres short, because it divided by 111,320 m per degree of
+latitude when the shortest a degree gets is 110,574. A pad short by any amount is not a
+guarantee, so it now uses the shorter figure with 1% on top and `selftest-hours.mjs`
+asserts the result: no catchment may reach past the box that was fetched. It currently
+clears it by 8 m at Jatimulya, which is the tightest cell on the grid.
+
+What the padding bought in data was almost nothing — one business, in one cell in Depok.
+The ground past the western edge is airport apron and water. That is the honest outcome
+and it is not the reason to keep the rule: the reason is that the next time the grid
+moves, nobody has to rediscover which cells sit on the edge.
+
+`build-hexes.mjs` pads its COMPETITOR queries the same way, through `POI_BBOX`, while
+its transit query keeps the raw `BBOX` — that one decides where cells exist at all, and
+padding it would invent cells nobody asked for. It has not been re-run, so its counts
+move on the next rebuild rather than now.
+
+Two scripts learned a related lesson the hard way while this was being done.
+`fetch-missions.mjs` and `build-hexes.mjs` both ran their whole job on IMPORT, so
+reaching for one exported helper started a network fetch and rewrote committed data.
+Both now carry the same run guard every other script in that directory has.
