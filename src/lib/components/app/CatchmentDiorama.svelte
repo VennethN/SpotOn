@@ -59,6 +59,7 @@
 	import { railTotal, stopTotal } from '$lib/domain/transit';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { tick } from 'svelte';
 	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 	import { num } from '$lib/utils/format';
@@ -280,21 +281,29 @@
 		return out;
 	});
 
-	/** The section filling the panel, or none. */
+	/** The section standing under the model, or none. */
 	let opened = $state<SectionKey | null>(null);
-	/** The row that opened it, so closing hands focus straight back rather than
-	    dropping it to the document, which is what scrolls a panel back to the top. */
-	let openedFrom = $state<HTMLElement | null>(null);
 	const openedTitle = $derived(rows.find((r) => r.key === opened)?.title ?? '');
 
-	function open(key: SectionKey, trigger: HTMLElement) {
-		openedFrom = trigger;
+	/**
+	 * The rows themselves, so closing a section can hand focus back to the one that
+	 * opened it.
+	 *
+	 * Held by key rather than as the clicked element. The section stands WHERE the rows
+	 * stood, so the row that was clicked is gone by the time there is anything to go
+	 * back to, and focusing a detached button drops focus to the document instead. These
+	 * are the rows that come back.
+	 */
+	let rowEls = $state<Partial<Record<SectionKey, HTMLButtonElement>>>({});
+
+	function open(key: SectionKey) {
 		opened = key;
 	}
-	function close() {
+	async function close() {
+		const was = opened;
 		opened = null;
-		openedFrom?.focus({ preventScroll: true });
-		openedFrom = null;
+		await tick();
+		if (was) rowEls[was]?.focus({ preventScroll: true });
 	}
 
 	/* A section belongs to the cell it was opened from. Left standing across a change of
@@ -337,7 +346,11 @@
 	</div>
 {:else}
 	<div class="dio">
-		<div class="stage" style:--sky={day.skyHorizon}>
+		<!-- The model stays put while a section is read, and gives ground for it. On a
+		     phone the sheet is about half the screen and a 4:3 model fills most of that,
+		     so a section opened underneath one would start below the fold. Letterboxed it
+		     is still the place, still tappable into, and no longer the whole panel. -->
+		<div class="stage" class:reading={opened !== null} style:--sky={day.skyHorizon}>
 			<StreetScene
 				{hour}
 				density={busyness}
@@ -374,62 +387,71 @@
 			</button>
 		</div>
 
-		<!-- The one sentence. It carries the count of trade standing here and the word
-		     for how busy that makes it, which is the reading every row below is detail
-		     underneath. On an unsurveyed cell it is replaced rather than filled in. -->
-		<p class="read">{blank ? c.mood.nodata : c.mood.reading(row.density, busyWord)}</p>
+		<!-- Everything under the model is one of two things: the summary, or the one
+		     section the reader opened from it. The model and the head above stay put
+		     through both, so the card never stops saying which place this is, and on a
+		     phone the sheet's grip is never covered by what it opened. -->
+		{#if opened}
+			<PanelDetail title={openedTitle} onclose={close}>
+				{#if opened === 'score'}
+					<ScorePanel />
+				{:else if opened === 'rivals'}
+					<RivalsPanel />
+				{:else if opened === 'hours'}
+					<ActivityPanel />
+				{:else if opened === 'cost'}
+					<PropertyPanel />
+				{:else if opened === 'transit'}
+					<TransitPanel />
+				{:else}
+					<FieldPanel />
+				{/if}
+			</PanelDetail>
+		{:else}
+			<!-- The one sentence. It carries the count of trade standing here and the word
+			     for how busy that makes it, which is the reading every row below is detail
+			     underneath. On an unsurveyed cell it is replaced rather than filled in. -->
+			<p class="read">{blank ? c.mood.nodata : c.mood.reading(row.density, busyWord)}</p>
 
-		<!-- ── the six figures ────────────────────────────────────────────────
-		     One row per section: the glyph for finding it again, the name, the figure,
-		     and what the figure is of. Everything behind them opens over this panel. -->
-		<ul class="rows">
-			{#each rows as r (r.key)}
-				<li>
-					<!-- No aria-label on the row. One would replace everything inside it,
-					     which is the name, the figure and what the figure is of, with a
-					     single phrase saying only that the row opens. A button announces
-					     that much by being a button. -->
-					<button type="button" class="row" onclick={(e) => open(r.key, e.currentTarget)}>
-						<span class="ico"><Glyph icon={r.icon} size={14} /></span>
-						<span class="txt">
-							<!-- The name and the figure share the top line, and the line under
-							     them runs the full width of the row. The figure used to stand in
-							     a column of its own, which left the name about a hundred and
-							     thirty pixels: "Harga tempat usaha" broke across two lines and
-							     its caption across three, and that one row stood twice as tall
-							     as the five around it. -->
-							<span class="top">
-								<span class="lbl">{r.title}</span>
-								{#if r.value !== null}
-									<span class="val">{r.value}</span>
-								{/if}
+			<!-- ── the six figures ────────────────────────────────────────────────
+			     One row per section: the glyph for finding it again, the name, the figure,
+			     and what the figure is of. Each opens its section in the space below. -->
+			<ul class="rows">
+				{#each rows as r (r.key)}
+					<li>
+						<!-- No aria-label on the row. One would replace everything inside it,
+						     which is the name, the figure and what the figure is of, with a
+						     single phrase saying only that the row opens. A button announces
+						     that much by being a button. -->
+						<button
+						bind:this={rowEls[r.key]}
+						type="button"
+						class="row"
+						onclick={() => open(r.key)}
+					>
+							<span class="ico"><Glyph icon={r.icon} size={14} /></span>
+							<span class="txt">
+								<!-- The name and the figure share the top line, and the line under
+								     them runs the full width of the row. The figure used to stand in
+								     a column of its own, which left the name about a hundred and
+								     thirty pixels: "Harga tempat usaha" broke across two lines and
+								     its caption across three, and that one row stood twice as tall
+								     as the five around it. -->
+								<span class="top">
+									<span class="lbl">{r.title}</span>
+									{#if r.value !== null}
+										<span class="val">{r.value}</span>
+									{/if}
+								</span>
+								<span class="cap">{r.caption}</span>
 							</span>
-							<span class="cap">{r.caption}</span>
-						</span>
-						<span class="chev" aria-hidden="true"><Glyph icon="chevron" size={12} /></span>
-					</button>
-				</li>
-			{/each}
-		</ul>
+							<span class="chev" aria-hidden="true"><Glyph icon="chevron" size={12} /></span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 	</div>
-
-	{#if opened}
-		<PanelDetail title={openedTitle} onclose={close}>
-			{#if opened === 'score'}
-				<ScorePanel />
-			{:else if opened === 'rivals'}
-				<RivalsPanel />
-			{:else if opened === 'hours'}
-				<ActivityPanel />
-			{:else if opened === 'cost'}
-				<PropertyPanel />
-			{:else if opened === 'transit'}
-				<TransitPanel />
-			{:else}
-				<FieldPanel />
-			{/if}
-		</PanelDetail>
-	{/if}
 {/if}
 
 <style>
@@ -455,6 +477,11 @@
 		overflow: hidden;
 		background: var(--sky);
 		border: 1px solid var(--separator);
+	}
+	/* Not animated on purpose: the scene inside redraws on every resize, and running
+	   that down a 300 ms curve costs more than the move is worth. */
+	.stage.reading {
+		aspect-ratio: 16 / 5;
 	}
 	/* A permanent marker: this scene is schematic, never a real building map. */
 	.mark {
