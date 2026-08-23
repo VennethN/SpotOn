@@ -52,17 +52,23 @@ di tempat berbeda dan tidak pernah dibaca bersama pada resolusi jalan kaki.
 
 **Dataset.** Katalog Data Premium MAPID sebagai sumber utama, yaitu **24.630 titik pesaing**
 dari 55 dataset untuk 13 kategori usaha, dan **3.547 listing properti komersial**. Ditambah
-data pendukung terbuka dari OpenStreetMap melalui Overpass API, yaitu **1.105 simpul transit**
-empat moda dan **5.711 POI pesaing**, sesuai ketentuan data pendukung pada aturan panitia.
+misi lapangan MAPID Apps, yaitu **1.027 catatan** dari Struk Go, Menu Go, Properti Go, dan
+catatan komunitas, **709** di antaranya jatuh dalam jangkauan jalan kaki sebuah petak. Ditambah data pendukung terbuka dari OpenStreetMap melalui Overpass API,
+yaitu **1.105 simpul transit** empat moda dan **5.711 POI pesaing**, sesuai ketentuan data
+pendukung pada aturan panitia.
 
-**Rencana Survey Activities.** Survei lapangan lewat MAPID APPS diarahkan oleh antrian
-prioritas yang sudah dihasilkan produk sendiri, yaitu **100 petak yang belum tercakup katalog
-MAPID** dan **178 petak yang tercakup tetapi harga ruangnya belum terbaca**. Survei mengisi
-justru lubang yang produk ini menolak menambalnya dengan angka karangan.
+**Rencana Survey Activities.** Misi lapangan sudah masuk ke produk dan turun di **191 dari
+562 petak**, jadi rencana tim adalah melanjutkannya, bukan memulainya. Survei diarahkan oleh
+antrian prioritas yang dihasilkan produk sendiri, yaitu **371 petak yang belum memuat satu
+catatan pun**, lalu 100 petak yang belum tercakup katalog pesaing, lalu 178 petak yang harga
+ruangnya belum terbaca. Survei mengisi justru lubang yang produk ini menolak menambalnya
+dengan angka karangan.
 
 **Analisis spasial.** *Spatial join* titik pesaing dan listing properti ke kisi heksagon H3
 resolusi 8 pada lima radius jalan kaki, penghitungan indeks akses transit berbobot moda, lalu
-*scoring* dan *indexing* peluang per kategori usaha.
+*scoring* dan *indexing* peluang per kategori usaha. Catatan lapangan digabungkan dengan
+aturan yang berbeda, yaitu satu catatan tepat satu petak asal, dan **tidak pernah masuk ke
+skor**.
 
 **Peran AI.** Model bahasa lewat OpenRouter dengan *function calling* menerjemahkan pertanyaan
 bebas berbahasa Indonesia menjadi **query terstruktur**. Model hanya memilih operasi dan
@@ -70,8 +76,9 @@ mengisi argumen. **Seluruh angka dihitung mesin skor dari data**, dan query ters
 ditampilkan apa adanya supaya jawabannya bisa diperiksa.
 
 **Hasil utama.** Daftar pendek petak berperingkat per jenis usaha, lengkap dengan alasan satu
-kalimat, rincian skor tahap demi tahap, jumlah data di belakang setiap klaim, dan penandaan
-jujur untuk wilayah yang memang belum terdata.
+kalimat, rincian skor tahap demi tahap, bukti lapangan yang disebut satu per satu di samping
+skor, jumlah data di belakang setiap klaim, dan penandaan jujur untuk wilayah yang memang
+belum terdata.
 
 ---
 
@@ -135,7 +142,7 @@ disampaikan ke pasangan atau pemberi pinjaman, dan gambaran harga ruang di sekit
 | Unsur | Nilai tambah yang spesifik |
 |---|---|
 | WebGIS | Unit analisisnya heksagon H3 resolusi 8, bukan catchment per halte. Halte TransJakarta berjarak 400 sampai 500 m sedangkan jangkauan jalan kaki 800 m, sehingga catchment per halte akan bertumpuk dan menghitung pembeli yang sama berulang kali. Pada kisi, tiap petak dihitung sekali dan akses transit menjadi sifat petak, sehingga lokasi yang dilayani MRT sekaligus TransJakarta memang unggul |
-| Survey Activities | Survei tidak diarahkan ke tempat yang paling mudah, melainkan ke antrian prioritas yang dihasilkan produk sendiri, yaitu petak yang datanya kosong dan harganya belum terbaca |
+| Survey Activities | Catatan lapangan disebut satu per satu dengan nama dan tanggal di samping skor, jadi angka yang dihitung mesin bisa dibantah bukti yang dilihat orang. Survei berikutnya pun tidak diarahkan ke tempat yang paling mudah, melainkan ke antrian prioritas yang dihasilkan produk sendiri |
 | Analisis spasial | Ketersediaan ruang usaha diperlakukan sebagai **gerbang**, bukan bonus. Peluang yang tidak bisa ditempati bukan peluang |
 | AI | Model hanya memilih operasi dan mengisi argumen. Tidak satu angka pun berasal dari model, dan query terstrukturnya ditampilkan apa adanya untuk diperiksa |
 | Kejujuran data | Petak yang belum disurvei ditulis belum terdata, tidak pernah dibaca sebagai nol pesaing. Kalau data kosong dibaca nol, wilayah yang paling sedikit diperiksa justru akan dinobatkan sebagai peluang terbaik |
@@ -148,17 +155,20 @@ disampaikan ke pasangan atau pemberi pinjaman, dan gambaran harga ruang di sekit
 
 - **Fitur utama.** Peta interaktif satu layar penuh, penyaring 13 kategori usaha, bobot
   permintaan dan persaingan yang bisa digeser, radius jalan kaki 400 sampai 800 m, gerbang
-  ketersediaan ruang, pemilih sumber pesaing, panel rincian petak, tabel atribut petak dan
-  unit properti, serta panel percakapan AI.
-- **Dataset.** Katalog Data Premium MAPID untuk pesaing dan properti komersial, ditambah data
-  pendukung terbuka OpenStreetMap untuk simpul transit, geometri jalur, dan POI pesaing.
+  ketersediaan ruang, pemilih sumber pesaing, panel rincian petak, panel bukti lapangan,
+  tabel atribut petak dan unit properti, serta panel percakapan AI.
+- **Dataset.** Katalog Data Premium MAPID untuk pesaing dan properti komersial, misi lapangan
+  MAPID Apps untuk bukti lapangan, ditambah data pendukung terbuka OpenStreetMap untuk simpul
+  transit, geometri jalur, dan POI pesaing.
 - **Analisis spasial.** Pembangunan kisi H3 resolusi 8, *spatial join* titik ke petak pada
-  lima radius, indeks akses transit berbobot moda, dan *scoring* peluang per kategori.
-- **Visualisasi WebGIS.** Koroplet Skor Peluang, titik pesaing, titik unit properti, jalur dan
-  simpul empat moda transit, legenda skor yang selalu tampak, dan penandaan petak belum
-  terdata.
+  lima radius, penetapan satu petak asal bagi tiap catatan lapangan, indeks akses transit
+  berbobot moda, dan *scoring* peluang per kategori.
+- **Visualisasi WebGIS.** Koroplet Skor Peluang, titik pesaing, titik unit properti, penanda
+  tempat catatan lapangan difile, jalur dan simpul empat moda transit, legenda skor yang
+  selalu tampak, dan penandaan petak belum terdata.
 - **Dashboard dan insight.** Rincian skor tahap demi tahap, batang peluang lintas kategori,
-  rincian moda transit yang dijangkau petak, ringkasan pesaing, dan ringkasan harga ruang.
+  rincian moda transit yang dijangkau petak, ringkasan pesaing, ringkasan harga ruang, dan
+  daftar catatan lapangan yang disebut satu per satu.
 - **Peran AI.** Pemahaman pertanyaan bahasa Indonesia menjadi query terstruktur lewat
   *function calling*, penyusunan ringkasan, perbandingan antarpetak, penandaan kejenuhan, dan
   laporan cakupan data.
@@ -179,8 +189,11 @@ disampaikan ke pasangan atau pemberi pinjaman, dan gambaran harga ruang di sekit
 - **Wilayah di luar Jabodetabek**, dan wilayah yang tidak terjangkau 800 m dari simpul transit.
 - **Akun pengguna, penyimpanan daftar pendek, dan fitur kolaborasi.**
 - **Aplikasi selain WebGIS.** Tidak ada aplikasi seluler *native*.
-- **Klasifikasi visual dari foto** sebelum data survei tersedia. Fitur ini bergantung pada
-  kolom foto hasil Survey Activities, jadi dijadwalkan setelah survei berjalan.
+- **Klasifikasi visual dari foto.** Fotonya sekarang ada, yaitu foto struk dan foto tempat
+  pada misi lapangan, jadi penghalangnya bukan lagi data melainkan waktu. Dijadwalkan pada
+  tahap akhir dan tidak dijanjikan lebih awal dari itu.
+- **Angka belanja dari struk.** Kolom totalnya ada di formulir dan seluruhnya kosong, jadi
+  tidak ada nilai rupiah yang bisa dibaca dari struk. Yang ada hanya fotonya.
 
 ---
 
@@ -243,21 +256,65 @@ panitia.
 |---|---|---|
 | Katalog pesaing Data Premium, **24.630 titik**, 55 dataset, 13 kategori usaha | MAPID Data Premium melalui `geoserver.mapid.io` | Sisi persaingan pada Skor Peluang, dan sisi permintaan setelah kategori yang ditanyakan dikurangkan. Tercakup pada **462 dari 562 petak**, yaitu lima kota administrasi DKI Jakarta |
 | Katalog properti komersial, **3.547 listing** | MAPID Data Premium melalui `geoserver.mapid.io` | Gerbang ketersediaan ruang usaha dan faktor biaya ruang. Digabungkan pada lima radius jalan kaki. **462 petak** tercakup, **284 petak** punya harga yang terbaca |
-| Basemap MAPID MAPS | MAPID Map Service | Basemap utama WebGIS, sesuai ketentuan wajib panitia |
-| Mission Data Struk Go, Menu Go, Properti Go | MAPID, dibuka untuk 50 tim terkurasi | Direncanakan untuk profil transaksi per jam, tingkat keramaian pesaing, dan listing ruang per kategori. Lihat catatan di bawah |
-| Community Maps Activity | MAPID APPS | Direncanakan sebagai lapisan aktivitas dan sebagai wadah hasil Survey Activities tim |
+| Basemap MAPID MAPS | MAPID Map Service, `v2.basemap.mapid.io` | Basemap utama WebGIS, sesuai ketentuan wajib panitia. Gaya terang dan gelap dipilih mengikuti tema pembaca |
+| Misi lapangan **Struk Go 195, Menu Go 99, Properti Go 141** | MAPID Apps, endpoint publik `server.mapid.io/web/survei/public/{misi}` | Bukti lapangan di samping skor, yaitu struk yang tercatat, keramaian yang dilihat surveyor, dan ruang yang ditawarkan. Yang jatuh di dalam petak: struk 98, tempat makan 61, properti 54 |
+| Catatan komunitas, **592 catatan** | MAPID Apps, endpoint publik `mobile/v2/communities/activities/public` | Aktivitas dan catatan lapangan di sekitar petak, dibaca bersama ketiga misi di atas. **496** di antaranya jatuh di dalam petak |
 | Simpul transit empat moda, **1.105 simpul**, yaitu MRT 20, KRL 76, LRT 33, TransJakarta 976, beserta geometri jalur | OpenStreetMap melalui Overpass API, lisensi ODbL | Pembentukan kisi, penghitungan indeks akses transit per petak, dan lapisan jaringan pada peta |
 | POI pesaing, **5.711 titik** untuk 9 kategori yang bisa ditandai OSM | OpenStreetMap melalui Overpass API, lisensi ODbL | Sumber pesaing kedua yang bisa dipilih pengguna, sekaligus penutup lubang pada 100 petak yang belum tercakup katalog MAPID |
 | Batas administrasi kota, `admin_level=5` | OpenStreetMap | Penentu cakupan per kota, dipakai untuk memutuskan petak mana yang boleh diberi skor |
 
-**Catatan penting mengenai Mission Data.** Ketiga dataset misi belum terjangkau sampai hari
-ini, baik di katalog premium maupun di indeks lapisan publik. Hal ini sudah diuji melalui
-setiap rute yang bisa dicapai kunci API, dan pengujian itu diulang setiap kali
-`scripts/fetch-mission.mjs` dijalankan tanpa argumen. Tanggapan tim atas keadaan itu adalah
-**menghapus kolom karangan, bukan menyimpannya sebagai contoh**. Profil 24 jam, jumlah struk,
-jumlah menu, pangsa nontunai, pangsa keramaian per kategori, dan listing sewa per kategori
-sudah dihapus seluruhnya dari bentuk data. Pembacanya sudah ditulis dan diuji tanpa jaringan,
-dan tiga variabel lingkungan menyalakannya begitu id lapisannya ada.
+**Catatan penting mengenai misi lapangan.** Ketiga misi tidak diterbitkan sebagai lapisan,
+sehingga mencarinya di katalog premium maupun di indeks lapisan tidak akan pernah berhasil.
+MAPID Apps menyajikannya dari endpoint publiknya sendiri, tanpa kunci, tanpa project, dan
+tanpa id lapisan. `scripts/fetch-missions.mjs` membaca keempatnya dan menulis
+`src/lib/data/mission.json`, yaitu **1.027 catatan** di dalam jangkauan kisi.
+
+Dari jumlah itu, **709 catatan** jatuh dalam radius jalan kaki sebuah petak dan memperoleh
+petak asal, tersebar di **191 dari 562 petak**. Sisanya berada di luar jangkauan jalan kaki
+petak mana pun, jadi tidak dihitung ke petak mana pun. Angka yang dipakai di antarmuka selalu
+angka yang kedua, karena itulah yang benar benar berdiri di sebuah catchment.
+
+Data ini **jenisnya berbeda** dari seluruh data lain di produk, dan perbedaan itu menentukan
+cara memakainya. OpenStreetMap dan katalog MAPID mengklaim kelengkapan untuk kota yang mereka
+liput, dan itulah yang membuat angka nol dari keduanya menjadi temuan. Misi lapangan adalah
+survei yang dijalani orang. **191 dari 562 petak** memuat catatan, dan 371 sisanya bukan
+jalan yang sepi, melainkan jalan yang belum didatangi siapa pun. Maka tiga aturan berlaku,
+dan `scripts/selftest-field.mjs` menguji ketiganya:
+
+1. **Tidak ada isi `field` yang masuk ke perhitungan skor.** Kalau dilipat ke dalam
+   aritmetika, "belum ada yang ke sini" akan menjadi persis sama dengan "di sini tidak
+   terjadi apa apa".
+2. **Petak yang belum didatangi tidak punya kunci `field` sama sekali**, bukan sederet nol.
+   Dua ukuran yang bisa ditanyakan membaca null di situ, sehingga petak itu gugur dari
+   peringkat dan tidak memenuhi seluruh isi pertanyaan "di mana yang paling sedikit".
+3. **Hitungan sah dari satu catatan, sedangkan pangsa dan median butuh tiga.** Hitungan satu
+   itu persis benar. "Di sini semua bayar pakai QRIS" dari satu struk adalah klaim tentang
+   satu sore.
+
+Setiap label yang dibaca pengguna berbunyi **tercatat**, bukan menyebut hal itu sendiri, jadi
+"struk tercatat" dan bukan "belanja". Panel yang menampilkannya menyatakan terang terangan
+bahwa ini bukan sensus.
+
+Kosakata tertutup pada formulir ditally ulang setiap kali skrip berjalan, sehingga angka
+seperti di bawah ini terbaca dari data dan bukan diingat siapa pun:
+
+| Kolom | Tally |
+|---|---|
+| Metode pembayaran, 195 struk | QRIS 131, Tunai 24, E-wallet 21, Debit 12, Kartu Kredit 7 |
+| Keramaian yang dilihat surveyor, 99 catatan Menu Go | sedang 53, sepi 27, ramai 19 |
+| Jenis tempat, 99 catatan Menu Go | Warung atau tenda 27, Kafe 27, Restoran 20, Fast food 17, Kaki lima atau gerobak 8 |
+| Penawaran, 141 catatan Properti Go | **jual 86, sewa 55** |
+| Jenis properti, 141 catatan Properti Go | Ruko 90, Rumah 24, Tanah 15, Kos 5, Retail 3, Kantor 2, Laundry 1, Gudang 1 |
+
+Satu catatan diberi **tepat satu petak asal**, yaitu pusat petak terdekat dalam radius jalan
+kaki, dan aturannya tinggal di `scripts/lib/home-cell.mjs`. Ini kebalikan dari gabungan
+properti, yang menghitung satu listing ke setiap petak yang menjangkaunya. Menghitung ganda
+benar untuk kerapatan dan fatal untuk daftar, karena catatan lapangan disebut satu per satu
+dengan namanya.
+
+Struk Go membawa sebelas kolom di luar ketentuan §A.4, semuanya berakhiran `(Lama)` dan
+seluruhnya null atau 0,0, termasuk kolom total pengeluaran. Jadi **tidak ada angka belanja di
+dalam data**, yang ada hanya foto struknya. Ini persis asumsi yang dipakai sejak proposal.
 
 **Catatan penting mengenai data properti.** Katalog menerbitkan **harga penawaran jual**, dan
 tidak satu pun listing sewa untuk DKI Jakarta. Ini bukan asumsi, melainkan hasil pengukuran:
@@ -268,46 +325,68 @@ menyebutnya harga jual yang diminta. Median di seluruh kisi pada radius 800 m ad
 **Rp 45.000.000 per m²**. Satu petak baru diberi harga bila ada minimal **3 unit berharga**
 dalam jangkauan, karena dua unit terlalu tipis untuk dibaca mediannya.
 
+Satu satunya sewa di dalam produk datang dari misi lapangan, bukan dari katalog. Formulir
+Properti Go menanyakan hal yang berbeda, dan **55 dari 141 catatannya menjawab disewa**, **20**
+di antaranya jatuh di dalam petak. Yang tidak pernah ditanyakan formulir itu adalah harganya,
+dan antarmuka menyatakan hal itu juga.
+
 ---
 
 ## 6. Rencana Survey Activities
+
+Misi lapangan MAPID Apps sudah masuk ke produk, yaitu 1.027 catatan terbaca dan 709 di
+antaranya turun di 191 petak.
+Bagian ini adalah rencana tim untuk **melanjutkannya**, bukan rencana untuk memulai dari nol.
+Yang sudah ada memperlihatkan bentuk keluarannya, dan yang direncanakan adalah menutup 371
+petak yang belum didatangi siapa pun.
 
 ### Lokasi
 
 - **Wilayah pelaksanaan.** Koridor transit di Jabodetabek, dibatasi pada petak yang sudah ada
   di kisi produk, yaitu area dalam radius 800 m dari simpul MRT, KRL, LRT, atau TransJakarta.
 - **Batas dan cakupan.** Survei diarahkan oleh antrian prioritas yang dihasilkan produk
-  sendiri, dengan dua kelompok sasaran:
-  1. **100 petak yang belum tercakup katalog MAPID**, yaitu Depok 20 petak, Bekasi 21,
-     Tangerang 17, Tangerang Selatan 15, Kabupaten Bekasi 5, Kabupaten Tangerang 2, dan 20
-     petak yang berada di luar batas administrasi mana pun.
-  2. **178 petak yang tercakup tetapi harga ruangnya belum terbaca**, yaitu selisih 462 petak
-     tercakup properti dengan 284 petak yang sudah punya median harga.
-- Urutan pengerjaan di dalam dua kelompok itu memakai peringkat permintaan, sehingga petak
-  yang tradenya paling tebal disurvei lebih dahulu.
+  sendiri, dengan tiga kelompok sasaran yang berurutan:
+  1. **371 petak yang belum memuat satu catatan lapangan pun.** Inilah lubang terbesar, dan
+     satu satunya yang produk tidak akan pernah bisa tutup sendiri, karena tidak ada cara
+     membedakan jalan yang sepi dari jalan yang belum didatangi kecuali dengan mendatanginya.
+  2. **100 petak yang belum tercakup katalog pesaing MAPID**, yaitu Depok 20 petak, Bekasi
+     21, Tangerang 17, Tangerang Selatan 15, Kabupaten Bekasi 5, Kabupaten Tangerang 2, dan
+     20 petak yang berada di luar batas administrasi mana pun.
+  3. **178 petak yang tercakup properti tetapi harga ruangnya belum terbaca**, yaitu selisih
+     462 petak tercakup dengan 284 petak yang sudah punya median harga.
+- Urutan pengerjaan di dalam tiap kelompok memakai peringkat permintaan, sehingga petak yang
+  tradenya paling tebal disurvei lebih dahulu.
 
 ### Objek
 
-- **Objek yang disurvei.** Gerai pesaing untuk 13 kategori usaha yang diskor, unit ruang usaha
-  yang sedang dipasarkan, dan simpul transit beserta akses pejalan kaki menuju petak.
-- **Informasi yang dikumpulkan tiap objek.** Nama dan kategori usaha, keberadaannya pada
-  koordinat yang tercatat, kondisi bangunan dan muka toko, jam buka, indikasi keramaian saat
-  kunjungan, dan untuk unit properti, luas, jenis, serta harga yang dipasang bila tercantum.
+- **Objek yang disurvei.** Mengikuti tiga formulir yang sudah berjalan. Struk Go untuk bukti
+  transaksi di gerai, Menu Go untuk tempat makan beserta keramaian yang terlihat, dan
+  Properti Go untuk ruang usaha yang ditawarkan. Ditambah catatan komunitas untuk hal yang
+  tidak masuk ke tiga formulir itu.
+- **Informasi yang dikumpulkan tiap objek.** Persis kolom yang sudah terbaca pembacanya,
+  sehingga hasil survei tim masuk lewat jalur yang sama dengan data yang sudah ada.
 
 ### Output
 
-Atribut yang dihasilkan survei, mengikuti daftar pada template:
+Atribut yang dihasilkan survei, mengikuti daftar pada template dan mengikuti kolom formulir
+yang sebenarnya:
 
-- Nama objek atau tempat
-- Kategori objek, dipetakan ke 13 kategori usaha produk
-- Tanggal dan waktu survei
-- Alamat
-- Foto dokumentasi
-- Kondisi objek
-- Catatan survei
-- Latitude
-- Longitude
-- Informasi tambahan, yaitu jam buka, perkiraan keramaian, dan status unit dipasarkan
+| Atribut template | Kolom yang sudah terbaca |
+|---|---|
+| Nama objek atau tempat | `Nama Tempat` pada Struk Go, `Nama Tempat Makan` pada Menu Go |
+| Kategori objek | `Kategori Tempat`, `Jenis Tempat`, `Kategori Properti` |
+| Tanggal dan waktu survei | `Tanggal` pada ketiga formulir |
+| Alamat | alamat pada Properti Go |
+| Foto dokumentasi | `Foto Struk`, foto tempat, dan foto properti |
+| Kondisi objek | keramaian yang dilihat surveyor, yaitu sepi, sedang, atau ramai |
+| Catatan survei | catatan komunitas yang difile di samping ketiga misi |
+| Latitude dan longitude | koordinat setiap catatan, dipakai untuk menentukan petak asalnya |
+| Informasi tambahan | metode pembayaran, jenis properti, dan status jual atau sewa |
+
+Dua nama kolom sudah terbukti tidak sama dengan yang tertulis di ketentuan, yaitu
+`Nama Tempat Makan` tanpa garis miring dan `Tanggal` pada Properti Go yang berawalan satu
+spasi. Keduanya sudah tertangani daftar alias di dalam pembaca, dan setiap kolom yang tidak
+terpetakan dilaporkan apa adanya pada setiap kali skrip berjalan.
 
 ### Ketentuan Survey yang dipatuhi
 
@@ -318,18 +397,19 @@ Atribut yang dihasilkan survei, mengikuti daftar pada template:
 - Data tidak berasal dari sumber manipulasi seperti Google Street View atau internet.
 - Data hasil survei divalidasi sebelum dipakai, dengan pemeriksaan silang terhadap hitungan
   katalog pada petak yang sama.
+- Berkas contoh yang dibagikan panitia **sengaja tidak dimasukkan ke repositori**, karena
+  ketentuan §B.7 melarang menyebarkan data mentah MAPID ke pihak luar dan repositori ini bisa
+  saja menjadi publik.
 
 ### Pemanfaatan Hasil Survey
 
 | Pemanfaatan | Wujudnya di dalam SpotOn |
 |---|---|
-| Melengkapi dataset dasar | 100 petak yang hari ini bertanda belum terdata memperoleh hitungan pesaing yang sah, sehingga bisa diberi skor |
-| Memvalidasi kondisi lapangan | Hitungan katalog pada petak yang disurvei dibandingkan dengan hitungan lapangan, dan selisihnya dilaporkan apa adanya, bukan dirata rata diam diam |
-| Menambahkan titik data pada peta | Titik hasil survei tampil sebagai lapisan tersendiri dan bisa dibandingkan dengan lapisan katalog |
-| Menjadi input analisis spasial | Hitungan hasil survei masuk sebagai sumber pesaing ketiga yang bisa dipilih, dan harga yang tercatat menambah petak berharga di luar 284 yang ada |
-| Menjadi dasar insight atau rekomendasi AI | Foto kondisi muka toko membuka klasifikasi visual, yaitu tingkat formalitas dan kualitas muka toko, yang menjadi indikator baru untuk dibaca AI dan ditampilkan sebagai atribut petak |
-
----
+| Melengkapi dataset dasar | 371 petak yang hari ini tidak memuat catatan apa pun mulai memuat bukti lapangan, sehingga panelnya berhenti kosong |
+| Memvalidasi kondisi lapangan | Keramaian yang dilihat surveyor dibandingkan dengan permintaan yang dihitung mesin skor dari kerapatan usaha, dan selisihnya dilaporkan apa adanya |
+| Menambahkan titik data pada peta | Setiap catatan tampil di peta pada petak asalnya, dan panel lapangan menyebutnya satu per satu dengan nama, tanggal, dan jaraknya |
+| Menjadi input analisis spasial | Dua ukuran sudah bisa ditanyakan langsung, yaitu jumlah struk tercatat dan jumlah ruang yang ditawarkan sewa. Keduanya memeringkat, dan keduanya tetap **tidak masuk ke skor** |
+| Menjadi dasar insight atau rekomendasi AI | Pertanyaan tentang apa yang dicatat surveyor dijawab dari catatan yang sama, dan foto struk beserta foto tempat membuka klasifikasi visual sebagai pengembangan berikutnya |
 
 ## 7. Metode Pengolahan Data, AI, dan Analisis Spasial
 
@@ -338,18 +418,34 @@ Atribut yang dihasilkan survei, mengikuti daftar pada template:
 **Cleaning.** Simpul transit dari Overpass dinormalkan lalu dideduplikasi menjadi 1.105 simpul
 dari empat moda. Nama halte dan stasiun dirapikan agar satu simpul tidak terhitung dua kali
 karena beda penulisan. Kategori usaha dari katalog MAPID dipetakan ke 13 kategori produk, dan
-pemetaan itu ditulis eksplisit pada `domain/categories.ts` supaya bisa diperiksa.
+pemetaan itu ditulis eksplisit pada `domain/categories.ts` supaya bisa diperiksa. Kolom
+formulir misi lapangan dicocokkan lewat daftar alias, karena nama kolom yang sebenarnya tidak
+selalu sama dengan yang tertulis di ketentuan, dan setiap kolom yang tidak terpetakan
+dilaporkan pada setiap kali skrip berjalan alih alih hilang diam diam.
 
-**Validasi.** Aturan pokoknya adalah **kosong bukan nol**. Petak yang kotanya tidak pernah
+**Validasi.** Aturan pokoknya adalah **kosong bukan nol**, dan aturan itu berlaku dua kali di
+sini karena ada dua jenis kekosongan yang berbeda. Katalog mengklaim kelengkapan untuk kota
+yang diliputnya, sehingga nol dari katalog adalah temuan, sedangkan misi lapangan adalah
+survei yang dijalani orang, sehingga tidak adanya catatan bukan temuan apa apa. Petak yang kotanya tidak pernah
 disurvei sumber aktif mengembalikan skor `null` dan tipologi belum terdata, tidak pernah
 diberi angka. Kategori yang tidak punya tag OSM, yaitu warteg, mie, seafood, dan restoran
 asing, dibaca sebagai belum terdata pada sumber OSM, bukan nol pesaing. Bila satu kategori
 dalam satu pertanyaan gabungan belum terdata, seluruh gabungannya dinyatakan belum terdata,
 karena penjumlahan yang diam diam melewati bagian yang hilang adalah kebohongan yang sama pada
-tingkat himpunan. Lima berkas uji mandiri dijalankan lewat `npm run selftest` untuk komposisi
-skor, hitungan POI, gabungan properti, penguraian pertanyaan, dan unit properti.
+tingkat himpunan. Enam berkas uji mandiri dijalankan lewat `npm run selftest` untuk komposisi
+skor, hitungan POI, gabungan properti, penguraian pertanyaan, unit properti, dan misi lapangan
+terhadap kedua berkas yang dihasilkannya.
 
-**Integrasi.** Dua survei tidak pernah dijumlahkan. Katalog MAPID mencatat 2.351 kedai kopi dan OSM
+**Integrasi catatan lapangan.** Setiap catatan diberi tepat satu petak asal pada waktu
+pembangunan data, yaitu pusat petak terdekat dalam radius jalan kaki, dan petak itu tidak
+dihitung ulang di peramban. Gabungan properti melakukan yang sebaliknya, yaitu menghitung satu
+listing ke setiap petak yang menjangkaunya, dan itu benar untuk kerapatan tetapi fatal untuk
+daftar: satu struk yang sama akan muncul di lima kartu sekaligus dan hitungan di atas tiap
+daftar akan salah tanpa ada yang bisa menangkapnya. Aturannya tinggal di satu berkas,
+`scripts/lib/home-cell.mjs`, supaya gabungan yang menghitung dan pembangun yang mendaftar tidak
+mungkin berselisih.
+
+**Integrasi dua survei pesaing.** Dua survei tidak pernah dijumlahkan. Katalog MAPID mencatat 2.351 kedai kopi dan OSM
 mencatat 1.170, dan 1.170 itu sebagian besar kedai yang sama tanpa id bersama untuk
 dicocokkan. Menjumlahkannya akan melaporkan satu ruas dengan delapan kedai kopi sebagai empat
 belas. Kerapatan keduanya juga jauh berbeda, misalnya OSM mencatat 65 kedai minuman untuk
@@ -366,7 +462,10 @@ berbobot moda dengan peredaman akar, *ranking* harga ruang di seluruh kisi, sert
 dan *indexing* peluang per kategori usaha.
 
 **2. Data yang digunakan.** Simpul transit dan POI pesaing OSM, titik pesaing katalog MAPID,
-listing properti komersial MAPID, dan batas administrasi kota.
+listing properti komersial MAPID, catatan misi lapangan MAPID Apps, dan batas administrasi
+kota. Catatan lapangan ikut dalam analisis sebagai **bukti dan sebagai dua ukuran yang bisa
+ditanyakan**, yaitu jumlah struk tercatat dan jumlah ruang yang ditawarkan sewa, tetapi tidak
+pernah masuk ke rumus skor.
 
 **3. Tujuan analisis.** Mengukur selisih antara permintaan dan persaingan pada satu petak untuk
 satu jenis usaha, lalu menyesuaikannya dengan akses transit, ketersediaan ruang, dan harga
@@ -393,6 +492,12 @@ Skor  = clamp01(Gap + 0.5) × gerbang_ruang × akses_transit × biaya_ruang
 Titik seimbangnya 0,5, yaitu permintaan dan persaingan saling meniadakan. Skor adalah
 simpangan dari titik itu, ke dua arah. Bobot bawaan adalah `wd` 0,5, `ws` 0,5, gerbang menyala,
 radius 800 m, sumber `both`.
+
+**Tidak ada suku misi lapangan di dalam rumus itu, dan ketiadaannya disengaja.** Struk, catatan
+Menu Go, dan catatan Properti Go berjalan di samping skor sebagai bukti yang bisa dibantah,
+bukan sebagai angka yang ikut menghitung. Kalau dilipat ke dalam aritmetika, 371 petak yang
+belum didatangi siapa pun akan terbaca persis seperti petak yang sudah didatangi dan ternyata
+sepi.
 
 ### AI Integration
 
@@ -475,12 +580,16 @@ flowchart TB
 | **Rincian skor tahap demi tahap** | Pembaca dapat melihat setiap suku rumus beserta nilainya, dan hasil akhirnya sama dengan skor yang tampil di peta |
 | **Tabel atribut petak dan unit properti**, bisa diurutkan per kolom | Mengeklik kepala kolom mengurutkan tabel. Mengeklik baris menyorot petak atau unit yang bersangkutan di peta |
 | **Lapisan jaringan transit empat moda** | Simpul dan jalur MRT, KRL, LRT, dan TransJakarta dapat ditampilkan dan disembunyikan |
+| **Panel bukti lapangan** pada petak terpilih | Panel menyebut catatan misi satu per satu dengan nama tempat, tanggal, dan jaraknya, memisahkan struk, tempat makan, properti, dan catatan komunitas, serta menyatakan terang terangan bahwa ini bukan sensus |
+| **Penanda catatan lapangan di peta** | Petak yang memuat catatan diberi penanda, dan petak tanpa catatan tidak diberi angka nol |
+| **Dua ukuran lapangan yang bisa ditanyakan** | Pertanyaan tentang jumlah struk tercatat dan jumlah ruang yang ditawarkan sewa dijawab dengan peringkat. Petak tanpa catatan gugur dari peringkat, bukan diurutkan di dasarnya |
+| **Label yang menyebut catatan sebagai catatan** | Setiap label berbunyi tercatat, bukan menyebut hal itu sendiri, sehingga tertulis struk tercatat dan bukan belanja |
 | **Panel percakapan AI Tapak** | Tapak menyapa lebih dahulu, mengajukan pertanyaan penjelas, dan menawarkan jawaban yang tinggal disentuh. Tapak berkomentar saat pengguna memilih petak sendiri |
 | **Pemahaman pertanyaan bahasa Indonesia** | Pertanyaan bebas menghasilkan jawaban yang benar untuk keempat intent. Query terstrukturnya ditampilkan apa adanya. Kolom `parsedBy` tampil pada setiap jawaban |
 | **Penolakan yang jujur** | Pertanyaan di luar jangkauan data memicu `tidak_dimengerti` dan antarmuka mengakuinya. Pertanyaan yang butuh jenis usaha tetapi belum menyebutnya menampilkan tawaran kategori, bukan permintaan maaf |
 | **Jawaban AI mengubah peta** | Setiap jawaban memindahkan sorotan dan mengubah peringkat, bukan hanya menulis teks |
 | **Panel provenans** | Setiap kelompok data menyebutkan sumber, jumlah titik, dan cakupannya. Pernyataan bahwa harga properti adalah harga jual dan bukan sewa selalu tampil |
-| **Antrian prioritas survei** | Produk dapat menampilkan daftar petak belum terdata dan petak tanpa harga, terurut menurut permintaan |
+| **Antrian prioritas survei** | Produk dapat menampilkan daftar petak tanpa catatan lapangan, petak belum terdata, dan petak tanpa harga, terurut menurut permintaan |
 | **Dwibahasa** | Setiap teks yang terlihat pengguna tersedia dalam Bahasa Indonesia dan Inggris, dan pengalih bahasa mengubah seluruh halaman |
 | **Aksesibilitas dan responsif** | Produk tetap sepenuhnya dapat dipakai dengan gerak dimatikan. `prefers-reduced-motion`, `prefers-reduced-transparency`, dan `prefers-contrast` dihormati. Peta nyaman dipakai pada layar ponsel kelas menengah |
 | **Halaman muka yang menjelaskan masalah** | Halaman `/` menjelaskan masalah, metode, dan ringkasan insight bagi pembaca yang belum pernah melihat WebGIS, dengan maket isometrik yang digerakkan gulir |
@@ -493,8 +602,8 @@ flowchart TB
 |---|---|
 | **Frontend** | SvelteKit 2 dengan Svelte 5 *runes*, TypeScript, dan three.js untuk maket isometrik pada halaman muka |
 | **Backend** | Endpoint server SvelteKit yang berjalan sebagai *serverless function* di Vercel. Mesin skor `domain/scoring.ts` dipakai server dan klien tanpa perbedaan, sehingga geseran slider dan panggilan API tidak mungkin berselisih |
-| **Database** | Tidak memakai basis data server. Hasil pembangunan data disimpan sebagai berkas JSON terbentuk di dalam repositori, yaitu kisi, POI, dan properti, karena datanya statis antar pembangunan dan cara ini menekan waktu muat pada koneksi seluler. Sumber datanya tetap API MAPID dan Overpass, dibaca oleh skrip pembangun |
-| **GIS** | MapLibre GL untuk peta, H3 resolusi 8 untuk unit spasial melalui `h3-js`, Overpass API untuk data OSM, dan MAPID MAPS sebagai basemap |
+| **Database** | Tidak memakai basis data server. Hasil pembangunan data disimpan sebagai berkas JSON terbentuk di dalam repositori, yaitu kisi, POI, properti, dan catatan misi lapangan, karena datanya statis antar pembangunan dan cara ini menekan waktu muat pada koneksi seluler. Sumber datanya tetap API MAPID, endpoint publik MAPID Apps, dan Overpass, dibaca oleh skrip pembangun |
+| **GIS** | MapLibre GL untuk peta, H3 resolusi 8 untuk unit spasial melalui `h3-js`, Overpass API untuk data OSM, dan MAPID MAPS sebagai basemap. URL gayanya dibangun dari Map Service key pada `PUBLIC_MAPID_MAP_KEY`, dan gaya terang atau gelap dipilih mengikuti tema pembaca |
 | **AI** | AI Router OpenRouter dengan *function calling*, disertai pengurai aturan sebagai cadangan penuh |
 | **Deployment** | Vercel dengan `adapter-vercel` |
 
@@ -600,8 +709,8 @@ dengan tiga posisi berhenti, sehingga peta tetap terlihat sepanjang percakapan.
 
 ## 11. Timeline Development
 
-Tahap M1 sampai M4 sudah berjalan dan hasilnya ada di repositori. Tahap M5 sampai M8 adalah
-rencana, dan sebagian bergantung pada kurasi 50 tim serta pembukaan Mission Data.
+Tahap M1 sampai M6 sudah berjalan dan hasilnya ada di repositori. Tahap M7 dan M8 adalah
+rencana.
 
 | Minggu | Fokus Kegiatan | Target Output |
 |---|---|---|
@@ -610,9 +719,9 @@ rencana, dan sebagian bergantung pada kurasi 50 tim serta pembukaan Mission Data
 | **M3** | Mesin skor dan sumber pesaing OSM | `domain/scoring.ts`, 5.711 POI pesaing tergabung ke kisi, dan aturan kosong bukan nol yang diuji |
 | **M4** | Integrasi katalog Data Premium MAPID dan data properti | 24.630 titik pesaing dari 55 dataset, 3.547 listing properti pada lima radius, dan pemilih sumber pesaing |
 | **M5** | Antarmuka WebGIS dan lapisan AI | Panel Tapak, `POST /api/ai/query` dengan *function calling*, empat intent, dan pengurai aturan cadangan |
-| **M6** | **Basemap MAPID MAPS, deployment, dan Survey Activities gelombang pertama** | Basemap wajib terpasang, WebGIS dapat diakses publik di Vercel, dan survei 100 petak yang belum tercakup |
-| **M7** | Integrasi hasil survei dan Mission Data bila sudah terbuka | Hitungan hasil survei sebagai sumber pesaing ketiga, halaman Survey Activities, dan halaman Metodologi |
-| **M8** | Klasifikasi visual dari foto survei, pengujian, dan penyempurnaan | Indikator kondisi muka toko sebagai atribut petak, pengujian pada perangkat kelas menengah, dan pemolesan akhir |
+| **M6** | **Misi lapangan MAPID Apps dan basemap MAPID MAPS** | 1.027 catatan terbaca dari endpoint publik dan 709 tergabung ke 191 petak dengan satu petak asal per catatan, panel bukti lapangan, dua ukuran lapangan yang bisa ditanyakan, dan basemap wajib yang dibangun dari Map Service key serta mengikuti tema |
+| **M7** | **Deployment publik dan Survey Activities gelombang pertama** | WebGIS dapat diakses publik di Vercel, halaman Survey Activities, halaman Metodologi, dan survei yang menutup sebagian dari 371 petak yang belum memuat catatan |
+| **M8** | Klasifikasi visual dari foto survei, pengujian, dan penyempurnaan | Indikator kondisi muka toko sebagai atribut petak, dibaca dari foto struk dan foto tempat yang sudah ada, pengujian pada perangkat kelas menengah, dan pemolesan akhir |
 
 ---
 
@@ -620,10 +729,11 @@ rencana, dan sebagian bergantung pada kurasi 50 tim serta pembukaan Mission Data
 
 | Risiko | Dampak | Mitigasi |
 |---|---|---|
-| **Mission Data tidak dibuka atau dibuka terlambat** | Sisi permintaan tetap dibaca dari trade sekitar, bukan dari struk. Analisis per jam tidak dapat dibuat | Pembaca dan pengurai kolomnya sudah ditulis dan diuji tanpa jaringan. Tiga variabel lingkungan menyalakannya dalam hitungan menit. Kolom karangan sudah dihapus, jadi produk tidak pernah bergantung padanya |
-| **Basemap MAPID MAPS belum terpasang** | Komponen wajib panitia tidak terpenuhi | Cukup mengisi `PUBLIC_MAPID_STYLE_URL`, tanpa perubahan kode. Pemuat basemap sudah memeriksa nilainya dan memberi peringatan alih alih meninggalkan kanvas kosong. Dijadwalkan pada M6 |
+| **371 petak belum memuat satu catatan lapangan pun** | Panel bukti lapangan kosong di dua pertiga kisi, dan peta tidak punya cara membedakan jalan yang sepi dari jalan yang belum didatangi | Justru karena itu catatan lapangan tidak pernah masuk ke skor, dan petak tanpa catatan tidak diberi nol melainkan gugur dari peringkat. Survey Activities menargetkan petak petak ini lebih dahulu |
+| **Catatan lapangan dipakai seolah olah sensus** | "Belum ada yang ke sini" terbaca sama dengan "di sini tidak terjadi apa apa", dan itu kesalahan terburuk yang bisa dibuat produk ini | Tiga aturan ditegakkan dan diuji `selftest-field.mjs`, yaitu tidak masuk skor, tanpa kunci `field` bagi petak yang belum didatangi, dan hitungan sah dari satu catatan sedangkan pangsa butuh tiga. Setiap label berbunyi tercatat |
+| **Kunci Map Service belum terpasang di lingkungan deployment** | Komponen wajib panitia tidak terpenuhi di produk publik | Kodenya sudah selesai dan URL gaya dibangun dari `PUBLIC_MAPID_MAP_KEY`. Yang tersisa hanya mengisi variabel itu di Vercel. Pemuat basemap menolak kunci yang salah taruh dengan peringatan yang menyebut variabel yang benar, alih alih meninggalkan kanvas kosong |
 | **100 petak di luar DKI tidak tercakup katalog MAPID** | Sumber `mapid` menampilkannya sebagai belum terdata | Perilaku ini benar dan bukan cacat. Sumber `both` membacanya dari OSM, dan keadaannya dinyatakan terbuka di antarmuka. Survey Activities menargetkan petak petak ini lebih dahulu |
-| **Katalog properti tidak memuat harga sewa** | Biaya ruang terbaca sebagai biaya kepemilikan, bukan biaya bulanan | Diukur, bukan diasumsikan, dan diukur ulang setiap kali skrip berjalan. Penamaannya mengikuti, yaitu harga dan bukan sewa, dan antarmuka menyatakannya di setiap tempat harga muncul |
+| **Katalog properti tidak memuat harga sewa** | Biaya ruang terbaca sebagai biaya kepemilikan, bukan biaya bulanan | Diukur, bukan diasumsikan, dan diukur ulang setiap kali skrip berjalan. Penamaannya mengikuti, yaitu harga dan bukan sewa, dan antarmuka menyatakannya di setiap tempat harga muncul. Satu satunya sewa di produk datang dari Properti Go, 55 catatan, dan formulir itu tidak pernah menanyakan harganya |
 | **Model gratis pada AI Router sibuk atau lambat** | Jawaban melambat pada saat ramai | Rantai model dicoba berurutan, lalu pengurai aturan menjawab. Aplikasi tidak pernah gagal karena ini, dan kolom `parsedBy` menyatakan jalur mana yang dipakai |
 | **Model mengarang angka** | Kepercayaan pada seluruh produk runtuh | Secara arsitektur tidak mungkin. Model hanya memilih alat dan mengisi argumen, dan seluruh angka dihitung mesin skor dari data. Filter pun hanya boleh menyebut pita, bukan ambang |
 | **Data kosong terbaca sebagai nol pesaing** | Wilayah yang paling sedikit diperiksa akan dinobatkan sebagai peluang terbaik | Aturan kosong bukan nol ditegakkan di setiap tingkat, dari satu kategori sampai gabungan kategori, dan diuji oleh berkas uji mandiri |
@@ -636,7 +746,7 @@ rencana, dan sebagian bergantung pada kurasi 50 tim serta pembukaan Mission Data
 
 | Komponen | Rencana |
 |---|---|
-| **Hosting** | Vercel, memakai `@sveltejs/adapter-vercel` yang sudah terpasang. Endpoint API berjalan sebagai *serverless function* pada wilayah terdekat. Basemap dilayani MAPID MAPS lewat `PUBLIC_MAPID_STYLE_URL`, dan kunci AI Router diisi sebagai *Environment Variable* sehingga penggantian model tidak memerlukan pembangunan ulang |
+| **Hosting** | Vercel, memakai `@sveltejs/adapter-vercel` yang sudah terpasang. Endpoint API berjalan sebagai *serverless function* pada wilayah terdekat. Basemap dilayani MAPID MAPS, dengan Map Service key diisi pada `PUBLIC_MAPID_MAP_KEY` sebagai *Environment Variable*, dan kunci AI Router diisi dengan cara yang sama sehingga penggantian model tidak memerlukan pembangunan ulang |
 | **Database** | Tidak ada basis data server. Data hasil pembangunan disimpan sebagai berkas JSON terbentuk yang ikut ter-*deploy*, yaitu `hexes.json` untuk kisi dan atribut, `mapid-poi.json`, dan `mapid-property.json`. Sumber datanya API MAPID dan Overpass, dibaca ulang dengan menjalankan skrip pembangun lalu men-*deploy* ulang. Pilihan ini diambil demi waktu muat pada koneksi seluler |
 | **Repository** | Git, dengan riwayat memakai Conventional Commits. Setiap perubahan melewati `npm run check`, `npm run build`, dan `npm run selftest` sebelum didorong. Data pribadi anggota tim sengaja tidak pernah dimasukkan ke repositori |
 
@@ -673,6 +783,17 @@ rencana, dan sebagian bergantung pada kurasi 50 tim serta pembukaan Mission Data
 
 **Dokumentasi survei**
 
-Akan dilampirkan setelah Survey Activities gelombang pertama berjalan, berisi contoh titik
-hasil survei beserta foto dokumentasi yang sudah memenuhi ketentuan panitia, yaitu jelas,
-tidak buram, tanpa wajah yang terlihat jelas, dan tanpa plat nomor kendaraan.
+Misi lapangan yang sudah masuk terdokumentasi di dalam repositori dan dapat dibangun ulang
+kapan saja:
+
+- `src/lib/data/mission.json` berisi 1.027 catatan beserta tally kosakata dan laporan kolom,
+  ditulis `scripts/fetch-missions.mjs`.
+- `static/data/field.json` berisi 709 catatan yang sudah punya petak asal dan siap didaftar,
+  ditulis `scripts/build-field.mjs`.
+- `docs/04-data-mapid.md` §4 mencatat endpoint yang dipakai, rute yang sudah dicoba dan
+  gagal, serta dua nama kolom yang berbeda dari ketentuan.
+
+Berkas contoh yang dibagikan panitia sengaja tidak dimasukkan ke repositori, sesuai §B.7.
+Dokumentasi survei tim sendiri akan dilampirkan setelah gelombang pertama berjalan, berisi
+titik hasil survei beserta foto yang memenuhi ketentuan panitia, yaitu jelas, tidak buram,
+tanpa wajah yang terlihat jelas, dan tanpa plat nomor kendaraan.
