@@ -1,4 +1,20 @@
+<script lang="ts" module>
+	import type { CategoryKey } from '$lib/types';
+
+	/**
+	 * A label, or a label with the business type it names.
+	 *
+	 * Two rails run here and only one of them is about categories, so the icon is part
+	 * of the item rather than a flag on the row: the audiences have no drawing of their
+	 * own, and a rail told to draw icons for items that have none would have to invent
+	 * them.
+	 */
+	export type MarqueeItem = string | { label: string; category: CategoryKey };
+</script>
+
 <script lang="ts">
+	import CategoryGlyph from '$lib/components/ui/CategoryGlyph.svelte';
+
 	/**
 	 * One row of short labels, travelling.
 	 *
@@ -23,7 +39,7 @@
 	 * reader should hear it once.
 	 */
 	interface Props {
-		items: string[];
+		items: MarqueeItem[];
 		/** Travel right instead of left. */
 		reverse?: boolean;
 		/** Seconds for one full pass. Longer is calmer. */
@@ -31,6 +47,10 @@
 		label: string;
 	}
 	let { items, reverse = false, speed = 46, label }: Props = $props();
+
+	const rows = $derived(
+		items.map((it) => (typeof it === 'string' ? { label: it, category: null } : it))
+	);
 </script>
 
 <div
@@ -43,8 +63,13 @@
 	<div class="track">
 		{#each [0, 1] as copy (copy)}
 			<ul aria-hidden={copy === 1}>
-				{#each items as it (it)}
-					<li role={copy === 0 ? 'listitem' : 'presentation'}>{it}</li>
+				{#each rows as row (row.label)}
+					<li role={copy === 0 ? 'listitem' : 'presentation'}>
+						{#if row.category}
+							<CategoryGlyph category={row.category} size={15} />
+						{/if}
+						{row.label}
+					</li>
 				{/each}
 			</ul>
 		{/each}
@@ -79,6 +104,11 @@
 		padding: 0 0.25rem 0 0;
 	}
 	li {
+		display: flex;
+		align-items: center;
+		/* Tighter than the gap between pills, so the drawing belongs to its own name
+		   rather than floating between two of them. */
+		gap: 0.4375rem;
 		flex: none;
 		padding: 0.5rem 1rem;
 		border: 1px solid var(--panel-line, var(--paper-line));
@@ -90,6 +120,12 @@
 		letter-spacing: -0.01em;
 		white-space: nowrap;
 		color: var(--ink-2, var(--label-2));
+	}
+	/* The drawing sits a step back from the word. It is there to be recognised at a
+	   glance while the row travels, not to be read, and at the same ink as the label it
+	   competes with the one thing on the pill that has to be legible. */
+	li :global(svg) {
+		color: var(--ink-3, var(--label-3));
 	}
 
 	@keyframes travel {

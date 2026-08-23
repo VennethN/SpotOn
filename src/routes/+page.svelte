@@ -8,6 +8,7 @@
 	import StreetStage from '$lib/components/landing/StreetStage.svelte';
 	import QueryMap from '$lib/components/landing/QueryMap.svelte';
 	import TapakDemo from '$lib/components/landing/TapakDemo.svelte';
+	import BrandMark from '$lib/components/ui/BrandMark.svelte';
 	import Reveal from '$lib/components/ui/Reveal.svelte';
 	import { CATEGORY_KEYS } from '$lib/domain/categories';
 	import { copy, lang } from '$lib/state/lang.svelte';
@@ -44,7 +45,9 @@
 
 	/* The thirteen types the engine scores, for the second rail. Read from the domain
 	   rather than typed out, so a type added there appears here on its own. */
-	const CATEGORY_NAMES = $derived(CATEGORY_KEYS.map((key) => c.category[key].name));
+	const CATEGORY_NAMES = $derived(
+		CATEGORY_KEYS.map((key) => ({ label: c.category[key].name, category: key }))
+	);
 </script>
 
 <svelte:head>
@@ -264,6 +267,11 @@
 	<!-- ── closing ──────────────────────────────────────────────────────── -->
 	<section class="band closing">
 		<Reveal distance={18}>
+			<!-- The mark signs off the sheet: the same clipped lot the header opens with,
+			     drawn once at reading size rather than a wordmark, because the word
+			     "SpotOn" already sits in the button under it and again in the footer
+			     below, and a third one would be shouting. -->
+			<span class="sign"><BrandMark size={58} /></span>
 			<h2 class="big">{c.closing.title}</h2>
 			<div class="cta">
 				<a class="go" href="/app">{c.closing.cta}</a>
@@ -634,6 +642,14 @@
 		text-align: center;
 		padding-block: clamp(4.5rem, 11vh, 7.5rem);
 		border-top: 1px solid var(--paper-line);
+	}
+	/* Its own air above the line, and quieter ink than the headline: a signature under
+	   the last sentence, not a second heading competing with it. */
+	.sign {
+		display: flex;
+		justify-content: center;
+		margin-bottom: var(--s-block);
+		color: var(--ink-2);
 	}
 	.closing h2 {
 		max-width: 22ch;
