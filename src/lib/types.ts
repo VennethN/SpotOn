@@ -243,6 +243,91 @@ export interface PropertyAtRadius {
 	q: number;
 }
 
+/**
+ * What is open around one cell, at both walking radii.
+ *
+ * THIS IS NOT FOOTFALL. It counts doors, from the `opening_hours` tag in
+ * OpenStreetMap: how many businesses in range say they are open, not how many people
+ * walk through them. Google's popular times are built from phones the product cannot
+ * see. The MAPID Apps field surveys carry receipts, which is the demand side of the same
+ * hour, and not one of them carries a time of day — see `domain/field`. So this stays
+ * the only half of the hour anybody has counted.
+ *
+ * Not per category. When a street wakes up is a property of the street, so this rides
+ * in the base payload like the property figures do rather than in the per-category
+ * slices.
+ */
+export interface HoursStats {
+	/** One reading per walking radius, keyed by it — `scripts/join-hours.mjs` writes a
+	    stop for every radius the interface can be set to. */
+	r: Record<string, HoursAtRadius>;
+}
+
+/** What was counted inside one radius. */
+export interface HoursAtRadius {
+	/** Every business in range, whether or not it publishes hours. The denominator, and
+	    the reason the panel can say how thin the reading is instead of implying the
+	    curve covers the whole street. */
+	n: number;
+	/**
+	 * Of those, the ones whose published hours could actually be read.
+	 *
+	 * Three facts are kept apart on purpose: `n - p` never published hours at all,
+	 * `p - h` published them in a form the reader refuses to guess at (holidays,
+	 * seasons, "sunset"), and `h` is what the curve is drawn from.
+	 */
+	h: number;
+	/** Of those, how many published an `opening_hours` tag of any kind. */
+	p: number;
+}
+
+/**
+ * What is on the market around one cell, at both walking radii.
+ *
+ * THE PRICES ARE ASKING PRICES FOR SALE. There is no rent in the MAPID catalogue for
+ * Jakarta, which `scripts/fetch-property.mjs` establishes by tallying the sale-or-rent
+ * column across every property dataset published for the province, on every run. The
+ * naming follows: `price`, never `rent`.
+ *
+ * Not per category. What a square metre of shopfront costs is a property of the place,
+ * not of the business going into it, so this rides in the base payload rather than in
+ * the per-category slices — one copy for all thirteen categories instead of thirteen
+ * copies of the same figure.
+ */
+export interface PropertyStats {
+	/** One reading per walking radius, keyed by it. `scripts/join-property.mjs` writes a
+	    stop for every radius the interface can be set to. */
+	r: Record<string, PropertyAtRadius>;
+	/** How the listings within the widest radius break down by type. */
+	by: Record<string, number>;
+}
+
+/** What is on the market inside one radius. */
+export interface PropertyAtRadius {
+	/** Every commercial listing in range, premises or not. */
+	n: number;
+	/** Of those, the ones a small business could occupy. */
+	u: number;
+	/**
+	 * Median asking price per m² of those premises, in rupiah.
+	 *
+	 * `null` means not one unit in range published a price. Never 0: space that nobody
+	 * priced and space that costs nothing are different claims.
+	 *
+	 * Computed per radius rather than rescaled from another. A count can be scaled by
+	 * area, a median cannot — half a median is not the price of anything.
+	 */
+	p: number | null;
+	/**
+	 * How many priced premises that median was read from.
+	 *
+	 * Kept even where the median came back null, because it is what tells "nothing is
+	 * listed here" apart from "two units are listed and two is too thin to read a price
+	 * off". The join needs three before it writes one.
+	 */
+	q: number;
+}
+
 /** The `Hex` fields that hold one entry per business category. */
 export const CATEGORY_FIELDS = ['osm', 'mapid', 'covered'] as const;
 export type CategoryField = (typeof CATEGORY_FIELDS)[number];

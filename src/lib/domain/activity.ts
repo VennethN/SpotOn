@@ -13,11 +13,12 @@ import type { HexBase, HoursAtRadius } from '$lib/types';
  * It is not footfall, and nothing here is called popular, busy or crowded. The chart
  * this feeds looks like Google's popular times and is a different measurement:
  * Google counts phones moving through a place, and nobody has counted a phone in
- * Jakarta for this product. Struk Go and Mission Go would carry receipts, which is the
- * demand side of the very same hour, and when those datasets exist the two sit side by
- * side. Until then this is the half that can be counted, and it is a real half: a
- * street where forty shutters go up at seven and a street where four go up at eleven
- * are different places to open a business.
+ * Jakarta for this product. The MAPID Apps field surveys carry receipts, which is the
+ * demand side of the very same hour, and not one of them carries a time of day, so
+ * they cannot join this curve — see `domain/field`. This is the only half of the hour
+ * anybody has counted, and it is a real half: a street where forty shutters go up at
+ * seven and a street where four go up at eleven are different places to open a
+ * business.
  *
  * The same rule as everywhere else in this engine holds. A cell where too few
  * businesses publish hours has NO curve, not a flat one, and the panel says how many

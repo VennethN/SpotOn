@@ -291,6 +291,7 @@ export class AppState {
 	    `stopsFailed` is apart from `stops`: the counts on the card come from the grid
 	    and survive this, only the records themselves are lost. */
 	fieldFailed = $state(false);
+	/**
 	 * The businesses whose opening hours OpenStreetMap publishes, for the activity
 	 * curve of a selected cell.
 	 *
@@ -669,6 +670,9 @@ export class AppState {
 			}
 		})();
 		return this.#fieldJob;
+	}
+
+	/**
 	 * Load the businesses' opening hours, once.
 	 *
 	 * Failure is quiet in the same way `loadListings` is. How many businesses stand
@@ -773,6 +777,9 @@ export class AppState {
 		const id = this.selectedId;
 		if (!id || !this.fieldByCell) return [];
 		return this.fieldByCell.get(id) ?? [];
+	});
+
+	/**
 	 * The businesses with readable opening hours the selected cell captures.
 	 *
 	 * The same distance test `join-hours.mjs` used, so the curve drawn from these IS
