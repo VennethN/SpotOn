@@ -2,18 +2,15 @@
 	import BrandMark from '$lib/components/ui/BrandMark.svelte';
 	import { browser } from '$app/environment';
 	import LangToggle from '$lib/components/ui/LangToggle.svelte';
-	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
+	import ThemeControl from '$lib/components/ui/ThemeControl.svelte';
 	import { copy } from '$lib/state/lang.svelte';
-	import { applyTheme, storedTheme, type Theme } from '$lib/state/theme.svelte';
 
 	const c = $derived(copy());
 
 	let scrolled = $state(false);
-	let theme = $state<Theme>('system');
 
 	$effect(() => {
 		if (!browser) return;
-		theme = storedTheme();
 
 		// The bar only condenses once the diorama stage has genuinely passed. Pinned to
 		// "scrollY > 8" alone, it turns into opaque material on the very first scroll and
@@ -31,11 +28,6 @@
 			window.removeEventListener('resize', onScroll);
 		};
 	});
-
-	function pickTheme(next: Theme) {
-		theme = next;
-		applyTheme(next);
-	}
 </script>
 
 <!-- Floating chrome: content flows beneath it.
@@ -58,7 +50,7 @@
 
 		<div class="actions">
 			<LangToggle ghost />
-			<ThemeToggle {theme} onchange={pickTheme} ghost />
+			<ThemeControl ghost />
 			<a class="cta" href="/app">{c.brand.open}</a>
 		</div>
 	</div>
