@@ -23,6 +23,7 @@
 		labelText,
 		poiFC,
 		poiLinksFC,
+		fieldFC,
 		propertyFC,
 		reachFC,
 		stopLinksFC,
@@ -231,6 +232,7 @@
 		m.addSource('catchments', { type: 'geojson', data: catchmentFC(ctx()) });
 		m.addSource('poi', { type: 'geojson', data: poiFC(ctx()) });
 		m.addSource('property', { type: 'geojson', data: propertyFC(ctx()) });
+		m.addSource('field', { type: 'geojson', data: fieldFC(ctx()) });
 		m.addSource('units', { type: 'geojson', data: unitsFC(ctx()) });
 		m.addSource('poi-links', { type: 'geojson', data: poiLinksFC(ctx()) });
 		m.addSource('stops', { type: 'geojson', data: stopsFC(ctx()) });
@@ -440,6 +442,30 @@
 				'icon-size': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 15, 1.15],
 				'icon-allow-overlap': true,
 				'icon-ignore-placement': true
+			}
+		});
+
+		/**
+		 * The field records: a hollow ring, and the one shape no other layer here uses.
+		 *
+		 * Hollow because it is the honest picture of what these are. Every other mark on
+		 * this map is a catalogue's entry for a thing that is there; this one is a spot
+		 * where a person stood, and an outline reads as a place marked rather than as an
+		 * object counted.
+		 *
+		 * Filled in only for a place recorded as up for rent, which is the single fact
+		 * this map has never been able to show. It gets the accent and nothing else does.
+		 */
+		m.addLayer({
+			id: 'field-marks',
+			type: 'circle',
+			source: 'field',
+			paint: {
+				'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 2.6, 16, 5.5],
+				'circle-color': ['case', ['get', 'rent'], cssVar('--accent'), cssVar('--bg-elevated')],
+				'circle-stroke-width': 1.6,
+				'circle-stroke-color': ['case', ['get', 'rent'], cssVar('--accent'), cssVar('--label-1')],
+				'circle-opacity': 0.95
 			}
 		});
 
@@ -1021,6 +1047,8 @@
 		void app.layers.stops;
 		void app.layers.property;
 		void app.selectedListings;
+		void app.layers.field;
+		void app.selectedField;
 		void app.pivot;
 		void app.unitRows;
 		void app.unitFiltered;
@@ -1033,6 +1061,7 @@
 		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC(ctx()));
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC(ctx()));
 		(m.getSource('property') as GeoJSONSource | undefined)?.setData(propertyFC(ctx()));
+		(m.getSource('field') as GeoJSONSource | undefined)?.setData(fieldFC(ctx()));
 		(m.getSource('units') as GeoJSONSource | undefined)?.setData(unitsFC(ctx()));
 		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC(ctx()));
 		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC(ctx()));

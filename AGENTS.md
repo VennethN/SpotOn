@@ -125,7 +125,8 @@ Copy `.env.example` to `.env` and fill it in.
 | --- | --- |
 | `OPENROUTER_API_KEY` | language understanding. Without it the app still works, questions fall back to the rule parser, and every figure is still computed by the scoring engine. |
 | `OPENROUTER_MODEL` | optional model override |
-| `PUBLIC_MAPID_STYLE_URL` | the MAPID MAPS style **URL**. A bare style id is rejected and the open raster basemap is used instead, with a warning in the console. |
+| `PUBLIC_MAPID_MAP_KEY` | the MAPID MAPS **Map Service key**. The style URL is built from it, and the light or dark style is picked to match the reader's theme. |
+| `PUBLIC_MAPID_STYLE_URL` | a full style **URL**, for a style the app does not know about. Wins over the key, and pins one style regardless of theme. A bare key here is rejected, with a warning naming the variable it belongs in. |
 | `MAPID_API_KEY` | read by the data scripts, not by the application |
 
 The model only ever chooses an operation and fills in its arguments. Every
@@ -147,6 +148,9 @@ node scripts/join-property.mjs   # → adds prop + propCovered to hexes.json   l
 node scripts/build-property.mjs  # → static/data/property.json   local only
 node scripts/build-stops.mjs     # → static/data/stops.json   needs Overpass
 node scripts/build-routes.mjs    # → static/data/routes.json  needs Overpass
+node scripts/fetch-missions.mjs  # → src/lib/data/mission.json   no key needed
+node scripts/join-missions.mjs   # → adds field to hexes.json    local only
+node scripts/build-field.mjs     # → static/data/field.json      local only
 ```
 
 `join-property.mjs` has to run after `join-mapid.mjs`, not before. It decides coverage
@@ -186,8 +190,50 @@ There is no setting for this in the application.
 breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
 in it has a name, the cost-of-space layer against the grid on disk, which
-measure each kind of question is understood to be asking about, and the markdown
-reader together with the fence around a reply arriving in pieces.
+measure each kind of question is understood to be asking about, the field
+surveys against the two files they produced, and the markdown reader together
+with the fence around a reply arriving in pieces.
+
+## The field surveys are evidence, and they never reach the score
+
+`scripts/fetch-missions.mjs` reads the three competition surveys, Struk Go, Menu
+Go and Properti Go, plus the community notes filed beside them. They are not in
+the premium catalogue and not in the layer index, and looking for them there is
+what the script this replaced spent its life doing. MAPID Apps serves them from
+its own public endpoints, which need no key, no project and no layer id.
+
+They are a different KIND of data from everything else here, and the difference
+decides how they are used. OpenStreetMap and the MAPID catalogue claim
+completeness for the city they cover, which is what makes a zero from them a
+finding. These are surveys somebody walked. 191 of the 562 catchments carry a
+record, and the other 371 are not quiet streets, they are streets nobody has
+been down.
+
+So three rules hold, and `selftest-field.mjs` asserts all of them:
+
+- **Nothing in `field` enters `scoreOne`.** It rides along the row as evidence
+  beside the score. Folded into the arithmetic, "nobody went here" would be
+  identical to "nothing happens here".
+- **A cell nobody visited has no `field` key**, never a row of zeroes. The two
+  askable measures read null there, so those cells are dropped from a ranking
+  rather than filling the whole of "fewest receipts".
+- **Counts come from one record, shares and medians need three.** A count of one
+  is exactly true. "Everyone here pays by QRIS" off one receipt is a claim about
+  one afternoon, and the threshold is the property join's, recorded in the grid's
+  metadata rather than written into the sentence.
+
+Every label a reader sees says RECORDED, and the panel says outright that this
+is not a census. This is also the only rent in the product: the premium
+catalogue publishes none for Jakarta, the property form asks a different
+question, and some of its records answer Disewa. What the form never asks is the
+price, and the interface says that too.
+
+One rule about the join, because it is the opposite of `join-property.mjs`':
+**each record gets exactly one home cell**, the nearest centre within the walking
+radius. That join counts a listing into every catchment that reaches it, which is
+right for a density and fatal for a list, because these records get listed by
+name. The rule lives in `scripts/lib/home-cell.mjs` so the join that counts and
+the build that lists cannot come to disagree.
 
 ## Questions are a shape and a measure, chosen separately
 
