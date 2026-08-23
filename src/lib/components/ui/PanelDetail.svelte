@@ -34,6 +34,7 @@
 	 */
 	import Glyph from '$lib/components/ui/Glyph.svelte';
 	import { copy } from '$lib/state/lang.svelte';
+	import { scrollerOf } from '$lib/utils/dom';
 	import type { Snippet } from 'svelte';
 
 	let {
@@ -60,19 +61,6 @@
 		   above the fold. The panel goes to the top, where the section starts. */
 		scrollerOf(box)?.scrollTo({ top: 0 });
 	});
-
-	/** The scrolling box this card lives in, whichever surface is hosting it: the panel
-	    on a wide screen, the sheet on a narrow one. Found by asking the elements rather
-	    than by naming either host's class. */
-	function scrollerOf(node: HTMLElement | null): HTMLElement | null {
-		let el = node?.parentElement ?? null;
-		while (el) {
-			const overflow = getComputedStyle(el).overflowY;
-			if (overflow === 'auto' || overflow === 'scroll') return el;
-			el = el.parentElement;
-		}
-		return null;
-	}
 
 	/**
 	 * Escape leaves the INNERMOST view open, not every one that is listening.
