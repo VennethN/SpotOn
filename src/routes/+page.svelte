@@ -45,7 +45,9 @@
 
 	/* The thirteen types the engine scores, for the second rail. Read from the domain
 	   rather than typed out, so a type added there appears here on its own. */
-	const CATEGORY_NAMES = $derived(CATEGORY_KEYS.map((key) => c.category[key].name));
+	const CATEGORY_NAMES = $derived(
+		CATEGORY_KEYS.map((key) => ({ label: c.category[key].name, category: key }))
+	);
 </script>
 
 <svelte:head>

@@ -27,13 +27,18 @@
 		| 'chevron'
 		| 'close';
 
-	/** The size the stroke weight below was drawn for. Every other size is scaled to it. */
-	const BASE = 13;
-	const STROKE = 1.3;
+	/**
+	 * The size the stroke weight below was drawn for. Every other size is scaled to it.
+	 *
+	 * Exported because `CategoryGlyph` draws on this same grid, and one stroke weight is
+	 * only one weight for as long as there is one number holding it.
+	 */
+	export const GLYPH_BASE = 13;
+	export const GLYPH_STROKE = 1.3;
 </script>
 
 <script lang="ts">
-	let { icon, size = BASE }: { icon: GlyphName; size?: number } = $props();
+	let { icon, size = GLYPH_BASE }: { icon: GlyphName; size?: number } = $props();
 </script>
 
 <svg
@@ -42,7 +47,7 @@
 	height={size}
 	fill="none"
 	stroke="currentColor"
-	stroke-width={(STROKE * BASE) / size}
+	stroke-width={(GLYPH_STROKE * GLYPH_BASE) / size}
 	stroke-linecap="round"
 	stroke-linejoin="round"
 	aria-hidden="true"
