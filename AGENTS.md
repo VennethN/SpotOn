@@ -109,6 +109,7 @@ src/lib/
   domain/                scoring, natural-language query, categories, narration, markdown
   state/                 app, tapak, lang, theme, account
   server/source.ts       the one place the data source is decided
+  server/gridmap.ts      where each cell is on the page, for every page that draws one
   server/answer.ts       one question answered, in one place, for both reply shapes
   server/mongo.ts        the one place "is there a database" is answered
   server/accounts.ts     accounts, sessions and the meters, over Mongo or over memory
@@ -195,13 +196,36 @@ them is a pricing page arguing with itself.
 
 ## Nothing on the account page is a picture of a legible number
 
-Three things are drawn there and each does something its own caption cannot. A meter
+Five things are drawn there and each does something its own caption cannot. A meter
 turns a remainder into a PROPORTION, because "1,480 left" is a quantity and the
 question a reader has is whether that is most of the week or the end of it. The week
 strip turns a refill date into a POSITION, because a date has to be held against
 today's date and seven cells with today marked do not. The crests turn a tier into a
 RANK at a size no wording is legible at, so the cards are told apart while they are
-scanned.
+scanned. The catchment field turns "1,500 areas a week" into the CITY, because that is
+an allowance nobody can picture and 562 hexagons where they really are is one. And the
+model in the head is the grid as an OBJECT, which is the one thing on the page that
+says what these plans are plans for.
+
+Two of those read real figures off the grid on disk. The field is every cell at its
+real centre, coloured by the trade standing around it; the model is ninety-one of those
+readings sampled evenly across the ranking. Both go through `server/gridmap`, which the
+landing page uses too, so no two pages can come to disagree about where a cell is.
+
+**The measure is TRADE, never an opportunity score.** Nobody choosing a plan has named
+a business type, and a score without one is a score for a business the reader never
+mentioned. Trade is what the map itself paints before anything has been asked, so the
+page and the app's opening screen say the same thing. It is also why the account page
+does NOT reach for `DEFAULT_CATEGORY`: that constant survives for exactly one place, the
+illustration on the way down the landing page, and a second caller would make it two.
+
+**One three-dimensional object per page.** The model stands in the head and the
+catchment field below it is deliberately flat. The landing page settled that the hard
+way: a second slab competing with the first made both look like decoration.
+
+Tapak stands beside the account's own name. It is the same figure that walks the diorama
+and answers on the map, and an account page is where a product is most tempted to
+introduce a stranger instead.
 
 There were four. Each tier card also carried a thin bar under its allowance, filled in
 proportion to the largest tier, so the ladder could be seen rather than worked out. The
@@ -224,15 +248,24 @@ follows, applied to a page about money:
   written into the copy or into a component. Even the crest counts its hexagons off the
   tier's position in `PLAN_KEYS` rather than off a number, so inserting a tier moves the
   whole page at once.
-- **The one decoration is uniform.** The hexagon field behind the head is the grid this
-  product is made of, drawn at one weight with no fill. One cell darker than another and
-  it would be a map of something, which is the thing this product does not draw.
+- **Decoration is uniform, and a map is labelled.** `HexField` is a lattice at one
+  weight with no fill, because a decoration with one cell darker than another would be a
+  map of nothing. `CatchmentField` is the opposite case and is allowed to be a map: every
+  position is a real centre and every colour a real count, so it carries a legend and
+  says what it is coloured by. The test is not whether hexagons are involved, it is
+  whether anything varies.
+- **A cell nobody counted is drawn as an absence.** An outline with nothing in it, on
+  both the field and the model. The bottom step of the ramp would say the street was
+  quiet, and 100 of the 562 sit in cities the catalogue has never read.
 - **The week strip is a calendar, not a chart.** Nothing is stored per day, so no cell is
   weighted differently from another. Cells differ only in whether the day has been
   reached.
 - **The sections arrive on mount, not on scroll.** `Reveal` waits to be scrolled to,
   which is right for a landing page read top to bottom and wrong for a page somebody
   opened to check one figure. It cost the top-ups their whole section once.
+- **The model arrives once and then holds.** Nothing loops. Its columns are fixed
+  readings, and a field that rose and fell on a timer would be a picture of values
+  changing. An entrance reveals a reading; an idle animation invents one.
 
 Two details worth keeping. The large figure is the TOTAL a reader can spend, because
 that is what the chip in the map chrome shows and two surfaces printing different

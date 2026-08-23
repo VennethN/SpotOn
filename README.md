@@ -58,6 +58,7 @@ src/lib/
     account.ts     what counts as a usable address and password, for both sides at once
   server/        server-only (enforced by SvelteKit)
     source.ts      the one place the data source is decided  ← swap here when the MAPID API is ready
+    gridmap.ts     where each cell sits on a drawn page, shared by every page that draws one
     llm.ts         the language-understanding layer (OpenRouter)
     params.ts      query string → scoring-engine arguments
     mongo.ts       the one place "is there a database" is answered
@@ -76,7 +77,8 @@ src/lib/
   components/
     app/           the WebGIS surface — components that read AppState
     landing/       the landing page's own composition
-    account/       the account page: quota meters, the week strip, plan crests
+    account/       the account page: quota meters, the week strip, plan crests,
+                   the catchment field and the grid model
     ui/            stateless components, shared between the surfaces
 src/hooks.server.ts  reads the session cookie into `locals.account`, once per request
 src/routes/
