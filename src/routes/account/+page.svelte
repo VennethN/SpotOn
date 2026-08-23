@@ -9,7 +9,7 @@
 	 *
 	 * WHAT IS DRAWN, AND WHY EACH DRAWING EARNS ITS PLACE
 	 *
-	 * Nothing here is a picture of a number that was already legible. Each of the four
+	 * Nothing here is a picture of a number that was already legible. Each of the five
 	 * marks does something the text next to it cannot:
 	 *
 	 * - `QuotaMeter` makes a remainder a PROPORTION. "1.480 left" is a quantity, and the
@@ -19,6 +19,21 @@
 	 *   date to hold against today's date; seven cells with today marked is a glance.
 	 * - `PlanCrest` makes a tier a RANK, at a size no wording is legible at, so the three
 	 *   cards are told apart while they are being scanned rather than after.
+	 * - `CatchmentField` makes an allowance the CITY. "1.500 areas a week" is a figure
+	 *   nobody can picture, and 562 hexagons where they really are is the same figure
+	 *   with a size. It is the unit the second meter counts.
+	 * - `GridDiorama` makes the grid an OBJECT, which is the one thing on the page that
+	 *   says what these plans are plans for.
+	 *
+	 * The last two read real figures off the grid on disk, both through `server/gridmap`
+	 * so this page and the landing page cannot disagree about where a cell is. What they
+	 * colour is TRADE and never an opportunity score: nobody choosing a plan has named a
+	 * business type, and a score without one is a score for a business they never
+	 * mentioned.
+	 *
+	 * Tapak stands beside the account's own name. It is the same figure that walks the
+	 * diorama and answers on the map, and an account page is where a product is most
+	 * tempted to introduce a stranger instead.
 	 *
 	 * THE TIER CARDS CARRY NO BAR, AND THAT IS THE CORRECTION THAT MATTERS MOST HERE.
 	 * They did: a thin track under each allowance, filled in proportion to the largest
@@ -32,9 +47,16 @@
 	 * the crests and the size by the figures, and neither of those can be mistaken for a
 	 * meter.
 	 *
-	 * The hexagon field behind the head is the one thing on the page that is decoration,
-	 * and it is uniform on purpose. One cell darker than another and it would be a map of
-	 * something, which is the one thing this product does not draw.
+	 * `HexField` is the one thing on the page that is decoration, and it is uniform on
+	 * purpose: one cell darker than another and it would be a map of nothing. It stands
+	 * in for the model wherever WebGL does not. `CatchmentField` is the opposite case and
+	 * is allowed to be a map, because every position and every colour in it is a reading,
+	 * so it carries a legend and says what it is coloured by. The test is not whether
+	 * hexagons are involved, it is whether anything varies.
+	 *
+	 * One three-dimensional object, in the head, and the catchment field below it stays
+	 * flat. The landing page settled that: a second slab competing with the first made
+	 * both look like decoration.
 	 *
 	 * The tiers are shown side by side including the one the reader is already on, and a
 	 * downgrade is offered as plainly as an upgrade. A page that only shows the way up is
