@@ -1370,8 +1370,7 @@
 				<span class="tip-unit">{c.app.tipDensity}</span>
 			</span>
 			<span class="tip-sub">
-				{row.source === 'mapid' ? 'MAPID' : row.source === 'osm' ? 'OSM' : 'MAPID + OSM'}, r={app.weights.radius} m ·
-				{c.app.tipUnits(row.units)}
+				{c.app.tipRadius(app.weights.radius)} · {c.app.tipUnits(row.units)}
 			</span>
 		{:else if hovered.row}
 			{@const row = hovered.row}
@@ -1381,8 +1380,7 @@
 			</span>
 			<span class="tip-sub">
 				{c.app.tipBusy(row.density)} · {c.app.tipRivals(row.osm)}<br />
-				{row.source === 'mapid' ? 'MAPID' : row.source === 'osm' ? 'OSM' : 'MAPID + OSM'}, r={app.weights.radius} m ·
-				{c.app.tipUnits(row.units)}
+				{c.app.tipRadius(app.weights.radius)} · {c.app.tipUnits(row.units)}
 			</span>
 		{:else}
 			<!-- No category loaded yet: the cell is named and nothing more is claimed. -->

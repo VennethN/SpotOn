@@ -953,6 +953,12 @@ export const id = {
 		tipBusy: (n: number) => `${n} usaha di sekitar`,
 		tipRivals: (n: number) => `${n} pesaing`,
 		tipUnits: (n: number) => `${n} unit dipasarkan`,
+		/* Dulu baris ini berbunyi "MAPID + OSM, r=800 m". Dua-duanya singkatan yang cuma
+		   dimengerti orang yang sudah tahu: `r` itu radius, dan nama sumbernya sudah
+		   tertulis di legenda yang lagi kebuka di layar yang sama. Yang tersisa di sini
+		   satu hal yang memang perlu diingat sambil menunjuk petak, yaitu sejauh mana
+		   hitungannya diambil. */
+		tipRadius: (m: number) => `dalam radius jalan kaki ${m} m`,
 		sheet: 'Panel informasi',
 		sheetGrip: 'Ubah tinggi panel'
 	},
