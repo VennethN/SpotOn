@@ -27,6 +27,8 @@ import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
 import type {
 	AiAnswer,
+	AiEvent,
+	AiStage,
 	CategoryKey,
 	CategorySlice,
 	GridMeta,
@@ -40,6 +42,75 @@ import type {
 
 /** What the map is a list OF: catchments, or the units standing in them. */
 export type Pivot = 'cell' | 'unit';
+
+/**
+ * Somebody watching an answer being worked out.
+ *
+ * Every method is optional and none of them is told a figure. The stages say which of
+ * the two halves of the engine is running, and the deltas carry the one sentence the
+ * model writes for itself. Everything computed arrives at the end, all at once, because
+ * that is when it exists.
+ */
+export interface AskWatcher {
+	stage?(stage: AiStage): void;
+	/** More of the model's casual reply. A preview: the answer's own text is final. */
+	delta?(text: string): void;
+	/** Everything delta'd so far is void. It failed the fence in `domain/chat`. */
+	reset?(): void;
+}
+
+/**
+ * The streamed reply, read down to the answer inside it.
+ *
+ * NDJSON, so the framing is a newline and nothing else. A chunk off the network stops
+ * wherever it stops, which is regularly halfway through a line, so the tail is kept
+ * back and finished by the next chunk. Reading a chunk as if it were whole is what
+ * turns a perfectly good answer into a parse error under a slow connection.
+ *
+ * Throws when the stream ends without an answer, which is the same thing a failed
+ * request is to the caller: no answer came back.
+ */
+async function readEvents(res: Response, on: (event: AiEvent) => void): Promise<AiAnswer> {
+	const reader = res.body?.getReader();
+	if (!reader) throw new Error('Gagal memproses pertanyaan (jawaban kosong).');
+
+	const decoder = new TextDecoder();
+	let buf = '';
+	let answer: AiAnswer | null = null;
+
+	const take = (line: string) => {
+		const text = line.trim();
+		if (!text) return;
+		let event: AiEvent;
+		try {
+			event = JSON.parse(text);
+		} catch {
+			// A line that is not JSON is a line from something other than this endpoint.
+			// Nothing useful to do with it, and no reason to lose the answer over it.
+			return;
+		}
+		if (event.kind === 'error') throw new Error(event.message);
+		if (event.kind === 'answer') answer = event.answer;
+		else on(event);
+	};
+
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		buf += decoder.decode(value, { stream: true });
+		let nl: number;
+		while ((nl = buf.indexOf('\n')) !== -1) {
+			const line = buf.slice(0, nl);
+			buf = buf.slice(nl + 1);
+			take(line);
+		}
+	}
+	// Whatever is left when the stream closes is a whole line without its newline.
+	take(buf + decoder.decode());
+
+	if (!answer) throw new Error('Gagal memproses pertanyaan (jawaban kosong).');
+	return answer;
+}
 
 export type LayerKey = 'score' | 'routes' | 'poi' | 'label' | 'stops' | 'property' | 'field';
 export type { Theme };
@@ -1053,93 +1124,122 @@ export class AppState {
 		return watchSystemDark((dark) => (this.systemDark = dark));
 	}
 
-	/** Ask the recommendation engine (the server endpoint). */
-	async ask(question: string) {
+	/**
+	 * Ask the recommendation engine (the server endpoint), and watch it work.
+	 *
+	 * The reply is read as a stream, so `watch` hears which stage is running and, on a
+	 * casual turn, the model's sentence as it is written. All of that is optional: an
+	 * `ask` with no watcher behaves exactly as it did when the endpoint replied in one
+	 * piece, because the answer event carries the same object the JSON reply carried.
+	 *
+	 * What is NOT streamed is every figure on the screen. The answer arrives whole, and
+	 * the map is repainted from it in one move — see `#apply`.
+	 */
+	async ask(question: string, watch?: AskWatcher) {
 		this.aiLoading = true;
 		this.aiError = null;
 		try {
 			const res = await fetch('/api/ai/query', {
 				method: 'POST',
-				headers: { 'content-type': 'application/json' },
+				headers: { 'content-type': 'application/json', accept: 'application/x-ndjson' },
 				body: JSON.stringify({
 					question,
 					kategori: this.categories,
 					weights: this.weights,
-					lang: lang()
+					lang: lang(),
+					stream: true
 				})
 			});
 			if (!res.ok) throw new Error(`Gagal memproses pertanyaan (${res.status}).`);
-			const data: AiAnswer = await res.json();
-			this.ai = data;
-			// Small talk leaves the map exactly as it was. Nothing was computed, so there
-			// is nothing to show — and `query` on a chat turn is only the fallback parser's
-			// reading of the sentence, which will happily find "warteg" inside "makasih,
-			// warteg emang enak" and swing the whole map to a category the reader never
-			// asked to see. A greeting must not repaint anything.
-			if (data.chat) return;
 
-			/* Tapak drives the two controls in `MapControls` as well as the map underneath
-			   them. That is the whole reason the pivot switch was taken back out of this
-			   panel: the conversation is not one of the modes, it is the thing that can
-			   change them, so a control that replaced the conversation would take away the
-			   thing operating it.
-
-			   All three are applied BEFORE the highlight, and that order is load-bearing.
-			   `setRadius` and `setPivot` both clear things the answer is about — a stale
-			   unit selection, the previous highlight — so an answer that set the highlight
-			   first would have it wiped by its own mode change and name places the map
-			   never marked.
-
-			   The radius goes first of the three. It decides which cell a unit belongs to,
-			   so applying it after a pivot switch would build the whole unit list at the
-			   old radius and immediately rebuild it at the new one. */
-			this.setRadius(data.query.radius_m);
-			// Absent means the question said nothing about the shape of the answer, and the
-			// mode the reader had is left exactly as it was.
-			if (data.query.pivot) this.setPivot(data.query.pivot);
-			if (data.query.pivot === 'unit' && data.query.ukuran_unit) {
-				this.unitSort = data.query.ukuran_unit;
-				// `urut_unit` was resolved against the unit registry by whichever layer
-				// understood the question. Falling back to the measure's own "best" here is
-				// what an older query object gets, and it is the same answer the sort chips
-				// give on a first press.
-				this.unitOrder =
-					data.query.urut_unit ?? UNIT_METRIC_MAP[data.query.ukuran_unit].best;
-			}
-			/* THE ANSWER DECIDES WHAT THE MAP IS SCORING. This is the line the whole
-			   question box exists for: ask about cafes and bakeries together and the set
-			   becomes those two, ask about laundries next and it becomes that one. The
-			   reader never has to go and find a control to make the map agree with the
-			   sentence above it.
-
-			   Set through the setter rather than by assignment, so the competitor dots of
-			   a type being left behind are refetched with everything else. Assigning the
-			   field directly is what used to leave the previous category's dots sitting
-			   under the new answer. */
-			const answered = orderCategories(data.query.kategori);
-			if (answered.length) this.setCategories(answered);
-			/* The catchments the answer named, set AFTER the business types and not before.
-			   `setCategories` clears the highlight on purpose — a set changed by hand
-			   invalidates a ranking computed over the old one — so an answer that marked
-			   the map first would have its own places wiped by its own change of set, and
-			   name catchments the map never marked.
-
-			   Kept even in unit mode, where they are not rows any more but still the places
-			   the reply is about: `unitsFC` rings every unit standing in one, so the
-			   sentence and the map agree about where to look. */
-			this.highlight = data.highlight;
-			// Tapak has just named places on the map, so the map has to be able to show
-			// them: the answered set's columns are fetched and the heatmap comes on. This
-			// is the path the heatmap is meant to arrive by — the user asked a question and
-			// got an answer, rather than being handed a coloured map to interpret on their
-			// own.
-			await this.loadCategories();
-			this.layers.score = true;
+			const data = await readEvents(res, (event) => {
+				if (event.kind === 'stage') watch?.stage?.(event.stage);
+				else if (event.kind === 'delta') watch?.delta?.(event.text);
+				else if (event.kind === 'reset') watch?.reset?.();
+			});
+			await this.#apply(data);
 		} catch (err) {
 			this.aiError = err instanceof Error ? err.message : 'Terjadi kesalahan.';
 		} finally {
 			this.aiLoading = false;
 		}
+	}
+
+	/**
+	 * What an answer does to the map, applied in one move once the whole answer is in
+	 * hand.
+	 *
+	 * Nothing here is allowed to happen a piece at a time. Every one of these changes
+	 * invalidates the ones around it — a highlight belongs to a category set, a unit
+	 * list belongs to a radius — so applying them as they arrived would leave the map
+	 * marking places the finished answer never named.
+	 */
+	async #apply(data: AiAnswer) {
+		this.ai = data;
+		// Small talk leaves the map exactly as it was. Nothing was computed, so there
+		// is nothing to show — and `query` on a chat turn is only the fallback parser's
+		// reading of the sentence, which will happily find "warteg" inside "makasih,
+		// warteg emang enak" and swing the whole map to a category the reader never
+		// asked to see. A greeting must not repaint anything.
+		if (data.chat) return;
+
+		/* Tapak drives the two controls in `MapControls` as well as the map underneath
+		   them. That is the whole reason the pivot switch was taken back out of this
+		   panel: the conversation is not one of the modes, it is the thing that can
+		   change them, so a control that replaced the conversation would take away the
+		   thing operating it.
+
+		   All three are applied BEFORE the highlight, and that order is load-bearing.
+		   `setRadius` and `setPivot` both clear things the answer is about — a stale
+		   unit selection, the previous highlight — so an answer that set the highlight
+		   first would have it wiped by its own mode change and name places the map
+		   never marked.
+
+		   The radius goes first of the three. It decides which cell a unit belongs to,
+		   so applying it after a pivot switch would build the whole unit list at the
+		   old radius and immediately rebuild it at the new one. */
+		this.setRadius(data.query.radius_m);
+		// Absent means the question said nothing about the shape of the answer, and the
+		// mode the reader had is left exactly as it was.
+		if (data.query.pivot) this.setPivot(data.query.pivot);
+		if (data.query.pivot === 'unit' && data.query.ukuran_unit) {
+			this.unitSort = data.query.ukuran_unit;
+			// `urut_unit` was resolved against the unit registry by whichever layer
+			// understood the question. Falling back to the measure's own "best" here is
+			// what an older query object gets, and it is the same answer the sort chips
+			// give on a first press.
+			this.unitOrder =
+				data.query.urut_unit ?? UNIT_METRIC_MAP[data.query.ukuran_unit].best;
+		}
+		/* THE ANSWER DECIDES WHAT THE MAP IS SCORING. This is the line the whole
+		   question box exists for: ask about cafes and bakeries together and the set
+		   becomes those two, ask about laundries next and it becomes that one. The
+		   reader never has to go and find a control to make the map agree with the
+		   sentence above it.
+
+		   Set through the setter rather than by assignment, so the competitor dots of
+		   a type being left behind are refetched with everything else. Assigning the
+		   field directly is what used to leave the previous category's dots sitting
+		   under the new answer. */
+		const answered = orderCategories(data.query.kategori);
+		if (answered.length) this.setCategories(answered);
+		/* The catchments the answer named, set AFTER the business types and not before.
+		   `setCategories` clears the highlight on purpose — a set changed by hand
+		   invalidates a ranking computed over the old one — so an answer that marked
+		   the map first would have its own places wiped by its own change of set, and
+		   name catchments the map never marked.
+
+		   Kept even in unit mode, where they are not rows any more but still the places
+		   the reply is about: `unitsFC` rings every unit standing in one, so the
+		   sentence and the map agree about where to look. */
+		this.highlight = data.highlight;
+		// Tapak has just named places on the map, so the map has to be able to show
+		// them: the answered set's columns are fetched and the heatmap comes on. This
+		// is the path the heatmap is meant to arrive by — the user asked a question and
+		// got an answer, rather than being handed a coloured map to interpret on their
+		// own.
+		await this.loadCategories();
+		this.layers.score = true;
 	}
 }
 

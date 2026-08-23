@@ -1,9 +1,22 @@
 import { env } from '$env/dynamic/private';
 import { CATEGORIES, CATEGORY_KEYS, normalizeCategories } from '$lib/domain/categories';
-import { CHAT_TOPICS, cleanChatReply, isChatTopic, type ChatTopic } from '$lib/domain/chat';
+import {
+	CHAT_TOPICS,
+	cleanChatReply,
+	isChatTopic,
+	ruleChatTopic,
+	type ChatTopic
+} from '$lib/domain/chat';
 import { DEFAULT_METRIC, METRIC_KEYS, isMetric, resolveOrder } from '$lib/domain/metrics';
 import { UNIT_METRIC_KEYS, isUnitMetric, resolveUnitOrder } from '$lib/domain/units';
 import { RADII, snapRadius } from '$lib/domain/weights';
+import {
+	Preview,
+	readStream,
+	type ModelSink,
+	type Completion,
+	type ToolCall
+} from '$lib/server/stream';
 import type {
 	CategoryKey,
 	MetricKey,
@@ -123,6 +136,17 @@ export type ParseResult =
    contract (intent, metrik, kategori, radius, filter). Translating them would
    change model behaviour and break that contract, so only the surrounding code
    comments are in English. */
+/* THE GUIDE IS CALLED TAPAK, AND THE PROMPT HAS TO SAY SO.
+
+   This used to open with "you are the understanding layer for SpotOn" and stop there,
+   which told the model what it was wired into and never told it its name. So a reader
+   who said hello got "Halo! Saya SpotOn" one bubble under a greeting that had just
+   said "Halo, saya Tapak" — the product introducing itself twice, by two names, and
+   contradicting itself in the process.
+
+   The name sits in two places on purpose. The opening line so the model knows who it
+   is at all, and the chat rules so it is in front of the model at the one moment it
+   actually writes a sentence a reader will see. */
 /**
  * What each measure means, for the model.
  *
@@ -181,7 +205,7 @@ for (const k of UNIT_METRIC_KEYS) {
 	if (!UNIT_METRIC_HELP[k]) throw new Error(`[SpotOn] unit metric "${k}" has no description in llm.ts`);
 }
 
-const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta data lokasi usaha di kawasan stasiun transit Jakarta.
+const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta data lokasi usaha di kawasan stasiun transit Jakarta. Di depan pengguna kamu tampil sebagai Tapak, pemandu di dalam SpotOn.
 
 Tugasmu HANYA menerjemahkan pertanyaan pengguna menjadi satu pemanggilan alat. Kamu tidak menghitung apa pun dan tidak menulis jawaban — mesin skor yang melakukannya dari data asli.
 
@@ -233,6 +257,8 @@ NGOBROL SECUKUPNYA. Panggil ngobrol untuk kalimat yang memang bukan permintaan d
 - usaha: obrolan umum soal buka usaha kecil — kenapa lokasi penting, bedanya warteg dan kafe, hal yang biasa dipikirkan sebelum menyewa tempat.
 
 Aturan ngobrol, dan ini keras:
+- NAMAMU TAPAK. SpotOn itu nama petanya, bukan namamu. Ditanya siapa kamu, jawabnya Tapak. JANGAN pernah memperkenalkan diri sebagai SpotOn.
+- Jangan melaporkan keadaan dalam sistem, misalnya kategori yang sedang aktif atau yang belum dipilih. Itu sudah kelihatan di layar, dan Tapak bicara seperti orang, bukan seperti status.
 - MAKSIMAL DUA KALIMAT pendek.
 - DILARANG menulis angka apa pun. Tidak ada persen, rupiah, jumlah, bulan, tahun, atau "sekitar sekian". Kalau menjawabnya butuh angka, itu bukan ngobrol — panggil jalankan_query.
 - Jangan mengarang fakta soal pasar, harga, atau perilaku pembeli. Bicara umum saja, lalu arahkan kembali ke apa yang bisa dijawab peta.
@@ -384,22 +410,27 @@ const TOOLS = [
 	}
 ];
 
-interface ToolCall {
-	function?: { name?: string; arguments?: string };
-}
-
 /**
  * Returns `null` when the model layer cannot be used — the caller must treat that
  * as "use the rule-based parser", not as a failure.
+ *
+ * `sink` is optional and changes nothing about the result. With it, the completion is
+ * asked for as a stream and the casual reply is passed on as it is written; without it
+ * the request is made exactly as it always was, in one piece. Both paths end at the
+ * same `ParseResult`, so nothing downstream can tell which was used, and the endpoint's
+ * one-piece JSON reply keeps behaving the way its consumers already expect.
  */
 export async function parseWithLLM(
 	question: string,
 	w: Weights,
 	fallbackCategory: readonly CategoryKey[],
-	lang = 'id'
+	lang = 'id',
+	sink?: ModelSink
 ): Promise<ParseResult> {
 	const key = env.OPENROUTER_API_KEY?.trim();
 	if (!key) return null;
+
+	const preview = sink ? new Preview(sink) : null;
 
 	const body = {
 		messages: [
@@ -412,8 +443,20 @@ export async function parseWithLLM(
 			}
 		],
 		tools: TOOLS,
-		// The model must pick one of the tools — including the "I don't understand" one.
-		tool_choice: 'required',
+		/* The tools are OFFERED, not forced, and the prompt above is what asks for one.
+		   `tool_choice: 'required'` used to be set here, and it cost more than it bought.
+		   Free models vary in how well they honour it: several answer a plain "halo" with
+		   a malformed call or with prose anyway, and prose was read as a failure, so the
+		   turn fell through the whole chain to the rule parser. Somebody saying hello got
+		   the narrow rule-based greeting, or nothing.
+
+		   So a completion with no tool call is now read as what it plainly is, a casual
+		   reply, and it goes through the SAME fence in `domain/chat` that `ngobrol`'s
+		   does. That fence is what makes this safe rather than merely lenient: a model
+		   that skips the tools and answers a data question in fluent invented prose
+		   writes a digit while doing it, the reply is thrown away, and the turn moves on
+		   to a model that will call `jalankan_query` — or to the rule parser, which
+		   computes the figures from data. */
 		// Required, and not merely a cost saving. Without this line OpenRouter
 		// reserves the model's entire output window (tens of thousands of tokens)
 		// up front, then rejects the request with a 402 if the key's remaining
@@ -434,6 +477,13 @@ export async function parseWithLLM(
 			break;
 		}
 
+		/* Said out loud, because this is where the longest silences are. A model that is
+		   full takes its full sixty seconds to say so, and the reader was watching one
+		   unchanging line through all of it and then through the next model's turn too.
+		   "The one before did not answer, trying another" is both true and the only
+		   thing on screen that will move for a while. */
+		if (i > 0) sink?.retrying();
+
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), Math.min(ATTEMPT_MS, left));
 		try {
@@ -446,7 +496,10 @@ export async function parseWithLLM(
 					// Used by OpenRouter for attribution; not required, but polite.
 					'x-title': 'SpotOn'
 				},
-				body: JSON.stringify({ model, ...body })
+				// Streamed only when somebody is waiting to read it. Nothing else in the
+				// answer is worth a fragment of, so a caller that just wants the parse
+				// asks for it the way it always did.
+				body: JSON.stringify(preview ? { model, ...body, stream: true } : { model, ...body })
 			});
 
 			if (!res.ok) {
@@ -459,28 +512,67 @@ export async function parseWithLLM(
 				continue;
 			}
 
-			const data = await res.json();
-			const got: ToolCall | undefined = data?.choices?.[0]?.message?.tool_calls?.[0];
-			if (!got?.function?.name) {
-				// The model answered, but wrote prose instead of calling a tool. To this
-				// layer that is exactly as useless as a network error.
-				console.error(`[SpotOn] ${model} called no tool; moving on to the next model.`);
-				continue;
+			let got: Completion;
+			if (preview) {
+				got = await readStream(res, preview);
+			} else {
+				const message = (await res.json())?.choices?.[0]?.message;
+				got = {
+					call: message?.tool_calls?.[0],
+					content: typeof message?.content === 'string' ? message.content : undefined
+				};
 			}
 
-			if (i > 0) console.error(`[SpotOn] Answered by fallback model: ${model}`);
-			call = got;
-			break;
+			if (got.call?.function?.name) {
+				if (i > 0) console.error(`[SpotOn] Answered by fallback model: ${model}`);
+				call = got.call;
+				break;
+			}
+
+			/* No tool call, so read the prose as the casual reply it almost always is.
+			   Held to the same fence as `ngobrol`'s own reply: `cleanChatReply` returns
+			   null for anything carrying a digit or running long, and null here is not a
+			   chat turn at all. That is deliberate rather than a canned line — a model
+			   that answered a data question in prose has not chatted, it has guessed, and
+			   the next model in the chain deserves the turn. */
+			const prose = cleanChatReply(got.content);
+			if (prose) {
+				if (i > 0) console.error(`[SpotOn] Answered by fallback model: ${model} (prose)`);
+				// The topic is read off the QUESTION, never off the reply. It only decides
+				// which canned line stands in when there is no sentence, and there is one
+				// here, so a wrong guess costs nothing and a guess read off the model's
+				// own words would be the model labelling itself.
+				return { ok: false, chat: ruleChatTopic(question) ?? 'usaha', text: prose };
+			}
+
+			console.error(`[SpotOn] ${model} called no tool and wrote nothing usable; moving on.`);
+			// Half a sentence from a model that then said nothing usable is not an answer
+			// to anything, and leaving it on screen while the next model starts writing
+			// over it would read as one reply contradicting itself.
+			preview?.clear();
+			continue;
 		} catch (err) {
 			// Includes timeouts (AbortError). Not a reason to fail the request.
 			console.error(`[SpotOn] ${model} failed:`, (err as Error).message);
+			preview?.clear();
 		} finally {
 			clearTimeout(timer);
 		}
 	}
 
-	// The whole chain ran out without a single tool call → rule-based parser.
+	// The whole chain ran out without a tool call or a usable sentence → rule parser.
 	if (!call) return null;
+
+	/* Whatever the preview put on screen survives exactly ONE ending: a casual reply
+	   that cleared the fence, whose sentence the answer is about to repeat word for
+	   word. Every other way out of the block below takes it back down — a rejected
+	   reply, an unreadable argument object, a model that started writing chat and then
+	   named `jalankan_query` after all.
+
+	   Which is why this is a flag and a `finally` rather than a call on each path. The
+	   paths out of here are eight and counting, and the one that gets forgotten is the
+	   one that leaves an invented sentence sitting on the screen. */
+	let keepPreview = false;
 
 	try {
 		const name = call.function?.name;
@@ -501,7 +593,12 @@ export async function parseWithLLM(
 			// The fence, applied rather than requested. `cleanChatReply` returns null for
 			// anything carrying a digit or running long, and the caller then uses the
 			// canned line for the topic — so a misbehaving model costs the reader nothing.
-			return { ok: false, chat: topik, text: cleanChatReply(args.balasan) };
+			const text = cleanChatReply(args.balasan);
+			// The preview showed a prefix of exactly this sentence, so it stays where it
+			// is and the reader sees no seam. A rejected reply is pulled instead, and the
+			// canned line takes its place when the answer lands.
+			keepPreview = Boolean(text);
+			return { ok: false, chat: topik, text };
 		}
 
 		if (name === 'tidak_dimengerti') {
@@ -631,5 +728,7 @@ export async function parseWithLLM(
 		// this layer: drop to the rule-based parser, don't fail the request.
 		console.error('[SpotOn] Could not read the tool call:', (err as Error).message);
 		return null;
+	} finally {
+		if (!keepPreview) preview?.clear();
 	}
 }
