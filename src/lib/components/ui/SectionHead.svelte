@@ -20,7 +20,7 @@
 	 */
 	import type { Snippet } from 'svelte';
 
-	type Icon = 'price' | 'market' | 'units' | 'rivals' | 'transit' | 'field';
+	type Icon = 'price' | 'market' | 'units' | 'rivals' | 'transit' | 'field' | 'hours';
 
 	let {
 		icon,
@@ -46,6 +46,10 @@
 				<path d="M2 6.2h12v7.3H2Z" />
 				<path d="M1.4 3.1h13.2L14 6.2H2Z" />
 				<path d="M6.4 13.5V9.4h3.2v4.1" />
+			{:else if icon === 'hours'}
+				<!-- A clock: the hours the doors around here are open. -->
+				<circle cx="8" cy="8" r="6.1" />
+				<path d="M8 4.3V8l2.6 1.6" />
 			{:else if icon === 'units'}
 				<!-- A list of rows: the units, one by one. -->
 				<path d="M2.4 4.4h11.2M2.4 8h11.2M2.4 11.6h7.4" />

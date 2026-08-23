@@ -10,11 +10,15 @@
  * not known is called not known.
  */
 
-import { moneyScale, num } from '$lib/utils/format';
+import { formatHour, moneyScale, num } from '$lib/utils/format';
 
 /** Indonesian decimals: 0.45 → "0,45". Kept in the locale, where notation belongs —
     the components hand over numbers, never pre-formatted strings. */
 const dec = (v: number, digits = 2): string => v.toFixed(digits).replace('.', ',');
+
+/** Jam bulat, cara Indonesia: 7 → "07.00". `formatHour` sudah menulisnya begitu, dan
+    notasi jam urusan berkas bahasa, jadi bahasa Inggris punya versinya sendiri. */
+const jam = (h: number): string => formatHour(h);
 
 /**
  * Rupiah, written short: 45000000 → "Rp 45 jt", 4300000000 → "Rp 4,3 M".
@@ -551,6 +555,49 @@ export const id = {
 			properti: 'Properti',
 			catatan: 'Catatan warga'
 		}
+	},
+
+	/* ── Jam buka ───────────────────────────────────────────────────────────
+	   Satu kata yang sengaja tidak dipakai di sini: ramai. Yang dihitung PINTU yang
+	   buka, dari tag `opening_hours` OpenStreetMap, bukan orang yang lewat. Bentuk
+	   grafiknya memang mirip popular times Google, dan pengukurannya lain sama sekali.
+	   Sisi belanjanya ada di catatan lapangan, dan di sana tidak ada jamnya sama
+	   sekali, cuma tanggal. Jadi keduanya tidak bisa disatukan jadi satu kurva. */
+	activity: {
+		title: 'Jam buka di sekitar sini',
+		dayPicker: 'Pilih hari',
+		days: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+		dayFull: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
+		/* Label sumbu, tiap enam jam. Cuma angka jamnya, karena "06.00" berjejer empat
+		   kali sudah lebih lebar dari panelnya. */
+		hourShort: (h: number) => String(h),
+		barTitle: (h: number, n: number, dari: number) =>
+			`Jam ${jam(h)}, ${n} dari ${dari} usaha buka`,
+		/* Jam Jakarta, bukan jam pembaca. Pintunya ada di Jakarta. */
+		nowOpen: (h: number, n: number, dari: number) =>
+			`Sekarang jam ${jam(h)} di Jakarta, ${n} dari ${dari} usaha ini buka.`,
+		peak: (h: number, n: number, dari: number) =>
+			`Paling banyak buka mulai jam ${jam(h)}, ${n} dari ${dari}.`,
+
+		/* ── Dua macam diam, dibedakan ────────────────────────────────────── */
+		thin: (terbaca: number, min: number, usaha: number, r: number) =>
+			`Baru ${terbaca} tempat usaha di radius ${r} m yang jam bukanya terbaca, dari ${usaha} yang tercatat. Kurva butuh sedikitnya ${min}, karena satu minimarket 24 jam saja sudah cukup untuk membuat jalan ini terlihat tidak pernah tidur.`,
+		none: (usaha: number, r: number) =>
+			`Dari ${usaha} tempat usaha di radius ${r} m, tidak ada satu pun yang memasang jam buka. Jadi jamnya dikosongkan, bukan ditaksir.`,
+
+		/* Cacahnya menyebut OpenStreetMap dengan sengaja. Kalimat di atas panel ini
+		   menghitung tiga belas jenis usaha yang diskor SpotOn, dari OSM dan MAPID
+		   sekaligus. Yang di sini seluruh perdagangan yang tercatat OSM, jadi angkanya
+		   memang beda dan pembaca berhak tahu bedanya dari mana. */
+		basis: (terbaca: number, usaha: number, r: number) =>
+			`${terbaca} dari ${usaha} tempat usaha yang tercatat OpenStreetMap di radius ${r} m memasang jam buka yang bisa dibaca.`,
+		refused: (n: number) =>
+			`${n} lagi memasangnya dalam bentuk yang tidak dibaca di sini, misalnya aturan hari libur atau "sunset". Itu tidak ditebak.`,
+		notFootfall:
+			'Yang dihitung pintu yang buka, bukan orang yang lewat. Struk yang dicatat surveyor ada di bawah, terpisah, karena catatannya cuma bertanggal dan tidak berjam.',
+		loading: 'Memuat jam bukanya…',
+		failed: (n: number) =>
+			`Jam bukanya tidak bisa dimuat, jadi kurvanya tidak digambar. Cacah ${n} usaha di bawah tetap berlaku, itu dibaca dari kisi, bukan dari berkas itu.`
 	},
 
 

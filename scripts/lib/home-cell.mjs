@@ -14,17 +14,22 @@
  * same receipt in five catchments reads as five receipts.
  */
 
-const R = 6_371_000;
-const rad = (d) => (d * Math.PI) / 180;
+/**
+ * The distance test is `lib/geo`'s, not this file's own.
+ *
+ * It had its own, opening `const R = 6_371_000`, which was a THIRD earth in a project
+ * that also carried 6371008.8 in the joins and 6378137 in `src/lib/utils/geo.ts` — the
+ * one the browser measures with. That matters here more than anywhere: a record's home
+ * cell is decided by this function and the card that lists it is drawn in the browser,
+ * so the two have to agree about which cell a record on the line belongs to. See the
+ * note at the top of `lib/geo.mjs` for what the same gap cost the property and
+ * competitor counts before it was closed.
+ */
+import { haversine } from './geo.mjs';
 
-/** Great-circle metres between two points. */
-export function metres(aLat, aLon, bLat, bLon) {
-	const dLat = rad(bLat - aLat);
-	const dLon = rad(bLon - aLon);
-	const h =
-		Math.sin(dLat / 2) ** 2 + Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLon / 2) ** 2;
-	return 2 * R * Math.asin(Math.sqrt(h));
-}
+/** Great-circle metres between two points, re-exported under this module's own name so
+    the callers that already ask it for a distance keep working. */
+export const metres = haversine;
 
 /**
  * Groups records by their home cell.
