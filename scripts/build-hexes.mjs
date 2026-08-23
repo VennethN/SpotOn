@@ -27,12 +27,31 @@ import { fileURLToPath } from 'node:url';
 import { haversine } from './lib/geo.mjs';
 import { overpass, sleep } from './lib/overpass.mjs';
 import { BBOX, TRANSIT_QUERY, readStops } from './lib/transit.mjs';
+
 import * as h3 from 'h3-js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RES = 8;
 /** The walking range used to compute access & competitors. */
 const WALK_M = 800;
+/**
+ * The box the COMPETITOR queries use: `BBOX` grown by one walking radius.
+ *
+ * The transit query keeps the raw `BBOX`, because that is what decides where cells
+ * exist at all and padding it would only invent cells nobody asked for. The POI queries
+ * are a different question — "what stands within reach of a cell" — and a cell on the
+ * edge reaches a full radius past it. Three cells sit closer to the edge than that, all
+ * three at Soekarno-Hatta, so an unpadded POI query undercounts them.
+ *
+ * Grown here rather than through `lib/geo`'s `gridExtent`, which needs a grid to read
+ * and this script is the thing that writes one. Same arithmetic, one step earlier.
+ */
+const POI_BBOX = (() => {
+	const [s, w, n, e] = BBOX.split(',').map(Number);
+	const padLat = WALK_M / 111_320;
+	const padLon = WALK_M / (111_320 * Math.cos((((s + n) / 2) * Math.PI) / 180));
+	return [s - padLat, w - padLon, n + padLat, e + padLon].join(',');
+})();
 
 
 
@@ -167,8 +186,8 @@ async function main() {
 	const pois = [];
 	for (const [gi, g] of POI_GROUPS.entries()) {
 		const q = `[out:json][timeout:180];(
-node["${g.key}"~"^(${g.values})$"](${BBOX});
-way["${g.key}"~"^(${g.values})$"](${BBOX});
+node["${g.key}"~"^(${g.values})$"](${POI_BBOX});
+way["${g.key}"~"^(${g.values})$"](${POI_BBOX});
 );out center;`;
 		const raw = await overpass(q, `poi ${gi + 1}/${POI_GROUPS.length}`);
 		let n = 0;
@@ -282,7 +301,12 @@ way["${g.key}"~"^(${g.values})$"](${BBOX});
 	console.log(`→ ${dest}`);
 }
 
-main().catch((err) => {
-	console.error('Failed:', err.message);
-	process.exit(1);
-});
+// Only when run as a script. This one rebuilds the whole grid from five Overpass
+// queries, so an accidental import is not a wasted minute but a rewritten `hexes.json`
+// — which is exactly what happened while `POI_BBOX` below was being added.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	main().catch((err) => {
+		console.error('Failed:', err.message);
+		process.exit(1);
+	});
+}

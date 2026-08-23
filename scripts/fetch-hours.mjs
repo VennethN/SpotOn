@@ -46,8 +46,9 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
+import { gridExtent, overpassBox } from './lib/geo.mjs';
 import { overpass, sleep } from './lib/overpass.mjs';
-import { BBOX } from './lib/transit.mjs';
 import { readWeek, openHours } from './lib/hours.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -148,8 +149,8 @@ function filterFor(key) {
  * the three that succeeded down with it — `lib/overpass.mjs` caches the ones that
  * landed, so the retry starts where the failure was.
  */
-export const query = (key, withHours) =>
-	`[out:json][timeout:180];nwr${filterFor(key)}${withHours ? '["opening_hours"]' : ''}(${BBOX});out ${withHours ? 'tags ' : ''}center;`;
+export const query = (key, withHours, box) =>
+	`[out:json][timeout:180];nwr${filterFor(key)}${withHours ? '["opening_hours"]' : ''}(${box});out ${withHours ? 'tags ' : ''}center;`;
 
 /** An element's position — a node has its own, a way or a relation has a centre. */
 const positionOf = (el) => {
@@ -162,8 +163,23 @@ const positionOf = (el) => {
     `build-stops.mjs` already apply, and far finer than an 800 m catchment needs. */
 const round5 = (v) => Math.round(v * 1e5) / 1e5;
 
+/**
+ * The area to fetch: the grid's extent padded by one walking radius.
+ *
+ * NOT the raw bounding box the grid was built from. A cell's catchment reaches a full
+ * radius past its own centre, and three cells sit closer to the edge than that, so an
+ * unpadded fetch left up to 768 m of their catchment unread — see `gridExtent`.
+ */
+function extent() {
+	const grid = JSON.parse(readFileSync(resolve(ROOT, 'src/lib/data/hexes.json'), 'utf8'));
+	const { box, radius, cells } = gridExtent(grid);
+	return { bbox: overpassBox(box), radius, cells };
+}
+
 async function main() {
-	console.log(`Businesses and opening hours in ${BBOX}\n`);
+	const { bbox: BBOX, radius, cells } = extent();
+	console.log(`Businesses and opening hours across ${cells} cells, padded by ${radius} m`);
+	console.log(`  ${BBOX}\n`);
 
 	/* ── every business, whether or not it says when it opens ──────────────── */
 
@@ -173,7 +189,7 @@ async function main() {
 	const seen = new Map();
 	const byKey = {};
 	for (const [i, key] of KEYS.entries()) {
-		const raw = await overpass(query(key, false), `business ${key}`, { attempts: ATTEMPTS });
+		const raw = await overpass(query(key, false, BBOX), `business ${key}`, { attempts: ATTEMPTS });
 		let n = 0;
 		for (const el of raw.elements) {
 			const at = positionOf(el);
@@ -202,7 +218,7 @@ async function main() {
 	let openTotal = 0;
 
 	for (const [i, key] of KEYS.entries()) {
-		const raw = await overpass(query(key, true), `hours ${key}`, { attempts: ATTEMPTS });
+		const raw = await overpass(query(key, true, BBOX), `hours ${key}`, { attempts: ATTEMPTS });
 		for (const el of raw.elements) {
 			const at = positionOf(el);
 			if (!at) continue;
@@ -251,6 +267,7 @@ async function main() {
 		meta: {
 			source: 'OpenStreetMap via Overpass API',
 			bbox: BBOX,
+			paddedBy: radius,
 			counted:
 				'Setiap shop, craft, office dan amenity di dalam bbox, dikurangi nilai yang terdaftar di `excluded`. Jam bukanya dibaca dari tag `opening_hours`.',
 			note: 'Ini menghitung PINTU yang buka, bukan orang yang lewat. Bukan popular times.',
