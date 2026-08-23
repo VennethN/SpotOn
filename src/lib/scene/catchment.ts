@@ -1,26 +1,46 @@
 /**
- * An isometric model of a single block around a transit stop — the cafe as its
- * subject.
+ * An isometric model of ONE CATCHMENT, drawn from its own figures.
  *
- * Three formal decisions bind this whole file:
+ * The landing page has a scene of its own in `./street`, and this is deliberately not
+ * it. That one is a showcase: one cafe, one stop, three lots beside it, all white,
+ * standing for the product rather than for a place. Nothing in it is counting.
  *
- * 1. **Isometric.** An orthographic camera, seen from above and to the side. What
- *    is on offer is the relationship between the objects (cafe ↔ stop ↔ empty lot),
- *    and an orthographic projection shows that relationship without perspective
- *    distortion.
- * 2. **All white.** No saturated colour. Values are separated as thinly as
- *    possible, and every colour comes from the light of the selected hour.
- * 3. **People are frozen.** No idle animation. Each figure is sculpted in a single
- *    pose — some mid-stride, some seated, some queuing — and the only thing that
- *    moves is what the scroll moves. Hence no rAF spinning for nothing: a frame is
- *    drawn only when the state actually changes.
+ * This one is an instrument. It is opened from a panel full of one cell's figures and
+ * it draws those figures: the stops that cell actually reaches, by mode; the shops of
+ * the reader's own trade already trading on the street; the units on the market; and a
+ * crowd that follows the doors counted open at the hour on the slider.
+ *
+ * Four decisions bind it:
+ *
+ * 1. **Isometric.** An orthographic camera, above and to the side. What is on offer
+ *    is the relationship between the objects, and an orthographic projection shows
+ *    that without perspective distortion.
+ * 2. **White, with a legend.** The masses are white and lit only by the hour. The one
+ *    exception is a fixed set of encoding colours, and they are the map's own, so a
+ *    reader who has learned that TransJakarta is pink does not learn it twice: MRT
+ *    orange, KRL red, LRT green, TransJakarta pink, competitors' red. A whole building
+ *    never wears one, because a building in route orange is a claim to be the station.
+ * 3. **People are frozen.** No idle animation. Each figure is sculpted in one pose,
+ *    and a frame is drawn only when the state actually changes.
+ * 4. **Counts are counts.** Every object here stands for one row in the data. The
+ *    ceilings below are ceilings on the DRAWING, and they are set as high as the block
+ *    can carry and still be read: past that the objects touch and stop being
+ *    countable. The panel beside this carries the real figure either way.
  */
 
 import * as THREE from 'three';
 import type { CategoryKey } from '$lib/types';
 import { daylightAt, type DaylightSample } from './daylight';
 
-export interface StreetState {
+/** Transit nodes within walking range, by mode, exactly as the grid counts them. */
+export interface SceneTransit {
+	mrt: number;
+	krl: number;
+	lrt: number;
+	brt: number;
+}
+
+export interface CatchmentState {
 	/** 0..24 */
 	hour: number;
 	/** 0..1 — busyness, the normalised `hourly[]` profile. */
@@ -34,20 +54,52 @@ export interface StreetState {
 	rivals: number;
 	/** Commercial space currently up for rent — read as an outlined lot. */
 	vacancies: number;
+	/**
+	 * What this catchment reaches, drawn as the stops themselves.
+	 *
+	 * A cell with no TransJakarta corridor in range gets no platform and no bus, which
+	 * is what makes it look different from one that has three.
+	 */
+	transit: SceneTransit;
 }
 
-const DEFAULT_STATE: StreetState = {
+const NO_TRANSIT: SceneTransit = { mrt: 0, krl: 0, lrt: 0, brt: 0 };
+
+const DEFAULT_STATE: CatchmentState = {
 	hour: 12,
 	density: 0.5,
 	category: 'kopi',
 	cameraT: 0,
 	nodata: false,
 	rivals: 0,
-	vacancies: 1
+	vacancies: 1,
+	transit: NO_TRANSIT
 };
 
 const WHITE = new THREE.Color(0xffffff);
 const LAMP_ON = new THREE.Color(0xffdcb0);
+
+/**
+ * The only saturated colours in this scene, and they are the map's own.
+ *
+ * A reader arrives here from a panel where the MRT is orange and TransJakarta is
+ * pink, and from a map drawing the routes in those same colours. Picking new ones
+ * for the model would mean learning the legend twice.
+ *
+ * They are worn by small parts — a band, a canopy, a sign — and never by a mass. A
+ * whole building in route orange would read as a claim that the building is the
+ * station.
+ */
+const MODE_COLOUR: Record<keyof SceneTransit, number> = {
+	mrt: 0xef8f3c,
+	krl: 0xe05a5a,
+	lrt: 0x46b077,
+	brt: 0xc76bbe
+};
+/** Competitors, in the red they are drawn in on the map and counted in on the card. */
+const RIVAL_COLOUR = 0xd1352b;
+/** The rail modes, in the order an entrance is given to them: the heaviest line first. */
+const RAIL_MODES: Array<keyof SceneTransit> = ['mrt', 'krl', 'lrt'];
 
 /** A very faint tint per business type — enough to tell them apart, not to shout. */
 const CATEGORY_TINT: Record<CategoryKey, number> = {
@@ -89,26 +141,106 @@ const CAFE_D = 13;
 /* The rental lot abuts the cafe: wall to wall. Set apart, the eye has to guess at
    the relationship between them; side by side, the comparison reads immediately.
    Its width matches the cafe's so the two objects really are comparable. */
-const LOT_X = CAFE_X;
-const LOT_PAD_W = CAFE_W;
-const LOT_PAD_D = 9.6;
 const LOT_GAP = 1.3;
 /* Three slots in a row. How many are shown is decided by the data, not by
    composition: zero space for rent has to genuinely look like zero. Their centres
    are computed, not written by hand — hand-written figures once had the second and
    third lots overlapping their neighbours. */
-const LOT_SLOTS = [0, 1, 2].map(
-	(i) => CAFE_Z + CAFE_D / 2 + LOT_GAP + LOT_PAD_D / 2 + i * (LOT_PAD_D + LOT_GAP)
+/**
+ * Where the units up for rent stand.
+ *
+ * A grid rather than a row, and small pads rather than cafe-sized ones, because this
+ * is a count: a cell with twenty-two units on the market has to look different from
+ * one with four. Twenty-eight fit on the ground cleared behind the cafe without
+ * running off the slab or into the back row of buildings, which is seven times what a
+ * row of showcase-sized lots could hold.
+ *
+ * Filled nearest the cafe first, so the first unit lands where the eye already is.
+ */
+const PAD = 4.6;
+const LOT_COLS = [0, 1, 2, 3].map((i) => 16.0 + i * 5.8);
+const LOT_ROWS = [0, 1, 2, 3, 4, 5, 6].map(
+	(i) => CAFE_Z + CAFE_D / 2 + LOT_GAP + PAD / 2 + i * 6.0
 );
+const LOT_SLOTS = LOT_ROWS.flatMap((z) => LOT_COLS.map((x) => ({ x, z })));
 
-/* The strip reserved for the story's subject on the right-hand side: the cafe, then
-   the run of rental lots. No building mass may enter it. This is what used to leak —
-   the guard only covered the first lot and only tested a block's centre point, so
-   neighbouring buildings grew straight through the very lot that had to read empty. */
+/* The strip reserved for the subject on the right-hand side: the cafe, then the
+   ground the lots stand on. No building mass may enter it. The guard tests a block's
+   EXTENT rather than its centre point: a 16 m wide block whose centre falls outside
+   the strip can still push halfway into it, and that is how buildings once grew
+   straight through the very lot that had to read empty. */
 const SUBJECT_Z0 = CAFE_Z - CAFE_D / 2 - 1.8;
-const SUBJECT_Z1 = LOT_SLOTS[LOT_SLOTS.length - 1] + LOT_PAD_D / 2 + 1.8;
+const SUBJECT_Z1 = LOT_ROWS[LOT_ROWS.length - 1] + PAD / 2 + 1.8;
 
-const MAX_RIVALS = 10;
+/**
+ * The railway, and why it is nowhere near the busway.
+ *
+ * A TransJakarta corridor runs down the middle of a road. A railway does not: it has
+ * its own alignment, its own level crossing, and its own station. Drawing rail stops
+ * as one more thing standing on this street put two different systems on one piece of
+ * infrastructure, and a reader counting stops down the median had no way of telling
+ * which of them were trains.
+ *
+ * So the line crosses the block instead, at right angles, with the buildings cleared
+ * out of its way and a station beside it. Nothing about it can be mistaken for the
+ * corridor: different direction, different ground, different colour.
+ */
+const RAIL_Z = -34;
+const RAIL_HALF = 5.5;
+/**
+ * Where a station may stand along the line. Never over the road itself, and ordered
+ * outwards from it, so one station lands beside the crossing where the reader is
+ * looking rather than at the far corner of the block.
+ */
+const RAIL_STOPS = [16, -16, 24, -24, 32, -32, 40, -40];
+const MAX_RAIL_STOPS = RAIL_STOPS.length;
+/** Anything else on the block keeps out of the crossing. */
+const inRailBand = (z: number) => Math.abs(z - RAIL_Z) < RAIL_HALF + 1.6;
+
+/**
+ * The ceilings, which are ceilings on the DRAWING and nothing else.
+ *
+ * Set as high as 92 m of block can carry and still be read: an entrance is 5 m of
+ * pavement, a shelter is 3 m of median at a 4.2 m pitch, a competitor is one bay of
+ * frontage, and a unit on the market is one 4.6 m pad on the cleared ground. Past
+ * that the objects touch each other and stop being countable, which is a worse answer
+ * than a ceiling.
+ *
+ * Nothing here is a ceiling on the DATA. A catchment with sixty stops in walking range
+ * has sixty, and the panel this scene was opened from says sixty.
+ */
+/** Where a TransJakarta shelter may stand down the median, clear of the crossing. */
+const SHELTER_SLOTS = Array.from({ length: 24 }, (_, i) => {
+	const side = i % 2 === 0 ? 1 : -1;
+	return side * (STOP_LEN / 2 + 3.5 + Math.floor(i / 2) * 4.2);
+}).filter((z) => Math.abs(z) <= 45 && !inRailBand(z));
+const MAX_SHELTERS = SHELTER_SLOTS.length;
+/** How wide a shopfront bay is. The whole front row is divided into these. */
+const BAY_W = 3.2;
+
+/**
+ * The row of competing outlets, and why they are objects rather than marks on a wall.
+ *
+ * A signboard, or a painted frontage, only exists on the face of a building, and from
+ * this camera exactly one row of faces is turned towards the reader: the far side of
+ * the street. That row is also the ground the lots stand on, so the more units a cell
+ * had on the market the fewer competitors it could show, which is precisely backwards.
+ *
+ * A kiosk has volume. It reads from any angle, it stands on the pavement where the eye
+ * already is, and a row of them down the street is what "thirty of your trade are
+ * already here" actually looks like. Thirty fit at a 2.6 m pitch along the frontage,
+ * with the cafe's own stretch left clear.
+ */
+const RIVAL_PITCH = 2.6;
+const RIVAL_X = 12.5;
+/** The cafe's own frontage, which no competitor may stand in front of. */
+const RIVAL_SKIP: [number, number] = [CAFE_Z - CAFE_D / 2 - 1.6, CAFE_Z + CAFE_D / 2 + 1.6];
+const RIVAL_SLOTS = Array.from({ length: 40 }, (_, i) => -44 + i * RIVAL_PITCH)
+	.filter((z) => z <= 44 && (z < RIVAL_SKIP[0] || z > RIVAL_SKIP[1]) && !inRailBand(z))
+	// Filled outwards from the stop, so two competitors stand where the reader is
+	// already looking rather than in the far corner of the block.
+	.sort((a, b) => Math.abs(a) - Math.abs(b));
+const MAX_RIVALS = RIVAL_SLOTS.length;
 
 const MAX_WALKERS = 96;
 const MAX_SEATED = 16;
@@ -169,7 +301,7 @@ function mulberry32(seed: number) {
 	};
 }
 
-export class StreetWorld {
+export class CatchmentWorld {
 	#renderer: THREE.WebGLRenderer;
 	#scene = new THREE.Scene();
 	#camera: THREE.OrthographicCamera;
@@ -191,16 +323,33 @@ export class StreetWorld {
 	#windowSeeds: number[] = [];
 	#lotGroup = new THREE.Group();
 	#lotSlots: THREE.Group[] = [];
-	#rivalMarks!: THREE.InstancedMesh;
+	#rivalBody!: THREE.InstancedMesh;
+	#rivalAwn!: THREE.InstancedMesh;
+	#rivalFront!: THREE.InstancedMesh;
 	#bus = new THREE.Group();
+	/** The TransJakarta platform. Hidden in a catchment with no corridor in range. */
+	#stopGroup = new THREE.Group();
+	/** The railway crossing the block: track, sleepers and a train. */
+	#railGroup = new THREE.Group();
+	/** One station on that line per rail node, wearing its line's colour on the canopy
+	    and on the totem beside it. */
+	#stations: Array<{
+		group: THREE.Group;
+		canopy: THREE.MeshStandardMaterial;
+		sign: THREE.MeshStandardMaterial;
+	}> = [];
+	/** Shelters down the median, one per TransJakarta node past the platform itself. */
+	#shelters: THREE.Group[] = [];
+	/** The band along the platform roof, which carries TransJakarta's colour. */
+	#stopBand!: THREE.MeshStandardMaterial;
 	#proposedMat!: THREE.MeshStandardMaterial;
 	/** The rental lot's lines and hatching — colour set against the ground each hour. */
 	#lotLineMats: Array<THREE.LineBasicMaterial | THREE.MeshBasicMaterial> = [];
 	#hatchTex: THREE.CanvasTexture | null = null;
-	/** Building faces a competitor's sign is allowed to attach to. */
-	#signSpots: { x: number; z: number; len: number }[] = [];
+	/** The ground floor of the front row, cut into the units a competitor occupies. */
+	#bays: { x: number; z: number; side: 1 | -1; w: number }[] = [];
 
-	#state: StreetState = { ...DEFAULT_STATE };
+	#state: CatchmentState = { ...DEFAULT_STATE };
 	#day: DaylightSample = daylightAt(12);
 	#raf = 0;
 	#running = false;
@@ -248,9 +397,11 @@ export class StreetWorld {
 		this.#buildRoad();
 		this.#buildStop();
 		this.#buildBus();
+		this.#buildTransit();
 		this.#buildBlocks();
 		this.#buildCafe();
 		this.#buildLot();
+		this.#buildRivals();
 		this.#buildCrowd();
 
 		this.applyState({});
@@ -364,7 +515,7 @@ export class StreetWorld {
 	/* ── TransJakarta stop ────────────────────────────────────────────────── */
 
 	#buildStop() {
-		const g = new THREE.Group();
+		const g = this.#stopGroup;
 		const shell = new THREE.MeshStandardMaterial({ color: 0xe6e3dd, roughness: 0.8 });
 
 		const platform = new THREE.Mesh(
@@ -410,7 +561,174 @@ export class StreetWorld {
 		posts.castShadow = true;
 		g.add(posts);
 
+		// The band along the roof, in TransJakarta's own colour on the map.
+		const band = new THREE.Mesh(
+			new THREE.BoxGeometry(6.1, 0.34, STOP_LEN + 1.5),
+			new THREE.MeshStandardMaterial({ color: 0xe6e3dd, roughness: 0.7 })
+		);
+		band.position.set(0, 3.6, STOP_Z);
+		g.add(band);
+		this.#stopBand = band.material as THREE.MeshStandardMaterial;
+
 		this.#scene.add(g);
+	}
+
+	/* ── what this catchment reaches ──────────────────────────────────────── */
+
+	/**
+	 * The stops themselves, one object per counted node.
+	 *
+	 * Built once at full count and revealed by the data, the way the units on the market
+	 * are: a catchment's transit does not change while it is on screen, and rebuilding
+	 * geometry on every selection is how a panel starts dropping frames.
+	 *
+	 * NOT gated on `nodata`, unlike the competitors and the lots. Those come from the
+	 * premium catalogue, which has not read every city. The transit counts come from
+	 * OpenStreetMap and are on the grid for every cell, so a catchment whose competitors
+	 * nobody has counted can still be shown the station it stands next to, which is the
+	 * same rule the panel's own sections follow.
+	 */
+	#buildTransit() {
+		const shell = new THREE.MeshStandardMaterial({ color: 0xeceae5, roughness: 0.8 });
+		const dark = new THREE.MeshStandardMaterial({ color: 0x8f8d88, roughness: 0.9 });
+
+		/* ── the line itself ───────────────────────────────────────────────── */
+
+		const ballast = new THREE.Mesh(
+			new THREE.BoxGeometry(BASE, 0.34, RAIL_HALF * 2),
+			new THREE.MeshStandardMaterial({ color: 0xd8d5cf, roughness: 0.95 })
+		);
+		ballast.position.set(0, 0.17, RAIL_Z);
+		ballast.receiveShadow = true;
+		this.#railGroup.add(ballast);
+
+		// Sleepers, then the rails over them. Enough of a permanent way that the crossing
+		// reads as a railway rather than as a painted strip.
+		const sleeperCount = Math.floor(BASE / 2.4);
+		const sleepers = new THREE.InstancedMesh(
+			new THREE.BoxGeometry(1.0, 0.16, 8.4),
+			dark,
+			sleeperCount
+		);
+		for (let i = 0; i < sleeperCount; i++) {
+			this.#place(-BASE / 2 + 1.2 + i * 2.4, 0.42, RAIL_Z);
+			sleepers.setMatrixAt(i, this.#dummy.matrix);
+		}
+		this.#railGroup.add(sleepers);
+
+		for (const dz of [-3.3, -2.0, 2.0, 3.3]) {
+			const line = new THREE.Mesh(new THREE.BoxGeometry(BASE, 0.16, 0.2), shell);
+			line.position.set(0, 0.56, RAIL_Z + dz);
+			this.#railGroup.add(line);
+		}
+
+		// A train standing at the crossing, so the line is a line somebody uses.
+		const glass = new THREE.MeshStandardMaterial({
+			color: 0x9fa6ad,
+			roughness: 0.2,
+			metalness: 0.1
+		});
+		for (const cx of [-13.5, -24.1, -34.7]) {
+			const car = new THREE.Mesh(new THREE.BoxGeometry(9.6, 2.9, 2.9), shell);
+			car.position.set(cx, 2.05, RAIL_Z - 2.65);
+			car.castShadow = true;
+			this.#railGroup.add(car);
+			const band = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.95, 2.98), glass);
+			band.position.set(cx, 2.5, RAIL_Z - 2.65);
+			this.#railGroup.add(band);
+		}
+
+		this.#railGroup.visible = false;
+		this.#scene.add(this.#railGroup);
+
+		/* ── the stations on it ────────────────────────────────────────────── */
+
+		RAIL_STOPS.forEach((x) => {
+			const g = new THREE.Group();
+
+			const platform = new THREE.Mesh(new THREE.BoxGeometry(6.4, 1.0, 3.0), shell);
+			platform.position.set(0, 0.5, RAIL_HALF + 1.5);
+			platform.castShadow = true;
+			platform.receiveShadow = true;
+			g.add(platform);
+
+			const hall = new THREE.Mesh(new THREE.BoxGeometry(4.6, 2.8, 4.4), shell);
+			hall.position.set(0, 1.4, RAIL_HALF + 5.2);
+			hall.castShadow = true;
+			g.add(hall);
+			const mouth = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.9, 0.14), dark);
+			mouth.position.set(0, 0.95, RAIL_HALF + 3.0);
+			g.add(mouth);
+
+			// The canopy over the platform carries the line's colour, washed a third of the
+			// way into white: neat, a slab that size stops being a canopy and becomes the
+			// brightest thing in the model.
+			const canopyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62 });
+			const canopy = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.3, 4.2), canopyMat);
+			canopy.position.set(0, 3.4, RAIL_HALF + 2.4);
+			canopy.castShadow = true;
+			g.add(canopy);
+			for (const dx of [-3.2, 3.2]) {
+				const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.2, 0.2), shell);
+				post.position.set(dx, 1.75, RAIL_HALF + 1.5);
+				g.add(post);
+			}
+
+			// The totem, which is what a station is actually recognised by from across a
+			// road, and it takes the colour neat.
+			const signMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+			const pole = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.4, 0.22), shell);
+			pole.position.set(3.6, 2.2, RAIL_HALF + 6.6);
+			pole.castShadow = true;
+			g.add(pole);
+			const sign = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 0.16), signMat);
+			sign.position.set(3.6, 3.9, RAIL_HALF + 6.6);
+			g.add(sign);
+
+			g.position.set(x, 0, RAIL_Z);
+			g.visible = false;
+			this.#scene.add(g);
+			this.#stations.push({ group: g, canopy: canopyMat, sign: signMat });
+		});
+
+		/* ── TransJakarta shelters, on the corridor and nowhere else ───────── */
+
+		SHELTER_SLOTS.forEach((z) => {
+			const g = new THREE.Group();
+
+			const island = new THREE.Mesh(new THREE.BoxGeometry(STOP_HALF * 2, 0.42, 3.4), shell);
+			island.position.set(0, 0.21, 0);
+			island.receiveShadow = true;
+			g.add(island);
+
+			const roof = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.22, 3.0), shell);
+			roof.position.set(0, 2.9, 0);
+			roof.castShadow = true;
+			g.add(roof);
+
+			const legs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.14, 2.6, 0.14), shell, 4);
+			let k = 0;
+			for (const sx of [-1, 1] as const) {
+				for (const sz of [-1, 1] as const) {
+					this.#place(sx * 1.5, 1.5, sz * 1.2);
+					legs.setMatrixAt(k++, this.#dummy.matrix);
+				}
+			}
+			legs.castShadow = true;
+			g.add(legs);
+
+			const band = new THREE.Mesh(
+				new THREE.BoxGeometry(3.5, 0.26, 3.1),
+				new THREE.MeshStandardMaterial({ color: MODE_COLOUR.brt, roughness: 0.65 })
+			);
+			band.position.set(0, 2.68, 0);
+			g.add(band);
+
+			g.position.set(0, 0, z);
+			g.visible = false;
+			this.#scene.add(g);
+			this.#shelters.push(g);
+		});
 	}
 
 	/* ── TransJakarta bus (articulated) ───────────────────────────────────── */
@@ -519,20 +837,28 @@ export class StreetWorld {
 			}
 		}
 
-		// Competitor signs are mounted on building faces that actually exist rather than
-		// on predetermined points — a sign floating in the gap between buildings would
-		// read as a drawing error. Nearest the stop comes first: even a single competitor
-		// has to land somewhere visible.
-		this.#signSpots = boxes
-			.filter((b) => b.front)
-			.map((b) => ({
-				x: b.x - b.side * (b.d / 2 + 0.06),
-				z: b.z,
-				// a sign must not be longer than the face it sits on
-				len: Math.min(1, (b.w * 0.62) / 3.2)
-			}))
-			.sort((a, b) => Math.abs(a.z) - Math.abs(b.z))
-			.slice(0, MAX_RIVALS);
+		/**
+		 * The ground floor of the front row, cut into the units a competitor occupies.
+		 *
+		 * A bay is about three metres of frontage, which is what a row of shops on a
+		 * Jakarta street actually is, and it is what makes the block read as a street of
+		 * businesses rather than as a run of blank walls. It carries no data of its own:
+		 * the competitors are the kiosks on the pavement, which have volume and can be
+		 * seen from this camera whatever the buildings are doing.
+		 */
+		const fronts = boxes.filter((b) => b.front);
+		this.#bays = fronts
+			.flatMap((b) => {
+				const n = Math.max(1, Math.floor(b.w / BAY_W));
+				const pitch = b.w / n;
+				return Array.from({ length: n }, (_, k) => ({
+					x: b.x - b.side * (b.d / 2 + 0.04),
+					z: b.z - b.w / 2 + pitch * (k + 0.5),
+					side: b.side,
+					w: pitch * 0.86
+				}));
+			})
+			.sort((a, b) => Math.abs(a.z) - Math.abs(b.z));
 
 		const mass = new THREE.InstancedMesh(
 			new THREE.BoxGeometry(1, 1, 1),
@@ -578,16 +904,15 @@ export class StreetWorld {
 		});
 		this.#scene.add(this.#windows);
 
-		// Ground-floor shopfronts — front row only. A shopfront on a building standing
-		// behind another block faces nobody.
-		const fronts = boxes.filter((b) => b.front);
+		// A shopfront on a building standing behind another block faces nobody, so the
+		// back row gets none.
 		this.#shopfronts = new THREE.InstancedMesh(
 			new THREE.BoxGeometry(0.26, 2.4, 1),
 			new THREE.MeshBasicMaterial({ toneMapped: false }),
-			fronts.length
+			this.#bays.length
 		);
-		fronts.forEach((b, i) => {
-			this.#place(b.x - b.side * (b.d / 2 + 0.04), 1.5, b.z, 0, 1, 1, b.w * 0.7);
+		this.#bays.forEach((b, i) => {
+			this.#place(b.x, 1.5, b.z, 0, 1, 1, b.w);
 			this.#shopfronts.setMatrixAt(i, this.#dummy.matrix);
 			this.#windowSeeds.push(rnd());
 		});
@@ -710,23 +1035,23 @@ export class StreetWorld {
 		});
 		this.#lotLineMats = [edgeMat, groundMat, padMat];
 
-		const padGeo = new THREE.PlaneGeometry(LOT_PAD_W, LOT_PAD_D);
-		const volGeo = new THREE.BoxGeometry(LOT_PAD_W - 1.6, 6.4, LOT_PAD_D - 1.6);
+		const inset = 1.0;
+		const height = 4.4;
+		const padGeo = new THREE.PlaneGeometry(PAD, PAD);
+		const volGeo = new THREE.BoxGeometry(PAD - inset, height, PAD - inset);
 		const volEdges = new THREE.EdgesGeometry(volGeo);
-		const padEdges = new THREE.EdgesGeometry(
-			new THREE.BoxGeometry(LOT_PAD_W, 0.02, LOT_PAD_D)
-		);
+		const padEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(PAD, 0.02, PAD));
 
-		for (const z of LOT_SLOTS) {
+		for (const at of LOT_SLOTS) {
 			const slot = new THREE.Group();
 
 			const pad = new THREE.Mesh(padGeo, padMat);
 			pad.rotation.x = -Math.PI / 2;
-			pad.position.set(LOT_X, 0.05, z);
+			pad.position.set(at.x, 0.05, at.z);
 			slot.add(pad);
 
 			const proposed = new THREE.Mesh(volGeo, this.#proposedMat);
-			proposed.position.set(LOT_X, 3.2, z);
+			proposed.position.set(at.x, height / 2, at.z);
 			slot.add(proposed);
 
 			const edges = new THREE.LineSegments(volEdges, edgeMat);
@@ -736,7 +1061,7 @@ export class StreetWorld {
 			slot.add(edges);
 
 			const ground = new THREE.LineSegments(padEdges, groundMat);
-			ground.position.set(LOT_X, 0.06, z);
+			ground.position.set(at.x, 0.06, at.z);
 			slot.add(ground);
 
 			this.#lotSlots.push(slot);
@@ -745,20 +1070,67 @@ export class StreetWorld {
 
 		this.#scene.add(this.#lotGroup);
 
-		// Competing outlets of the same kind: small signed boards on the building faces
-		// along the street. How many appear follows the competitor count actually on record.
-		this.#rivalMarks = new THREE.InstancedMesh(
-			new THREE.BoxGeometry(0.25, 1.5, 3.2),
-			new THREE.MeshStandardMaterial({ color: 0xd8c3aa, roughness: 0.7 }),
+	}
+
+	/* ── who is already trading here ──────────────────────────────────────── */
+
+	/**
+	 * One outlet per competitor on record, down the near frontage.
+	 *
+	 * Three instanced meshes rather than thirty groups: every slot is fixed, only how
+	 * many of them are shown changes, so the count is a single number on each mesh and
+	 * nothing is rebuilt when the reader picks another cell.
+	 *
+	 * The awning carries the colour. The body stays white like every other mass in the
+	 * model, because a solid red block the size of a shop would be the loudest thing on
+	 * screen and it is not the subject, it is the competition.
+	 */
+	#buildRivals() {
+		const shell = new THREE.MeshStandardMaterial({ color: 0xf0eee9, roughness: 0.8 });
+		const awnMat = new THREE.MeshStandardMaterial({
+			color: RIVAL_COLOUR,
+			roughness: 0.62
+		});
+		const glass = new THREE.MeshStandardMaterial({
+			color: 0x9aa2a8,
+			roughness: 0.22,
+			metalness: 0.06
+		});
+
+		this.#rivalBody = new THREE.InstancedMesh(
+			new THREE.BoxGeometry(2.4, 2.4, 2.2),
+			shell,
 			MAX_RIVALS
 		);
-		this.#rivalMarks.castShadow = true;
-		this.#rivalMarks.count = 0;
-		this.#signSpots.forEach((s, i) => {
-			this.#place(s.x, 2.4, s.z, 0, 1, 1, s.len);
-			this.#rivalMarks.setMatrixAt(i, this.#dummy.matrix);
+		this.#rivalAwn = new THREE.InstancedMesh(
+			new THREE.BoxGeometry(1.5, 0.16, 1.9),
+			awnMat,
+			MAX_RIVALS
+		);
+		this.#rivalFront = new THREE.InstancedMesh(
+			new THREE.BoxGeometry(0.12, 1.4, 1.8),
+			glass,
+			MAX_RIVALS
+		);
+
+		RIVAL_SLOTS.forEach((z, i) => {
+			this.#place(RIVAL_X, WALK_Y + 1.2, z);
+			this.#rivalBody.setMatrixAt(i, this.#dummy.matrix);
+			// Out over the pavement on the road side, tilted the way an awning hangs.
+			this.#dummy.position.set(RIVAL_X - 1.5, WALK_Y + 2.5, z);
+			this.#dummy.rotation.set(0, 0, 0.14);
+			this.#dummy.scale.setScalar(1);
+			this.#dummy.updateMatrix();
+			this.#rivalAwn.setMatrixAt(i, this.#dummy.matrix);
+			this.#place(RIVAL_X - 1.24, WALK_Y + 1.05, z);
+			this.#rivalFront.setMatrixAt(i, this.#dummy.matrix);
 		});
-		this.#scene.add(this.#rivalMarks);
+
+		for (const m of [this.#rivalBody, this.#rivalAwn, this.#rivalFront]) {
+			m.castShadow = true;
+			m.count = 0;
+			this.#scene.add(m);
+		}
 	}
 
 	/* ── figures ──────────────────────────────────────────────────────────── */
@@ -953,7 +1325,7 @@ export class StreetWorld {
 
 	/* ── state ────────────────────────────────────────────────────────────── */
 
-	applyState(partial: Partial<StreetState>) {
+	applyState(partial: Partial<CatchmentState>) {
 		this.#state = { ...this.#state, ...partial };
 		const d = daylightAt(this.#state.hour);
 		this.#day = d;
@@ -976,25 +1348,33 @@ export class StreetWorld {
 		this.#hemi.groundColor.set(d.groundColor).lerp(WHITE, 0.45);
 		this.#hemi.intensity = d.ambientIntensity;
 
-		if (Math.abs(d.windowLights - this.#lastWindowLevel) > 0.012) {
-			this.#lastWindowLevel = d.windowLights;
-			this.#paintLights(d);
-		}
-
 		const tint = CATEGORY_TINT[this.#state.category] ?? CATEGORY_TINT.kopi;
 		this.#proposedMat.color.setHex(tint);
 		this.#proposedMat.emissive.setHex(tint);
 		this.#proposedMat.emissiveIntensity = d.windowLights * 0.45;
 		// Zero space for rent means zero lots shown — not one sample lot.
-		const shown = this.#state.nodata ? 0 : Math.max(0, Math.min(LOT_SLOTS.length, Math.round(this.#state.vacancies)));
+		const shown = this.#state.nodata
+			? 0
+			: Math.max(0, Math.min(this.#lotSlots.length, Math.round(this.#state.vacancies)));
 		this.#lotSlots.forEach((slot, i) => (slot.visible = i < shown));
 		this.#lotGroup.visible = shown > 0;
 
+		// One outlet per competitor on record, filling the frontage from the stop
+		// outwards. Zero on a cell whose city the catalogue has never read: nobody has
+		// counted the competitors there, which is not the same as there being none.
 		const rivals = this.#state.nodata
 			? 0
-			: Math.max(0, Math.min(this.#signSpots.length, Math.round(this.#state.rivals)));
-		this.#rivalMarks.count = rivals;
-		(this.#rivalMarks.material as THREE.MeshStandardMaterial).color.setHex(tint);
+			: Math.max(0, Math.min(MAX_RIVALS, Math.round(this.#state.rivals)));
+		this.#rivalBody.count = rivals;
+		this.#rivalAwn.count = rivals;
+		this.#rivalFront.count = rivals;
+
+		if (Math.abs(d.windowLights - this.#lastWindowLevel) > 0.012) {
+			this.#lastWindowLevel = d.windowLights;
+			this.#paintLights(d);
+		}
+
+		this.#applyTransit();
 
 		// A lot's lines must always work against their ground: white over a dark model,
 		// dark over a model lit by midday sun. Pinned to white, they disappear at exactly
@@ -1016,6 +1396,51 @@ export class StreetWorld {
 		// A state change is not motion the scene decided on, it is the answer to
 		// something the reader just did, and it has to be drawn.
 		if (this.#reduced) this.renderOnce();
+	}
+
+	/**
+	 * The stops this catchment actually has, revealed by the counts on the grid.
+	 *
+	 * NOT gated on `nodata`, unlike the competitors and the lots above. Those come from
+	 * the premium catalogue, which has not read every city. The transit counts come from
+	 * OpenStreetMap and are on the grid for every cell, so a catchment whose competitors
+	 * nobody has counted can still be shown the station it is standing next to, which is
+	 * the same rule the panel's own sections follow.
+	 */
+	#applyTransit() {
+		const t = this.#state.transit;
+
+		// The platform is the first TransJakarta node, and the shelters are the rest, all
+		// of them on the corridor down the middle of the road. No corridor in range takes
+		// the platform and the bus away with it, so a catchment reachable only by train
+		// looks like one.
+		const brt = Math.max(0, Math.round(t.brt));
+		this.#stopGroup.visible = brt > 0;
+		this.#bus.visible = brt > 0;
+		this.#stopBand.color.setHex(MODE_COLOUR.brt);
+		this.#shelters.forEach((g, i) => (g.visible = i < brt - 1));
+
+		// The railway is a different piece of infrastructure and gets its own: a line
+		// across the block, its own crossing, and a station per rail node standing on it.
+		// Nothing about it can be read as one more stop on the busway.
+		const rail = RAIL_MODES.reduce((a, m) => a + Math.max(0, Math.round(t[m])), 0);
+		this.#railGroup.visible = rail > 0;
+
+		// The modes taken in turn, so a cell served by two lines shows both colours
+		// rather than eight of whichever came first.
+		let i = 0;
+		for (const mode of RAIL_MODES) {
+			for (let k = 0; k < Math.max(0, Math.round(t[mode])); k++) {
+				const st = this.#stations[i];
+				if (!st) break;
+				st.group.visible = true;
+				st.sign.color.setHex(MODE_COLOUR[mode]);
+				st.canopy.color.setHex(MODE_COLOUR[mode]).lerp(WHITE, 0.32);
+				i++;
+			}
+			if (i >= this.#stations.length) break;
+		}
+		for (; i < this.#stations.length; i++) this.#stations[i].group.visible = false;
 	}
 
 	#paintLights(d: DaylightSample) {

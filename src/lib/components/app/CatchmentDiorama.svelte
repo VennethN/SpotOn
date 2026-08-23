@@ -51,7 +51,7 @@
 	import PropertyPanel from '$lib/components/app/PropertyPanel.svelte';
 	import RivalsPanel from '$lib/components/app/RivalsPanel.svelte';
 	import ScorePanel from '$lib/components/app/ScorePanel.svelte';
-	import StreetScene from '$lib/components/ui/StreetScene.svelte';
+	import CatchmentScene from '$lib/components/ui/CatchmentScene.svelte';
 	import TransitPanel from '$lib/components/app/TransitPanel.svelte';
 	import { jakartaNow, readHours, weekProfile } from '$lib/domain/activity';
 	import { readCost } from '$lib/domain/cost';
@@ -351,7 +351,7 @@
 		     so a section opened underneath one would start below the fold. Letterboxed it
 		     is still the place, still tappable into, and no longer the whole panel. -->
 		<div class="stage" class:reading={opened !== null} style:--sky={day.skyHorizon}>
-			<StreetScene
+			<CatchmentScene
 				{hour}
 				density={busyness}
 				category={app.categories[0]}
@@ -359,7 +359,6 @@
 				nodata={blank}
 				rivals={row.osm}
 				vacancies={row.units}
-				variant="catchment"
 				transit={cell?.transit}
 				label={c.mood.sceneLabel(
 					row.name,
