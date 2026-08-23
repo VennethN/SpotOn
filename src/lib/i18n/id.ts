@@ -335,7 +335,7 @@ export const id = {
 		/* Bahasa Indonesia tidak mengubah bentuk kata bendanya; parameternya ada untuk
 		   bahasa yang mengubah, supaya bentuk kuncinya sama di kedua berkas. */
 		stopsUnit: (_n: number) => 'simpul transit terjangkau',
-		stopsSub: (r: number) => `dalam ${r} m jalan kaki dari pusat petak · OSM, data nyata`,
+		stopsSub: (r: number) => `dalam ${r} m jalan kaki dari pusat petak · OSM`,
 		stopsSplit: (rel: number, halte: number) => {
 			if (rel > 0 && halte > 0) return `${rel} stasiun rel · ${halte} halte TransJakarta`;
 			if (rel > 0) return `${rel} stasiun rel`;
@@ -347,7 +347,7 @@ export const id = {
 		without: (poin: number) => `Tanpa transit sama sekali, petak ini cuma ${poin}.`,
 		ceiling: (poin: number) =>
 			`Di petak ini akses transit paling banyak bisa menyumbang ${poin} poin. Sisanya sudah ditentukan permintaan dan persaingan.`,
-		splitBase: 'permintaan − persaingan',
+		splitBase: 'permintaan dan persaingan',
 		splitTransit: 'akses transit',
 		splitAria: (dasar: number, transit: number, total: number) =>
 			`Skor ${total} poin: ${dasar} dari permintaan dan persaingan, ${transit} dari akses transit.`,
@@ -358,43 +358,42 @@ export const id = {
 			demand: 'Permintaan',
 			supply: 'Persaingan',
 			clamp: 'Dijaga di rentang',
-			gate: 'Gerbang tempat usaha',
+			gate: 'Syarat tempat disewakan',
 			access: 'Akses transit',
 			cost: 'Harga tempat'
 		},
 		notes: {
 			start: 'sebelum data dibaca, tiap petak mulai dari sini',
-			demand: (bobot: number, nilai: number) => `bobot ${dec(bobot)} × permintaan ${nilai}`,
-			supply: (bobot: number, nilai: number) => `bobot ${dec(bobot)} × penawaran efektif ${nilai}`,
-			clamp: 'hasilnya tidak boleh keluar dari 0–100',
+			demand: (nilai: number) => `keramaian di sekitarnya ${nilai} dari 100`,
+			supply: (nilai: number) => `persaingannya ${nilai} dari 100`,
+			clamp: 'hasilnya dijaga antara 0 dan 100',
 			gateOff: 'syaratnya sedang dimatikan',
 			gatePass: (n: number) => `${n} tempat disewakan, syarat terpenuhi`,
-			gateBlock: (f: number) => `tidak ada tempat yang disewakan → ×${dec(f)}`,
-			access: (pengali: number, akses: number) =>
-				`×${dec(pengali)} = 0,60 + 0,40 × indeks akses ${dec(akses)}`,
+			gateBlock: () => 'tidak ada tempat yang disewakan di sini',
+			access: () => 'dari simpul transit yang terjangkau dengan jalan kaki',
 			/* Langkah harga selalu ditampilkan, termasuk waktu tidak memotong apa-apa.
 			   Empat sebab diamnya dibedakan, karena "belum disurvei", "tidak ada yang
 			   dijual", "ada tapi harganya tidak dipasang", dan "termurah sekisi" itu
 			   empat kalimat yang berbeda, dan cuma yang pertama berarti belum dilihat. */
-			cost: (pengali: number, peringkat: number) =>
-				`×${dec(pengali)} · lebih mahal dari ${peringkat}% petak lain`,
-			costCheapest: (pengali: number) => `×${dec(pengali)} · termurah sekisi, tidak dipotong`,
+			cost: (peringkat: number) => `lebih mahal dari ${peringkat}% petak lain`,
+			costCheapest: () => 'termurah sekisi, jadi tidak dipotong',
 			costUncovered: 'harga tempat di kota ini belum didata, jadi tidak dipotong',
 			costEmpty: 'tidak ada unit komersial dijual dalam radius ini, jadi tidak dipotong',
 			costUnpriced: (n: number) =>
 				`${n} unit dijual di sekitarnya tapi harganya tidak dipasang, jadi tidak dipotong`,
 			costThin: (n: number) =>
-				`baru ${n} unit di sekitarnya yang berharga, belum cukup untuk diambil mediannya`,
+				`baru ${n} unit di sekitarnya yang memasang harga, terlalu sedikit untuk dipakai`,
 			costUngraded: 'harga sekisi belum cukup banyak untuk dibandingkan, jadi tidak dipotong'
 		},
 		total: 'Skor peluang',
-		deltaAria: (poin: number) => (poin >= 0 ? `naik ${poin} poin` : `turun ${Math.abs(poin)} poin`),
+		deltaAria: (poin: number) =>
+			poin > 0 ? `naik ${poin} poin` : poin < 0 ? `turun ${Math.abs(poin)} poin` : 'tidak berubah',
 
-		accessTitle: 'Isi indeks aksesnya',
+		accessTitle: 'Dari mana akses transitnya',
 		accessRow: (n: number) => `${n} simpul`,
-		accessShare: (persen: number) => `${persen}% dari indeks`,
-		accessIndex: (akses: number, pengali: number) =>
-			`Indeks akses ${dec(akses)} → pengali skor ${dec(pengali)}`,
+		accessShare: (persen: number) => `${persen}% dari aksesnya`,
+		accessIndex: (akses: number) =>
+			`Akses transit di sini ${Math.round(akses * 100)} dari 100.`,
 		accessFormula:
 			'Makin banyak simpul yang terjangkau, makin tinggi angkanya. Rel dihitung lebih berat daripada bus karena daya angkutnya lebih besar. Dibaca dari OSM.',
 
@@ -404,7 +403,7 @@ export const id = {
 			'Daftar nama simpulnya tidak bisa dimuat. Cacah dan indeks aksesnya di atas tidak terpengaruh.',
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} simpul`,
 		unnamed: (n: number) =>
-			`+${n} simpul lagi tanpa nama sendiri: peron stasiun yang sama, atau halte yang belum dinamai di OSM`
+			`+${n} simpul lagi tanpa nama sendiri, biasanya peron dari stasiun yang sama`
 	},
 
 	/* ── Harga tempat usaha ────────────────────────────────────────────────
@@ -696,7 +695,7 @@ export const id = {
 		rows: {
 			score: 'Skor peluang',
 			demand: 'Keramaian',
-			supply: 'Penawaran efektif',
+			supply: 'Kepadatan persaingan',
 			around: 'Usaha lain di sekitar',
 			rivals: 'Pesaing sejenis',
 			access: 'Akses transit',
@@ -787,7 +786,7 @@ export const id = {
 		sceneNoType: (n: number, unit: number) =>
 			`Ada ${n} usaha dalam radius jalan kaki dan ${unit} unit sedang dipasarkan.`,
 		askForScore:
-			'Sebutkan mau buka usaha apa, nanti saya hitung skor peluangnya untuk petak ini.'
+			'Skor peluang selalu untuk satu jenis usaha. Sebutkan mau buka apa untuk melihatnya.'
 	},
 
 	/* ── panel ────────────────────────────────────────────────────────────────

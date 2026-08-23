@@ -331,7 +331,7 @@ export const en: Copy = {
 			'This cell cannot be scored for the business type currently selected, so there are no steps to show. Its transit access is real and recorded all the same.',
 		transitLead: 'What decides it most: mass transit',
 		stopsUnit: (n: number) => (n === 1 ? 'transit node in range' : 'transit nodes in range'),
-		stopsSub: (r: number) => `within a ${r} m walk of the cell centre · OSM, real data`,
+		stopsSub: (r: number) => `within a ${r} m walk of the cell centre · OSM`,
 		stopsSplit: (rel: number, halte: number) => {
 			if (rel > 0 && halte > 0) return `${rel} rail stations · ${halte} TransJakarta stops`;
 			if (rel > 0) return `${rel} rail ${rel === 1 ? 'station' : 'stations'}`;
@@ -343,7 +343,7 @@ export const en: Copy = {
 		without: (poin: number) => `With no transit at all it would score ${poin}.`,
 		ceiling: (poin: number) =>
 			`Transit access can add at most ${poin} points to this cell. The rest is already settled by demand and competition.`,
-		splitBase: 'demand − competition',
+		splitBase: 'demand and competition',
 		splitTransit: 'transit access',
 		splitAria: (dasar: number, transit: number, total: number) =>
 			`${total} points: ${dasar} from demand and competition, ${transit} from transit access.`,
@@ -360,40 +360,40 @@ export const en: Copy = {
 		},
 		notes: {
 			start: 'before any data is read, every cell starts here',
-			demand: (bobot: number, nilai: number) => `weight ${bobot.toFixed(2)} × demand ${nilai}`,
-			supply: (bobot: number, nilai: number) =>
-				`weight ${bobot.toFixed(2)} × effective supply ${nilai}`,
-			clamp: 'the result is not allowed outside 0–100',
+			demand: (nilai: number) => `how busy it is around here, ${nilai} out of 100`,
+			supply: (nilai: number) => `how crowded the trade already is, ${nilai} out of 100`,
+			clamp: 'the result is kept between 0 and 100',
 			gateOff: 'the requirement is switched off',
 			gatePass: (n: number) => `${n} ${n === 1 ? 'unit' : 'units'} up for rent, requirement met`,
-			gateBlock: (f: number) => `nothing up for rent → ×${f.toFixed(2)}`,
-			access: (pengali: number, akses: number) =>
-				`×${pengali.toFixed(2)} = 0.60 + 0.40 × access index ${akses.toFixed(2)}`,
+			gateBlock: () => 'nothing up for rent here',
+			access: () => 'from the transit nodes within a walk of here',
 			/* The cost step is shown on every cell, including the ones it did not touch.
 			   Its four silences are kept apart, because "not surveyed", "nothing for
 			   sale", "for sale with no price on it" and "cheapest on the grid" are four
 			   different sentences, and only the first means nobody has looked. */
-			cost: (pengali: number, peringkat: number) =>
-				`×${pengali.toFixed(2)} · dearer than ${peringkat}% of cells`,
-			costCheapest: (pengali: number) =>
-				`×${pengali.toFixed(2)} · cheapest on the grid, nothing taken off`,
-			costUncovered: 'the property catalogue has not been read for this city, nothing taken off',
+			cost: (peringkat: number) => `dearer than ${peringkat}% of cells`,
+			costCheapest: () => 'cheapest on the grid, so nothing taken off',
+			costUncovered: 'what space costs in this city has not been collected, nothing taken off',
 			costEmpty: 'no commercial unit for sale within range, nothing taken off',
 			costUnpriced: (n: number) =>
 				`${n} ${n === 1 ? 'unit is' : 'units are'} for sale nearby with no price on ${n === 1 ? 'it' : 'them'}, nothing taken off`,
 			costThin: (n: number) =>
-				`only ${n} priced ${n === 1 ? 'unit' : 'units'} nearby, too few to take a median from`,
+				`only ${n} priced ${n === 1 ? 'unit' : 'units'} nearby, too few to go on`,
 			costUngraded: 'too few prices across the grid to rank this one against, nothing taken off'
 		},
 		total: 'Opportunity score',
 		deltaAria: (poin: number) =>
-			poin >= 0 ? `up ${poin} points` : `down ${Math.abs(poin)} points`,
+			poin > 0
+				? `up ${poin} ${poin === 1 ? 'point' : 'points'}`
+				: poin < 0
+					? `down ${Math.abs(poin)} ${Math.abs(poin) === 1 ? 'point' : 'points'}`
+					: 'no change',
 
-		accessTitle: 'What the access index is made of',
+		accessTitle: 'Where the transit access comes from',
 		accessRow: (n: number) => `${n} ${n === 1 ? 'node' : 'nodes'}`,
-		accessShare: (persen: number) => `${persen}% of the index`,
-		accessIndex: (akses: number, pengali: number) =>
-			`Access index ${akses.toFixed(2)} → score multiplier ${pengali.toFixed(2)}`,
+		accessShare: (persen: number) => `${persen}% of the access`,
+		accessIndex: (akses: number) =>
+			`Transit access here is ${Math.round(akses * 100)} out of 100.`,
 		accessFormula:
 			'The more nodes in range, the higher it goes. Rail counts for more than a bus because it carries more people. Read from OSM.',
 
@@ -403,7 +403,7 @@ export const en: Copy = {
 			'The list of node names could not be loaded. The counts and the access index above are unaffected.',
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} ${n === 1 ? 'node' : 'nodes'}`,
 		unnamed: (n: number) =>
-			`+${n} more with no name of their own: platforms of the same station, or stops OSM has not named`
+			`+${n} more with no name of their own, usually platforms of the same station`
 	},
 
 	/* ── Cost of space ─────────────────────────────────────────────────────
@@ -695,7 +695,7 @@ export const en: Copy = {
 		rows: {
 			score: 'Opportunity score',
 			demand: 'Busyness',
-			supply: 'Effective supply',
+			supply: 'How crowded the trade is',
 			around: 'Other businesses nearby',
 			rivals: 'Competitors of this kind',
 			access: 'Transit access',
@@ -786,7 +786,8 @@ export const en: Copy = {
 		   question that has not been asked. */
 		sceneNoType: (n: number, unit: number) =>
 			`${n} businesses within walking range and ${unit} units on the market.`,
-		askForScore: 'Say what you want to open and I will work out this area\'s opportunity score.'
+		askForScore:
+			'An opportunity score is always for one kind of business. Say what you want to open to see it.'
 	},
 
 	/* ── panel ────────────────────────────────────────────────────────────────

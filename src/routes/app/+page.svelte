@@ -210,7 +210,11 @@
 		</aside>
 
 		{#if app.pivot === 'unit'}
-			<aside class="spot material" aria-label={c.units.title} transition:materialize>
+			<aside
+				class="spot material"
+				aria-label={c.units.title}
+				transition:materialize={{ origin: 'top left' }}
+			>
 				<div class="spot-scroll">
 					{#if app.selectedUnitId}
 						<UnitCard />
@@ -220,7 +224,11 @@
 				</div>
 			</aside>
 		{:else if app.selectedId}
-			<aside class="spot material" aria-label={c.app.mood} transition:materialize>
+			<aside
+				class="spot material"
+				aria-label={c.app.mood}
+				transition:materialize={{ origin: 'top left' }}
+			>
 				<div class="spot-scroll"><SpotCard /></div>
 			</aside>
 		{:else}
@@ -298,20 +306,30 @@
 		backdrop-filter: var(--blur-thick);
 	}
 
-	/* The area card takes the bottom-left corner, which is where the legend sits.
-	   They are shown one at a time rather than stacked: the legend explains the
-	   colours, and once a cell is picked the card is the more specific answer to the
-	   same question. */
-	/* The box, which does not scroll. Nothing is laid over it any more: a section of the
-	   card opens underneath the model rather than on top of the panel, so the card can go
-	   on saying which place this is while one part of it is being read. */
+	/* The area card, in the top-left corner opposite Tapak.
+	   
+	   ANCHORED AT THE TOP, and it matters. Hung from the bottom edge the card grew
+	   upwards, so its head moved every time its contents changed height: opening a
+	   section, or a cell with more units on the market than the last one, slid the
+	   name and the close button up the screen and left the reader chasing them. From
+	   the top the head is where it was a moment ago, whatever is under it.
+
+	   The legend still has the bottom-left corner and the two are still shown one at a
+	   time: the legend explains the colours, and once a cell is picked the card is the
+	   more specific answer to the same question.
+
+	   The box does not scroll. Nothing is laid over it any more: a section of the card
+	   opens underneath the model rather than on top of the panel, so the card can go on
+	   saying which place this is while one part of it is being read. */
 	.spot {
 		position: fixed;
 		left: 0.75rem;
-		bottom: 2.25rem;
+		top: 3.5rem;
 		z-index: 6;
 		width: 21rem;
-		max-height: calc(100vh - 6rem);
+		/* Down to where the legend's own top edge sits, so a full-height card stops
+		   clear of the scale bar in the corner below it. */
+		max-height: calc(100vh - 6.25rem);
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
