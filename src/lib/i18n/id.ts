@@ -1319,13 +1319,32 @@ export const id = {
 				'Satu potong tiap kali Anda membuka satu petak atau satu unit sendiri. Menutup kartunya tidak dihitung, membuka lagi yang sedang terbuka juga tidak, dan petak yang dibuka Tapak sendiri tidak menagih apa pun.'
 		},
 		weekLeft: (sisa: number, jatah: number) => `${num(sisa)} dari ${num(jatah)} sisa minggu ini`,
-		extraLeft: (n: number) => `${num(n)} beli lepas, tidak hangus`,
+		extraLeft: (n: number) => `${num(n)} dibeli lepas, tidak ikut hangus`,
 		/* Ditulis menurut waktu Jakarta, bukan waktu jam si pembaca. Batas minggunya
 		   memang jam 00.00 Senin di Jakarta, jadi dibaca dari zona lain tanggal yang sama
 		   jatuh di hari Minggu, dan kalimat ini akan menyebut hari Minggu padahal seluruh
 		   produk menyebut Senin. */
 		refillOn: (at: number) =>
 			`Terisi lagi ${new Date(at).toLocaleDateString('id-ID', { timeZone: JAKARTA, weekday: 'long', day: 'numeric', month: 'long' })}.`,
+
+		/* ── strip minggu ─────────────────────────────────────────────────────────
+		   Nama harinya diambil dari tanggalnya sendiri lewat `Intl`, bukan dari daftar
+		   tujuh kata yang ditulis di sini. Dua alasan: daftar begitu harus ditulis dua
+		   kali, sekali per bahasa, dan urutannya gampang salah satu kotak tanpa ada yang
+		   sadar. Zonanya Jakarta, sama seperti kalimat pengisian ulang di atas, karena
+		   batas minggunya satu titik waktu dan dibaca dari zona lain jatuh di hari yang
+		   berbeda. */
+		/* Ditempel di belakang angka besarnya, karena angka itu totalnya sementara
+		   batangnya di bawahnya cuma jatah minggu ini. Satu kata bikin angkanya
+		   menjelaskan dirinya sendiri, jadi pembaca tidak perlu menebak "160 dari berapa". */
+		leftSuffix: 'tersisa',
+		weekTitle: 'Minggu ini',
+		weekdayNarrow: (at: number) =>
+			new Date(at).toLocaleDateString('id-ID', { timeZone: JAKARTA, weekday: 'narrow' }),
+		weekdayLong: (at: number) =>
+			new Date(at).toLocaleDateString('id-ID', { timeZone: JAKARTA, weekday: 'long' }),
+		today: 'hari ini',
+		count: (n: number) => num(n),
 
 		packs: 'Tambahan sekali beli',
 		packsNote:

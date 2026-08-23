@@ -1312,6 +1312,23 @@ export const en: Copy = {
 		refillOn: (at: number) =>
 			`Refills on ${new Date(at).toLocaleDateString('en-GB', { timeZone: JAKARTA, weekday: 'long', day: 'numeric', month: 'long' })}.`,
 
+		/* The day names come from the date itself through `Intl` rather than from a list
+		   of seven words written here. Two reasons: a list has to be written once per
+		   language, and it is easy to get one box out of order without anybody noticing.
+		   Jakarta, like the refill sentence above, because the boundary is one instant and
+		   read from another zone it falls on a different day. */
+		/* Set after the large figure, because that figure is the total while the bar
+		   under it is this week's allowance alone. One word makes the number describe
+		   itself, so nobody has to guess what "160" is out of. */
+		leftSuffix: 'left',
+		weekTitle: 'This week',
+		weekdayNarrow: (at: number) =>
+			new Date(at).toLocaleDateString('en-GB', { timeZone: JAKARTA, weekday: 'narrow' }),
+		weekdayLong: (at: number) =>
+			new Date(at).toLocaleDateString('en-GB', { timeZone: JAKARTA, weekday: 'long' }),
+		today: 'today',
+		count: (n: number) => num(n),
+
 		packs: 'Top-ups, bought once',
 		packsNote:
 			'For a week that needs more than the plan grants. What is bought here is not swept away on Monday.',
