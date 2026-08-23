@@ -5,7 +5,7 @@
 > Source: `Ketentuan Data & WebGIS - MAPID WebGIS Competition 2026.docx`.
 >
 > **The column names in §A.4 are kept in the original Indonesian on purpose.** They are
-> the literal field names of the MAPID APPS forms, and `scripts/fetch-mission.mjs` matches
+> the literal field names of the MAPID APPS forms, and `scripts/fetch-missions.mjs` matches
 > against those exact strings; translating them would make this document stop describing
 > the real schema. English glosses sit beside them in the description column.
 

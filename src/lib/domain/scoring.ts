@@ -263,7 +263,13 @@ export function scoreOne(
 		lon: c.lon,
 		boundary: c.boundary,
 		transit: c.transit,
-		access: c.access
+		access: c.access,
+		/* Evidence, not a term. It rides along the row untouched so a panel can show what
+		   somebody recorded on this street beside the score, and it is absent on most
+		   cells because most streets have not been walked. Folding it into the
+		   arithmetic would make "nobody went here" arithmetically identical to "nothing
+		   happens here", which is the one mistake this engine exists to refuse. */
+		field: c.field ?? null
 	};
 
 	const count = poiCount(c, cats, w.source, w.radius);

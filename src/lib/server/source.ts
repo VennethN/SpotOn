@@ -110,7 +110,18 @@ export const provenance = {
 	   turunan, bukan pengukuran sendiri. */
 	density: {
 		label: 'OSM+MAPID',
-		note: `Keramaian satu petak adalah jumlah usaha apa pun dalam radius jalan kaki, dari sumber pesaing yang sedang dipakai, dikurangi pesaing sejenis. Tidak ada kolom misi yang dibangkitkan lagi: profil jam, jumlah struk, jumlah menu, pangsa nontunai, dan listing sewa per kategori sudah dihapus seluruhnya karena datanya memang tidak ada.`
+		note: `Keramaian satu petak adalah jumlah usaha apa pun dalam radius jalan kaki, dari sumber pesaing yang sedang dipakai, dikurangi pesaing sejenis. Tidak ada satu pun kolom yang dibangkitkan: profil jam, pangsa ramai per kategori, dan listing sewa per kategori dulu dibangkitkan dan sudah dihapus seluruhnya.`
 	},
+	/* Catatan lapangan. Ditulis terpisah dari `real` dan `property` karena jenis
+	   datanya memang beda: dua sumber di atas itu katalog yang mengaku memuat semua,
+	   jadi nol di sana itu temuan. Ini survei yang dijalani orang, dan petak tanpa
+	   catatan cuma berarti belum ada yang ke sana. Makanya angkanya tidak masuk ke
+	   skor sama sekali, dan kalimat ini menyebut itu. */
+	mission: file.meta.mission
+		? {
+				label: 'MAPID Apps',
+				note: `${file.meta.mission.records} catatan lapangan dari misi MAPID Apps (Struk Go, Menu Go, Properti Go) dan catatan komunitas. ${file.meta.mission.placed} di antaranya jatuh di dalam salah satu petak, tersebar di ${file.meta.mission.cells} dari ${file.meta.hexes} petak. BUKAN SENSUS: petak tanpa catatan bukan berarti sepi, cuma belum ada yang ke sana, jadi tidak satu pun angka di sini masuk ke perhitungan skor. Di sinilah satu-satunya data sewa yang dipunya: ${file.meta.mission.sewa} tempat tercatat sedang disewakan. Yang dicatat penawarannya, harga sewanya tidak ditanyakan di formulirnya.`
+			}
+		: null,
 	basemap: 'Produk final wajib memakai MAPID MAPS sebagai basemap.'
 };
