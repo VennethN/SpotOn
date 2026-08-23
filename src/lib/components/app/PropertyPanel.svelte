@@ -22,6 +22,7 @@
 	import { COST_FLOOR, readCost } from '$lib/domain/cost';
 	import { composeScore } from '$lib/domain/composition';
 	import { byType, pricedPremises, withoutPrice } from '$lib/domain/premises';
+	import Fineprint from '$lib/components/ui/Fineprint.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -150,7 +151,9 @@
 						: c.property.effectNone}
 				</p>
 			{/if}
-			<p class="floor">{c.property.floor(COST_FLOOR)}</p>
+			<Fineprint>
+				<p>{c.property.floor(COST_FLOOR)}</p>
+			</Fineprint>
 		{:else}
 			<!-- The silences, told apart. Only the first means nobody looked. -->
 			<p class="none">
@@ -173,7 +176,11 @@
 
 		<!-- ── What is on the market ───────────────────────────────────────── -->
 		{#if cost.covered}
-			<SectionHead icon="market">{c.property.marketTitle}</SectionHead>
+			<!-- A part of the price section, not a section of its own. What is on the
+			     market is the evidence the median above was read from, and drawn with the
+			     same weight as the heading above it the card reads as three unrelated
+			     sections where it has one with two parts. -->
+			<SectionHead icon="market" level="sub">{c.property.marketTitle}</SectionHead>
 			{#if app.listingsFailed}
 				<!-- The units are gone, the arithmetic is not: everything above this line
 				     came from the grid, and says so. -->
@@ -198,7 +205,7 @@
 				</ul>
 
 				{#if priced.length}
-					<SectionHead icon="units">{c.property.unitsTitle}</SectionHead>
+					<SectionHead icon="units" level="sub">{c.property.unitsTitle}</SectionHead>
 					<ul class="units">
 						<!--
 							Keyed by position, which is the honest answer here: these listings
@@ -236,9 +243,9 @@
 			<!-- Where the whole panel came from, sized from the grid's own metadata so
 			     rebuilding the data rewrites the sentence. -->
 			{#if prop}
-				<p class="note">
-					{c.property.provenance(prop.listings, prop.coveredCities.length)}
-				</p>
+				<Fineprint>
+					<p>{c.property.provenance(prop.listings, prop.coveredCities.length)}</p>
+				</Fineprint>
 			{/if}
 		{/if}
 	</section>
@@ -364,7 +371,6 @@
 		line-height: 1.5;
 		color: var(--label-2);
 	}
-	.floor,
 	.note {
 		font-size: 0.625rem;
 		line-height: 1.45;

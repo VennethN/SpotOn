@@ -44,6 +44,20 @@ import type {
 export type Pivot = 'cell' | 'unit';
 
 /**
+ * How the reading is drawn: flat on the plan, or standing up off it.
+ *
+ * Not a second reading, and that is the whole rule this mode is held to. `relief`
+ * raises each catchment by THE NUMBER ITS COLOUR ALREADY SHOWS, so the height and the
+ * shade are two readings of one figure. A cell nobody surveyed is raised by nothing
+ * and stays flat under its hatch, for the same reason it is given no colour: an
+ * absence drawn as a low column is an absence dressed up as a finding.
+ *
+ * It is a view, so it is kept here rather than in `layers`. Those switch what is on the
+ * map. This one only changes how the same thing is looked at.
+ */
+export type ViewMode = 'flat' | 'relief';
+
+/**
  * Somebody watching an answer being worked out.
  *
  * Every method is optional and none of them is told a figure. The stages say which of
@@ -181,6 +195,12 @@ export class AppState {
 	 */
 	categories = $state<CategoryKey[]>([]);
 	weights = $state<Weights>({ ...DEFAULT_WEIGHTS });
+	/**
+	 * Flat by default. A map opens as a map, and a reader who has not asked to tilt it
+	 * should not have to work out which way they are facing before they can read a
+	 * hexagon. The raised view is the one you choose.
+	 */
+	view = $state<ViewMode>('flat');
 	layers = $state<Record<LayerKey, boolean>>({
 		/**
 		 * The opportunity heatmap is ON from the first frame.

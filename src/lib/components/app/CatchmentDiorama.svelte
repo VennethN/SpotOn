@@ -19,6 +19,7 @@
 	 */
 	import ActivityPanel from '$lib/components/app/ActivityPanel.svelte';
 	import FieldPanel from '$lib/components/app/FieldPanel.svelte';
+	import Glyph from '$lib/components/ui/Glyph.svelte';
 	import PropertyPanel from '$lib/components/app/PropertyPanel.svelte';
 	import RivalsPanel from '$lib/components/app/RivalsPanel.svelte';
 	import ScoreBreakdown from '$lib/components/app/ScoreBreakdown.svelte';
@@ -124,6 +125,50 @@
 			<span class="mark">{c.app.schema}</span>
 		</div>
 
+		<!--
+			THE THREE FIGURES, BEFORE ANY SENTENCE
+
+			This card used to open with prose and put every number inside it, which asks a
+			reader to parse a sentence before they know whether the place is worth the rest
+			of the scroll. The counts are what someone comparing two sites reads first, and
+			they are three plain integers, so they are set as three.
+
+			The prose underneath kept the judgement and gave up the tally: it says the
+			street is quiet, and no longer also says how many units are on the market, which
+			the tile beside it already said. That is where the run-on came from — with no
+			business type named there was no middle clause, and the sentence ran "jadi agak
+			sepi. dan 12 unit sedang dipasarkan."
+
+			Each glyph wears the colour its subject is drawn in on the map, so the tile and
+			the dots it is counting are visibly the same thing. The first has no colour
+			because it has no layer: nothing on the map draws all trade at once.
+
+			Hidden on a cell whose city was never surveyed. Three zeroes there would be a
+			finding about Jakarta rather than about the catalogue, which is the one mistake
+			this panel exists to prevent.
+		-->
+		{#if !blank}
+			<ul class="stats">
+				<li>
+					<span class="ico"><Glyph icon="market" size={14} /></span>
+					<span class="n">{row.density}</span>
+					<span class="l">{c.mood.tiles.around}</span>
+				</li>
+				{#if !noType}
+					<li style:--tint="var(--critical)">
+						<span class="ico"><Glyph icon="rivals" size={14} /></span>
+						<span class="n">{row.osm}</span>
+						<span class="l">{c.mood.tiles.rivals}</span>
+					</li>
+				{/if}
+				<li style:--tint="var(--warn)">
+					<span class="ico"><Glyph icon="sign" size={14} /></span>
+					<span class="n">{row.units}</span>
+					<span class="l">{c.mood.tiles.space}</span>
+				</li>
+			</ul>
+		{/if}
+
 		{#if blank}
 			<p class="read">{c.mood.nodata}</p>
 		{:else if noType}
@@ -131,11 +176,6 @@
 			     one sentence that would is left out rather than filled in with a blank. -->
 			<p class="read">
 				{c.mood.reading(row.density, busyWord)}
-				{#if row.units > 0}
-					{c.mood.listings(row.units)}
-				{:else}
-					{c.mood.noListings}
-				{/if}
 				{c.mood.askForScore}
 			</p>
 
@@ -149,15 +189,7 @@
 				<p class="prov">{c.mood.prov}</p>
 			</details>
 		{:else}
-			<p class="read">
-				{c.mood.reading(row.density, busyWord)}
-				{c.mood.rivals(row.osm, catMany)}
-				{#if row.units > 0}
-					{c.mood.listings(row.units)}
-				{:else}
-					{c.mood.noListings}
-				{/if}
-			</p>
+			<p class="read">{c.mood.reading(row.density, busyWord)}</p>
 
 			<details class="numbers">
 				<summary>{c.app.fullNumbers}</summary>
@@ -223,7 +255,65 @@
 	.dio {
 		display: flex;
 		flex-direction: column;
-		gap: 0.625rem;
+		gap: 0.875rem;
+	}
+
+	/* THE SEAM BETWEEN SECTIONS
+	   Five panels stacked in one column with an even gap between them read as one
+	   scroll of text: the space inside a section was 8 px and the space between two of
+	   them was 10, which is not a difference anybody sees. A rule is, and it costs a
+	   pixel. Slightly more air above it than below, because the heading under it
+	   belongs to what follows rather than to what it just ended.
+
+	   Global because every one of these sections is another component's root element,
+	   and drawn here rather than inside them because the seam is a fact about the
+	   stack, not about any panel in it. */
+	.dio > :global(section) {
+		padding-top: 0.6875rem;
+		border-top: 1px solid var(--separator);
+	}
+
+	/* ── the three figures ───────────────────────────────────────────────── */
+	.stats {
+		display: grid;
+		grid-auto-columns: 1fr;
+		grid-auto-flow: column;
+		gap: 0.375rem;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.stats li {
+		display: flex;
+		flex-direction: column;
+		gap: 0.0625rem;
+		min-width: 0;
+		padding: 0.4375rem 0.5rem 0.5rem;
+		border-radius: var(--r-sm);
+		background: var(--fill-1);
+	}
+	.stats .ico {
+		/* The tint is the layer's colour on the map, where the subject has a layer.
+		   Falling back to the label grey rather than to the accent: an untinted tile is
+		   one with nothing to point at, not one being pointed at. */
+		color: var(--tint, var(--label-2));
+		margin-bottom: 0.125rem;
+	}
+	.stats .n {
+		font-size: 1.125rem;
+		font-weight: 650;
+		letter-spacing: -0.02em;
+		line-height: 1.1;
+		color: var(--label-1);
+		font-variant-numeric: tabular-nums;
+	}
+	/* What the figure counts. A step under the figure and no further: at ten pixels the
+	   quietest grey is not a caption, it is a smudge, and a number whose label cannot be
+	   read is not a figure at all. */
+	.stats .l {
+		font-size: 0.625rem;
+		line-height: 1.3;
+		color: var(--label-2);
 	}
 
 	.stage {

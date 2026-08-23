@@ -31,6 +31,8 @@
 	 * answer "Disewa". So this panel can say it. What it still cannot say is the price,
 	 * because the form never asks, and it says that too.
 	 */
+	import FieldRecordDetail from '$lib/components/app/FieldRecordDetail.svelte';
+	import Fineprint from '$lib/components/ui/Fineprint.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import {
 		lastRecorded,
@@ -38,7 +40,8 @@
 		ofKind,
 		payMethods,
 		premisesRecorded,
-		pricedMenus
+		pricedMenus,
+		type FieldRecord
 	} from '$lib/domain/field';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -79,6 +82,30 @@
 	 */
 	let broken = $state<string[]>([]);
 
+	/** The record open in the detail view, or none. Cleared whenever the selected
+	    cell changes, rather than left pointing at a record from a different area's
+	    list once the reader has moved on from it. */
+	let opened = $state<FieldRecord | null>(null);
+	/** Whichever row or thumbnail was clicked to open it, so closing can hand focus
+	    straight back rather than dropping it to the document. Losing focus to
+	    <body> is what was scrolling this list back to the top on every close. */
+	let openedFrom = $state<HTMLElement | null>(null);
+
+	function openDetail(record: FieldRecord, trigger: HTMLElement) {
+		openedFrom = trigger;
+		opened = record;
+	}
+	function closeDetail() {
+		opened = null;
+		openedFrom?.focus({ preventScroll: true });
+		openedFrom = null;
+	}
+
+	$effect(() => {
+		void cell;
+		opened = null;
+	});
+
 	/** The photographs, one per record that has one. Held to `PHOTOS` here rather than
 	    in the markup so the strip is always full when there is enough to fill it. */
 	const photos = $derived(
@@ -104,7 +131,6 @@
 <!-- No cell, or a cell nobody has been to. The second one is said out loud rather than
      left as an absent section: "nothing was recorded here" is worth knowing, and a
      section that silently disappears reads as a panel that failed. -->
-<p style="color:blue">OUT size={app.fieldRecords ? app.fieldRecords.length : 'null'} recs={records.length}</p>
 {#if cell}
 	<section class="field">
 		<SectionHead icon="field">
@@ -147,13 +173,19 @@
 				<ul class="strip">
 					{#each photos as p (p.id)}
 						<li>
-							<img
-								src={p.photo}
-								alt={c.field.mapAria(c.field.kinds[p.kind], p.place ?? p.title ?? '', p.distance)}
-								loading="lazy"
-								decoding="async"
-								onerror={() => drop(p.id)}
-							/>
+							<button
+								type="button"
+								class="phototrig"
+								onclick={(e) => openDetail(p, e.currentTarget)}
+							>
+								<img
+									src={p.photo}
+									alt={c.field.mapAria(c.field.kinds[p.kind], p.place ?? p.title ?? '', p.distance)}
+									loading="lazy"
+									decoding="async"
+									onerror={() => drop(p.id)}
+								/>
+							</button>
 						</li>
 					{/each}
 				</ul>
@@ -195,16 +227,18 @@
 						<ul class="rows">
 							{#each menus.slice(0, SHOWN) as m (m.id)}
 								<li>
-									<p class="top">
-										<span class="name">{m.place ?? c.field.kinds.menu}</span>
-										<span class="dist">{c.field.walk(m.distance)}</span>
-										<span class="price">{c.field.menuPrice(m.price ?? 0)}</span>
-									</p>
-									<p class="traits">
-										{[m.dish, m.sort, m.crowd ? c.field.crowdSeen(c.field.crowd[m.crowd]) : null]
-											.filter(Boolean)
-											.join(' · ')}
-									</p>
+									<button type="button" class="rowtrig" onclick={(e) => openDetail(m, e.currentTarget)}>
+										<p class="top">
+											<span class="name">{m.place ?? c.field.kinds.menu}</span>
+											<span class="dist">{c.field.walk(m.distance)}</span>
+											<span class="price">{c.field.menuPrice(m.price ?? 0)}</span>
+										</p>
+										<p class="traits">
+											{[m.dish, m.sort, m.crowd ? c.field.crowdSeen(c.field.crowd[m.crowd]) : null]
+												.filter(Boolean)
+												.join(' · ')}
+										</p>
+									</button>
 								</li>
 							{/each}
 						</ul>
@@ -228,14 +262,16 @@
 					<ul class="rows">
 						{#each premises.slice(0, SHOWN) as p (p.id)}
 							<li>
-								<p class="top">
-									{#if p.offer}
-										<span class="tag" class:rent={p.offer === 'sewa'}>{c.field.offer[p.offer]}</span>
-									{/if}
-									<span class="name">{p.sort ?? c.field.kinds.properti}</span>
-									<span class="dist">{c.field.walk(p.distance)}</span>
-								</p>
-								{#if p.address}<p class="traits">{p.address}</p>{/if}
+								<button type="button" class="rowtrig" onclick={(e) => openDetail(p, e.currentTarget)}>
+									<p class="top">
+										{#if p.offer}
+											<span class="tag" class:rent={p.offer === 'sewa'}>{c.field.offer[p.offer]}</span>
+										{/if}
+										<span class="name">{p.sort ?? c.field.kinds.properti}</span>
+										<span class="dist">{c.field.walk(p.distance)}</span>
+									</p>
+									{#if p.address}<p class="traits">{p.address}</p>{/if}
+								</button>
 							</li>
 						{/each}
 					</ul>
@@ -255,12 +291,14 @@
 					<ul class="rows">
 						{#each notes.slice(0, 2) as n (n.id)}
 							<li>
-								<p class="top">
-									<span class="name">{n.title ?? c.field.kinds.catatan}</span>
-									<span class="dist">{c.field.walk(n.distance)}</span>
-								</p>
-								{#if n.body}<p class="body">{n.body}</p>{/if}
-								{#if n.by}<p class="traits">{c.field.noteBy(n.by)}</p>{/if}
+								<button type="button" class="rowtrig" onclick={(e) => openDetail(n, e.currentTarget)}>
+									<p class="top">
+										<span class="name">{n.title ?? c.field.kinds.catatan}</span>
+										<span class="dist">{c.field.walk(n.distance)}</span>
+									</p>
+									{#if n.body}<p class="body">{n.body}</p>{/if}
+									{#if n.by}<p class="traits">{c.field.noteBy(n.by)}</p>{/if}
+								</button>
 							</li>
 						{/each}
 					</ul>
@@ -272,14 +310,20 @@
 
 			<!-- The one thing this panel must not let a reader forget, and the figures
 			     behind it, read from the grid's own metadata so a rebuild rewrites them. -->
-			<p class="note census">{c.field.notCensus}</p>
-			{#if mission}
-				<p class="note">
-					{c.field.provenance(mission.records, mission.cells, app.meta?.hexes ?? 0)}
-				</p>
-			{/if}
+			<Fineprint>
+				<p class="census">{c.field.notCensus}</p>
+				{#if mission}
+					<p>{c.field.provenance(mission.records, mission.cells, app.meta?.hexes ?? 0)}</p>
+				{/if}
+			</Fineprint>
 		{/if}
 	</section>
+
+	{#if opened}
+		{#key opened.id}
+			<FieldRecordDetail record={opened} onclose={closeDetail} />
+		{/key}
+	{/if}
 {/if}
 
 <style>
@@ -350,6 +394,25 @@
 		object-fit: cover;
 		display: block;
 	}
+	/* The strip's only affordance: nothing else marks a thumbnail as clickable, so
+	   the trigger itself carries no border and leans on the cursor and a hover dim
+	   instead, the same restraint the map's own layer toggle uses. */
+	.phototrig {
+		display: block;
+		width: 100%;
+		height: 100%;
+		border: 0;
+		padding: 0;
+		background: transparent;
+		cursor: pointer;
+	}
+	.phototrig:hover img {
+		opacity: 0.85;
+	}
+	.phototrig:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
 
 	/* ── one survey ──────────────────────────────────────────────────────── */
 	.block {
@@ -407,6 +470,29 @@
 		flex-direction: column;
 		gap: 0.3125rem;
 	}
+	/* Each row is now a button standing in for the record, styled back down to a
+	   row: full width, left-aligned, its own type reset to match the paragraphs
+	   inside it rather than the browser's button font. */
+	.rowtrig {
+		display: block;
+		width: calc(100% + 0.5rem);
+		margin: -0.1875rem -0.25rem;
+		border: 0;
+		padding: 0.1875rem 0.25rem;
+		background: transparent;
+		font: inherit;
+		text-align: left;
+		color: inherit;
+		cursor: pointer;
+		border-radius: var(--r-sm);
+	}
+	.rowtrig:hover {
+		background: var(--fill-2);
+	}
+	.rowtrig:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
 	.rows .top {
 		display: flex;
 		align-items: baseline;
@@ -462,7 +548,9 @@
 		color: var(--label-3);
 	}
 	/* Said once, quietly, and never folded away: it is the sentence that keeps every
-	   count above it from being read as a measurement of the street. */
+	   count above it from being read as a measurement of the street. Of everything in
+	   the fine print it is the only line a reader has to actually meet, so it is the
+	   one line in there set above the fine print's own grey. */
 	.census {
 		color: var(--label-2);
 	}

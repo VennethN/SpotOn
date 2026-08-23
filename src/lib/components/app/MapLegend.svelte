@@ -141,6 +141,14 @@
 					/>
 				{/if}
 
+				<!-- What the RAISED view added, said in the one place that explains what a
+				     figure on this map is. The height is not a second reading beside the
+				     colour, it is the same one, and a key that described only half of what
+				     is on screen would leave the reader guessing at the other half. -->
+				{#if app.view === 'relief'}
+					<p class="relief">{c.app.viewReliefNote}</p>
+				{/if}
+
 				<!-- The competitor source used to sit in the title bar, three metres from
 				     anything it changed. It belongs here: it decides the numbers the ramp
 				     is drawn from, and the sentence directly above already names it as the
@@ -169,6 +177,15 @@
 {/if}
 
 <style>
+	/* Reads as a footnote to the ramp above it, because that is what it is: the ramp
+	   names the figure and this says the solids are drawn from the very same one. */
+	.relief {
+		margin-top: 0.5rem;
+		font-size: 0.6875rem;
+		line-height: 1.45;
+		color: var(--label-3);
+	}
+
 	.uncovered {
 		margin-top: 0.5rem;
 		font-size: 0.6875rem;
