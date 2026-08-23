@@ -39,3 +39,6 @@ scripts/.overpass-cache/
 
 # Scratch directory the gstack browse tooling writes into.
 .gstack/
+
+# Singgahan build dokumen PRD — font Figtree, HTML antara, dan PDF setengah jadi.
+.prd-cache/
