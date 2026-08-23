@@ -390,18 +390,17 @@ export const en: Copy = {
 			poin >= 0 ? `up ${poin} points` : `down ${Math.abs(poin)} points`,
 
 		accessTitle: 'What the access index is made of',
-		accessRow: (n: number, bobot: number) =>
-			`${n} ${n === 1 ? 'node' : 'nodes'} × weight ${bobot.toFixed(2)}`,
+		accessRow: (n: number) => `${n} ${n === 1 ? 'node' : 'nodes'}`,
 		accessShare: (persen: number) => `${persen}% of the index`,
 		accessIndex: (akses: number, pengali: number) =>
 			`Access index ${akses.toFixed(2)} → score multiplier ${pengali.toFixed(2)}`,
-		accessFormula: (pembagi: number) =>
-			`Access index = √(Σ nodes × their mode weight) ÷ ${pembagi.toFixed(1)}, capped at 1. Computed once when the grid was built, from OSM. The weights differ because the modes carry different numbers of people.`,
+		accessFormula:
+			'The more nodes in range, the higher it goes. Rail counts for more than a bus because it carries more people. Read from OSM.',
 
 		stationsTitle: 'The nodes in range, one by one',
 		stationsLoading: 'Loading the list of nodes…',
 		stationsFailed:
-			'The list of node names could not be loaded. The counts and the access index above still hold, both are read from the grid, not from that file.',
+			'The list of node names could not be loaded. The counts and the access index above are unaffected.',
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} ${n === 1 ? 'node' : 'nodes'}`,
 		unnamed: (n: number) =>
 			`+${n} more with no name of their own: platforms of the same station, or stops OSM has not named`
@@ -433,22 +432,22 @@ export const en: Copy = {
 			`The grid median is ${rp(v)} per m², so this is ${kali.toFixed(1)}× that.`,
 		/* What the figure did to the score. Read back off the scoring engine, never
 		   recomputed here. */
-		effect: (poin: number, pengali: number) =>
-			`That price takes ${poin} ${poin === 1 ? 'point' : 'points'} off this cell, a multiplier of ×${pengali.toFixed(2)}.`,
+		effect: (poin: number) =>
+			`That price takes ${poin} ${poin === 1 ? 'point' : 'points'} off this cell.`,
 		effectNone: 'The cost of space took nothing off this cell.',
-		floor: (pengali: number) =>
-			`The cost of space can take a cell down to ×${pengali.toFixed(2)} at most, so it tilts the ranking without deciding it. An asking price is one negotiation away from being wrong, and it buys the place outright.`,
+		floor:
+			'The cost of space tilts the ranking without deciding it. An asking price is one negotiation away from being wrong, and it buys the place outright.',
 
 		/* ── Four kinds of silence, kept apart ──────────────────────────────
 		   Only the first means nobody has looked. */
 		noneUncovered:
-			'The property catalogue has not been read for this city yet, so there is no price to give here.',
+			'What space costs in this city has not been collected yet, so there is nothing to show here.',
 		noneEmpty: (r: number) =>
-			`Nothing commercial is on the market within ${r} m. The catalogue covers this city and lists none here.`,
+			`Nothing commercial is on the market within ${r} m. This city has been surveyed, and there is genuinely none.`,
 		noneUnpriced: (n: number) =>
 			`${n} ${n === 1 ? 'unit is' : 'units are'} on the market nearby, and not one carries a price.`,
-		noneThin: (n: number, min: number) =>
-			`Only ${n} ${n === 1 ? 'unit' : 'units'} nearby carry a price. A median needs at least ${min}, because a single misplaced decimal point is enough to move this whole cell to the expensive end.`,
+		noneThin: (n: number) =>
+			`Only ${n} ${n === 1 ? 'unit' : 'units'} nearby ${n === 1 ? 'carries' : 'carry'} a price. Too few to stand for what space costs here.`,
 		noneUngraded:
 			'This cell has a readable price, but too few other cells do for it to be ranked against them. So it cannot yet be called dear or cheap, and nothing was taken off the score.',
 
@@ -524,15 +523,15 @@ export const en: Copy = {
 		strukTitle: 'Receipts',
 		strukCount: (n: number) => `${num(n)} ${n === 1 ? 'receipt' : 'receipts'} photographed here`,
 		cashless: (persen: number) => `${persen}% of them were paid without cash.`,
-		cashlessThin: (n: number, min: number) =>
-			`Only ${n} ${n === 1 ? 'receipt names' : 'receipts name'} a payment method. Under ${min} of them, a share says nothing.`,
+		cashlessThin: (n: number) =>
+			`Only ${n} ${n === 1 ? 'receipt names' : 'receipts name'} a payment method. Too few to read a share from.`,
 
 		/* Menu Go */
 		menuTitle: 'Places to eat',
 		menuCount: (n: number) => `${num(n)} ${n === 1 ? 'place' : 'places'} a surveyor walked into`,
 		menuTypical: (v: number) => `A meal here runs to about ${rp(v)}.`,
-		menuTypicalThin: (n: number, min: number) =>
-			`Only ${n} ${n === 1 ? 'place has' : 'places have'} a price written down. Under ${min}, that is one warung's price and not the area's.`,
+		menuTypicalThin: (n: number) =>
+			`Only ${n} ${n === 1 ? 'place has' : 'places have'} a price written down. That is one warung's price, not the area's.`,
 		menuPrice: (v: number) => `${rp(v)} on average`,
 		menuNoPrice: (n: number) => `+${n} more with no price written down`,
 		crowd: { sepi: 'quiet', sedang: 'steady', ramai: 'queueing' },
@@ -608,8 +607,8 @@ export const en: Copy = {
 			`Most of them are open from ${hour(h)}, ${n} of the ${dari}.`,
 
 		/* ── Two kinds of silence, kept apart ─────────────────────────────── */
-		thin: (terbaca: number, min: number, usaha: number, r: number) =>
-			`Only ${terbaca} of the ${usaha} businesses on record within ${r} m ${terbaca === 1 ? 'publishes' : 'publish'} hours that can be read. A curve needs at least ${min}, because one 24-hour minimart among three shops draws a street that never sleeps.`,
+		thin: (terbaca: number, usaha: number, r: number) =>
+			`Only ${terbaca} of the ${usaha} businesses on record within ${r} m ${terbaca === 1 ? 'publishes' : 'publish'} opening hours. Too few to show how the day goes.`,
 		none: (usaha: number, r: number) =>
 			`Not one of the ${usaha} ${usaha === 1 ? 'business' : 'businesses'} on record within ${r} m publishes its opening hours.`,
 
@@ -620,12 +619,12 @@ export const en: Copy = {
 		basis: (terbaca: number, usaha: number, r: number) =>
 			`${terbaca} of the ${usaha} businesses OpenStreetMap lists within ${r} m publish opening hours that can be read.`,
 		refused: (n: number) =>
-			`${n} more ${n === 1 ? 'publishes' : 'publish'} them in a form that could not be read, a public holiday rule or "sunset" for instance.`,
+			`${n} more ${n === 1 ? 'publishes' : 'publish'} them in a form that cannot be read automatically, a public holiday rule for instance.`,
 		notFootfall:
 			'This counts doors open, not people walking past. The receipts surveyors logged are below, kept separate, because those carry a date and no hour.',
 		loading: 'Loading the opening hours…',
 		failed: (n: number) =>
-			`The opening hours could not be loaded, so no curve is drawn. The count of ${n} businesses below comes from the grid and still holds.`
+			`The opening hours could not be loaded, so no chart is drawn. The count of ${n} businesses below is unaffected.`
 	},
 
 	/* ── Stepping inside the model ────────────────────────────────────────────
@@ -657,19 +656,19 @@ export const en: Copy = {
 		   here, and a count with nothing to compare it against does not answer that. */
 		peakHour: 'This is the hour with the most doors open here.',
 		share: (persen: number) => `About ${persen}% of its busiest hour for open doors.`,
-		basis: (r: number) =>
-			`The crowd rises and falls with those doors, and never goes past the trade that actually stands within ${r} m of this centre. The people are drawn, the doors are counted.`,
+		basis: () =>
+			'The crowd rises and falls with the doors open at that hour. The people are drawn, the doors are counted.',
 		/* Four kinds of silence, kept apart. Not one of them is settled by moving the
 		   figures around so the screen looks alive. */
-		still: (readable: number, min: number) =>
-			`Only the light moves. ${readable} ${readable === 1 ? 'business' : 'businesses'} here ${readable === 1 ? 'publishes' : 'publish'} readable opening hours, and ${min} are needed to draw the day.`,
+		still: (readable: number) =>
+			`Only the light moves. ${readable} ${readable === 1 ? 'business' : 'businesses'} here ${readable === 1 ? 'publishes' : 'publish'} opening hours, too few to show how the day goes.`,
 		stillNone:
 			'Only the light moves. Not one business here publishes its opening hours.',
 		stillLoading: 'Only the light moves until the opening hours have loaded.',
 		stillFailed:
 			'Only the light moves. The opening hours could not be loaded.',
 		stillNodata:
-			'Only the light moves. This cell\'s city is not in the catalogue yet, so there is nothing here to draw.',
+			'Only the light moves. This area has not been surveyed yet, so there is nothing here to draw.',
 		sceneLabel: (name: string, h: number, body: string) =>
 			`A model of ${name} at ${clockHour(h)}. ${body}`
 	},
@@ -682,7 +681,7 @@ export const en: Copy = {
 		quiet: 'a bit quiet',
 		empty: 'quiet',
 		nodata:
-			'This cell sits in a city the catalogue has not been read for. Nothing around it has been counted yet.',
+			'This area has not been surveyed yet. Nothing around it has been counted.',
 		reading: (n: number, kata: string) =>
 			`There are ${n} businesses within walking range here, so it is ${kata}.`,
 		/* Labels for the three figures under the model. Deliberately short: these are
@@ -756,11 +755,11 @@ export const en: Copy = {
 		   transit switch above, because it is the same promise about the same map. */
 		rivalsOnMap: 'Competitors on the map',
 		rivalsCount: (n: number, cat: string) =>
-			`${n} ${cat} drawn where they actually stand, within the same walking range.`,
+			`${n} ${cat} drawn where ${n === 1 ? 'it actually stands' : 'they actually stand'}, within the same walking range.`,
 		/* Switched off, the sentence above would be describing a map that is not there.
 		   Same figure, and it says what to press to see it. */
 		rivalsHidden: (n: number, cat: string) =>
-			`${n} ${cat} inside the walking range. Show them to see where they stand.`,
+			`${n} ${cat} inside the walking range. Show ${n === 1 ? 'it' : 'them'} to see where ${n === 1 ? 'it stands' : 'they stand'}.`,
 		rivalsLoading: 'Looking up where they stand…',
 		/* Stations are labelled and these are not, so the difference gets a reason. The
 		   names exist in the MAPID features, they were simply not kept when the point
@@ -771,7 +770,7 @@ export const en: Copy = {
 		/* The nearest few, not all of them, and the heading says so. The count above is
 		   taken over every competitor captured, named or not. */
 		rivalsNearest: 'The nearest ones',
-		rivalsMore: (n: number) => `+${n} more that carry a name`,
+		rivalsMore: (n: number) => `+${n} more nearby`,
 		/* Only MAPID carries positions. Saying which source would have them is the
 		   difference between a dead end and a fix the reader can act on. */
 		rivalsNoPositions:
@@ -816,7 +815,7 @@ export const en: Copy = {
 		costCap: (unit: number) => `per m² of land · ${unit} units on the market`,
 		costUnits: (unit: number) => `${unit} on the market, no median price`,
 		/* Three different silences, and only this one means nobody has looked. */
-		costUnread: 'The price catalogue has not read this cell\'s city',
+		costUnread: 'Prices here have not been collected yet',
 		costNone: 'Nothing on the market here',
 		transitNone: 'None within walking range',
 		fieldNone: 'Nobody has recorded anything here',
@@ -1047,7 +1046,7 @@ export const en: Copy = {
 			'I have switched the map to read by place, so each row is one premises rather than an area.',
 		nowByCell: 'I have switched the map back to reading by area, so each row is an area again.',
 		remarkUncovered: (name: string, cat: string) =>
-			`${name} sits in a city the catalogue has not been read for, so the ${cat} around it have never been counted. I have no figure to give you for it yet.`,
+			`${name} has not been surveyed yet, so the ${cat} around it have never been counted. I have no figure to give you for it.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
 			`${name} is ${verdict} for a ${cat}, scoring ${nilai}. There are ${osm} similar businesses, and ${listing}.`,
 		verdictGood: 'one of the good ones',
