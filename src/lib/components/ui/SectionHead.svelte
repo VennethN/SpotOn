@@ -41,7 +41,7 @@
 
 <header class="head" class:sub={level === 'sub'}>
 	<span class="ico">
-		<Glyph {icon} size={level === 'sub' ? 12 : 13} />
+		<Glyph {icon} size={level === 'sub' ? 14 : 16} />
 	</span>
 	<h3 class="eyebrow">{@render children()}</h3>
 	{#if action}
@@ -64,9 +64,9 @@
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 1.25rem;
-		height: 1.25rem;
-		border-radius: var(--r-xs);
+		width: 1.625rem;
+		height: 1.625rem;
+		border-radius: var(--r-sm);
 		background: var(--fill-1);
 		color: var(--label-1);
 	}
