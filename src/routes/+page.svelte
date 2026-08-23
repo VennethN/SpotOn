@@ -10,6 +10,7 @@
 	import TapakDemo from '$lib/components/landing/TapakDemo.svelte';
 	import BrandMark from '$lib/components/ui/BrandMark.svelte';
 	import Reveal from '$lib/components/ui/Reveal.svelte';
+	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { CATEGORY_KEYS } from '$lib/domain/categories';
 	import { copy, lang } from '$lib/state/lang.svelte';
 	import type { PageData } from './$types';
@@ -211,6 +212,26 @@
 				</div>
 				<p class="lead">{c.ai.p1}</p>
 			</header>
+		</Reveal>
+
+		<!-- WHO IS ANSWERING. The panel below is labelled "Tapak" and nothing on this
+		     page had said who that is, so the guide is introduced before the reader
+		     watches it work. It carries the boundary the whole product rests on while
+		     it is at it: the model picks the lookup, the scoring engine writes every
+		     figure. That claim belongs in front of the demonstration rather than after
+		     it, because it is what makes the demonstration worth watching.
+
+		     Prose, so it stays on the page ground. The figure takes the place the quiet
+		     rule takes under the coverage picture: one mark opens the block, and a rule
+		     beside the figure would be two marks for one aside. -->
+		<Reveal delay={40} distance={12}>
+			<div class="meet">
+				<span class="plinth"><TapakFigure size={46} walking={false} /></span>
+				<div>
+					<h3 class="lede">{c.ai.meet.title}</h3>
+					<p>{c.ai.meet.body}</p>
+				</div>
+			</div>
 		</Reveal>
 
 		<!-- The map is the bigger half, and deliberately. This section makes one claim,
@@ -504,6 +525,46 @@
 		color: var(--ink-2);
 	}
 
+	/* ── Meet Tapak ────────────────────────────────────────────────────────
+	   The same measure and the same ink as `.notes`, because it is the same kind
+	   of thing: an aside to a section rather than the section itself. What it
+	   opens with is the figure instead of a rule.
+
+	   The figure stands on a disc rather than on the page. It is drawn in
+	   near-white, which is within a couple of per cent of the paper, and on the
+	   ground alone its own hairline is the only thing separating the two. Every
+	   other figure in the product sits on a surface darker than itself, and this
+	   is that surface, sized to the figure. */
+	.meet {
+		display: flex;
+		align-items: start;
+		gap: var(--s-group);
+		max-width: 64ch;
+	}
+	.plinth {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 4.5rem;
+		height: 4.5rem;
+		border-radius: 50%;
+		/* Mixed from the ink rather than taken from `--fill-2`, which is the same
+		   grey wash in both themes: over warm paper it came out within a few per
+		   cent of the figure standing on it, so the figure read as a ghost while the
+		   dark theme read perfectly. The disc has to be darker than the figure in
+		   both, and only a mix from the ink follows the ink into the other theme. */
+		background: color-mix(in srgb, var(--label-1) 15%, transparent);
+	}
+	.meet h3 {
+		max-width: none;
+	}
+	.meet p {
+		margin-top: 0.375rem;
+		font-size: 0.9375rem;
+		line-height: 1.6;
+		color: var(--ink-2);
+	}
+
 	.band {
 		padding-block: calc(var(--s-band) / 2);
 		display: flex;
@@ -773,6 +834,13 @@
 	@media (max-width: 30rem) {
 		.stats {
 			grid-template-columns: minmax(0, 1fr);
+		}
+		/* Below this the figure and the sentence beside it share a phone's width, and
+		   what is left for the sentence is a measure of about thirty characters. The
+		   figure goes above instead: it costs one line, and the sentence gets the
+		   width back. */
+		.meet {
+			flex-direction: column;
 		}
 	}
 </style>

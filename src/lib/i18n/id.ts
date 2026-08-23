@@ -201,6 +201,15 @@ export const id = {
 		p1: 'Sebutkan mau buka usaha apa, dan seluruh kota berganti warna untuk usaha itu. Tidak ada rumus yang harus diisi dan tidak ada istilah yang harus dihafal.',
 		p2: 'Sebelum menjawab, peta menunjukkan apa yang dia tangkap. Kalau salah tangkap, Anda langsung tahu.',
 		p3: 'Pertanyaannya contoh. Angkanya tidak: tiap warna dan nilai di sini dihitung mesin yang sama dengan aplikasinya.',
+		/* Yang duduk di antara judul bagian dan panggungnya. Panel di bawahnya
+		   berlabel "Tapak", dan sampai sekarang halaman ini tidak pernah bilang itu
+		   siapa. Sekalian menyebut batas yang bikin jawabannya bisa dipercaya:
+		   modelnya memilih pencariannya, angkanya dihitung mesin skornya. Tidak ada
+		   angka di sini, jadi tidak ada yang bisa basi diam-diam. */
+		meet: {
+			title: 'Kenalan dengan Tapak, pemandu Anda.',
+			body: 'Tapak yang membaca pertanyaannya, menyusun pencariannya, lalu menjawab lengkap dengan alasannya. Tidak ada satu angka pun di jawaban itu yang ditulis modelnya. Semuanya dihitung mesin skornya dari data, dan kalau satu kawasan belum disurvei, Tapak bilang belum ada datanya, bukan mengarang.'
+		},
 		mapEmpty: 'Peta 562 petak kawasan transit Jakarta, menunggu pertanyaan pertama.',
 		mapLabel: (jenis: string) =>
 			`Peta 562 petak kawasan transit Jakarta, diwarnai menurut skor peluang untuk ${jenis}.`,
