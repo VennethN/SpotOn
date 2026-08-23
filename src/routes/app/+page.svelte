@@ -15,6 +15,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { fade } from 'svelte/transition';
 	import AskLauncher from '$lib/components/app/AskLauncher.svelte';
+	import CatchmentZoom from '$lib/components/app/CatchmentZoom.svelte';
 	import CategoryChips from '$lib/components/app/CategoryChips.svelte';
 	import MapChrome from '$lib/components/app/MapChrome.svelte';
 	import MapLegend from '$lib/components/app/MapLegend.svelte';
@@ -232,6 +233,15 @@
 	     the map is reachable, which is after the launcher has gone. -->
 	{#if started}
 		<TapakToast {tapak} />
+	{/if}
+
+	<!-- The model of the selected area, given the whole screen and an hour to run
+	     through. Rendered here rather than inside the card that opens it: it covers
+	     everything, and on a compact screen that card lives inside a sheet that is
+	     dragged around, which is a positioning context nothing full-screen can
+	     escape. -->
+	{#if app.zoomed && app.selected}
+		<CatchmentZoom />
 	{/if}
 </div>
 

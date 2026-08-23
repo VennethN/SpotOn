@@ -1011,6 +1011,11 @@ export class StreetWorld {
 		this.#layoutCrowd();
 		this.#updateCamera();
 		this.#dirty = true;
+		// A reader who has asked for less motion gets no loop, so nothing would ever
+		// redraw and a scrubbed hour would move the light without moving the picture.
+		// A state change is not motion the scene decided on, it is the answer to
+		// something the reader just did, and it has to be drawn.
+		if (this.#reduced) this.renderOnce();
 	}
 
 	#paintLights(d: DaylightSample) {
