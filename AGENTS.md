@@ -789,3 +789,38 @@ Two scripts learned a related lesson the hard way while this was being done.
 `fetch-missions.mjs` and `build-hexes.mjs` both ran their whole job on IMPORT, so
 reaching for one exported helper started a network fetch and rewrote committed data.
 Both now carry the same run guard every other script in that directory has.
+
+## The map has a frame budget, and the panels on top of it were spending it
+
+Everything on the app screen sits over one canvas that redraws on every frame of a
+drag. That makes the map the only surface in this product with a frame budget, and it
+is the one place where the cost of a piece of chrome is paid sixty times a second
+rather than once.
+
+Three rules came out of finding where it had gone.
+
+**Nothing blurs while the map is moving.** `backdrop-filter` is not painted once: the
+browser reads back what is behind the element, blurs it, and composites the result,
+again on every frame the backdrop changed. Behind the panels the backdrop is a moving
+map, so the whole of the floating chrome was being re-blurred on every frame of every
+drag, and that was a third of the frame. `MapView` sets `data-map-moving` on the
+document element between `movestart` and `moveend`, and `app.css` answers it by
+swapping the material tokens flat, which is the same state
+`prefers-reduced-transparency` already asks for. Add a floating surface over the map
+and it inherits this for free, as long as it is built out of the `--mat-*` and
+`--blur-*` tokens rather than a blur of its own.
+
+**Read the DOM in one pass, write in another.** The map's own labels are laid out by
+measuring boxes and hiding the ones that clash. Interleaved, every write makes the
+browser lay the document out again to answer the next read, which is one forced layout
+per label per frame. Measure everything, then decide. `positionTip` follows the same
+rule from the other end: the map's box on the page is read once and remembered, not
+read on every pointer move.
+
+**Do not hand MapLibre data it already has.** `setData` builds a collection,
+structure-clones it into the worker and re-tiles it there, and the grid is 562
+hexagons. What is drawn is refreshed as one effect over every source, so anything that
+re-ran it re-uploaded everything, and picking a cell used to re-upload the whole grid to
+move one outline. Two things fix that and both are worth keeping: `pushSource` skips a
+rebuild whose inputs are identical, and anything that is a HIGHLIGHT rather than a fact
+about the place — hover, selection — belongs in feature state, which costs a paint.
