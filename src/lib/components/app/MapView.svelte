@@ -48,7 +48,10 @@
 	let map = $state<MapLibreMap | null>(null);
 	let ready = $state(false);
 	let gl: typeof import('maplibre-gl') | null = null;
-	let markers = new Map<string, { marker: Marker; el: HTMLButtonElement; rank: number }>();
+	let markers = new Map<
+		string,
+		{ marker: Marker; el: HTMLButtonElement; rank: number; html: string }
+	>();
 	/** Price tags on the units the selected cell captures. Kept apart from `markers`
 	    because they come and go with the selection rather than with the ranking. */
 	let unitTags = new Map<string, { marker: Marker; el: HTMLDivElement }>();
@@ -202,8 +205,27 @@
 		return out.join(' · ');
 	});
 
-	const cssVar = (name: string) =>
-		getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+	/**
+	 * A theme colour, resolved to something MapLibre can paint with.
+	 *
+	 * Memoised for the length of one pass, because `getComputedStyle` is not a lookup:
+	 * asking for a property makes the browser settle the element's style first, and one
+	 * refresh asks about seventy times over — eight colours for the fill ramp, eight
+	 * again for the unit dots, and a couple of dozen more across the layer definitions.
+	 * Within a single synchronous pass none of those answers can change, so the pass
+	 * clears the cache once at its start and every reader after that is free.
+	 */
+	const varCache = new Map<string, string>();
+	const cssVar = (name: string) => {
+		let v = varCache.get(name);
+		if (v === undefined) {
+			v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+			varCache.set(name, v);
+		}
+		return v;
+	};
+	/** Start of a pass: the theme may have changed since the last one. */
+	const freshVars = () => varCache.clear();
 
 	/**
 	 * What the source builders need, gathered at call time.
@@ -214,6 +236,60 @@
 	 * when a derived last recomputed.
 	 */
 	const ctx = (): MapCtx => ({ app, c, heat, cssVar });
+
+	/**
+	 * WHAT EACH SOURCE WAS LAST BUILT FROM, so an unchanged one is not built again.
+	 *
+	 * `setData` is not a cheap call. The collection is built, structure-cloned into the
+	 * worker, and re-tiled there, and the two big ones are big: the grid is 562 hexagons
+	 * and the unit layer draws up to 3,547 points. The refresh below runs as one effect
+	 * over everything the map draws, so it re-ran for all of them whenever any one of
+	 * them changed — opening a listing, flipping the sort, or moving the walking radius
+	 * each re-uploaded the whole grid, which had not changed at all.
+	 *
+	 * Only the two expensive ones are guarded. The rest hold a few dozen features
+	 * between them, where the bookkeeping would cost more than the rebuild, and every
+	 * dependency written down here is a dependency that can be forgotten later — so the
+	 * fewer of them there are, the better.
+	 *
+	 * Identity is the test, which is what makes the lists short: `rowById`, `heatById`
+	 * and `unitFiltered` are deriveds, so a new object IS the signal that the thing they
+	 * were computed from moved.
+	 */
+	const sourceDeps = new Map<string, unknown[]>();
+	function pushSource(
+		m: MapLibreMap,
+		id: string,
+		deps: unknown[],
+		build: () => FeatureCollection
+	) {
+		const last = sourceDeps.get(id);
+		if (last && last.length === deps.length && last.every((v, i) => v === deps[i])) return;
+		sourceDeps.set(id, deps);
+		(m.getSource(id) as GeoJSONSource | undefined)?.setData(build());
+	}
+
+	/**
+	 * WHICH CELL IS SELECTED, told to the map rather than baked into its data.
+	 *
+	 * This used to be a property on every one of the 562 features, which meant picking a
+	 * cell rebuilt and re-tiled the entire grid to change one boolean on one hexagon.
+	 * Feature state is the same mechanism the hover highlight already uses, and it costs
+	 * a paint rather than a rebuild.
+	 *
+	 * The index rather than the H3 id, because MapLibre's feature ids have to be numeric
+	 * and `catchmentFC` numbers the features by their position in `app.base`.
+	 */
+	let selectedIndex: number | null = null;
+	function applySelection(m: MapLibreMap) {
+		const at = app.selectedId === null ? -1 : app.base.findIndex((h) => h.id === app.selectedId);
+		const to = at === -1 ? null : at;
+		if (selectedIndex === to) return;
+		if (selectedIndex !== null)
+			m.setFeatureState({ source: 'catchments', id: selectedIndex }, { selected: false });
+		selectedIndex = to;
+		if (to !== null) m.setFeatureState({ source: 'catchments', id: to }, { selected: true });
+	}
 
 	/**
 	 * THE RAISED VIEW, and the two rules it is held to.
@@ -241,6 +317,27 @@
 	/** How far a hovered solid is picked up off the ground, in metres. */
 	const RELIEF_LIFT = 220;
 
+	/** The selected cell, as the map is told it rather than as the data says it. See `applySelection`. */
+	const SELECTED: ExpressionSpecification = ['boolean', ['feature-state', 'selected'], false];
+
+	/**
+	 * The grid's edge colour.
+	 *
+	 * Written once and used twice, because it is set when the layer is added AND on
+	 * every refresh — the theme can change under it — and two copies of a four-way case
+	 * are two chances for them to stop agreeing.
+	 */
+	const lineColour = (): ExpressionSpecification => [
+		'case',
+		SELECTED,
+		cssVar('--label-1'),
+		['get', 'saturated'],
+		cssVar('--critical'),
+		['get', 'scored'],
+		cssVar('--separator-strong'),
+		cssVar('--cell-edge')
+	];
+
 	/** The cells the FLAT fill still paints: everything not covered by a solid. */
 	const fillFilter = (): ExpressionSpecification =>
 		app.view === 'relief'
@@ -248,6 +345,12 @@
 			: ['!', ['get', 'uncovered']];
 
 	function addLayers(m: MapLibreMap) {
+		freshVars();
+		// The style's sources are being built from scratch here, so nothing the last
+		// style was given still stands, and the feature state that carried the selection
+		// went with the old style.
+		sourceDeps.clear();
+		selectedIndex = null;
 		if (!m.hasImage('hatch')) m.addImage('hatch', hatchImage(cssVar));
 		// Both of these bake a theme colour in, so a theme change has to redraw them.
 		// `addLayers` re-runs on `setStyle`, which clears the style's images, and the
@@ -335,19 +438,10 @@
 				// With the heatmap off the edge is the only thing drawing the grid, so it
 				// gets a colour of its own rather than the panel hairline — which is tuned
 				// to separate list rows, not to hold a shape over a map.
-				'line-color': [
-					'case',
-					['get', 'selected'],
-					cssVar('--label-1'),
-					['get', 'saturated'],
-					cssVar('--critical'),
-					['get', 'scored'],
-					cssVar('--separator-strong'),
-					cssVar('--cell-edge')
-				],
+				'line-color': lineColour(),
 				'line-width': [
 					'case',
-					['get', 'selected'],
+					SELECTED,
 					2.4,
 					['get', 'saturated'],
 					1.8,
@@ -748,11 +842,14 @@
 		m.on('click', 'catchment-nodata', pickCell);
 	}
 
+	/** Where the map sits on the page, remembered between pointer moves. See `setMoving`. */
+	let containerBox: DOMRect | null = null;
+
 	function positionTip(x: number, y: number) {
 		if (!tipEl) return;
 		const w = tipEl.offsetWidth;
-		const box = container.getBoundingClientRect();
-		const left = Math.min(box.width - w - 12, x + 16);
+		containerBox ??= container.getBoundingClientRect();
+		const left = Math.min(containerBox.width - w - 12, x + 16);
 		tipEl.style.transform = `translate3d(${Math.max(12, left)}px, ${y - 14}px, 0)`;
 	}
 
@@ -837,7 +934,7 @@
 				const marker = new gl.Marker({ element: el, anchor: 'center' })
 					.setLngLat([h.lon, h.lat])
 					.addTo(map);
-				entry = { marker, el, rank: 0 };
+				entry = { marker, el, rank: 0, html: '' };
 				markers.set(h.id, entry);
 			}
 			entry.rank = order.indexOf(h.id);
@@ -852,7 +949,7 @@
 						? `, ${c.app.mapRivalsAria(app.selectedPois.length, app.weights.radius)}`
 						: '')
 			);
-			entry.el.innerHTML =
+			const html =
 				`<span class="stn-dot"></span>` +
 				(rank > -1 ? `<span class="stn-rank">${rank + 1}</span>` : '') +
 				(app.layers.label || selected ? `<span class="stn-label">${shortName(name)}</span>` : '') +
@@ -860,6 +957,14 @@
 				// on each is a wall of chips, and the question they answer is one the
 				// reader asks about the cell they have chosen.
 				(selected ? badges(h) : '');
+			// Written only when it actually changed. Assigning `innerHTML` throws the old
+			// nodes away and parses new ones whatever they say, and most passes through
+			// here say exactly what the last one did — a marker's name and rank survive
+			// nearly every reason this refresh runs.
+			if (html !== entry.html) {
+				entry.html = html;
+				entry.el.innerHTML = html;
+			}
 		}
 
 		layoutLabels();
@@ -958,7 +1063,6 @@
 	function layoutLabels() {
 		if (!map) return;
 		const entries = [...markers.values()].sort((a, b) => a.rank - b.rank);
-		const placed: DOMRect[] = [];
 
 		const labels: HTMLElement[] = [];
 		for (const e of entries) {
@@ -972,9 +1076,24 @@
 			tag.style.visibility = '';
 			labels.push(tag);
 		}
+		if (!labels.length) return;
 
-		for (const label of labels) {
-			const box = label.getBoundingClientRect();
+		/**
+		 * MEASURE EVERYTHING FIRST, THEN DECIDE. This ran as one loop that read a box
+		 * and then wrote a `visibility` before reading the next, and a write between two
+		 * reads makes the browser lay the document out again to answer the second one.
+		 * On a pan that is one forced layout per label on every frame — fourteen of them
+		 * measured here, and up to twenty-two with the price tags on screen.
+		 *
+		 * Splitting the two passes costs nothing, because `visibility` is the one way of
+		 * hiding a thing that does NOT move anything else: a hidden label keeps its box,
+		 * and these are absolutely positioned besides, so no box read below could have
+		 * been changed by a write above it.
+		 */
+		const boxes = labels.map((label) => label.getBoundingClientRect());
+		const placed: DOMRect[] = [];
+		for (const [i, label] of labels.entries()) {
+			const box = boxes[i];
 			const clash = placed.some(
 				(q) =>
 					box.left < q.right + 4 &&
@@ -995,6 +1114,41 @@
 			layoutLabels();
 		});
 	}
+
+	/**
+	 * The map is in motion, or it has settled.
+	 *
+	 * One attribute on the document element, read by the material tokens in `app.css`,
+	 * which is where what it costs and why it is dropped is written down. Here because
+	 * only the map knows when it is moving, and it is set on the document rather than
+	 * on this component's own tree because the panels it pays for are the page's, not
+	 * the map's.
+	 *
+	 * The cached container box goes with it. `positionTip` needs the map's position on
+	 * the page on every pointer move, and reading it there forced the browser to lay the
+	 * whole document out again each time. It only changes when the window does, so it is
+	 * read once and dropped whenever the map moves or the window resizes.
+	 */
+	let settleTimer = 0;
+	function setMoving(on: boolean) {
+		containerBox = null;
+		clearTimeout(settleTimer);
+		if (on) {
+			document.documentElement.setAttribute('data-map-moving', '');
+			return;
+		}
+		/* Coming back is held for a moment rather than taken on the first `moveend`.
+		   A gesture is not one movement: an inertial pan settles and is flicked again, a
+		   wheel zoom arrives as a burst, and a fly-to lands right before the next one
+		   starts. Restored on each of those, the panels would blink between frosted and
+		   flat several times in a second, which is worse to look at than either state and
+		   costs the expensive frame every time. */
+		settleTimer = window.setTimeout(stopMoving, 140);
+	}
+	const stopMoving = () => {
+		clearTimeout(settleTimer);
+		document.documentElement.removeAttribute('data-map-moving');
+	};
 
 	const shortName = (n: string) =>
 		n.replace(
@@ -1108,14 +1262,21 @@
 				addLayers(m);
 				ready = true;
 			});
+			m.on('resize', () => (containerBox = null));
+			// `zoom` is not registered as well: every camera change fires `move`, zooming
+			// included, so a second listener only ran the same guarded callback twice.
 			m.on('move', scheduleLabels);
-			m.on('zoom', scheduleLabels);
+			m.on('movestart', () => setMoving(true));
+			m.on('moveend', () => setMoving(false));
 			map = m;
 			if (import.meta.env.DEV) (window as unknown as { __map: MapLibreMap }).__map = m;
 		})();
 		return () => {
 			disposed = true;
 			if (labelFrame) cancelAnimationFrame(labelFrame);
+			// Left set, the flat material would outlive the map that asked for it and
+			// every panel on the next screen would open without its blur.
+			stopMoving();
 			map?.remove();
 			markers.clear();
 			unitTags.clear();
@@ -1174,16 +1335,37 @@
 		void app.view;
 		const m = map;
 		if (!m || !ready) return;
+		freshVars();
 		/* Which of the two draws each cell. Set on every pass rather than only on a mode
 		   change: `scored` moves with the category and the heatmap switch, so the split
 		   between the flat fill and the solids has to be redrawn whenever the data does. */
 		m.setFilter('catchment-fill', fillFilter());
 		m.setLayoutProperty('catchment-extrusion', 'visibility', relief ? 'visible' : 'none');
-		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC(ctx()));
+		applySelection(m);
+		// The two big ones are rebuilt only when what they are built FROM moved. See
+		// `pushSource` for why, and for why the small ones are not worth guarding.
+		pushSource(
+			m,
+			'catchments',
+			[app.base, app.rowById, app.heatById, heat, app.pivot, app.resolvedTheme],
+			() => catchmentFC(ctx())
+		);
+		pushSource(
+			m,
+			'units',
+			[
+				app.pivot,
+				app.unitFiltered,
+				app.unitRanks,
+				app.selectedUnitId,
+				app.highlight,
+				app.resolvedTheme
+			],
+			() => unitsFC(ctx())
+		);
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC(ctx()));
 		(m.getSource('property') as GeoJSONSource | undefined)?.setData(propertyFC(ctx()));
 		(m.getSource('field') as GeoJSONSource | undefined)?.setData(fieldFC(ctx()));
-		(m.getSource('units') as GeoJSONSource | undefined)?.setData(unitsFC(ctx()));
 		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC(ctx()));
 		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC(ctx()));
 		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC(ctx()));
@@ -1191,16 +1373,7 @@
 		for (const mode of ROUTE_MODES) {
 			m.setLayoutProperty(`route-${mode.key}`, 'visibility', app.layers.routes ? 'visible' : 'none');
 		}
-		m.setPaintProperty('catchment-line', 'line-color', [
-			'case',
-			['get', 'selected'],
-			cssVar('--label-1'),
-			['get', 'saturated'],
-			cssVar('--critical'),
-			['get', 'scored'],
-			cssVar('--separator-strong'),
-			cssVar('--cell-edge')
-		]);
+		m.setPaintProperty('catchment-line', 'line-color', lineColour());
 		// The tags before the layout pass inside `syncMarkers`, so the two sets of labels
 		// are laid out together against one set of occupied rectangles.
 		syncUnitTags();

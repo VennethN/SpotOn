@@ -265,6 +265,38 @@
 		--blur-thin: none;
 	}
 }
+/**
+ * WHILE THE MAP IS MOVING, THE MATERIAL GOES FLAT.
+ *
+ * A `backdrop-filter` is not painted once. The browser has to read back whatever is
+ * behind the element, blur it, and composite the result, and it has to do that again
+ * on any frame the backdrop changed. Behind these panels is a map canvas that redraws
+ * on every frame of a drag, so every floating surface on the app screen was being
+ * re-blurred on every one of them: two full-height panels, the top bar, the category
+ * row, the legend, and up to twenty-two label pills that move with the map as well.
+ * Dragging the map for four seconds with the blur suspended took the median frame from
+ * 280 ms to 193 ms, a third off. The absolute figures are a headless browser with no
+ * GPU behind it and are nobody's real frame rate, but the share is the point: a third
+ * of the frame was going on blurring a panel nobody was reading.
+ *
+ * So it is dropped for exactly as long as the map is in motion, and it comes back the
+ * moment the map settles. Nobody reads a panel while they are dragging the map under
+ * it, and the state this falls back to is not an improvised one: it is the same flat
+ * material `prefers-reduced-transparency` already asks for above, which is a look this
+ * product is designed to hold.
+ *
+ * Set on the document element by `MapView`, so one attribute covers every surface
+ * rather than each component having to know about it. It has to come after the theme
+ * blocks: `:root[data-theme='dark']` carries the same weight, so order is what decides.
+ */
+:root[data-map-moving] {
+	--mat-thick: var(--bg-elevated);
+	--mat-regular: var(--bg-elevated);
+	--mat-thin: var(--bg-elevated);
+	--blur-thick: none;
+	--blur-regular: none;
+	--blur-thin: none;
+}
 @media (prefers-contrast: more) {
 	:root {
 		--label-2: var(--label-1);

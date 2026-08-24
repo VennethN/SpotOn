@@ -83,7 +83,6 @@ export function catchmentFC(ctx: MapCtx): FeatureCollection {
 	const heat = on ? ctx.app.heatById : null;
 	const colIdle = ctx.cssVar('--cell-idle');
 	const ramp = Array.from({ length: 7 }, (_, i) => ctx.cssVar(`--ramp-${i}`));
-	const selectedId = ctx.app.selectedId;
 
 	return {
 		type: 'FeatureCollection',
@@ -124,8 +123,12 @@ export function catchmentFC(ctx: MapCtx): FeatureCollection {
 						   they cannot come to disagree, and the raised view says nothing the
 						   flat one was not already saying. */
 						height: reliefHeight(v),
-						saturated: row?.typology === 'saturated',
-						selected: h.id === selectedId
+						saturated: row?.typology === 'saturated'
+						/* WHICH CELL IS SELECTED IS NOT HERE, and that is the point. It was,
+						   and a property is part of the data, so changing it meant handing
+						   MapLibre all 562 hexagons again and having them re-tiled to move
+						   one outline. The map is told instead, through the same feature
+						   state the hover highlight uses. See `applySelection` in `MapView`. */
 					}
 				};
 			})
