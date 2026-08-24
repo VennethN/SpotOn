@@ -4,6 +4,7 @@ import { runQuery } from '$lib/domain/nlq';
 import { scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
 import { DICT, LANGS, type Copy, type Lang } from '$lib/i18n';
+import { projectGrid, sampleEven } from '$lib/server/gridmap';
 import { grid, loadHexes } from '$lib/server/source';
 import { rampIndex } from '$lib/utils/format';
 import type { CategoryKey, Hex, StructuredQuery } from '$lib/types';
@@ -140,7 +141,7 @@ export const load: PageServerLoad = () => {
 	   the ranking so the sample keeps the shape of the whole grid rather than showing
 	   its best 91 cells. */
 	const scored = scoreAll(hexes, DEFAULT_CATEGORY, W);
-	const field = sampleScores(
+	const field = sampleEven(
 		scored.map((r) => r.score),
 		91
 	);
@@ -249,71 +250,20 @@ export const load: PageServerLoad = () => {
  * cells quiet, a long tail of dense ones — rather than a ranking.
  */
 /**
- * The coverage picture: every cell WHERE IT ACTUALLY IS.
+ * The coverage picture: every cell where it actually is, marked surveyed or not.
  *
- * What stood here was one hexagon per cell laid out in grid order, 31 to a row. Grid
- * order is by transit access, so the picture had the shape of a rectangle and the holes
- * in it fell wherever the sort happened to put them. It looked exactly like a map of
- * Jakarta and was a map of nothing, which is the one thing this section is about not
- * doing.
- *
- * These are the real centres, in a plain equirectangular projection with the longitudes
- * scaled by the cosine of the middle latitude so the city is not stretched sideways.
- * The radius is derived from the closest pair of cells on the grid rather than typed in,
- * so the hexagons tile at whatever resolution the grid is rebuilt at.
+ * The projection is shared with the account page through `server/gridmap`, so the two
+ * cannot come to disagree about where a cell sits. What is local to this page is the
+ * VALUE attached to each point, which here is a single flag: has this cell's city been
+ * read from the catalogue at all.
  */
 function coverageMap(hexes: Hex[]) {
-	const lats = hexes.map((h) => h.lat);
-	const lons = hexes.map((h) => h.lon);
-	const latMid = (Math.min(...lats) + Math.max(...lats)) / 2;
-	const kx = Math.cos((latMid * Math.PI) / 180);
-	const x0 = Math.min(...lons) * kx;
-	const y0 = Math.max(...lats);
-	const raw = hexes.map((h) => ({
-		x: h.lon * kx - x0,
-		y: y0 - h.lat,
-		surveyed: h.dens.mapid !== null
-	}));
-
-	// Scale so the field is 1000 units wide, whatever the city's extent.
-	const w = Math.max(...raw.map((p) => p.x)) || 1;
-	const k = 1000 / w;
-	const pts = raw.map((p) => ({
-		x: Math.round(p.x * k * 10) / 10,
-		y: Math.round(p.y * k * 10) / 10,
-		s: p.surveyed
-	}));
-
-	// The nearest neighbour of a handful of cells, which is one cell pitch. Sampled
-	// rather than computed for all 562, because this is a drawing size and not a figure
-	// anybody reads.
-	let pitch = Infinity;
-	for (let i = 0; i < pts.length; i += 17) {
-		for (const q of pts) {
-			if (q === pts[i]) continue;
-			const d = Math.hypot(q.x - pts[i].x, q.y - pts[i].y);
-			if (d > 0.01 && d < pitch) pitch = d;
-		}
-	}
-
+	const plan = projectGrid(hexes);
 	return {
-		pts,
-		height: Math.round(Math.max(...pts.map((p) => p.y)) * 10) / 10,
-		/** Centre to vertex. A pointy-top hexagon's width is `sqrt(3) x` this. */
-		radius: Math.round((pitch / Math.sqrt(3)) * 100) / 100
+		pts: plan.pts.map((p, i) => ({ ...p, s: hexes[i].dens.mapid !== null })),
+		height: plan.height,
+		radius: plan.radius
 	};
-}
-
-/**
- * `n` values taken evenly across a ranking, best first.
- *
- * Evenly rather than the top `n`: the point of the field is the SPREAD of the grid, and
- * a sample of its best cells would show a plateau and call it Jakarta.
- */
-function sampleScores(scores: Array<number | null>, n: number): Array<number | null> {
-	const sorted = [...scores].sort((a, b) => (b ?? -1) - (a ?? -1));
-	if (sorted.length <= n) return sorted;
-	return Array.from({ length: n }, (_, i) => sorted[Math.round((i * (sorted.length - 1)) / (n - 1))]);
 }
 
 function densitySpread(counts: number[]): Array<{ upTo: number; cells: number }> {
