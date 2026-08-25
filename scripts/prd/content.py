@@ -152,10 +152,10 @@ def s1(doc, f):
     doc.subheading("Masalah utama")
     doc.para(
         "Kawasan sekitar stasiun adalah arena komersial paling padat di Jakarta, tetapi keputusan "
-        "membuka usaha di sana hampir selalu diambil dengan menebak. Tiga sinyal yang benar-benar "
-        "menentukan gagal atau berhasilnya sebuah lokasi tidak pernah dibaca bersama pada "
-        "resolusi jarak jalan kaki: permintaan, kompetisi, dan ketersediaan ruang usaha yang "
-        "benar-benar bisa ditempati. Akibatnya lokasi salah, usaha tutup dini, dan modal habis."
+        "membuka usaha di sana hampir selalu diambil dengan menebak. Tiga sinyal yang menentukan "
+        "gagal atau berhasilnya sebuah lokasi tidak pernah dibaca bersama pada resolusi jarak "
+        "jalan kaki: permintaan, kompetisi, dan ketersediaan ruang yang benar-benar bisa "
+        "ditempati. Akibatnya lokasi salah, usaha tutup dini, dan modal habis."
     )
     doc.subheading("Dataset yang digunakan")
     doc.para(
@@ -171,10 +171,12 @@ def s1(doc, f):
     )
     doc.subheading("Rencana Survey Activities")
     doc.para(
-        f"Grid analisis berisi {n(f['cells'])} petak. Saat ini {n(f['field_cells'])} petak sudah "
-        f"memiliki catatan lapangan dan {n(f['field_gap'])} petak belum pernah didatangi. Survei "
-        f"diarahkan ke petak yang belum terdata itu, bukan ke petak yang sudah tebal datanya, dan "
-        f"daftar prioritasnya dihasilkan oleh produk itu sendiri."
+        f"Survei dipusatkan pada **satu titik**, yaitu **{f['site_station']}**, dan menjawab satu "
+        f"pertanyaan yang tidak bisa dijawab dataset mana pun: apakah masih ada pedagang kaki "
+        f"lima di sekitar gerbang transit, dan seberapa besar persaingan yang mereka timbulkan. "
+        f"Tidak ada lapisan dalam produk ini yang bisa melihat gerobak, sehingga persaingan itu "
+        f"**ad hoc**: datang dan pergi mengikuti jam, dan paling keras terasa oleh usaha kecil "
+        f"yang menanggung sewa sementara pesaingnya tidak."
     )
     doc.subheading("Analisis spasial")
     doc.para(
@@ -195,9 +197,9 @@ def s1(doc, f):
     doc.subheading("Hasil utama")
     doc.para(
         f"Peta peringkat lokasi per kategori usaha untuk {f['categories']} jenis usaha, kartu "
-        f"peluang per petak lengkap dengan jumlah titik data di belakangnya, alasan berbahasa "
-        f"manusia yang setiap klaimnya menunjuk ke angka di panel, dan peta kejujuran data: petak "
-        f"tanpa data ditandai **belum terdata** dan tidak pernah diinterpolasi."
+        f"peluang per petak lengkap dengan jumlah titik data di belakangnya, alasan yang setiap "
+        f"klaimnya menunjuk ke angka di panel, dan peta kejujuran data: petak tanpa data ditandai "
+        f"**belum terdata** dan tidak pernah diinterpolasi."
     )
 
 
@@ -259,10 +261,10 @@ def s2(doc, f):
             "menilai setebal apa dasarnya.",
             f"**Keunggulan solusi.** Tiga sinyal keputusan dibaca bersama dalam satu petak. "
             f"Ketersediaan ruang diperlakukan sebagai **gerbang**, bukan bonus, karena peluang "
-            f"yang tidak bisa ditempati bukan peluang. Survey Activities diarahkan ke "
-            f"{n(f['field_gap'])} petak yang belum pernah didatangi, bukan ke petak yang sudah "
-            f"ramai datanya. Dan AI mengerjakan pekerjaan yang nyata, yaitu memahami pertanyaan, "
-            f"bukan mengarang angka.",
+            f"yang tidak bisa ditempati bukan peluang. Survey Activities tidak dipakai untuk "
+            f"menebalkan data yang sudah ada, melainkan untuk mengukur satu lapisan pesaing yang "
+            f"tidak terlihat oleh dataset mana pun, yaitu PKL di gerbang transit. Dan AI "
+            f"mengerjakan pekerjaan yang nyata, yaitu memahami pertanyaan, bukan mengarang angka.",
         ]
     )
 
@@ -295,8 +297,9 @@ def s3(doc, f):
             "langkah, batang peluang lintas kategori, dan kartu bukti lapangan per petak.",
             "**Empat data misi MAPID APPS** (Struk Go, Menu Go, Properti Go, Community Maps) "
             "sebagai bukti lapangan, ditambah katalog Data Premium MAPID sebagai sumber pesaing.",
-            "**Rencana dan pelaksanaan Survey Activities** yang diarahkan oleh daftar petak "
-            "belum terdata yang dihasilkan produk sendiri.",
+            f"**Survey Activities di satu titik**, yaitu {f['site_station']}, untuk mendata PKL "
+            f"sebagai sumber persaingan ad hoc, beserta pencatatan hasilnya sebagai bukti dan "
+            f"sebagai catatan keterbatasan pada antarmuka.",
             "**Antarmuka dua bahasa** (Bahasa Indonesia dan Inggris), mode terang dan gelap, "
             "responsif di desktop dan ponsel, serta menghormati prefers-reduced-motion.",
             "**Deployment publik di Vercel** lewat pipeline CI yang menahan rilis bila typecheck "
@@ -316,6 +319,9 @@ def s3(doc, f):
             "**Klasifikasi visual foto lapangan** (tingkat formalitas, kualitas etalase). "
             "Dirancang tetapi tidak dibangun, karena membutuhkan dataset misi yang tebal terlebih "
             "dahulu.",
+            f"**Memberlakukan hasil survei PKL ke seluruh grid.** Survei berjalan di satu titik. "
+            f"Hasilnya menjadi catatan yang menyebut tempat dan jamnya, bukan koefisien yang "
+            f"mengalikan {n(f['cells'])} petak.",
             "**Kota di luar Jakarta dan sekitarnya.** Kerangkanya tidak terikat kota, tetapi "
             "cakupan yang dijanjikan pada kompetisi ini hanya Jabodetabek dalam jangkauan grid.",
             "**Aplikasi mobile native.** Yang dibangun adalah WebGIS yang responsif di ponsel.",
@@ -535,56 +541,97 @@ def s5(doc, f):
 def s6(doc, f):
     doc.heading("6. Rencana Survey Activities")
     doc.para(
-        "Survei lapangan memakai MAPID APPS dan diarahkan untuk melengkapi serta memvalidasi "
-        "dataset dasar yang dipakai produk."
+        f"Survei lapangan memakai MAPID APPS dan dipusatkan pada **satu titik**, yaitu "
+        f"**{f['site_station']}**. Satu titik dipilih dengan sengaja. Yang ingin dijawab survei "
+        f"ini bukan seberapa luas datanya, melainkan satu pertanyaan yang tidak bisa dijawab "
+        f"dataset mana pun: apakah di sekitar gerbang transit masih ada pedagang kaki lima, dan "
+        f"seberapa besar persaingan yang mereka timbulkan."
+    )
+
+    doc.subsub("Kenapa PKL, dan kenapa ini penting")
+    doc.para(
+        f"Skor peluang produk ini menghitung pesaing dari dua survei, dan tidak satu pun bisa "
+        f"melihat gerobak. OpenStreetMap tidak memetakan PKL, dan untuk {f['no_osm_tag']} dari "
+        f"{f['categories']} kategori usaha ia bahkan tidak punya tag yang bisa dipakai. Katalog "
+        f"Data Premium MAPID mendaftar tempat usaha yang terdaftar, bukan pedagang yang "
+        f"menggelar lapak sore hari lalu pergi. Akibatnya sebuah petak bisa terbaca lapang, "
+        f"padahal di trotoarnya berdiri sepuluh gerobak yang menjual persis apa yang akan "
+        f"dijual pembacanya."
+    )
+    doc.para(
+        "Persaingan semacam ini **ad hoc**: tidak terduga, tidak terdaftar, dan datang serta "
+        "pergi mengikuti jam. Itulah pesaing paling keras bagi usaha kecil di gerbang transit, "
+        "karena keduanya memperebutkan pembeli yang sama pada jam yang sama sementara PKL tidak "
+        "menanggung sewa. Survei ini mengukurnya di satu tempat, supaya produk bisa menyatakan "
+        "keterbatasannya dengan angka dan bukan dugaan."
     )
 
     doc.subheading("Lokasi")
     doc.bullets(
         [
-            f"**Wilayah pelaksanaan.** Petak-petak di dalam grid analisis yang belum memiliki "
-            f"satu pun catatan lapangan, yaitu {n(f['field_gap'])} dari {n(f['cells'])} petak. "
-            f"Daftar prioritasnya dihasilkan produk sendiri dan berubah setiap kali data baru "
-            f"masuk.",
-            f"**Batas cakupan.** Setiap petak adalah heksagon H3 resolusi {f['resolution']} "
-            f"dengan sisi kurang lebih 531 m, seluruhnya berada dalam radius jalan kaki "
-            f"{n(f['radius'])} m dari sedikitnya satu simpul transit. Prioritas pertama "
-            f"diberikan kepada petak yang skornya tinggi tetapi datanya tipis, karena di situlah "
-            f"survei paling banyak mengubah kesimpulan.",
+            f"**Wilayah pelaksanaan.** {f['site_station']}, {f['site_city']}. Titik itu jatuh di "
+            f"dalam satu petak H3 resolusi {f['resolution']} yang di dalam produk tampil dengan "
+            f"nama **{f['site_name']}**, dan survei mencakup radius jalan kaki {n(f['radius'])} m "
+            f"dari petak tersebut.",
+            f"**Kenapa titik ini.** Petak itu menangkap {f['site_nodes']} simpul transit dari "
+            f"keempat moda sekaligus, yaitu MRT {f['site_mrt']}, KRL {f['site_krl']}, LRT "
+            f"{f['site_lrt']}, dan TransJakarta {f['site_brt']}, dengan indeks akses "
+            f"{str(f['site_access']).replace('.', ',')} dari maksimum "
+            f"{str(f['access_ceiling']).replace('.', ',')}. Inilah simpul antarmoda terpadat di "
+            f"Jakarta, jadi bila persaingan ad hoc ada di suatu tempat, ia ada di sini.",
+            f"**Batas cakupan.** Satu petak, bukan koridor. Semua titik survei harus jatuh di "
+            f"dalam batas heksagon itu, dan koordinatnya diperiksa terhadap batas tersebut "
+            f"sebelum dipakai.",
         ]
     )
 
     doc.subheading("Objek")
+    doc.para(
+        "Objek utamanya adalah **pedagang kaki lima**: gerobak, tenda, lapak, dan pedagang "
+        "berkeliling. Yang dikumpulkan dari setiap objek:",
+        after=4.0,
+    )
     doc.bullets(
         [
-            "**Tempat makan dan minum** untuk misi Menu Go: papan menu, harga rata-rata per "
-            "porsi, kondisi pembeli saat kunjungan, dan mobilitas berkeliling atau menetap. "
-            "Papan menu dapat difoto dari trotoar tanpa transaksi dan tanpa izin khusus, "
-            "sehingga inilah data yang paling murah untuk diperbanyak.",
-            "**Ruang komersial yang ditawarkan** untuk misi Properti Go: kategori properti, "
-            "jenis penawaran sewa atau jual, foto tampak depan, dan foto papan promosi. "
-            "Penawaran sewa adalah prioritas, karena itulah kolom yang tidak dimiliki katalog "
-            "premium untuk Jakarta.",
-            "**Transaksi harian** untuk misi Struk Go: kategori tempat, tanggal dan waktu "
-            "transaksi, serta metode pembayaran. Waktu transaksi yang mengisi kurva aktivitas "
-            "per jam.",
-            "**Kondisi kawasan** untuk Community Maps: catatan dan foto akses pejalan kaki dari "
-            "simpul transit ke petak, yang menjelaskan kenapa sebuah petak ramai atau sepi.",
+            "**Jenis lapak**, memakai kolom Menu Go yang sudah ada: Kaki Lima/Gerobak, "
+            "Warung/Tenda (Menetap), atau kategori lain bila ternyata bukan PKL.",
+            "**Mobilitas**, berkeliling atau menetap di satu titik. Inilah kolom yang membedakan "
+            "pesaing yang bisa dihindari dari pesaing yang berpindah mengikuti pembeli.",
+            "**Menu utama dan harga rata-rata per porsi**, supaya lapisan PKL bisa dibandingkan "
+            "langsung dengan plafon harga tempat usaha terdaftar di petak yang sama.",
+            "**Kondisi pembeli** saat kunjungan: sepi, sedang, atau ramai.",
+            "**Jam kunjungan**, dicatat pada setiap titik. PKL adalah fungsi dari jam, jadi "
+            "waktu pencatatan adalah data, bukan metadata.",
+            "**Posisi terhadap gerbang stasiun**: pintu keluar mana, dan di sisi mana trotoarnya.",
+            "**Foto lapak** dari trotoar, tanpa transaksi dan tanpa izin khusus.",
         ]
+    )
+    doc.para(
+        "Kunjungan diulang pada beberapa rentang jam yang berbeda di titik yang sama, karena satu "
+        "kunjungan hanya mencatat satu jam dan lapisan yang sedang diukur justru berubah menurut "
+        "jam.",
+        after=4.0,
     )
 
     doc.subheading("Output")
     doc.para("Atribut yang dihasilkan tiap titik survei:")
     doc.bullets(
         [
-            "Nama objek atau tempat, kategori objek, dan alamat.",
+            "Nama lapak atau tempat, dan kategori objek.",
             "Tanggal dan waktu survei.",
-            "Latitude dan longitude sesuai posisi objek.",
-            "Foto dokumentasi, serta foto menu atau papan promosi sesuai jenis misinya.",
+            "Latitude dan longitude sesuai posisi lapak.",
+            "Foto dokumentasi.",
             "Kondisi objek dan catatan survei.",
-            "Atribut tambahan sesuai formulir misi: harga rata-rata per porsi, kondisi pembeli, "
-            "mobilitas, jenis penawaran, dan metode pembayaran.",
+            "Menu utama, harga rata-rata per porsi, kondisi pembeli, dan mobilitas.",
+            "Alamat atau titik acuan terdekat, misalnya pintu keluar stasiun.",
         ]
+    )
+    doc.para(
+        f"Hasil pokoknya satu angka: **jumlah PKL per tempat usaha terdaftar** di dalam petak, "
+        f"pada tiap rentang jam. Penyebutnya sudah diketahui, yaitu {n(f['site_osm'])} usaha "
+        f"menurut OpenStreetMap dan {n(f['site_mapid'])} menurut katalog MAPID. Pembilangnya yang "
+        f"belum pernah dihitung siapa pun.",
+        after=4.0,
     )
 
     doc.subheading("Ketentuan Survey")
@@ -593,7 +640,9 @@ def s6(doc, f):
             "Data harus sesuai kondisi lapangan pada saat kunjungan.",
             "Koordinat harus sesuai lokasi objek, diambil di tempat.",
             "Foto harus jelas dan tidak buram.",
-            "Foto tidak boleh menampilkan wajah seseorang secara jelas atau plat nomor kendaraan.",
+            "Foto tidak boleh menampilkan wajah seseorang secara jelas atau plat nomor kendaraan. "
+            "Ketentuan ini berlaku ketat di sini, karena objeknya adalah orang yang sedang "
+            "berjualan dan bukan bangunan.",
             "Data tidak boleh berasal dari sumber manipulasi seperti Google Street View atau "
             "internet.",
             "Data hasil survei divalidasi sebelum dipakai, dengan memeriksa koordinat terhadap "
@@ -604,23 +653,28 @@ def s6(doc, f):
     doc.subheading("Pemanfaatan Hasil Survey")
     doc.bullets(
         [
-            "**Melengkapi dataset dasar** pada petak yang belum pernah didatangi.",
-            "**Memvalidasi kondisi lapangan** terhadap hitungan pesaing dari katalog, sehingga "
-            "selisih antara dua sumber bisa diperiksa dan bukan sekadar dipilih salah satunya.",
+            f"**Mengukur lapisan yang tidak terlihat.** Rasio PKL terhadap tempat usaha "
+            f"terdaftar di satu petak, dicatat per rentang jam.",
+            f"**Memvalidasi kondisi lapangan** terhadap apa yang dilihat suku kompetisi. Petak "
+            f"ini sudah membawa {f['site_menu']} catatan Menu Go, dan {f['carts_here']} dari "
+            f"{f['carts_all']} catatan Kaki Lima/Gerobak di seluruh grid justru jatuh di sini. "
+            f"Lapisannya jelas ada. Yang belum ada adalah jumlahnya.",
             "**Menambah titik data pada peta** sebagai bukti yang bisa dibuka pengguna, lengkap "
-            "dengan foto dan catatannya.",
-            "**Menjadi input analisis spasial** setelah kerapatannya cukup, dengan ambang "
-            "minimum bacaan per petak sehingga satu kunjungan tidak pernah menjadi kesimpulan.",
-            "**Menjadi dasar insight dan rekomendasi AI** melalui angka yang dihitung mesin skor, "
-            "bukan melalui narasi yang ditambahkan model.",
+            "dengan foto, jam, dan catatannya, dengan label tercatat seperti bukti lapangan "
+            "lainnya.",
+            "**Menjadi peringatan yang terukur pada antarmuka.** Bila rasionya besar, kategori "
+            "makanan dan minuman di petak berakses tinggi diberi catatan bahwa skornya menghitung "
+            "pesaing terdaftar saja, lengkap dengan angka hasil survei beserta jam dan tempatnya.",
+            "**Menjadi dasar rencana survei berikutnya.** Bila lapisan ini terbukti besar di satu "
+            "gerbang transit, titik berikutnya dipilih dari daftar petak belum terdata yang "
+            "dihasilkan produk.",
         ]
     )
     doc.callout(
-        f"Sampai ambang itu tercapai, hasil survei tetap berada di luar skor. Saat ini "
-        f"{n(f['field_records'])} catatan lapangan sudah terbaca, {n(f['field_placed'])} di "
-        f"antaranya jatuh di dalam grid dan menyentuh {n(f['field_cells'])} petak. Menjadikannya "
-        f"bagian dari skor sekarang berarti menyamakan tidak ada yang pernah ke sana dengan tidak "
-        f"ada apa-apa di sana, dan itu justru kesalahan yang produk ini dibangun untuk menolaknya."
+        f"Satu titik tidak bisa mengoreksi {n(f['cells'])} petak, dan tidak akan dipakai begitu. "
+        f"Hasilnya masuk sebagai catatan yang menyebut tempat dan jamnya, bukan sebagai koefisien "
+        f"yang diam-diam mengalikan seluruh peta. Angka yang berlaku di satu tempat lalu dipakai "
+        f"di lima ratus tempat lain adalah interpolasi, hanya dengan nama yang lebih meyakinkan."
     )
 
 
@@ -739,7 +793,8 @@ def s7(doc, f):
             "dan bukan hanya kategorinya.",
             f"**Prioritas tindakan.** Daftar {n(f['field_gap'])} petak yang belum pernah "
             f"didatangi, terurut menurut seberapa besar survei di sana akan mengubah kesimpulan. "
-            f"Daftar itu sekaligus menjadi antrean Survey Activities berikutnya.",
+            f"Daftar itu adalah antrean survei milik produk, dan titik survei berikutnya dipilih "
+            f"dari sana.",
         ]
     )
 
@@ -889,8 +944,9 @@ def s10(doc, f):
             "di sekitarnya, simpul transit yang dijangkau, listing yang tersedia, kurva aktivitas "
             "24 jam, dan bukti lapangan bila ada. Bobot bisa digeser dan seluruh peringkat "
             "menyesuaikan seketika.",
-            "**Tindak lanjut.** Petak yang belum terdata masuk ke daftar prioritas survei, dan "
-            "daftar itu menjadi rencana Survey Activities berikutnya.",
+            "**Tindak lanjut.** Petak yang belum terdata masuk ke daftar prioritas survei milik "
+            "produk. Petak yang sudah disurvei membawa bukti lapangannya sendiri, termasuk "
+            "catatan PKL dan jam pencatatannya, di kartu petak.",
         ]
     )
     doc.subheading("Wireframe")
@@ -958,10 +1014,10 @@ def s11(doc, f):
             ),
             (
                 "M7",
-                "Survey Activities lapangan pada petak yang belum terdata, lalu integrasi "
-                "hasilnya sebagai bukti pada kartu petak.",
-                f"Catatan lapangan baru pada petak prioritas, dan berkurangnya sebagian dari "
-                f"{n(f['field_gap'])} petak yang belum pernah didatangi.",
+                f"Survey Activities di {f['site_station']}: pendataan PKL pada beberapa "
+                f"rentang jam, lalu integrasi hasilnya sebagai bukti pada kartu petak.",
+                f"Rasio PKL terhadap tempat usaha terdaftar di petak {f['site_name']} per rentang "
+                f"jam, beserta catatan keterbatasan yang menyertainya di antarmuka.",
             ),
             (
                 "M8",
@@ -1010,6 +1066,27 @@ def s12(doc, f):
                 f"Kosong dibedakan dari nol di seluruh mesin. Cakupan diputuskan per kota "
                 f"administrasi, {n(f['mapid_uncovered'])} petak di luar cakupan katalog bernilai "
                 f"kosong, dan petak semacam itu tidak menerima skor sama sekali.",
+            ),
+            (
+                "**Persaingan PKL tidak terlihat oleh sumber mana pun.** OpenStreetMap tidak "
+                "memetakan pedagang kaki lima, dan katalog premium mendaftar tempat usaha yang "
+                "terdaftar.",
+                "Suku kompetisi terlalu rendah persis di tempat yang paling ramai, sehingga "
+                "petak di gerbang transit bisa terbaca lapang padahal trotoarnya penuh gerobak "
+                "yang menjual barang yang sama.",
+                f"Survey Activities di {f['site_station']} mendata lapisan itu langsung di "
+                f"lapangan, per rentang jam, dan hasilnya muncul sebagai catatan keterbatasan "
+                f"pada kategori makanan dan minuman. Untuk {f['no_osm_tag']} dari "
+                f"{f['categories']} kategori, OpenStreetMap memang tidak menghitung apa pun, dan "
+                f"antarmuka menyatakan itu alih-alih membaca nol.",
+            ),
+            (
+                "**Satu titik survei tidak mewakili seluruh grid.**",
+                f"Rasio PKL yang diukur di satu petak, bila dipakai di mana-mana, akan menjadi "
+                f"interpolasi terhadap {n(f['cells'])} petak dengan nama yang lebih meyakinkan.",
+                "Hasil survei tidak pernah masuk ke aritmetika skor. Ia menjadi catatan yang "
+                "menyebut tempat dan jam pengukurannya, sehingga pembaca tahu persis sejauh mana "
+                "angka itu berlaku, dan titik berikutnya dipilih dari antrean survei milik produk.",
             ),
             (
                 "**Katalog tidak menerbitkan harga sewa untuk Jakarta.**",
@@ -1111,9 +1188,9 @@ def s14(doc, f):
             "rute / dan /app.",
             "**Flowchart.** Gambar 1 pada bagian 7 untuk alur AI, dan Gambar 2 pada bagian 9 "
             "untuk arsitektur teknologi.",
-            "**Dokumentasi survey.** Rencana lokasi, objek, dan atribut pada bagian 6, beserta "
-            "daftar petak belum terdata yang dihasilkan produk dan diperbarui setiap kali data "
-            "baru masuk.",
+            f"**Dokumentasi survey.** Rencana lokasi, objek, dan atribut pada bagian 6, yaitu "
+            f"pendataan PKL di {f['site_station']}, beserta daftar petak belum terdata yang "
+            f"dihasilkan produk dan diperbarui setiap kali data baru masuk.",
             "**Dokumentasi metode.** Catatan sumber data dan batasannya, perbandingan kerapatan "
             "antara OpenStreetMap dan katalog MAPID, serta rekam jejak penelusuran endpoint misi, "
             "seluruhnya tersimpan di dalam repositori pada direktori docs/.",

@@ -242,13 +242,19 @@ class Doc:
         what this used to do, let the third line run over the rule.
         """
         lines = _wrap(_runs(text, font, T.F_BOLD, T.F_ITAL), size, width)
-        # A lone first line stranded at the foot of a page is worse than a page
-        # that breaks one line early, so a block of two or more lines takes two
-        # with it or takes none.
+        # Orphan control: a lone first line stranded at the foot of a page is
+        # worse than a page that breaks one line early, so a block of two or
+        # more lines takes two with it or takes none.
         if len(lines) > 1 and self.y + lead * 2 > T.BODY_BOTTOM:
             self.new_page()
         for i, line in enumerate(lines):
-            if self.y + lead > T.BODY_BOTTOM:
+            over = self.y + lead > T.BODY_BOTTOM
+            # Widow control: never leave the last line of a paragraph alone at
+            # the top of the next page. On reaching the second to last line with
+            # room for only one of the two, both go over together.
+            if not over and len(lines) - i == 2 and self.y + lead * 2 > T.BODY_BOTTOM:
+                over = True
+            if over:
                 self.new_page()
             self.c.setFillColor(color)
             if i == 0 and marker:

@@ -46,6 +46,30 @@ def rupiah(value):
     return f"Rp {n(value)}"
 
 
+# The survey site, which is a decision rather than a measurement: one point,
+# Stasiun Sudirman, at the Dukuh Atas interchange. The cell is named here because
+# the alternative was an h3 dependency in a document builder, and `collect()`
+# proves the choice instead by testing that the station's coordinate really does
+# fall inside that hexagon.
+SITE_STATION = "Stasiun Sudirman"
+SITE_LAT, SITE_LON = -6.20241, 106.82345
+SITE_CELL = "888c1078a5fffff"
+
+
+def _inside(lat, lon, boundary):
+    """Ray casting against an H3 cell's [lon, lat] ring."""
+    inside = False
+    n = len(boundary)
+    for i in range(n):
+        x0, y0 = boundary[i]
+        x1, y1 = boundary[(i + 1) % n]
+        if (y0 > lat) != (y1 > lat):
+            cross = x0 + (lat - y0) / (y1 - y0) * (x1 - x0)
+            if lon < cross:
+                inside = not inside
+    return inside
+
+
 def collect():
     hexes = _load("src", "lib", "data", "hexes.json")
     mission = _load("src", "lib", "data", "mission.json")
@@ -110,7 +134,57 @@ def collect():
         "cost_floor": _const("src/lib/domain/cost.ts", "COST_FLOOR"),
     }
     f["access_ceiling"] = round(f["access_floor"] + f["access_span"], 2)
+    f.update(_site(cells, mission))
     return f
+
+
+def _site(cells, mission):
+    """Everything the PRD says about the survey site, read off that one cell."""
+    cell = next((c for c in cells if c["id"] == SITE_CELL), None)
+    if cell is None:
+        raise SystemExit(f"survey site {SITE_CELL} is not in the grid")
+    if not _inside(SITE_LAT, SITE_LON, cell["boundary"]):
+        raise SystemExit(f"{SITE_STATION} does not fall inside {SITE_CELL}")
+
+    transit = cell["transit"]
+    at800 = cell["prop"]["r"]["800"]
+    hours = cell["hours"]["r"]["800"]
+    field = cell.get("field") or {}
+
+    # OSM cannot count four of the thirteen business types at all: they carry no
+    # usable tag, which is the same blind spot the survey is going to look at.
+    src = _read("src/lib/domain/categories.ts")
+    no_tag = len(re.findall(r"^\t\tosmTag: null,", src, re.M))
+
+    carts = [r for r in mission["records"] if r.get("kind") == "Kaki Lima/Gerobak"]
+    here = [r for r in carts if _inside(r["lat"], r["lon"], cell["boundary"])]
+
+    return {
+        "site_station": SITE_STATION,
+        "site_cell": SITE_CELL,
+        "site_name": cell["name"],
+        "site_city": cell["city"],
+        "site_nodes": sum(transit.values()),
+        "site_mrt": transit["mrt"],
+        "site_krl": transit["krl"],
+        "site_lrt": transit["lrt"],
+        "site_brt": transit["brt"],
+        "site_access": cell["access"],
+        "site_osm": cell["dens"]["osm"],
+        "site_mapid": cell["dens"]["mapid"],
+        "site_listings": at800["n"],
+        "site_units": at800["u"],
+        "site_hours_counted": hours["n"],
+        "site_hours_published": hours["p"],
+        "site_menu": field.get("menu", 0),
+        "site_catatan": field.get("catatan", 0),
+        "site_struk": field.get("struk", 0),
+        "site_properti": field.get("properti", 0),
+        "site_price": field.get("harga"),
+        "no_osm_tag": no_tag,
+        "carts_all": len(carts),
+        "carts_here": len(here),
+    }
 
 
 def _read(rel):
