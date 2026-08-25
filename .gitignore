@@ -39,3 +39,7 @@ scripts/.overpass-cache/
 
 # Scratch directory the gstack browse tooling writes into.
 .gstack/
+
+# Python bytecode from the PRD builder.
+__pycache__/
+*.pyc
