@@ -173,7 +173,8 @@ def s1(doc, f):
     doc.para(
         f"Survei dipusatkan pada **satu titik**, yaitu **{f['site_station']}**, dan menjawab satu "
         f"pertanyaan yang tidak bisa dijawab dataset mana pun: apakah masih ada pedagang kaki "
-        f"lima di sekitar gerbang transit, dan seberapa besar persaingan yang mereka timbulkan. "
+        f"lima di sekitar gerbang transit, dan apakah keberadaan mereka menimbulkan persaingan "
+        f"yang tidak terbaca oleh skor. "
         f"Tidak ada lapisan dalam produk ini yang bisa melihat gerobak, sehingga persaingan itu "
         f"**ad hoc**: datang dan pergi mengikuti jam, dan paling keras terasa oleh usaha kecil "
         f"yang menanggung sewa sementara pesaingnya tidak."
@@ -262,8 +263,9 @@ def s2(doc, f):
             f"**Keunggulan solusi.** Tiga sinyal keputusan dibaca bersama dalam satu petak. "
             f"Ketersediaan ruang diperlakukan sebagai **gerbang**, bukan bonus, karena peluang "
             f"yang tidak bisa ditempati bukan peluang. Survey Activities tidak dipakai untuk "
-            f"menebalkan data yang sudah ada, melainkan untuk mengukur satu lapisan pesaing yang "
-            f"tidak terlihat oleh dataset mana pun, yaitu PKL di gerbang transit. Dan AI "
+            f"menebalkan data yang sudah ada, melainkan untuk memastikan keberadaan satu lapisan "
+            f"pesaing yang tidak terlihat oleh dataset mana pun, yaitu PKL di gerbang transit. "
+            f"Dan AI "
             f"mengerjakan pekerjaan yang nyata, yaitu memahami pertanyaan, bukan mengarang angka.",
         ]
     )
@@ -348,8 +350,8 @@ def _persona(doc, title, rows, stories):
 def s4(doc, f):
     doc.heading("4. User Persona")
     doc.para(
-        "Dua persona memikul beban produk ini. Yang pertama adalah pembaca yang halaman awal "
-        "ditulis untuknya, dan yang kedua adalah pengguna yang membawa produk ini ke skala."
+        "Dua persona memikul beban produk ini: pembaca yang halaman awal ditulis untuknya, dan "
+        "pengguna yang membawanya ke skala."
     )
 
     _persona(
@@ -361,38 +363,36 @@ def s4(doc, f):
             ("Usia", "34 tahun"),
             (
                 "Latar Belakang",
-                "Tinggal di Jakarta Timur, menabung selama empat tahun untuk membuka usaha "
-                "pertamanya. Tidak pernah memakai perangkat GIS. Sehari-hari memakai ponsel "
-                "Android kelas menengah dengan kuota data terbatas.",
+                "Tinggal di Jakarta Timur, menabung empat tahun untuk usaha pertamanya. Tidak "
+                "pernah memakai GIS, dan memakai ponsel Android kelas menengah dengan kuota "
+                "terbatas.",
             ),
             (
                 "Goals",
-                "Menemukan dua atau tiga lokasi yang masuk akal dalam radius yang bisa "
-                "dijangkau dari rumah, dan bisa menjelaskan pilihannya kepada suami dan kepada "
-                "pemberi pinjaman.",
+                "Menemukan dua atau tiga lokasi masuk akal dalam jangkauan dari rumah, dan bisa "
+                "menjelaskan pilihannya kepada keluarga dan pemberi pinjaman.",
             ),
             (
                 "Pain Points",
                 "Semua saran yang ia terima berupa firasat. Ia tidak tahu berapa banyak kedai "
-                "kopi yang sudah ada di sekitar calon lokasinya, dan tidak tahu apakah ada "
-                "ruang yang benar-benar bisa disewa di sana.",
+                "kopi sudah ada di sekitar calon lokasinya, atau apakah ada ruang yang bisa "
+                "disewa di sana.",
             ),
             (
                 "Needs",
                 "Jawaban dalam bahasa yang biasa ia pakai, tanpa legenda yang harus dipelajari, "
-                "dan angka pendukung yang bisa ia tunjukkan kepada orang lain.",
+                "dan angka yang bisa ia tunjukkan kepada orang lain.",
             ),
         ],
         [
             "Sebagai calon pemilik kedai, saya ingin bertanya *“usaha apa yang masuk akal di "
-            "sekitar Stasiun Cawang?”* dengan kalimat biasa, supaya saya tidak perlu belajar "
-            "membaca peta lebih dulu.",
+            "sekitar Stasiun Cawang?”* dengan kalimat biasa, tanpa harus belajar membaca peta.",
             "Sebagai calon pemilik kedai, saya ingin melihat berapa banyak pesaing sejenis dalam "
             "jarak jalan kaki, supaya saya tahu pasarnya sudah penuh atau belum.",
             "Sebagai calon pemilik kedai, saya ingin tahu apakah ada ruang yang benar-benar "
             "ditawarkan di petak itu, supaya saya tidak mengejar lokasi yang tertutup bagi saya.",
-            "Sebagai calon pemilik kedai, saya ingin setiap angka menyebutkan berapa titik data "
-            "di belakangnya, supaya saya bisa menilai sendiri sekuat apa dasarnya.",
+            "Sebagai calon pemilik kedai, saya ingin setiap angka menyebutkan titik data di "
+            "belakangnya, supaya saya bisa menilai sendiri sekuat apa dasarnya.",
         ],
     )
 
@@ -405,36 +405,33 @@ def s4(doc, f):
             ("Usia", "29 tahun"),
             (
                 "Latar Belakang",
-                "Menyaring puluhan lokasi kandidat setiap kuartal. Terbiasa dengan spreadsheet "
-                "dan cukup nyaman dengan peta, tetapi tidak punya waktu menyiapkan analisis "
-                "spasial sendiri untuk tiap koridor.",
+                "Menyaring puluhan lokasi kandidat setiap kuartal. Nyaman dengan spreadsheet dan "
+                "peta, tetapi tidak sempat menyiapkan analisis spasial per koridor.",
             ),
             (
                 "Goals",
-                "Mempersempit koridor transit menjadi daftar pendek kandidat yang bisa "
-                "dipertahankan di depan komite investasi.",
+                "Mempersempit koridor transit menjadi daftar pendek yang bisa dipertahankan di "
+                "depan komite.",
             ),
             (
                 "Pain Points",
                 "Data pesaing tersebar di beberapa sumber dengan kerapatan yang berbeda jauh, "
-                "dan ketersediaan ruang komersial tidak pernah tersambung ke konteks permintaan.",
+                "dan ketersediaan ruang tidak pernah tersambung ke konteks permintaan.",
             ),
             (
                 "Needs",
-                "Bobot yang bisa diatur, sumber data yang bisa dipilih dan dibandingkan, tabel "
-                "atribut yang bisa diurutkan, dan jejak angka yang bisa diperiksa ulang.",
+                "Bobot yang bisa diatur, sumber data yang bisa dibandingkan, dan jejak angka "
+                "yang bisa diperiksa ulang.",
             ),
         ],
         [
             "Sebagai analis ekspansi, saya ingin mengatur bobot permintaan dan kompetisi, supaya "
             "peringkat mencerminkan prioritas jaringan saya, bukan prioritas bawaan.",
             "Sebagai analis ekspansi, saya ingin menyalakan gerbang ketersediaan ruang, supaya "
-            "petak tanpa unit yang ditawarkan turun ke dasar peringkat.",
-            "Sebagai analis ekspansi, saya ingin mengurutkan tabel atribut per kolom dan "
-            "membandingkan sumber OSM dengan MAPID, supaya saya tahu kesimpulan mana yang "
-            "bertahan di kedua sumber.",
-            "Sebagai analis ekspansi, saya ingin melihat komposisi skor langkah demi langkah, "
-            "supaya saya bisa mempertahankan angkanya di depan komite.",
+            "petak tanpa unit yang ditawarkan turun ke dasar.",
+            "Sebagai analis ekspansi, saya ingin membandingkan sumber OSM dengan MAPID dan "
+            "melihat komposisi skor langkah demi langkah, supaya angkanya bisa dipertahankan di "
+            "depan komite.",
         ],
     )
 
@@ -542,96 +539,100 @@ def s6(doc, f):
     doc.heading("6. Rencana Survey Activities")
     doc.para(
         f"Survei lapangan memakai MAPID APPS dan dipusatkan pada **satu titik**, yaitu "
-        f"**{f['site_station']}**. Satu titik dipilih dengan sengaja. Yang ingin dijawab survei "
-        f"ini bukan seberapa luas datanya, melainkan satu pertanyaan yang tidak bisa dijawab "
+        f"**{f['site_station']}**. Yang ingin dijawab bukan seberapa luas datanya, melainkan "
+        f"satu pertanyaan yang tidak bisa dijawab "
         f"dataset mana pun: apakah di sekitar gerbang transit masih ada pedagang kaki lima, dan "
-        f"seberapa besar persaingan yang mereka timbulkan."
+        f"apakah keberadaan mereka menimbulkan persaingan yang tidak terbaca oleh skor."
     )
 
     doc.subsub("Kenapa PKL, dan kenapa ini penting")
     doc.para(
-        f"Skor peluang produk ini menghitung pesaing dari dua survei, dan tidak satu pun bisa "
-        f"melihat gerobak. OpenStreetMap tidak memetakan PKL, dan untuk {f['no_osm_tag']} dari "
-        f"{f['categories']} kategori usaha ia bahkan tidak punya tag yang bisa dipakai. Katalog "
-        f"Data Premium MAPID mendaftar tempat usaha yang terdaftar, bukan pedagang yang "
-        f"menggelar lapak sore hari lalu pergi. Akibatnya sebuah petak bisa terbaca lapang, "
-        f"padahal di trotoarnya berdiri sepuluh gerobak yang menjual persis apa yang akan "
-        f"dijual pembacanya."
+        f"Skor peluang menghitung pesaing dari dua survei, dan tidak satu pun bisa melihat "
+        f"gerobak. OpenStreetMap tidak memetakan PKL, dan untuk {f['no_osm_tag']} dari "
+        f"{f['categories']} kategori usaha ia tidak punya tag yang bisa dipakai. Katalog premium "
+        f"mendaftar tempat usaha terdaftar, bukan pedagang yang menggelar lapak sore hari lalu "
+        f"pergi. Akibatnya sebuah petak bisa terbaca lapang padahal trotoarnya penuh gerobak."
     )
     doc.para(
-        "Persaingan semacam ini **ad hoc**: tidak terduga, tidak terdaftar, dan datang serta "
-        "pergi mengikuti jam. Itulah pesaing paling keras bagi usaha kecil di gerbang transit, "
-        "karena keduanya memperebutkan pembeli yang sama pada jam yang sama sementara PKL tidak "
-        "menanggung sewa. Survei ini mengukurnya di satu tempat, supaya produk bisa menyatakan "
-        "keterbatasannya dengan angka dan bukan dugaan."
+        "Persaingan semacam ini **ad hoc**: tidak terduga, tidak terdaftar, datang dan pergi "
+        "mengikuti jam. Itulah pesaing paling keras bagi usaha kecil di gerbang transit, karena "
+        "keduanya memperebutkan pembeli yang sama pada jam yang sama sementara PKL tidak "
+        "menanggung sewa. Survei ini memastikannya di satu tempat, supaya keterbatasan produk "
+        "berdiri di atas pengamatan dan bukan dugaan."
     )
 
     doc.subheading("Lokasi")
     doc.bullets(
         [
             f"**Wilayah pelaksanaan.** {f['site_station']}, {f['site_city']}. Titik itu jatuh di "
-            f"dalam satu petak H3 resolusi {f['resolution']} yang di dalam produk tampil dengan "
-            f"nama **{f['site_name']}**, dan survei mencakup radius jalan kaki {n(f['radius'])} m "
-            f"dari petak tersebut.",
-            f"**Kenapa titik ini.** Petak itu menangkap {f['site_nodes']} simpul transit dari "
-            f"keempat moda sekaligus, yaitu MRT {f['site_mrt']}, KRL {f['site_krl']}, LRT "
-            f"{f['site_lrt']}, dan TransJakarta {f['site_brt']}, dengan indeks akses "
+            f"dalam satu petak H3 resolusi {f['resolution']} yang di produk tampil sebagai "
+            f"**{f['site_name']}**, dengan radius jalan kaki {n(f['radius'])} m.",
+            f"**Kenapa titik ini.** Petak itu menangkap {f['site_nodes']} simpul dari keempat "
+            f"moda sekaligus (MRT {f['site_mrt']}, KRL {f['site_krl']}, LRT {f['site_lrt']}, "
+            f"TransJakarta {f['site_brt']}) dengan indeks akses "
             f"{str(f['site_access']).replace('.', ',')} dari maksimum "
             f"{str(f['access_ceiling']).replace('.', ',')}. Inilah simpul antarmoda terpadat di "
-            f"Jakarta, jadi bila persaingan ad hoc ada di suatu tempat, ia ada di sini.",
+            f"Jakarta, jadi bila persaingan ad hoc ada, ia ada di sini.",
             f"**Batas cakupan.** Satu petak, bukan koridor. Semua titik survei harus jatuh di "
-            f"dalam batas heksagon itu, dan koordinatnya diperiksa terhadap batas tersebut "
-            f"sebelum dipakai.",
+            f"dalam batas heksagon itu, dan koordinatnya diperiksa sebelum dipakai.",
         ]
     )
 
     doc.subheading("Objek")
     doc.para(
-        "Objek utamanya adalah **pedagang kaki lima**: gerobak, tenda, lapak, dan pedagang "
-        "berkeliling. Yang dikumpulkan dari setiap objek:",
+        "Objek utamanya **pedagang kaki lima**: gerobak, tenda, lapak, dan pedagang berkeliling. "
+        "Yang dikumpulkan dari setiap objek:",
         after=4.0,
     )
     doc.bullets(
         [
             "**Jenis lapak**, memakai kolom Menu Go yang sudah ada: Kaki Lima/Gerobak, "
             "Warung/Tenda (Menetap), atau kategori lain bila ternyata bukan PKL.",
-            "**Mobilitas**, berkeliling atau menetap di satu titik. Inilah kolom yang membedakan "
-            "pesaing yang bisa dihindari dari pesaing yang berpindah mengikuti pembeli.",
+            "**Mobilitas**, berkeliling atau menetap. Inilah kolom yang membedakan pesaing yang "
+            "bisa dihindari dari pesaing yang berpindah mengikuti pembeli.",
             "**Menu utama dan harga rata-rata per porsi**, supaya lapisan PKL bisa dibandingkan "
-            "langsung dengan plafon harga tempat usaha terdaftar di petak yang sama.",
+            "dengan plafon harga tempat usaha terdaftar di petak yang sama.",
             "**Kondisi pembeli** saat kunjungan: sepi, sedang, atau ramai.",
-            "**Jam kunjungan**, dicatat pada setiap titik. PKL adalah fungsi dari jam, jadi "
-            "waktu pencatatan adalah data, bukan metadata.",
+            "**Jam kunjungan.** PKL adalah fungsi dari jam, jadi waktu pencatatan adalah data "
+            "dan bukan metadata.",
             "**Posisi terhadap gerbang stasiun**: pintu keluar mana, dan di sisi mana trotoarnya.",
             "**Foto lapak** dari trotoar, tanpa transaksi dan tanpa izin khusus.",
         ]
     )
     doc.para(
-        "Kunjungan diulang pada beberapa rentang jam yang berbeda di titik yang sama, karena satu "
-        "kunjungan hanya mencatat satu jam dan lapisan yang sedang diukur justru berubah menurut "
-        "jam.",
+        "Kunjungan diulang pada beberapa rentang jam di titik yang sama, karena satu kunjungan "
+        "hanya mencatat satu jam.",
         after=4.0,
     )
 
     doc.subheading("Output")
-    doc.para("Atribut yang dihasilkan tiap titik survei:")
-    doc.bullets(
-        [
-            "Nama lapak atau tempat, dan kategori objek.",
-            "Tanggal dan waktu survei.",
-            "Latitude dan longitude sesuai posisi lapak.",
-            "Foto dokumentasi.",
-            "Kondisi objek dan catatan survei.",
-            "Menu utama, harga rata-rata per porsi, kondisi pembeli, dan mobilitas.",
-            "Alamat atau titik acuan terdekat, misalnya pintu keluar stasiun.",
-        ]
+    doc.para(
+        "Tiap titik survei menghasilkan atribut standar MAPID APPS, yaitu nama dan kategori "
+        "objek, tanggal dan waktu, latitude dan longitude, foto dokumentasi, kondisi objek, dan "
+        "catatan survei, ditambah atribut khusus di atas serta titik acuan terdekatnya seperti "
+        "pintu keluar stasiun.",
+        after=5.0,
     )
     doc.para(
-        f"Hasil pokoknya satu angka: **jumlah PKL per tempat usaha terdaftar** di dalam petak, "
-        f"pada tiap rentang jam. Penyebutnya sudah diketahui, yaitu {n(f['site_osm'])} usaha "
-        f"menurut OpenStreetMap dan {n(f['site_mapid'])} menurut katalog MAPID. Pembilangnya yang "
-        f"belum pernah dihitung siapa pun.",
+        f"**Hasil pokok survei ini bukan sebuah angka.** Jumlah PKL berubah menurut jam, hari, "
+        f"cuaca, dan penertiban, sehingga hitungan satu sore hanya berlaku untuk sore itu, dan "
+        f"menyebutnya sebagai jumlah akan memberi kesan ketepatan yang tidak dimiliki datanya. "
+        f"Pesaing terdaftar sudah terhitung, yaitu {n(f['site_osm'])} menurut OpenStreetMap dan "
+        f"{n(f['site_mapid'])} menurut katalog MAPID. PKL tidak akan pernah masuk hitungan itu, "
+        f"dan survei ini menyatakan keberadaannya, bukan jumlahnya. Yang dihasilkan adalah satu "
+        f"penanda kualitatif per petak, dengan tiga nilai yang mungkin:",
         after=4.0,
+    )
+    doc.bullets(
+        [
+            "**Teramati.** PKL terlihat pada sedikitnya satu kunjungan, disertai foto, jam, dan "
+            "koordinat. Bacaannya: *terdapat kemungkinan adanya PKL di sini*, dan skor tidak "
+            "menghitungnya.",
+            "**Tidak teramati pada kunjungan ini.** Petak didatangi pada jam itu dan tidak ada "
+            "PKL yang terlihat. Bukan pernyataan bahwa PKL tidak ada.",
+            "**Belum disurvei.** Nilai bawaan setiap petak lain sampai ada orang yang benar-benar "
+            "ke sana. Aturannya sama dengan **belum terdata** pada data pesaing.",
+        ]
     )
 
     doc.subheading("Ketentuan Survey")
@@ -641,8 +642,7 @@ def s6(doc, f):
             "Koordinat harus sesuai lokasi objek, diambil di tempat.",
             "Foto harus jelas dan tidak buram.",
             "Foto tidak boleh menampilkan wajah seseorang secara jelas atau plat nomor kendaraan. "
-            "Ketentuan ini berlaku ketat di sini, karena objeknya adalah orang yang sedang "
-            "berjualan dan bukan bangunan.",
+            "Ketentuan ini berlaku ketat di sini, karena objeknya orang yang sedang berjualan.",
             "Data tidak boleh berasal dari sumber manipulasi seperti Google Street View atau "
             "internet.",
             "Data hasil survei divalidasi sebelum dipakai, dengan memeriksa koordinat terhadap "
@@ -653,28 +653,25 @@ def s6(doc, f):
     doc.subheading("Pemanfaatan Hasil Survey")
     doc.bullets(
         [
-            f"**Mengukur lapisan yang tidak terlihat.** Rasio PKL terhadap tempat usaha "
-            f"terdaftar di satu petak, dicatat per rentang jam.",
-            f"**Memvalidasi kondisi lapangan** terhadap apa yang dilihat suku kompetisi. Petak "
-            f"ini sudah membawa {f['site_menu']} catatan Menu Go, dan {f['carts_here']} dari "
-            f"{f['carts_all']} catatan Kaki Lima/Gerobak di seluruh grid justru jatuh di sini. "
-            f"Lapisannya jelas ada. Yang belum ada adalah jumlahnya.",
-            "**Menambah titik data pada peta** sebagai bukti yang bisa dibuka pengguna, lengkap "
-            "dengan foto, jam, dan catatannya, dengan label tercatat seperti bukti lapangan "
-            "lainnya.",
-            "**Menjadi peringatan yang terukur pada antarmuka.** Bila rasionya besar, kategori "
-            "makanan dan minuman di petak berakses tinggi diberi catatan bahwa skornya menghitung "
-            "pesaing terdaftar saja, lengkap dengan angka hasil survei beserta jam dan tempatnya.",
-            "**Menjadi dasar rencana survei berikutnya.** Bila lapisan ini terbukti besar di satu "
-            "gerbang transit, titik berikutnya dipilih dari daftar petak belum terdata yang "
-            "dihasilkan produk.",
+            f"**Menyatakan keberadaan lapisan yang tidak terlihat**, sebagai penanda beserta jam "
+            f"pengamatannya, bukan hitungan.",
+            f"**Memvalidasi kondisi lapangan** terhadap apa yang dilihat suku kompetisi. "
+            f"{f['carts_here']} dari {f['carts_all']} catatan Kaki Lima/Gerobak di seluruh grid "
+            f"jatuh di petak ini. Lapisannya jelas ada. Yang belum ada adalah pengamatannya.",
+            "**Menambah titik data pada peta** sebagai bukti yang bisa dibuka pengguna, dengan "
+            "foto, jam, dan label tercatat seperti bukti lapangan lainnya.",
+            "**Menjadi peringatan pada antarmuka.** Petak yang PKL-nya teramati diberi catatan "
+            "bahwa skornya menghitung pesaing terdaftar saja, disertai jam dan tanggal "
+            "pengamatannya.",
+            "**Menjadi dasar rencana survei berikutnya**, dipilih dari daftar petak belum "
+            "terdata yang dihasilkan produk.",
         ]
     )
     doc.callout(
         f"Satu titik tidak bisa mengoreksi {n(f['cells'])} petak, dan tidak akan dipakai begitu. "
-        f"Hasilnya masuk sebagai catatan yang menyebut tempat dan jamnya, bukan sebagai koefisien "
-        f"yang diam-diam mengalikan seluruh peta. Angka yang berlaku di satu tempat lalu dipakai "
-        f"di lima ratus tempat lain adalah interpolasi, hanya dengan nama yang lebih meyakinkan."
+        f"Hasilnya masuk sebagai catatan yang menyebut tempat dan jamnya, bukan koefisien yang "
+        f"mengalikan seluruh peta. Temuan di satu tempat yang dipakai di lima ratus tempat lain "
+        f"adalah interpolasi, hanya dengan nama yang lebih meyakinkan."
     )
 
 
@@ -1016,8 +1013,9 @@ def s11(doc, f):
                 "M7",
                 f"Survey Activities di {f['site_station']}: pendataan PKL pada beberapa "
                 f"rentang jam, lalu integrasi hasilnya sebagai bukti pada kartu petak.",
-                f"Rasio PKL terhadap tempat usaha terdaftar di petak {f['site_name']} per rentang "
-                f"jam, beserta catatan keterbatasan yang menyertainya di antarmuka.",
+                f"Penanda kualitatif keberadaan PKL di petak {f['site_name']} beserta jam "
+                f"pengamatan dan bukti fotonya, serta catatan keterbatasan yang menyertainya di "
+                f"antarmuka.",
             ),
             (
                 "M8",
@@ -1074,15 +1072,16 @@ def s12(doc, f):
                 "Suku kompetisi terlalu rendah persis di tempat yang paling ramai, sehingga "
                 "petak di gerbang transit bisa terbaca lapang padahal trotoarnya penuh gerobak "
                 "yang menjual barang yang sama.",
-                f"Survey Activities di {f['site_station']} mendata lapisan itu langsung di "
-                f"lapangan, per rentang jam, dan hasilnya muncul sebagai catatan keterbatasan "
-                f"pada kategori makanan dan minuman. Untuk {f['no_osm_tag']} dari "
-                f"{f['categories']} kategori, OpenStreetMap memang tidak menghitung apa pun, dan "
-                f"antarmuka menyatakan itu alih-alih membaca nol.",
+                f"Survey Activities di {f['site_station']} memastikan keberadaan lapisan itu "
+                f"langsung di lapangan. Hasilnya penanda kualitatif beserta jam pengamatannya, "
+                f"bukan hitungan, karena jumlah PKL berubah menurut jam dan cuaca sehingga angka "
+                f"apa pun akan terdengar lebih pasti daripada kenyataannya. Untuk "
+                f"{f['no_osm_tag']} dari {f['categories']} kategori, OpenStreetMap memang tidak "
+                f"menghitung apa pun, dan antarmuka menyatakan itu alih-alih membaca nol.",
             ),
             (
                 "**Satu titik survei tidak mewakili seluruh grid.**",
-                f"Rasio PKL yang diukur di satu petak, bila dipakai di mana-mana, akan menjadi "
+                f"Temuan di satu petak, bila diperlakukan sebagai berlaku umum, menjadi "
                 f"interpolasi terhadap {n(f['cells'])} petak dengan nama yang lebih meyakinkan.",
                 "Hasil survei tidak pernah masuk ke aritmetika skor. Ia menjadi catatan yang "
                 "menyebut tempat dan jam pengukurannya, sehingga pembaca tahu persis sejauh mana "
