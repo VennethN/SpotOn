@@ -856,14 +856,22 @@ def score_anatomy(doc, f):
         return str(v).replace(".", ",")
 
     gate = f["gate_blocked"]
+    # `values` is what the term can actually be. A pair means a continuous range
+    # between them; a list of separate points means those points and nothing in
+    # between, which is the whole distinction the gate row has to carry.
     terms = [
-        ("batas(Gap + 0,5)", 0.0, 1.0, "satu-satunya suku yang bisa menaikkan"),
-        ("gerbang_ruang", gate, 1.0, "dua nilai saja, bukan rentang"),
-        ("akses_transit", f["access_floor"], f["access_ceiling"], "dihitung dari simpul transit"),
-        ("biaya_ruang", f["cost_floor"], 1.0, "hanya pernah mengurangi"),
+        ("batas(Gap + 0,5)", "range", (0.0, 1.0), "satu-satunya suku yang bisa menaikkan"),
+        ("gerbang_ruang", "states", (gate, 1.0), "dua nilai saja, bukan rentang"),
+        (
+            "akses_transit",
+            "range",
+            (f["access_floor"], f["access_ceiling"]),
+            "dihitung dari simpul transit",
+        ),
+        ("biaya_ruang", "range", (f["cost_floor"], 1.0), "hanya pernah mengurangi"),
     ]
 
-    for i, (name, lo, hi, note) in enumerate(terms):
+    for i, (name, kind, values, note) in enumerate(terms):
         y = top + i * rows_h
         c.setFillColor(T.INK)
         c.setFont(T.F_BOLD, LABEL)
@@ -872,30 +880,39 @@ def score_anatomy(doc, f):
         c.setFont(T.F_REG, CAPTION)
         c.drawString(T.LEFT, at(y + 18.5), note)
 
-        # The full 0 to 1 track, so every term is read against the same span.
-        c.setFillColor(T.TABLE_CELL)
-        c.setStrokeColor(T.RULE_LIGHT)
-        c.setLineWidth(0.6)
-        c.rect(ax, at(y + 14.0), aw, 8.0, stroke=1, fill=1)
-
-        if lo == gate and name == "gerbang_ruang":
-            # Two states, so two marks. A bar between them would claim the
-            # values in between are reachable, and they are not.
-            for v in (lo, hi):
-                c.setFillColor(T.TABLE_HEAD)
-                c.setStrokeColor(T.WHITE)
-                c.setLineWidth(1.0)
-                c.circle(at_x(v), at(y + 10.0), 3.6, stroke=1, fill=1)
-        else:
+        if kind == "range":
+            lo, hi = values
+            # A filled track behind the reachable part, so every term is read
+            # against the same 0 to 1 span.
+            c.setFillColor(T.TABLE_CELL)
+            c.setStrokeColor(T.RULE_LIGHT)
+            c.setLineWidth(0.6)
+            c.rect(ax, at(y + 14.0), aw, 8.0, stroke=1, fill=1)
             c.setFillColor(T.TABLE_HEAD)
             c.rect(at_x(lo), at(y + 14.0), aw * (hi - lo), 8.0, stroke=0, fill=1)
+            marks = [lo] if lo > 0 else []
+        else:
+            # NO FILLED TRACK HERE. A block spanning the two states is a picture
+            # of a range, and this row exists to say there is no range: the gate
+            # is one value or the other and never anything between. So the span
+            # is a hairline for registration against the axis, and the two
+            # reachable values are the only ink with weight.
+            c.setStrokeColor(T.RULE_LIGHT)
+            c.setLineWidth(0.7)
+            c.line(ax, at(y + 10.0), ax + aw, at(y + 10.0))
+            for v in values:
+                c.setFillColor(T.TABLE_HEAD)
+                c.setStrokeColor(T.WHITE)
+                c.setLineWidth(1.2)
+                c.circle(at_x(v), at(y + 10.0), 3.8, stroke=1, fill=1)
+            marks = list(values)
 
-        # Label the floor only. Every ceiling is 1, and the axis already says so,
-        # so a number on both ends of all four rows would be noise.
-        if lo > 0:
-            c.setFillColor(T.INK)
-            c.setFont(T.F_BOLD, CAPTION)
-            c.drawRightString(at_x(lo) - 5.0, at(y + 9.6), dec(lo))
+        # Label the values the axis does not already give away, each one sitting
+        # against the mark it names.
+        c.setFillColor(T.INK)
+        c.setFont(T.F_BOLD, CAPTION)
+        for v in marks:
+            c.drawRightString(at_x(v) - 6.0, at(y + 9.6), dec(v))
 
     # A single hairline axis, solid and one shade off the surface.
     ay = top + 4 * rows_h + 1.0
