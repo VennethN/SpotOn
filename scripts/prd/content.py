@@ -771,8 +771,9 @@ def s7(doc, f):
     D.score_anatomy(doc, f)
     D.caption(
         doc,
-        "Gambar 5. Nilai yang bisa diambil tiap suku, pada sumbu yang sama. Batang berarti "
-        "rentang, titik berarti nilai yang berdiri sendiri. Hanya suku pertama yang bisa "
+        "Gambar 5. Nilai yang bisa diambil tiap suku, pada sumbu yang sama. Dua titik yang "
+        "terhubung berarti seluruh nilai di antaranya bisa dicapai, dan titik yang berdiri "
+        "sendiri berarti hanya nilai itu. Hanya suku pertama yang bisa "
         "menaikkan skor. Tiga sisanya pengali yang dibatasi 1, jadi mereka bisa menahan sebuah "
         "peringkat tetapi tidak pernah menciptakannya.",
     )

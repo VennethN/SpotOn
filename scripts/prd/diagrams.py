@@ -856,9 +856,9 @@ def score_anatomy(doc, f):
         return str(v).replace(".", ",")
 
     gate = f["gate_blocked"]
-    # `values` is what the term can actually be. A pair means a continuous range
-    # between them; a list of separate points means those points and nothing in
-    # between, which is the whole distinction the gate row has to carry.
+    # `values` is what the term can actually be. A pair means every value between
+    # them is reachable; a set of points means those points and nothing between,
+    # which is the distinction the gate row has to carry.
     terms = [
         ("batas(Gap + 0,5)", "range", (0.0, 1.0), "satu-satunya suku yang bisa menaikkan"),
         ("gerbang_ruang", "states", (gate, 1.0), "dua nilai saja, bukan rentang"),
@@ -880,39 +880,37 @@ def score_anatomy(doc, f):
         c.setFont(T.F_REG, CAPTION)
         c.drawString(T.LEFT, at(y + 18.5), note)
 
+        # THESE ARE INTERVALS, NOT MAGNITUDES, so they are drawn as range marks
+        # and not as bars. A filled bar is read from a baseline, so a bar running
+        # 0,6 to 1 looks like a quantity anchored to the right edge and growing
+        # the wrong way. What the row actually says is "this term lives between
+        # here and here", and a rule between two end caps says exactly that.
+        c.setStrokeColor(T.RULE_LIGHT)
+        c.setLineWidth(0.7)
+        c.line(ax, at(y + 10.0), ax + aw, at(y + 10.0))
+
         if kind == "range":
             lo, hi = values
-            # A filled track behind the reachable part, so every term is read
-            # against the same 0 to 1 span.
-            c.setFillColor(T.TABLE_CELL)
-            c.setStrokeColor(T.RULE_LIGHT)
-            c.setLineWidth(0.6)
-            c.rect(ax, at(y + 14.0), aw, 8.0, stroke=1, fill=1)
-            c.setFillColor(T.TABLE_HEAD)
-            c.rect(at_x(lo), at(y + 14.0), aw * (hi - lo), 8.0, stroke=0, fill=1)
-            marks = [lo] if lo > 0 else []
-        else:
-            # NO FILLED TRACK HERE. A block spanning the two states is a picture
-            # of a range, and this row exists to say there is no range: the gate
-            # is one value or the other and never anything between. So the span
-            # is a hairline for registration against the axis, and the two
-            # reachable values are the only ink with weight.
-            c.setStrokeColor(T.RULE_LIGHT)
-            c.setLineWidth(0.7)
-            c.line(ax, at(y + 10.0), ax + aw, at(y + 10.0))
-            for v in values:
-                c.setFillColor(T.TABLE_HEAD)
-                c.setStrokeColor(T.WHITE)
-                c.setLineWidth(1.2)
-                c.circle(at_x(v), at(y + 10.0), 3.8, stroke=1, fill=1)
-            marks = list(values)
+            c.saveState()
+            c.setStrokeColor(T.TABLE_HEAD)
+            c.setLineWidth(4.5)
+            c.setLineCap(1)
+            c.line(at_x(lo), at(y + 10.0), at_x(hi), at(y + 10.0))
+            c.restoreState()
 
-        # Label the values the axis does not already give away, each one sitting
-        # against the mark it names.
-        c.setFillColor(T.INK)
-        c.setFont(T.F_BOLD, CAPTION)
-        for v in marks:
-            c.drawRightString(at_x(v) - 6.0, at(y + 9.6), dec(v))
+        for v in values:
+            c.setFillColor(T.TABLE_HEAD)
+            c.setStrokeColor(T.WHITE)
+            c.setLineWidth(1.1)
+            c.circle(at_x(v), at(y + 10.0), 3.9, stroke=1, fill=1)
+
+        # Only the floor is labelled, and only where the axis does not already
+        # name it. Every ceiling is 1, which the axis carries for all four rows.
+        floor = min(values)
+        if floor > 0:
+            c.setFillColor(T.INK)
+            c.setFont(T.F_BOLD, CAPTION)
+            c.drawRightString(at_x(floor) - 6.5, at(y + 9.6), dec(floor))
 
     # A single hairline axis, solid and one shade off the surface.
     ay = top + 4 * rows_h + 1.0
