@@ -192,8 +192,8 @@ def s1(doc, f):
         "AI berada di dalam antarmuka sebagai pemandu bernama **Tapak**. Model bahasa hanya "
         "memahami pertanyaan: ia memilih satu operasi dan mengisi argumennya lewat function "
         "calling, lalu berhenti. Setiap angka dihitung mesin skor dari data. Ketika pertanyaan "
-        "berada di luar jangkauan data, model memanggil tidak_dimengerti dan antarmuka mengaku "
-        "tidak paham, bukan menjawab pertanyaan yang salah baca."
+        "berada di luar jangkauan data, model menyatakan tidak mengerti dan antarmuka mengakuinya, "
+        "alih-alih menjawab pertanyaan yang salah baca."
     )
     doc.subheading("Hasil utama")
     doc.para(
@@ -283,10 +283,6 @@ def s2(doc, f):
 
 def s3(doc, f):
     doc.heading("3. Ruang Lingkup Produk")
-    doc.para(
-        "Bagian ini menetapkan batas pengembangan SpotOn agar ruang lingkupnya tetap jelas, "
-        "realistis, dan sesuai kebutuhan kompetisi."
-    )
 
     doc.subheading("In-Scope")
     doc.bullets(
@@ -295,22 +291,21 @@ def s3(doc, f):
             f"{f['resolution']} sebanyak {n(f['cells'])} petak, dilengkapi zoom, klik objek, "
             f"filter, layer control, tabel lokasi, dan tabel atribut yang bisa diurutkan.",
             f"**Mesin Opportunity Score** untuk {f['categories']} kategori usaha, dengan bobot "
-            f"permintaan dan kompetisi, gerbang ketersediaan ruang, dan radius "
-            f"400 sampai {n(f['radius'])} m yang bisa diatur pengguna dan dihitung ulang seketika "
-            f"di peramban.",
+            f"permintaan dan kompetisi, gerbang ketersediaan ruang, dan radius 400 sampai "
+            f"{n(f['radius'])} m yang diatur pengguna dan dihitung ulang di peramban.",
             "**Analisis spasial**: spatial join titik ke petak, gap analysis permintaan terhadap "
             "kompetisi, indeks akses transit empat moda, dan tipologi peluang per petak.",
             "**Panel AI di dalam antarmuka** (Tapak): tanya jawab bahasa alami, query terstruktur "
             "yang ditampilkan apa adanya, peringkat lokasi, dan alasan *Kenapa di sini?*.",
             "**Dashboard dan insight**: profil transaksi 24 jam, komposisi skor langkah demi "
-            "langkah, batang peluang lintas kategori, dan kartu bukti lapangan per petak.",
+            "langkah, batang peluang lintas kategori, dan kartu bukti lapangan.",
             "**Empat data misi MAPID APPS** (Struk Go, Menu Go, Properti Go, Community Maps) "
             "sebagai bukti lapangan, ditambah katalog Data Premium MAPID sebagai sumber pesaing.",
             f"**Survey Activities di satu titik**, yaitu {f['site_station']}, untuk mendata PKL "
             f"sebagai sumber persaingan ad hoc, beserta pencatatan hasilnya sebagai bukti dan "
             f"sebagai catatan keterbatasan pada antarmuka.",
-            "**Antarmuka dua bahasa** (Bahasa Indonesia dan Inggris), mode terang dan gelap, "
-            "responsif di desktop dan ponsel, serta menghormati prefers-reduced-motion.",
+            "**Antarmuka dua bahasa** (Indonesia dan Inggris), mode terang dan gelap, responsif "
+            "di desktop dan ponsel, serta menghormati prefers-reduced-motion.",
             "**Deployment publik di Vercel** lewat pipeline CI yang menahan rilis bila typecheck "
             "atau build gagal.",
         ]
@@ -322,20 +317,20 @@ def s3(doc, f):
             "**Prediksi omzet atau proyeksi keuangan.** Data yang ada tidak memuatnya, dan "
             "angka semacam itu hanya bisa dikarang.",
             "**Estimasi harga sewa.** Katalog MAPID tidak menerbitkan sewa untuk Jakarta, dan "
-            "formulir Properti Go mencatat penawarannya tanpa menanyakan harganya. Yang "
-            "ditampilkan adalah harga penawaran jual per meter persegi, dan disebut begitu di "
-            "mana pun ia muncul.",
+            "formulir Properti Go mencatat penawaran tanpa menanyakan harganya. Yang ditampilkan "
+            "adalah harga penawaran jual per meter persegi, dan disebut begitu di mana pun.",
             "**Klasifikasi visual foto lapangan** (tingkat formalitas, kualitas etalase). "
             "Dirancang tetapi tidak dibangun, karena membutuhkan dataset misi yang tebal terlebih "
             "dahulu.",
-            f"**Memberlakukan hasil survei PKL ke seluruh grid.** Survei berjalan di satu titik. "
+            f"**Memberlakukan hasil survei PKL ke seluruh grid.** Survei dilakukan di satu titik. "
             f"Hasilnya menjadi catatan yang menyebut tempat dan jamnya, bukan koefisien yang "
             f"mengalikan {n(f['cells'])} petak.",
             "**Kota di luar Jakarta dan sekitarnya.** Kerangkanya tidak terikat kota, tetapi "
-            "cakupan yang dijanjikan pada kompetisi ini hanya Jabodetabek dalam jangkauan grid.",
+            "yang dijanjikan hanya Jabodetabek dalam jangkauan grid.",
             "**Aplikasi mobile native.** Yang dibangun adalah WebGIS yang responsif di ponsel.",
-            "**Integrasi payment gateway.** Sistem kuota dan paket sudah berjalan, tetapi "
-            "pemroses pembayaran tidak dipasang dan halaman akun menyatakannya terus terang.",
+            "**Integrasi payment gateway.** Sistem kuota dan paket termasuk dalam lingkup, "
+            "tetapi pemroses pembayaran tidak akan dipasang, dan halaman akun harus "
+            "menyatakannya terus terang.",
             "**Routing dan isochrone jaringan jalan.** Radius jalan kaki diukur sebagai jarak "
             "lurus dari pusat petak, dan itu dinyatakan apa adanya.",
         ]
@@ -709,11 +704,11 @@ def s7(doc, f):
             f"{n(f['stops'])} titik, karena satu halte sering tercatat sebagai beberapa node. "
             "Nama kategori properti diselaraskan terhadap ejaan formulir yang sebenarnya, dan "
             "pencocokannya memakai fungsi tersendiri, bukan perbandingan teks langsung.",
-            "**Validasi.** Setiap sumber melewati self-test yang berjalan di CI: hitungan POI, "
-            "properti, jam buka, catatan lapangan, komposisi skor, dan parser pertanyaan. "
-            "Uji komposisi menilai 640 kombinasi bobot, permintaan, kompetisi, akses transit, "
-            "dan listing, lalu memastikan langkah-langkah yang ditampilkan panel berjumlah persis "
-            "sama dengan skor yang dicetak mesin.",
+            "**Validasi.** Setiap sumber harus melewati uji otomatis pada pipeline integrasi: "
+            "hitungan POI, properti, jam buka, catatan lapangan, komposisi skor, dan parser "
+            "pertanyaan. Uji komposisi menilai 640 kombinasi bobot, permintaan, kompetisi, akses "
+            "transit, dan listing, dan harus memastikan langkah-langkah yang ditampilkan panel "
+            "berjumlah persis sama dengan skor yang dicetak mesin.",
             "**Integrasi.** Semua sumber disambungkan ke grid H3 lewat spatial join dalam radius "
             "jalan kaki, dengan cakupan dicatat per sumber. Cakupan pesaing diputuskan per kota "
             "administrasi memakai batas OSM, bukan dari kedekatan titik, sehingga petak di kota "
@@ -787,19 +782,21 @@ def s7(doc, f):
             "**Input AI.** Pertanyaan pengguna dalam bahasa alami, ditambah keadaan antarmuka "
             "saat itu: kategori usaha yang dipilih, bobot, radius, sumber pesaing, dan petak yang "
             "sedang dibuka.",
-            "**Proses integrasi.** Frontend mengirim POST /api/ai/query ke backend. Backend "
-            "memanggil model bahasa lewat OpenRouter dengan function calling dan tiga fungsi "
-            "saja: jalankan_query, ngobrol, dan tidak_dimengerti. Model memilih satu "
-            "operasi dan mengisi argumennya, lalu berhenti. Mesin skor kemudian menghitung setiap "
-            "angka dari grid, dengan fungsi yang sama persis yang mewarnai peta dan mengisi tabel.",
+            "**Proses integrasi.** Frontend mengirim pertanyaan ke satu rute kueri AI di "
+            "backend. Backend memanggil model bahasa lewat OpenRouter dengan function calling dan "
+            "tiga fungsi saja: menjalankan kueri, mengobrol, dan menyatakan tidak mengerti. Model "
+            "memilih satu operasi dan mengisi argumennya, lalu berhenti. Mesin skor kemudian "
+            "menghitung setiap angka dari grid, dengan fungsi yang sama persis yang mewarnai peta "
+            "dan mengisi tabel.",
             "**Output AI di dalam WebGIS.** Peringkat petak yang langsung menyorot peta, kalimat "
             "alasan *Kenapa di sini?*, query terstruktur yang ditampilkan apa adanya sehingga "
             "jawabannya bisa diaudit, jumlah titik data di belakang tiap klaim, dan penanda "
-            "parsedBy yang menyatakan jalur mana yang dipakai.",
+            "penanda yang menyatakan jalur mana yang dipakai.",
             "**Validasi.** Tidak ada angka yang bisa dikarang model, karena model tidak pernah "
-            "menghasilkan angka. Bila pertanyaan berada di luar jangkauan data, model memanggil "
-            "tidak_dimengerti dan antarmuka mengaku tidak paham. Tanpa kunci API, parser aturan "
-            "mengambil alih pemahaman bahasa dan produk tetap berjalan penuh.",
+            "menghasilkan angka. Bila pertanyaan berada di luar jangkauan data, model harus "
+            "memanggil fungsi tidak dimengerti dan antarmuka mengaku tidak paham. Tanpa kunci "
+            "API, parser aturan mengambil alih pemahaman bahasa dan produk harus tetap berjalan "
+            "penuh.",
         ]
     )
     doc.space(4.0)
@@ -879,7 +876,7 @@ def s8(doc, f):
                 "**Komposisi skor langkah demi langkah**\n"
                 "Skor yang sama dibongkar kembali suku demi suku.",
                 "Setiap langkah yang ditampilkan berjumlah persis sama dengan skor yang dicetak "
-                "mesin, dan self-test di CI membuktikannya pada 640 kombinasi.",
+                "mesin, dan uji otomatis membuktikannya pada 640 kombinasi.",
             ),
             (
                 "**Sakelar sumber OSM dan MAPID**\nDua survei atas kota yang sama.",
@@ -923,22 +920,21 @@ def s9(doc, f):
             "**Frontend.** SvelteKit 2 dengan Svelte 5 (runes) dan TypeScript. Peta digambar "
             "MapLibre GL. Skor dihitung ulang di peramban memakai modul yang sama dengan server, "
             "sehingga menggeser bobot tidak memerlukan perjalanan ke server.",
-            "**Backend.** SvelteKit server routes di Vercel, meliputi /api/catchments, "
-            "/api/scores, /api/meta, /api/ai/query, serta rute akun dan kuota. Satu berkas "
-            "menjadi tempat sumber data diputuskan, sehingga menukar data contoh dengan API MAPID "
-            "tidak menyentuh kode antarmuka.",
-            "**Database.** MongoDB untuk akun, sesi, dan meter kuota. Dengan MONGODB_URI "
-            "kosong, produk berjalan dalam mode demo memakai penyimpanan di memori, dan itu cara "
-            "menjalankan yang didukung dan bukan keadaan rusak.",
-            f"**GIS.** Grid H3 resolusi {f['resolution']} lewat h3-js, spatial join dan indeks "
-            f"akses transit dibangun oleh skrip Node pada waktu build, dengan Overpass API sebagai "
-            f"sumber OSM. MAPID MAPS sebagai basemap wajib.",
+            "**Backend.** SvelteKit server routes di Vercel: rute katalog petak, skor, metadata, "
+            "kueri AI, serta akun dan kuota. Sumber data diputuskan di satu tempat, sehingga "
+            "menukar data contoh dengan API MAPID tidak boleh menyentuh kode antarmuka.",
+            "**Database.** MongoDB untuk akun, sesi, dan meter kuota. Tanpa koneksi database, "
+            "produk harus tetap berjalan dalam mode demo memakai penyimpanan di memori, dan itu "
+            "cara menjalankan yang didukung dan bukan keadaan rusak.",
+            f"**GIS.** Grid H3 resolusi {f['resolution']}, dengan spatial join dan indeks akses "
+            f"transit dibangun oleh skrip pada waktu build dan Overpass API sebagai sumber OSM. "
+            f"MAPID MAPS sebagai basemap wajib.",
             "**AI.** Model bahasa lewat OpenRouter dengan function calling. Model apa pun yang "
             "dilayani OpenRouter bisa dipakai dan dibaca saat runtime, sehingga menggantinya di "
             "Vercel tidak memerlukan build ulang. Tanpa kunci, parser aturan mengambil alih.",
-            "**Deployment.** Vercel lewat @sveltejs/adapter-vercel, dengan GitHub Actions "
-            "menjalankan typecheck, self-test, dan build pada setiap pull request dan setiap "
-            "push. Bila salah satu gagal, tidak ada yang dirilis.",
+            "**Deployment.** Vercel, dengan GitHub Actions menjalankan typecheck, uji otomatis, "
+            "dan build pada setiap pull request dan setiap push. Bila salah satu gagal, tidak ada "
+            "yang dirilis.",
         ]
     )
     doc.subheading("Technology Architecture")
@@ -1020,8 +1016,8 @@ def s11(doc, f):
                 "M3",
                 "Mesin Opportunity Score: gap analysis, gerbang ruang, pengali akses transit dan "
                 "biaya ruang, tipologi petak.",
-                "Modul skor yang dipakai bersama server dan peramban, lengkap dengan self-test "
-                "komposisi yang berjalan di CI.",
+                "Modul skor yang dipakai bersama server dan peramban, lengkap dengan uji "
+                "komposisi otomatis.",
             ),
             (
                 "M4",
@@ -1039,7 +1035,7 @@ def s11(doc, f):
             (
                 "M6",
                 "Integrasi AI di dalam antarmuka: function calling lewat OpenRouter, parser "
-                "aturan sebagai cadangan, penanda parsedBy, dan jawaban tidak dimengerti.",
+                "aturan sebagai cadangan, penanda jalur jawaban, dan pengakuan tidak mengerti.",
                 "Panel Tapak yang menjawab pertanyaan bahasa alami dan menyorot peta, dengan "
                 "query terstruktur yang ditampilkan apa adanya.",
             ),
@@ -1133,10 +1129,10 @@ def s12(doc, f):
             (
                 "**Model bahasa mengarang angka.**",
                 "Rekomendasi menjadi kotak hitam dan kredibilitas seluruh produk runtuh.",
-                "Model tidak pernah menghasilkan angka. Ia memilih satu operasi dan mengisi "
-                "argumennya lewat function calling, lalu berhenti. Setiap angka dihitung mesin "
-                "skor, query terstrukturnya ditampilkan apa adanya, dan parsedBy menyatakan "
-                "jalur yang dipakai.",
+                "Model tidak boleh menghasilkan angka. Ia hanya memilih satu operasi dan "
+                "mengisi argumennya lewat function calling, lalu berhenti. Setiap angka dihitung "
+                "mesin skor, query terstrukturnya ditampilkan apa adanya, dan satu penanda "
+                "menyatakan jalur yang dipakai.",
             ),
             (
                 "**Layanan AI tidak tersedia atau kunci tidak ada.**",
@@ -1162,8 +1158,8 @@ def s12(doc, f):
             (
                 "**Batas laju Overpass API saat membangun ulang grid.**",
                 "Pembangunan ulang data gagal di tengah jalan menjelang tenggat.",
-                "Skrip pembangun diberi jeda sesuai batas laju, hasilnya disimpan di dalam "
-                "repositori, dan pembangunan ulang tidak pernah menjadi syarat untuk menjalankan "
+                "Skrip pembangun diberi jeda sesuai batas laju, hasilnya disimpan bersama "
+                "produk, dan pembangunan ulang tidak boleh menjadi syarat untuk menjalankan "
                 "produk.",
             ),
         ],
@@ -1181,19 +1177,18 @@ def s13(doc, f):
         [
             (
                 "**Hosting**",
-                "Vercel dengan @sveltejs/adapter-vercel. Rilis berjalan lewat GitHub Actions: "
-                "typecheck, self-test, dan build dijalankan pada setiap pull request dan setiap "
-                "push, dan hanya push ke main yang lolos ketiganya yang dirilis ke produksi. "
-                "Variabel lingkungan disimpan di Vercel dan ditarik pipeline, sehingga tidak ada "
-                "kunci yang perlu disalin ke dua tempat.",
+                "Vercel. Rilis berjalan lewat GitHub Actions: typecheck, uji otomatis, dan "
+                "build dijalankan pada setiap pull request dan setiap push, dan hanya push ke "
+                "main yang lolos ketiganya yang dirilis ke produksi. Variabel lingkungan disimpan "
+                "di Vercel dan ditarik pipeline, sehingga tidak ada kunci yang perlu disalin ke "
+                "dua tempat.",
             ),
             (
                 "**Database**",
-                "MongoDB Atlas untuk akun, sesi, dan meter kuota, dikonfigurasi lewat "
-                "MONGODB_URI. Data spasial tidak disimpan di database: grid dibangun pada waktu "
-                "build dan ikut di dalam bundel, sehingga peta tidak bergantung pada ketersediaan "
-                "database. Dengan MONGODB_URI kosong, produk berjalan dalam mode demo memakai "
-                "penyimpanan di memori.",
+                "MongoDB Atlas untuk akun, sesi, dan meter kuota. Data spasial tidak disimpan "
+                "di database: grid dibangun pada waktu build dan ikut di dalam bundel, sehingga "
+                "peta tidak bergantung pada ketersediaan database. Tanpa koneksi database, produk "
+                "berjalan dalam mode demo memakai penyimpanan di memori.",
             ),
             (
                 "**Repository**",
@@ -1217,8 +1212,7 @@ def s14(doc, f):
             "(dokumen panitia), katalog Data Premium MAPID, endpoint publik misi MAPID APPS "
             "untuk Struk Go, Menu Go, Properti Go, dan Community Maps, serta OpenStreetMap lewat "
             "Overpass API dengan lisensi ODbL.",
-            "**Wireframe.** Gambar 8 pada bagian 10, ditambah antarmuka yang sudah berjalan pada "
-            "rute / dan /app.",
+            "**Wireframe.** Gambar 8 pada bagian 10, untuk rute / dan /app.",
             "**Flowchart dan bagan.** Gambar 6 pada bagian 7 untuk alur AI, dan Gambar 7 pada "
             "bagian 9 untuk arsitektur teknologi.",
             "**Grafik dan peta.** Gambar 1 (tiga sinyal), Gambar 2 (cakupan tiap sumber atas "
@@ -1229,13 +1223,8 @@ def s14(doc, f):
             f"dihasilkan produk dan diperbarui setiap kali data baru masuk.",
             "**Dokumentasi metode.** Catatan sumber data dan batasannya, perbandingan kerapatan "
             "antara OpenStreetMap dan katalog MAPID, serta rekam jejak penelusuran endpoint misi, "
-            "seluruhnya tersimpan di dalam repositori pada direktori docs/.",
+            "disusun sebagai lampiran terpisah.",
         ]
-    )
-    doc.callout(
-        "Setiap angka dalam dokumen ini dibaca langsung dari data yang menghasilkannya pada saat "
-        "dokumen ini dibangun, bukan diketik dengan tangan. Membangun ulang grid akan membangun "
-        "ulang angka-angka di sini bersamanya."
     )
 
 

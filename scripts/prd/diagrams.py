@@ -204,8 +204,8 @@ def ai_flow(doc):
     stages = [
         ("1. Input", ["Pertanyaan bahasa", "alami, kategori,", "bobot, radius"]),
         ("2. Pemahaman", ["LLM lewat OpenRouter,", "function calling", "memilih 1 operasi"]),
-        ("3. Perhitungan", ["scoring.ts membaca", "grid dan menghitung", "setiap angka"]),
-        ("4. Output", ["Peringkat petak,", "sorotan peta, alasan,", "N titik, parsedBy"]),
+        ("3. Perhitungan", ["Mesin skor membaca", "grid dan menghitung", "setiap angka"]),
+        ("4. Output", ["Peringkat petak,", "sorotan peta, alasan,", "N titik, jalur jawaban"]),
     ]
     for i, (title, lines) in enumerate(stages):
         box(c, xs[i], top, w, H, title, lines, at=at)
@@ -219,9 +219,9 @@ def ai_flow(doc):
     h = band(
         doc,
         note_top,
-        "Tanpa kunci OPENROUTER_API_KEY",
-        "Parser aturan di domain/nlq.ts mengambil alih tahap 2. Tahap 3 dan 4 tidak berubah, dan "
-        "jawaban ditandai parsedBy = aturan.",
+        "Tanpa kunci API model bahasa",
+        "Parser aturan mengambil alih tahap 2. Tahap 3 dan 4 tidak berubah, dan jawabannya "
+        "ditandai sebagai hasil parser aturan.",
     )
     doc.y = note_top + h + 10.0
 
@@ -246,7 +246,7 @@ def architecture(doc):
 
     box(c, user_x, mid + 8.0, user_w, main_h - 16.0, "Pengguna", ["peramban", "desktop", "dan ponsel"], at=at)
     box(c, fe_x, mid, fe_w, main_h, "Frontend", ["SvelteKit 2, Svelte 5", "MapLibre GL", "peta, panel, tabel"], at=at)
-    box(c, be_x, mid, be_w, main_h, "Backend", ["SvelteKit server routes", "di Vercel", "/api/*"], at=at)
+    box(c, be_x, mid, be_w, main_h, "Backend", ["SvelteKit server routes", "di Vercel", "rute API"], at=at)
 
     # Centred over the frontend, because the basemap is served to the browser
     # and not through the backend, and a vertical arrow says that plainly.
@@ -274,8 +274,8 @@ def architecture(doc):
         doc,
         band_top,
         "Waktu build, bukan waktu permintaan",
-        "scripts/*.mjs membaca Overpass, katalog Data Premium MAPID dan misi MAPID APPS, lalu "
-        "menulis grid H3 ke dalam bundel. Peramban menerima grid yang sudah jadi, sehingga "
+        "Skrip pembangun data membaca Overpass, katalog Data Premium MAPID dan misi MAPID APPS, "
+        "lalu menulis grid H3 ke dalam bundel. Peramban menerima grid yang sudah jadi, sehingga "
         "menggeser peta dan mengganti kategori tidak memanggil server sama sekali.",
     )
     doc.y = band_top + h + 10.0
@@ -408,7 +408,7 @@ def wireframe(doc):
             "3. Petak C   skor 0,66",
             "",
             "Kenapa di sini?  N = 42",
-            "parsedBy: model",
+            "dijawab: model",
         ],
     )
     _pane(
