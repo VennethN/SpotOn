@@ -830,106 +830,98 @@ def grid_rationale(doc, f):
 
 
 def score_anatomy(doc, f):
-    """The four terms on one 0 to 1 axis.
+    """How much each factor can take off a score.
 
-    The point the prose cannot make at a glance: only the first term can raise a
-    score. The other three are multipliers capped at 1, so they can shade a
-    ranking and never invent one.
+    This started as four rows showing the interval each multiplier lives in:
+    0,6 to 1 for transit access, and so on. That is what the arithmetic does,
+    and it is unreadable, because it asks the reader to turn "a multiplier of
+    0,6" into "takes away 40 per cent" in their head before the figure means
+    anything.
 
-    Notes sit under the term name rather than beside the track, because beside
-    the track there is no room for them and they ran off the page.
+    So the figure now answers the question a reader actually has. One line says
+    where a score starts. Three bars say how far each factor can pull it down,
+    in per cent, from a zero baseline, which is what a bar is for. The
+    percentages are derived from the same constants the engine multiplies by, so
+    the figure cannot drift away from the formula printed above it.
     """
     c, at = doc.c, doc._at
-    rows_h, axis_h = 27.0, 20.0
-    H = 4 * rows_h + axis_h + 34.0
-    doc.ensure(H + 6.0)
+    row_h, axis_h = 30.0, 20.0
+    doc.ensure(200.0)
     top = doc.y
 
-    label_w = 158.0
+    label_w = 196.0
     ax = T.LEFT + label_w
-    aw = T.RIGHT - ax - 8.0
+    aw = T.RIGHT - ax - 44.0
+    bar_h = 11.0
 
-    def at_x(v):
-        return ax + aw * v
+    # Where a score starts, said in words, because it is not a reduction and
+    # putting it among the bars would make it read as one.
+    c.setFillColor(T.INK)
+    c.setFont(T.F_BOLD, LABEL + 0.5)
+    c.drawString(T.LEFT, at(top + 9.0), "Titik awal")
+    c.setFillColor(T.MUTED)
+    c.setFont(T.F_REG, CAPTION + 0.4)
+    c.drawString(
+        T.LEFT + 60.0,
+        at(top + 9.0),
+        "Selisih permintaan dan kompetisi menentukan skor awal, di mana pun antara 0% dan 100%.",
+    )
 
-    def dec(v):
-        return str(v).replace(".", ",")
+    head = top + 22.0
+    c.setFillColor(T.INK)
+    c.setFont(T.F_BOLD, LABEL + 0.5)
+    c.drawString(T.LEFT, at(head + 9.0), "Lalu tiga hal bisa memotongnya")
+    c.setFillColor(T.MUTED)
+    c.setFont(T.F_REG, CAPTION + 0.4)
+    c.drawString(ax, at(head + 9.0), "paling banyak memotong sebanyak ini")
 
-    gate = f["gate_blocked"]
-    # `values` is what the term can actually be. A pair means every value between
-    # them is reachable; a set of points means those points and nothing between,
-    # which is the distinction the gate row has to carry.
-    terms = [
-        ("batas(Gap + 0,5)", "range", (0.0, 1.0), "satu-satunya suku yang bisa menaikkan"),
-        ("gerbang_ruang", "states", (gate, 1.0), "dua nilai saja, bukan rentang"),
-        (
-            "akses_transit",
-            "range",
-            (f["access_floor"], f["access_ceiling"]),
-            "dihitung dari simpul transit",
-        ),
-        ("biaya_ruang", "range", (f["cost_floor"], 1.0), "hanya pernah mengurangi"),
+    # Each cut is 1 minus the floor the engine multiplies by, so the bars and the
+    # formula above them cannot disagree.
+    cuts = [
+        ("Gerbang ruang", "tidak ada unit yang ditawarkan di petak itu", 1.0 - f["gate_blocked"]),
+        ("Akses transit", "simpul transit paling sedikit", 1.0 - f["access_floor"]),
+        ("Biaya ruang", "harga per meter persegi tertinggi", 1.0 - f["cost_floor"]),
     ]
 
-    for i, (name, kind, values, note) in enumerate(terms):
-        y = top + i * rows_h
+    for i, (name, when, cut) in enumerate(cuts):
+        y = head + 16.0 + i * row_h
         c.setFillColor(T.INK)
         c.setFont(T.F_BOLD, LABEL)
         c.drawString(T.LEFT, at(y + 9.0), name)
         c.setFillColor(T.MUTED)
         c.setFont(T.F_REG, CAPTION)
-        c.drawString(T.LEFT, at(y + 18.5), note)
+        c.drawString(T.LEFT, at(y + 18.5), when)
 
-        # THESE ARE INTERVALS, NOT MAGNITUDES, so they are drawn as range marks
-        # and not as bars. A filled bar is read from a baseline, so a bar running
-        # 0,6 to 1 looks like a quantity anchored to the right edge and growing
-        # the wrong way. What the row actually says is "this term lives between
-        # here and here", and a rule between two end caps says exactly that.
-        c.setStrokeColor(T.RULE_LIGHT)
-        c.setLineWidth(0.7)
-        c.line(ax, at(y + 10.0), ax + aw, at(y + 10.0))
+        # A bar, from zero, because this one really is a magnitude.
+        w = aw * cut
+        c.setFillColor(T.TABLE_HEAD)
+        c.roundRect(ax, at(y + 14.0), w, bar_h, 3.0, stroke=0, fill=1)
+        # Square off the baseline end: only the data end is rounded.
+        c.rect(ax, at(y + 14.0), 3.0, bar_h, stroke=0, fill=1)
 
-        if kind == "range":
-            lo, hi = values
-            c.saveState()
-            c.setStrokeColor(T.TABLE_HEAD)
-            c.setLineWidth(4.5)
-            c.setLineCap(1)
-            c.line(at_x(lo), at(y + 10.0), at_x(hi), at(y + 10.0))
-            c.restoreState()
+        c.setFillColor(T.INK)
+        c.setFont(T.F_BOLD, CAPTION + 1.2)
+        c.drawString(ax + w + 7.0, at(y + 11.6), f"{round(cut * 100)}%")
 
-        for v in values:
-            c.setFillColor(T.TABLE_HEAD)
-            c.setStrokeColor(T.WHITE)
-            c.setLineWidth(1.1)
-            c.circle(at_x(v), at(y + 10.0), 3.9, stroke=1, fill=1)
-
-        # Only the floor is labelled, and only where the axis does not already
-        # name it. Every ceiling is 1, which the axis carries for all four rows.
-        floor = min(values)
-        if floor > 0:
-            c.setFillColor(T.INK)
-            c.setFont(T.F_BOLD, CAPTION)
-            c.drawRightString(at_x(floor) - 6.5, at(y + 9.6), dec(floor))
-
-    # A single hairline axis, solid and one shade off the surface.
-    ay = top + 4 * rows_h + 1.0
+    ay = head + 16.0 + len(cuts) * row_h - 4.0
     c.setStrokeColor(T.RULE_LIGHT)
     c.setLineWidth(0.7)
     c.line(ax, at(ay), ax + aw, at(ay))
     c.setFillColor(T.MUTED)
     c.setFont(T.F_REG, CAPTION)
-    for v in (0.0, 0.25, 0.5, 0.75, 1.0):
-        c.line(at_x(v), at(ay), at_x(v), at(ay + 3.0))
-        c.drawCentredString(at_x(v), at(ay + 12.0), dec(v))
+    for v in (0, 25, 50, 75, 100):
+        x = ax + aw * v / 100.0
+        c.line(x, at(ay), x, at(ay + 3.0))
+        c.drawCentredString(x, at(ay + 12.0), f"{v}%")
 
     band_top = ay + 20.0
     h = band(
         doc,
         band_top,
-        "Tiga dari empat suku hanya bisa mengurangi",
-        "Semuanya dibatasi 1, sehingga tidak satu pun bisa mengangkat petak melewati apa yang "
-        "dikatakan permintaan dan kompetisinya. Petak yang tidak punya bacaan pada sebuah suku "
-        "menerima tepat 1 di suku itu, bukan angka yang dikarang untuknya.",
+        "Ketiganya hanya bisa memotong, tidak pernah menambah",
+        "Jadi tidak satu pun dari ketiganya bisa mengangkat sebuah petak melewati apa yang "
+        "dikatakan permintaan dan kompetisinya. Petak yang tidak punya bacaan pada salah satu "
+        "faktor tidak dipotong sama sekali di faktor itu, bukan dipotong dengan angka yang "
+        "dikarang untuknya.",
     )
     doc.y = band_top + h + 6.0
