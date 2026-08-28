@@ -40,7 +40,7 @@ python3 scripts/build-prd.py
 | [`scripts/prd/theme.py`](../scripts/prd/theme.py) | The template's measurements. Change these if the organisers reissue it. |
 | [`scripts/prd/layout.py`](../scripts/prd/layout.py) | Typesetting: wrapping, page breaks, tables. |
 | [`scripts/prd/figures.py`](../scripts/prd/figures.py) | Every number, read from the data that produced it. |
-| [`scripts/prd/diagrams.py`](../scripts/prd/diagrams.py) | The three drawings the template asks for, and the SpotOn mark on the cover. |
+| [`scripts/prd/diagrams.py`](../scripts/prd/diagrams.py) | The eight figures, and the SpotOn mark on the cover. Maps and charts are drawn from the real grid, not sketched. |
 | [`scripts/prd/content.py`](../scripts/prd/content.py) | The copy. |
 | [`scripts/prd/verify.py`](../scripts/prd/verify.py) | What the builder checks about its own output. |
 | `scripts/prd/fonts/` | Figtree, vendored as TTF so the build needs no network. |

@@ -13,6 +13,7 @@ stopped using.
 """
 
 import json
+import math
 import os
 import re
 
@@ -135,7 +136,122 @@ def collect():
     }
     f["access_ceiling"] = round(f["access_floor"] + f["access_span"], 2)
     f.update(_site(cells, mission))
+    f["coverage"] = _coverage(cells, meta)
+    f["geometry"] = _geometry(cells)
     return f
+
+
+def _coverage(cells, meta):
+    """How many of the grid's cells each source can actually speak for.
+
+    Three ordered states per source rather than two, because "read thinly" is
+    not "read" and neither of them is "never looked at". This is the figure the
+    document's honesty argument rests on, so it is counted here rather than
+    quoted from prose.
+    """
+    total = meta["hexes"]
+    hours = meta["hours"]
+    priced = sum(
+        1
+        for c in cells
+        if (c.get("prop") or {}).get("r", {}).get("800", {}).get("p") is not None
+    )
+    prop_covered = meta["property"]["cellsCovered"]
+    mapid = sum(
+        1 for c in cells if c.get("covered") and all(c["covered"].get(k) for k in c["covered"])
+    )
+    field = sum(1 for c in cells if c.get("field"))
+
+    # (label, note, [(state label, count), ...]) with the states ordered
+    # strongest first, which is the order the ramp is applied in.
+    return {
+        "total": total,
+        "rows": [
+            (
+                "Pesaing OpenStreetMap",
+                f"{meta['pois']:,} titik".replace(",", "."),
+                [("terbaca", sum(1 for c in cells if c.get("osm") is not None)), ("tipis", 0), ("belum", 0)],
+            ),
+            (
+                "Pesaing katalog MAPID",
+                f"{meta['mapid']['points']:,} titik".replace(",", "."),
+                [("terbaca", mapid), ("tipis", 0), ("belum", total - mapid)],
+            ),
+            (
+                "Properti dan harga ruang",
+                f"{meta['property']['listings']:,} listing".replace(",", "."),
+                [
+                    ("terbaca", priced),
+                    ("tipis", prop_covered - priced),
+                    ("belum", total - prop_covered),
+                ],
+            ),
+            (
+                "Jam buka usaha",
+                f"{meta['hours']['readable']:,} terbaca".replace(",", "."),
+                [
+                    ("terbaca", hours["cellsReadable"]),
+                    ("tipis", hours["cellsThin"]),
+                    ("belum", hours["cellsEmpty"]),
+                ],
+            ),
+            (
+                "Catatan lapangan MAPID APPS",
+                f"{meta['mission']['records']:,} catatan".replace(",", "."),
+                [("terbaca", field), ("tipis", 0), ("belum", total - field)],
+            ),
+        ],
+    }
+
+
+def _geometry(cells):
+    """The survey cell, its neighbours, and the transit nodes it captures.
+
+    Real coordinates throughout: the hexagon rings come from the grid and the
+    stops from the same file the scoring engine counts, measured with the same
+    distance test. A sketched map would have been quicker and would not have
+    been the place the team is going.
+    """
+    cell = next(c for c in cells if c["id"] == SITE_CELL)
+    lat0, lon0 = cell["lat"], cell["lon"]
+
+    # Neighbours for context: every cell whose centre is within roughly two
+    # hexagon widths, which is enough to show the grid without crowding it.
+    near = []
+    for c in cells:
+        if c["id"] == SITE_CELL:
+            continue
+        d = _metres(lat0, lon0, c["lat"], c["lon"])
+        if d < 2600:
+            near.append({"boundary": c["boundary"], "name": c["name"], "d": d})
+    near.sort(key=lambda c: c["d"])
+
+    stops = []
+    for s in _load("static", "data", "stops.json")["stops"]:
+        d = _metres(lat0, lon0, s["y"], s["x"])
+        if d <= 800:
+            stops.append({"name": s["n"], "mode": s["m"], "lat": s["y"], "lon": s["x"], "d": d})
+    stops.sort(key=lambda s: s["d"])
+
+    return {
+        "boundary": cell["boundary"],
+        "centre": (lat0, lon0),
+        "station": (SITE_LAT, SITE_LON),
+        # Exactly the six that share an edge. A wider ring only shrinks the map
+        # scale, and the stops it has to label sit inside one 1.6 km circle.
+        "neighbours": near[:6],
+        "stops": stops,
+    }
+
+
+def _metres(lat1, lon1, lat2, lon2):
+    """Haversine, matching `src/lib/utils/geo.ts`."""
+    r = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
 
 
 def _site(cells, mission):

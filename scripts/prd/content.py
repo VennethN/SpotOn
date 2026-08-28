@@ -232,6 +232,13 @@ def s2(doc, f):
         ]
     )
 
+    D.three_signals(doc, f)
+    D.caption(
+        doc,
+        "Gambar 1. Tiga sinyal yang menentukan sebuah lokasi, dibaca bersama dalam satu petak. "
+        "Selama ini ketiganya dianalisis terpisah, dan itulah celah yang produk ini isi.",
+    )
+
     doc.subheading("Tujuan")
     doc.numbers(
         [
@@ -523,6 +530,13 @@ def s5(doc, f):
         ],
         T.COLS_DATA,
     )
+    D.coverage(doc, f)
+    D.caption(
+        doc,
+        f"Gambar 2. Sejauh mana tiap sumber menjangkau {n(f['cells'])} petak grid. Yang tidak "
+        f"terjangkau tidak dibaca sebagai nol, dan itulah sebabnya cakupan dihitung per sumber "
+        f"dan bukan diandaikan merata.",
+    )
     doc.callout(
         "Pemisahan sumber dijaga di seluruh produk. Katalog dan OpenStreetMap masing-masing "
         "mengklaim kelengkapan untuk kota yang dicakupnya, sehingga nol dari keduanya adalah "
@@ -576,6 +590,13 @@ def s6(doc, f):
             f"**Batas cakupan.** Satu petak, bukan koridor. Semua titik survei harus jatuh di "
             f"dalam batas heksagon itu, dan koordinatnya diperiksa sebelum dipakai.",
         ]
+    )
+    D.site_map(doc, f)
+    D.caption(
+        doc,
+        f"Gambar 3. Petak survei dan {f['site_nodes']} simpul transit yang ditangkapnya, digambar "
+        f"dari batas heksagon dan koordinat simpul yang sama dengan yang dihitung mesin skor. "
+        f"Lingkaran menandai radius jalan kaki {n(f['radius'])} m dari pusat petak.",
     )
 
     doc.subheading("Objek")
@@ -719,7 +740,13 @@ def s7(doc, f):
             "petak, dan status **belum terdata** untuk petak yang sumbernya belum menjangkau.",
         ]
     )
-    doc.space(2.0)
+    D.grid_rationale(doc, f)
+    D.caption(
+        doc,
+        f"Gambar 4. Kenapa satuan analisisnya sebuah grid. Halte TransJakarta berjarak 400 sampai "
+        f"500 m sementara radius jalan kaki {n(f['radius'])} m, sehingga catchment antar halte "
+        f"nyaris seluruhnya bertumpuk. Kedua panel digambar pada skala yang sama.",
+    )
     doc.para("Aritmetikanya, dengan setiap suku dihitung dari data:", after=4.0)
     doc.callout(
         f"Gap = (wd × permintaan − ws × kompetisi) / (wd + ws)\n"
@@ -745,6 +772,13 @@ def s7(doc, f):
             f"tepat 1, tanpa pengurangan, karena memberi harga karangan kepada petak yang belum "
             f"disurvei sama saja dengan interpolasi.",
         ]
+    )
+    D.score_anatomy(doc, f)
+    D.caption(
+        doc,
+        "Gambar 5. Rentang tiap suku pada sumbu yang sama. Hanya suku pertama yang bisa "
+        "menaikkan skor. Tiga sisanya pengali yang dibatasi 1, jadi mereka bisa menahan sebuah "
+        "peringkat tetapi tidak pernah menciptakannya.",
     )
 
     doc.subheading("AI Integration")
@@ -773,7 +807,7 @@ def s7(doc, f):
     D.ai_flow(doc)
     D.caption(
         doc,
-        "Gambar 1. Alur AI di dalam antarmuka. Tahap 2 adalah satu-satunya tahap yang menyentuh "
+        "Gambar 6. Alur AI di dalam antarmuka. Tahap 2 adalah satu-satunya tahap yang menyentuh "
         "model, dan tahap itu tidak menghasilkan satu angka pun. Tahap 3 menghitung semuanya dari "
         "data, sehingga jawaban lewat model dan jawaban lewat parser aturan menghasilkan angka "
         "yang identik."
@@ -911,7 +945,7 @@ def s9(doc, f):
     D.architecture(doc)
     D.caption(
         doc,
-        "Gambar 2. Hubungan antara pengguna, frontend, backend, database, MAPID API, dan AI "
+        "Gambar 7. Hubungan antara pengguna, frontend, backend, database, MAPID API, dan AI "
         "Router. Grid dibangun sebelum permintaan datang, sehingga peramban menerima grid yang "
         "sudah jadi dan pekerjaan berat tidak diulang tiap kali peta digeser."
     )
@@ -950,7 +984,7 @@ def s10(doc, f):
     D.wireframe(doc)
     D.caption(
         doc,
-        "Gambar 3. Rancangan halaman utama dan aplikasi WebGIS. Pengaturan lanjutan, layer, dan "
+        "Gambar 8. Rancangan halaman utama dan aplikasi WebGIS. Pengaturan lanjutan, layer, dan "
         "tabel atribut tersedia penuh tetapi tidak menghadang jawaban pertama, karena pengguna "
         "utama produk ini tidak melek GIS."
     )
@@ -1183,10 +1217,13 @@ def s14(doc, f):
             "(dokumen panitia), katalog Data Premium MAPID, endpoint publik misi MAPID APPS "
             "untuk Struk Go, Menu Go, Properti Go, dan Community Maps, serta OpenStreetMap lewat "
             "Overpass API dengan lisensi ODbL.",
-            "**Wireframe.** Gambar 3 pada bagian 10, ditambah antarmuka yang sudah berjalan pada "
+            "**Wireframe.** Gambar 8 pada bagian 10, ditambah antarmuka yang sudah berjalan pada "
             "rute / dan /app.",
-            "**Flowchart.** Gambar 1 pada bagian 7 untuk alur AI, dan Gambar 2 pada bagian 9 "
-            "untuk arsitektur teknologi.",
+            "**Flowchart dan bagan.** Gambar 6 pada bagian 7 untuk alur AI, dan Gambar 7 pada "
+            "bagian 9 untuk arsitektur teknologi.",
+            "**Grafik dan peta.** Gambar 1 (tiga sinyal), Gambar 2 (cakupan tiap sumber atas "
+            "grid), Gambar 3 (peta petak survei beserta simpul transitnya), Gambar 4 (alasan "
+            "satuan analisisnya sebuah grid), dan Gambar 5 (rentang tiap suku skor).",
             f"**Dokumentasi survey.** Rencana lokasi, objek, dan atribut pada bagian 6, yaitu "
             f"pendataan PKL di {f['site_station']}, beserta daftar petak belum terdata yang "
             f"dihasilkan produk dan diperbarui setiap kali data baru masuk.",

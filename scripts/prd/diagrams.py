@@ -1,13 +1,29 @@
-"""The three drawings the template asks for, plus the SpotOn mark.
+"""The document's eight figures, plus the SpotOn mark.
 
-The template requires a *bagan* for the AI flow (section 7) and a diagram of
-User, Frontend, Backend, Database, MAPID API and AI Router (section 9), and asks
-for a simple wireframe (section 10). All three are drawn as vectors in the
-template's own palette and in Figtree, so nothing here introduces a typeface or
-a colour the document does not already use.
+Three are required. The template asks for a *bagan* of the AI flow (section 7),
+a diagram naming User, Frontend, Backend, Database, MAPID API and AI Router
+(section 9), and a wireframe (section 10). The other five are here because the
+passages beside them were making visual arguments in prose: the three signals
+read together (section 2), how far each source reaches across the grid (section
+5), the survey cell and the nodes it captures (section 6), why the unit of
+analysis is a grid rather than a catchment per stop, and what the score is
+actually made of (both section 7).
 
-Every box is a rounded rectangle in `TABLE_CELL` on a `RULE_LIGHT` hairline, the
-same two values the template's own tables are built from.
+Everything is drawn as vectors in the template's own palette and in Figtree, so
+nothing here introduces a typeface or a colour the document does not already
+use. Every box is a rounded rectangle in `TABLE_CELL` on a `RULE_LIGHT`
+hairline, the two values the template's own tables are built from.
+
+Two rules the charts follow, from the visualisation guidance rather than from
+taste. Magnitude is one hue running light to dark, never a set of separate
+colours, because the states being compared are ordered rather than different
+things. And where identity really is the job, on the map's four transit modes,
+it is carried by marker SHAPE, so the figure survives greyscale printing and a
+colour-blind reader.
+
+The maps and charts are drawn from `figures.collect()`, which reads the real
+rings, the real stop coordinates and the real per-source coverage. None of it
+is sketched.
 """
 
 import math
@@ -404,3 +420,501 @@ def wireframe(doc):
         ],
     )
     doc.y = app_top + app_h + 12.0
+
+
+# --- 4. The three signals (section 2) --------------------------------------
+
+
+def _hexagon(c, cx, cy_pdf, r, fill, stroke, lw=0.9):
+    p = c.beginPath()
+    for i in range(6):
+        a = math.pi / 3 * i + math.pi / 6
+        vx, vy = cx + r * math.cos(a), cy_pdf + r * math.sin(a)
+        p.moveTo(vx, vy) if i == 0 else p.lineTo(vx, vy)
+    p.close()
+    c.setFillColor(fill)
+    c.setStrokeColor(stroke)
+    c.setLineWidth(lw)
+    c.drawPath(p, stroke=1, fill=1)
+
+
+def three_signals(doc, f):
+    """The product's whole thesis: three signals read together in one cell.
+
+    It is the one claim the document repeats most and the only one that was
+    carried entirely in prose.
+    """
+    c, at = doc.c, doc._at
+    doc.ensure(190.0)
+    top = doc.y
+
+    src_x, src_w, src_h, gap = T.LEFT, 158.0, 34.0, 12.0
+    hex_cx, hex_r = 322.0, 40.0
+    out_x, out_w = 392.0, T.RIGHT - 392.0
+    mid = top + (src_h * 3 + gap * 2) / 2
+
+    sources = [
+        ("Permintaan", "Struk Go, kerapatan usaha"),
+        ("Kompetisi", "Menu Go, katalog, OSM"),
+        ("Ruang", "Properti Go, katalog"),
+    ]
+    for i, (title, note) in enumerate(sources):
+        y = top + i * (src_h + gap)
+        c.setFillColor(T.TABLE_CELL)
+        c.setStrokeColor(T.RULE_LIGHT)
+        c.setLineWidth(0.8)
+        c.roundRect(src_x, at(y + src_h), src_w, src_h, 3.5, stroke=1, fill=1)
+        c.setFillColor(T.INK)
+        c.setFont(T.F_BOLD, LABEL + 0.5)
+        c.drawString(src_x + 9.0, at(y + 14.0), title)
+        c.setFont(T.F_REG, CAPTION)
+        c.setFillColor(T.MUTED)
+        c.drawString(src_x + 9.0, at(y + 24.5), note)
+        arrow(c, src_x + src_w + 2.0, y + src_h / 2, hex_cx - hex_r - 3.0, mid, at)
+
+    _hexagon(c, hex_cx, at(mid), hex_r, T.BOX_FILL, T.BLUE_MID, 1.2)
+    c.setFillColor(T.INK)
+    c.setFont(T.F_BOLD, LABEL)
+    c.drawCentredString(hex_cx, at(mid - 3.0), "Satu petak")
+    c.setFont(T.F_REG, CAPTION)
+    c.setFillColor(T.MUTED)
+    c.drawCentredString(hex_cx, at(mid + 7.0), f"H3 r{f['resolution']}")
+    c.drawCentredString(hex_cx, at(mid + 16.0), f"radius {f['radius']} m")
+
+    arrow(c, hex_cx + hex_r + 3.0, mid, out_x - 2.0, mid, at)
+    c.setFillColor(T.TABLE_CELL)
+    c.setStrokeColor(T.RULE_LIGHT)
+    c.roundRect(out_x, at(mid + 26.0), out_w, 52.0, 3.5, stroke=1, fill=1)
+    c.setFillColor(T.INK)
+    c.setFont(T.F_BOLD, LABEL + 0.5)
+    c.drawCentredString(out_x + out_w / 2, at(mid - 12.0), "Opportunity Score")
+    c.setFont(T.F_REG, CAPTION)
+    c.setFillColor(T.MUTED)
+    c.drawCentredString(out_x + out_w / 2, at(mid - 1.0), "per kategori usaha,")
+    c.drawCentredString(out_x + out_w / 2, at(mid + 8.0), "dengan N titik di")
+    c.drawCentredString(out_x + out_w / 2, at(mid + 17.0), "belakang tiap angka")
+
+    band_top = top + src_h * 3 + gap * 2 + 14.0
+    h = band(
+        doc,
+        band_top,
+        "Ruang adalah gerbang, bukan bonus",
+        f"Permintaan dikurangi kompetisi belum lengkap sampai disaring oleh ruang yang benar-benar "
+        f"bisa ditempati. Petak tanpa unit yang ditawarkan turun ke "
+        f"{str(f['gate_blocked']).replace('.', ',')} kali skornya, bukan ke nol.",
+    )
+    doc.y = band_top + h + 6.0
+
+
+# --- 5. Source coverage (section 5) ----------------------------------------
+
+
+def coverage(doc, f):
+    """How much of the grid each source can speak for.
+
+    One hue, light to dark, because the three states are ordered rather than
+    separate identities. Only the strongest state is direct-labelled: the other
+    two are read off the shared 562-cell track, and a number on every segment
+    would be noise.
+    """
+    c, at = doc.c, doc._at
+    cov = f["coverage"]
+    rows = cov["rows"]
+    total = cov["total"]
+
+    legend_h, row_h, bar_h = 16.0, 27.0, 11.0
+    H = legend_h + len(rows) * row_h + 6.0
+    doc.ensure(H + 6.0)
+    top = doc.y
+
+    label_w = 152.0
+    bar_x = T.LEFT + label_w + 8.0
+    bar_w = T.RIGHT - bar_x - 46.0
+    ramp = [T.TABLE_HEAD, T.RULE_COVER, T.TABLE_CELL]
+    names = ["terbaca", "terbaca tipis", "belum terjangkau"]
+
+    # Legend. Three states means identity is never carried by colour alone.
+    lx = bar_x
+    for i, name in enumerate(names):
+        c.setFillColor(ramp[i])
+        c.setStrokeColor(T.RULE_LIGHT)
+        c.setLineWidth(0.6)
+        c.rect(lx, at(top + 8.5), 9.0, 7.0, stroke=1, fill=1)
+        c.setFillColor(T.MUTED)
+        c.setFont(T.F_REG, CAPTION)
+        c.drawString(lx + 12.5, at(top + 8.0), name)
+        lx += 12.5 + pdfmetrics.stringWidth(name, T.F_REG, CAPTION) + 16.0
+
+    for i, (label, note, states) in enumerate(rows):
+        y = top + legend_h + i * row_h
+        c.setFillColor(T.INK)
+        c.setFont(T.F_BOLD, LABEL)
+        c.drawString(T.LEFT, at(y + 8.0), label)
+        c.setFillColor(T.MUTED)
+        c.setFont(T.F_REG, CAPTION)
+        c.drawString(T.LEFT, at(y + 18.0), note)
+
+        x = bar_x
+        for j, (_, count) in enumerate(states):
+            if count <= 0:
+                continue
+            w = bar_w * count / total
+            c.setFillColor(ramp[j])
+            # A 2pt surface gap separates the segments instead of a border.
+            c.setStrokeColor(T.WHITE)
+            c.setLineWidth(0.0)
+            c.rect(x, at(y + 3.0 + bar_h), max(0.0, w - 2.0), bar_h, stroke=0, fill=1)
+            if j == 2:  # the untouched remainder reads as a track, so outline it
+                c.setStrokeColor(T.RULE_LIGHT)
+                c.setLineWidth(0.6)
+                c.rect(x, at(y + 3.0 + bar_h), max(0.0, w - 2.0), bar_h, stroke=1, fill=0)
+            x += w
+
+        # Direct-label the state that matters, and nothing else.
+        c.setFillColor(T.INK)
+        c.setFont(T.F_BOLD, CAPTION + 0.6)
+        c.drawString(bar_x + bar_w + 6.0, at(y + 11.5), f"{states[0][1]}")
+        c.setFillColor(T.MUTED)
+        c.setFont(T.F_REG, CAPTION)
+        c.drawString(
+            bar_x + bar_w + 6.0 + pdfmetrics.stringWidth(str(states[0][1]), T.F_BOLD, CAPTION + 0.6),
+            at(y + 11.5),
+            f"/{total}",
+        )
+    doc.y = top + H + 4.0
+
+
+# --- 6. The survey site, as a map (section 6) ------------------------------
+
+
+def site_map(doc, f):
+    """The survey cell drawn from its real ring, with the nodes it really captures.
+
+    Mode is carried by marker SHAPE rather than colour, so the map survives a
+    greyscale print and a colour-blind reader, and only the rail stops are
+    labelled: eleven labels would cover the thing they annotate.
+    """
+    c, at = doc.c, doc._at
+    g = f["geometry"]
+    H = 232.0
+    doc.ensure(H + 6.0)
+    top = doc.y
+
+    lat0, lon0 = g["centre"]
+    kx = math.cos(math.radians(lat0))
+
+    # Everything that has to be inside the frame, so the fit is measured rather
+    # than guessed.
+    pts = [(la, lo) for ring in [g["boundary"]] for lo, la in ring]
+    for nb in g["neighbours"]:
+        pts += [(la, lo) for lo, la in nb["boundary"]]
+    span_lat = max(p[0] for p in pts) - min(p[0] for p in pts)
+    span_lon = (max(p[1] for p in pts) - min(p[1] for p in pts)) * kx
+    mid_lat = (max(p[0] for p in pts) + min(p[0] for p in pts)) / 2
+    mid_lon = (max(p[1] for p in pts) + min(p[1] for p in pts)) / 2
+
+    frame_w, frame_h = T.WIDTH, H - 30.0
+    scale = min(frame_w * 0.92 / span_lon, frame_h * 0.92 / span_lat)
+    cx0, cy0 = T.LEFT + frame_w / 2, top + frame_h / 2
+
+    def px(lat, lon):
+        return cx0 + (lon - mid_lon) * kx * scale, cy0 - (lat - mid_lat) * scale
+
+    def ring(boundary, fill, stroke, lw=0.8):
+        p = c.beginPath()
+        for i, (lo, la) in enumerate(boundary):
+            x, y = px(la, lo)
+            p.moveTo(x, at(y)) if i == 0 else p.lineTo(x, at(y))
+        p.close()
+        c.setFillColor(fill)
+        c.setStrokeColor(stroke)
+        c.setLineWidth(lw)
+        c.drawPath(p, stroke=1, fill=1)
+
+    for nb in g["neighbours"]:
+        ring(nb["boundary"], T.WHITE, T.RULE_LIGHT, 0.7)
+    ring(g["boundary"], T.BOX_FILL, T.BLUE_MID, 1.3)
+
+    # The walking radius, drawn at true scale off the same centre the engine
+    # measures from.
+    ccx, ccy = px(lat0, lon0)
+    metres = scale / 111_320.0
+    c.setStrokeColor(T.RULE_COVER)
+    c.setLineWidth(0.8)
+    c.circle(ccx, at(ccy), f["radius"] * metres, stroke=1, fill=0)
+
+    def marker(x, y, mode):
+        c.setFillColor(T.TABLE_HEAD)
+        c.setStrokeColor(T.WHITE)
+        c.setLineWidth(1.2)
+        if mode == "mrt":
+            c.rect(x - 3.2, at(y) - 3.2, 6.4, 6.4, stroke=1, fill=1)
+        elif mode == "krl":
+            c.circle(x, at(y), 3.4, stroke=1, fill=1)
+        elif mode == "lrt":
+            p = c.beginPath()
+            p.moveTo(x, at(y) + 4.0)
+            p.lineTo(x + 3.6, at(y) - 2.6)
+            p.lineTo(x - 3.6, at(y) - 2.6)
+            p.close()
+            c.drawPath(p, stroke=1, fill=1)
+        else:
+            c.setFillColor(T.WHITE)
+            c.setStrokeColor(T.BLUE_MID)
+            c.setLineWidth(1.1)
+            c.circle(x, at(y), 2.6, stroke=1, fill=1)
+
+    placed = {"left": [], "right": []}
+    labelled = []
+    for s in g["stops"]:
+        x, y = px(s["lat"], s["lon"])
+        marker(x, y, s["mode"])
+        if s["mode"] in ("mrt", "krl", "lrt") and s["name"]:
+            labelled.append((x, y, s["name"]))
+
+    # Labels go on the outward side of the cluster and are nudged apart where
+    # they would otherwise sit on top of each other. Eleven markers in a
+    # 1.6 km circle leave no room for tidiness by luck.
+    c.setFont(T.F_BOLD, 6.5)
+    for x, y, name in sorted(labelled, key=lambda t: t[1]):
+        # Anything sitting near the centre goes left, because the eastern half
+        # is where the interchange piles up.
+        side = "right" if x >= ccx + 12.0 else "left"
+        ly_ = y
+        for taken in placed[side]:
+            if abs(ly_ - taken) < 10.0:
+                ly_ = taken + 10.0
+        placed[side].append(ly_)
+        short = name if len(name) <= 24 else name.rsplit(" ", 1)[0]
+        short = short if len(short) <= 24 else short[:23]
+        c.setFillColor(T.INK)
+        if side == "right":
+            c.drawString(x + 6.5, at(ly_ + 2.2), short)
+        else:
+            c.drawRightString(x - 6.5, at(ly_ + 2.2), short)
+        if abs(ly_ - y) > 1.0:  # a leader, so a nudged label still points home
+            c.setStrokeColor(T.RULE_MID)
+            c.setLineWidth(0.5)
+            sx_ = x + 4.5 if side == "right" else x - 4.5
+            c.line(sx_, at(y), sx_, at(ly_))
+
+    sx, sy = px(*g["station"])
+    c.setStrokeColor(T.BLUE_DARK)
+    c.setLineWidth(1.4)
+    c.circle(sx, at(sy), 6.6, stroke=1, fill=0)
+
+    # Scale bar, in the metres the map is actually drawn at.
+    bar_m = 400.0
+    bx, by = T.LEFT + 6.0, top + frame_h - 6.0
+    c.setStrokeColor(T.MUTED)
+    c.setLineWidth(1.0)
+    c.line(bx, at(by), bx + bar_m * metres, at(by))
+    c.line(bx, at(by - 2.5), bx, at(by + 2.5))
+    c.line(bx + bar_m * metres, at(by - 2.5), bx + bar_m * metres, at(by + 2.5))
+    c.setFillColor(T.MUTED)
+    c.setFont(T.F_REG, CAPTION)
+    c.drawString(bx + bar_m * metres + 5.0, at(by + 2.5), "400 m")
+
+    # Legend: shape carries the mode, so it is spelled out here.
+    ly = top + frame_h + 12.0
+    lx = T.LEFT
+    counts = {"mrt": f["site_mrt"], "krl": f["site_krl"], "lrt": f["site_lrt"], "brt": f["site_brt"]}
+    for mode, name in (("mrt", "MRT"), ("krl", "KRL"), ("lrt", "LRT"), ("brt", "TransJakarta")):
+        marker(lx + 4.0, ly, mode)
+        c.setFillColor(T.MUTED)
+        c.setFont(T.F_REG, CAPTION)
+        text = f"{name} {counts[mode]}"
+        c.drawString(lx + 11.0, at(ly + 2.4), text)
+        lx += 11.0 + pdfmetrics.stringWidth(text, T.F_REG, CAPTION) + 18.0
+    c.setStrokeColor(T.BLUE_DARK)
+    c.setLineWidth(1.2)
+    c.circle(lx + 4.0, at(ly), 5.0, stroke=1, fill=0)
+    c.setFillColor(T.MUTED)
+    c.drawString(lx + 12.0, at(ly + 2.4), f["site_station"])
+    doc.y = top + H + 4.0
+
+
+# --- 7. Why a hexagon grid (section 7) -------------------------------------
+
+
+def grid_rationale(doc, f):
+    """The argument for the grid, which is inherently a picture.
+
+    Halte sit 400 to 500 m apart while the walking radius is 800 m, so per stop
+    catchments overlap almost entirely and count the same shoppers several
+    times. Two panels at the same scale say that faster than the paragraph
+    beside them can.
+    """
+    c, at = doc.c, doc._at
+    H = 156.0
+    doc.ensure(H + 6.0)
+    top = doc.y
+
+    pw = (T.WIDTH - 20.0) / 2
+    plot_h = 108.0
+    metres = 46.0 / f["radius"]  # 800 m reads as 46pt in both panels
+    spacing = 450.0 * metres
+
+    def panel(x, title, note):
+        c.setFillColor(T.WHITE)
+        c.setStrokeColor(T.RULE_MID)
+        c.setLineWidth(0.9)
+        c.roundRect(x, at(top + plot_h), pw, plot_h, 4.0, stroke=1, fill=1)
+        c.setFillColor(T.INK)
+        c.setFont(T.F_BOLD, LABEL)
+        c.drawString(x + 8.0, at(top + 13.0), title)
+        c.setFillColor(T.MUTED)
+        c.setFont(T.F_REG, CAPTION)
+        c.drawString(x + 8.0, at(top + plot_h + 12.0), note)
+
+    def stops(x, n=3):
+        cx = x + pw / 2
+        return [(cx + (i - (n - 1) / 2) * spacing, top + 62.0) for i in range(n)]
+
+    # Left: overlapping per stop catchments.
+    lx = T.LEFT
+    panel(lx, "Catchment per halte", "Makin gelap, makin sering dihitung ulang.")
+    # Alpha AFTER the colour: `setFillColor` carries its own alpha and resets it,
+    # which is what turned three overlapping catchments into one solid shape.
+    # Stacking translucent fills is the whole argument here, because the darker
+    # the ground the more times the same shoppers have been counted.
+    c.saveState()
+    for sx, sy in stops(lx):
+        c.setFillColor(T.BLUE_MID)
+        c.setFillAlpha(0.16)
+        c.setStrokeColor(T.BLUE_MID)
+        c.setStrokeAlpha(0.65)
+        c.setLineWidth(0.8)
+        c.circle(sx, at(sy), f["radius"] * metres, stroke=1, fill=1)
+    c.restoreState()
+    for sx, sy in stops(lx):
+        c.setFillColor(T.TABLE_HEAD)
+        c.setStrokeColor(T.WHITE)
+        c.setLineWidth(1.2)
+        c.circle(sx, at(sy), 2.8, stroke=1, fill=1)
+
+    # Right: the grid, each cell counted once.
+    rx = T.LEFT + pw + 20.0
+    panel(rx, f"Grid H3 resolusi {f['resolution']}", "Tiap petak dihitung sekali.")
+    r = 15.0
+    dx, dy = r * 1.5, r * math.sqrt(3)
+    col = 0
+    px_ = rx + 16.0
+    while px_ < rx + pw - 8.0:
+        row = 0
+        py = top + 30.0 + (dy / 2 if col % 2 else 0)
+        while py < top + plot_h - 12.0:
+            _hexagon(c, px_, at(py), r, T.TABLE_CELL if (col + row) % 2 else T.WHITE, T.RULE_COVER, 0.7)
+            py += dy
+            row += 1
+        px_ += dx
+        col += 1
+    for sx, sy in stops(rx):
+        c.setFillColor(T.TABLE_HEAD)
+        c.setStrokeColor(T.WHITE)
+        c.setLineWidth(1.2)
+        c.circle(sx, at(sy), 2.8, stroke=1, fill=1)
+
+    band_top = top + plot_h + 18.0
+    h = band(
+        doc,
+        band_top,
+        "Akses transit menjadi sifat petak, bukan pusatnya",
+        f"Karena itu petak yang dilayani MRT sekaligus TransJakarta bernilai lebih tinggi daripada "
+        f"petak yang hanya dilayani salah satunya, dan itu terbaca sebagai satu indeks per petak.",
+    )
+    doc.y = band_top + h + 6.0
+
+
+# --- 8. What the score is made of (section 7) ------------------------------
+
+
+def score_anatomy(doc, f):
+    """The four terms on one 0 to 1 axis.
+
+    The point the prose cannot make at a glance: only the first term can raise a
+    score. The other three are multipliers capped at 1, so they can shade a
+    ranking and never invent one.
+
+    Notes sit under the term name rather than beside the track, because beside
+    the track there is no room for them and they ran off the page.
+    """
+    c, at = doc.c, doc._at
+    rows_h, axis_h = 27.0, 20.0
+    H = 4 * rows_h + axis_h + 34.0
+    doc.ensure(H + 6.0)
+    top = doc.y
+
+    label_w = 158.0
+    ax = T.LEFT + label_w
+    aw = T.RIGHT - ax - 8.0
+
+    def at_x(v):
+        return ax + aw * v
+
+    def dec(v):
+        return str(v).replace(".", ",")
+
+    gate = f["gate_blocked"]
+    terms = [
+        ("batas(Gap + 0,5)", 0.0, 1.0, "satu-satunya suku yang bisa menaikkan"),
+        ("gerbang_ruang", gate, 1.0, "dua nilai saja, bukan rentang"),
+        ("akses_transit", f["access_floor"], f["access_ceiling"], "dihitung dari simpul transit"),
+        ("biaya_ruang", f["cost_floor"], 1.0, "hanya pernah mengurangi"),
+    ]
+
+    for i, (name, lo, hi, note) in enumerate(terms):
+        y = top + i * rows_h
+        c.setFillColor(T.INK)
+        c.setFont(T.F_BOLD, LABEL)
+        c.drawString(T.LEFT, at(y + 9.0), name)
+        c.setFillColor(T.MUTED)
+        c.setFont(T.F_REG, CAPTION)
+        c.drawString(T.LEFT, at(y + 18.5), note)
+
+        # The full 0 to 1 track, so every term is read against the same span.
+        c.setFillColor(T.TABLE_CELL)
+        c.setStrokeColor(T.RULE_LIGHT)
+        c.setLineWidth(0.6)
+        c.rect(ax, at(y + 14.0), aw, 8.0, stroke=1, fill=1)
+
+        if lo == gate and name == "gerbang_ruang":
+            # Two states, so two marks. A bar between them would claim the
+            # values in between are reachable, and they are not.
+            for v in (lo, hi):
+                c.setFillColor(T.TABLE_HEAD)
+                c.setStrokeColor(T.WHITE)
+                c.setLineWidth(1.0)
+                c.circle(at_x(v), at(y + 10.0), 3.6, stroke=1, fill=1)
+        else:
+            c.setFillColor(T.TABLE_HEAD)
+            c.rect(at_x(lo), at(y + 14.0), aw * (hi - lo), 8.0, stroke=0, fill=1)
+
+        # Label the floor only. Every ceiling is 1, and the axis already says so,
+        # so a number on both ends of all four rows would be noise.
+        if lo > 0:
+            c.setFillColor(T.INK)
+            c.setFont(T.F_BOLD, CAPTION)
+            c.drawRightString(at_x(lo) - 5.0, at(y + 9.6), dec(lo))
+
+    # A single hairline axis, solid and one shade off the surface.
+    ay = top + 4 * rows_h + 1.0
+    c.setStrokeColor(T.RULE_LIGHT)
+    c.setLineWidth(0.7)
+    c.line(ax, at(ay), ax + aw, at(ay))
+    c.setFillColor(T.MUTED)
+    c.setFont(T.F_REG, CAPTION)
+    for v in (0.0, 0.25, 0.5, 0.75, 1.0):
+        c.line(at_x(v), at(ay), at_x(v), at(ay + 3.0))
+        c.drawCentredString(at_x(v), at(ay + 12.0), dec(v))
+
+    band_top = ay + 20.0
+    h = band(
+        doc,
+        band_top,
+        "Tiga dari empat suku hanya bisa mengurangi",
+        "Semuanya dibatasi 1, sehingga tidak satu pun bisa mengangkat petak melewati apa yang "
+        "dikatakan permintaan dan kompetisinya. Petak yang tidak punya bacaan pada sebuah suku "
+        "menerima tepat 1 di suku itu, bukan angka yang dikarang untuknya.",
+    )
+    doc.y = band_top + h + 6.0
