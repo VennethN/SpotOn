@@ -15,7 +15,7 @@ proposal-drafting repository (`MapID/`) so that the context lives alongside the 
 
 ## The PRD
 
-`assets/TripleT_SpotOn_PRD.pdf` is the Product Requirement Document for the competition,
+`assets/TripleT_SpotOn.pdf` is the Product Requirement Document for the competition,
 and it is **built, not written by hand**. `python3 scripts/build-prd.py` regenerates it.
 
 It follows the organisers' template exactly: the same A4 page box, the same four cuts of
@@ -50,7 +50,7 @@ python3 scripts/build-prd.py
 | File | Contents |
 |---|---|
 | `assets/Proposal_SpotOn.pdf` | The PDF version of the proposal sent to the organisers. |
-| `assets/TripleT_SpotOn_PRD.pdf` | The PRD. **Script-generated** by `scripts/build-prd.py` — do not edit by hand. |
+| `assets/TripleT_SpotOn.pdf` | The PRD, named as the organisers require. **Script-generated** by `scripts/build-prd.py` — do not edit by hand. |
 | `assets/fig1_peta.png` … `fig4_pipeline.png` | The figures used in the proposal (map, AI panel, detail panel, end-to-end flow). |
 | `assets/mockup-proposal.html` | The single-file mockup built for the proposal. This application's scoring engine and sample dataset originate here. |
 

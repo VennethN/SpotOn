@@ -23,8 +23,9 @@ from prd import content, figures, verify  # noqa: E402
 from prd.layout import Doc, register_fonts  # noqa: E402
 
 RUNNING_HEAD = "PRD SpotOn  |  Maps That Think! - Mass Transportation Edition"
+# The organisers name the file for you: [NamaTim_JudulProyek].pdf.
 DEFAULT_OUT = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "docs", "assets", "TripleT_SpotOn_PRD.pdf"
+    os.path.dirname(os.path.abspath(__file__)), "..", "docs", "assets", "TripleT_SpotOn.pdf"
 )
 
 
