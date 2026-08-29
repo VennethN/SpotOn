@@ -64,7 +64,7 @@ def cover(doc, f):
         ("Judul Proyek", TITLE, 36.0),
         ("Institusi", "Universitas Bina Nusantara", 23.3),
         ("Ketua Tim", "Valent Nathanael", 24.0),
-        ("Kontak", "valentnathana@gmail.com", 23.2),
+        ("Kontak", "valentnathana@gmail.com / 085694275520", 23.2),
     ]
     top = 275.4
     for label, value, height in rows:
@@ -791,7 +791,7 @@ def s7(doc, f):
             "**Output AI di dalam WebGIS.** Peringkat petak yang langsung menyorot peta, kalimat "
             "alasan *Kenapa di sini?*, query terstruktur yang ditampilkan apa adanya sehingga "
             "jawabannya bisa diaudit, jumlah titik data di belakang tiap klaim, dan penanda "
-            "penanda yang menyatakan jalur mana yang dipakai.",
+            "yang menyatakan jalur mana yang dipakai.",
             "**Validasi.** Tidak ada angka yang bisa dikarang model, karena model tidak pernah "
             "menghasilkan angka. Bila pertanyaan berada di luar jangkauan data, model harus "
             "memanggil fungsi tidak dimengerti dan antarmuka mengaku tidak paham. Tanpa kunci "

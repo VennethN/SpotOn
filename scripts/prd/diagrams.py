@@ -32,8 +32,15 @@ from reportlab.pdfbase import pdfmetrics
 
 from . import theme as T
 
-LABEL = 8.0
-CAPTION = 7.2
+# The template never sets anything below 8pt, so neither does this. LABEL rides
+# above CAPTION to keep a title distinguishable from the line under it.
+LABEL = 9.0
+CAPTION = 8.0
+
+# Room a figure reserves for the caption that follows it. A figure that fits on
+# a page while its caption does not is how a caption ends up printed over the
+# running foot, so the two are reserved together.
+CAPTION_ROOM = 46.0
 
 
 # --- The mark --------------------------------------------------------------
@@ -177,11 +184,15 @@ def band(doc, y_top, title, body, height=None):
 
 
 def caption(doc, text, after=10.0):
-    """The italic grey line under a drawing, in the template's note style."""
-    h = doc.draw_text(
-        text, T.LEFT, doc.y, T.WIDTH, T.S_NOTE - 1.0, T.LEAD_NOTE - 1.0, T.F_ITAL, T.MUTED
+    """The italic grey line under a drawing, in the template's note style.
+
+    It flows rather than being placed absolutely, so a caption longer than its
+    figure reserved for breaks onto the next page instead of over the foot rule.
+    """
+    doc.flow(
+        text, T.LEFT, T.WIDTH, T.S_NOTE - 1.0, T.LEAD_NOTE - 1.0, T.F_ITAL, T.MUTED
     )
-    doc.y += h + after
+    doc.y += after
 
 
 # --- 1. The AI flow (section 7) -------------------------------------------
@@ -193,7 +204,7 @@ def ai_flow(doc):
     H = 60.0
     NOTE_H = 26.0
     total = H + 30.0 + NOTE_H
-    doc.ensure(total + 8.0)
+    doc.ensure(total + 8.0 + CAPTION_ROOM)
     top = doc.y
 
     n = 4
@@ -231,7 +242,7 @@ def ai_flow(doc):
 
 def architecture(doc):
     c, at = doc.c, doc._at
-    doc.ensure(196.0)
+    doc.ensure(196.0 + CAPTION_ROOM)
     top = doc.y
 
     maps_h, main_h, side_h, side_gap = 28.0, 62.0, 30.0, 10.0
@@ -294,18 +305,21 @@ def _frame(c, x, y_top, w, h, at, label):
     c.drawString(x, at(y_top - 4.0), label)
 
 
+PANE_STEP = 9.8
+
+
 def _pane(c, x, y_top, w, h, at, title, lines=(), fill=T.TABLE_CELL):
     c.setFillColor(fill)
     c.setStrokeColor(T.RULE_LIGHT)
     c.setLineWidth(0.7)
     c.rect(x, at(y_top + h), w, h, stroke=1, fill=1)
     c.setFillColor(T.INK)
-    c.setFont(T.F_BOLD, 6.9)
-    c.drawString(x + 4.0, at(y_top + 9.0), title)
-    c.setFont(T.F_REG, 6.4)
+    c.setFont(T.F_BOLD, CAPTION)
+    c.drawString(x + 5.0, at(y_top + 10.0), title)
+    c.setFont(T.F_REG, CAPTION)
     c.setFillColor(T.MUTED)
     for i, line in enumerate(lines):
-        c.drawString(x + 4.0, at(y_top + 18.0 + i * 7.6), line)
+        c.drawString(x + 5.0, at(y_top + 20.5 + i * PANE_STEP), line)
 
 
 def _hexes(c, x, y_top, w, h, at):
@@ -336,51 +350,72 @@ def _hexes(c, x, y_top, w, h, at):
 
 
 def wireframe(doc):
+    """The two surfaces, with every pane sized from its own line count.
+
+    The mock interface text used to be set at 6.4pt, below anything the template
+    itself uses. At 8pt fewer lines fit, so the panes are measured rather than
+    guessed and the lists say the same things in fewer of them.
+    """
     c, at = doc.c, doc._at
-    landing_h, app_h = 96.0, 196.0
-    doc.ensure(landing_h + app_h + 46.0)
-    top = doc.y + 10.0
+
+    def pane_h(lines):
+        return 25.5 + lines * PANE_STEP
+
+    bar_h, pad, gap = 17.0, 6.0, 7.0
+    landing_h = pad + bar_h + gap + pane_h(2) + gap + bar_h + pad
+    body_h = pane_h(9)
+    app_h = pad + bar_h + gap + body_h + gap + pane_h(2) + pad
+
+    doc.ensure(landing_h + app_h + 60.0 + CAPTION_ROOM)
+    top = doc.y + 13.0
 
     # (a) The landing page.
     _frame(c, T.LEFT, top, T.WIDTH, landing_h, at, "a. Halaman utama  /")
-    _pane(c, T.LEFT + 6.0, top + 6.0, T.WIDTH - 12.0, 14.0, at, "SpotOn      Metode   Cakupan   Tanya      ID/EN   Tema")
     _pane(
-        c, T.LEFT + 6.0, top + 24.0, 226.0, 44.0, at,
+        c, T.LEFT + pad, top + pad, T.WIDTH - 2 * pad, bar_h, at,
+        "SpotOn      Metode   Cakupan   Tanya      ID/EN   Tema",
+    )
+    row = top + pad + bar_h + gap
+    _pane(
+        c, T.LEFT + pad, row, 226.0, pane_h(2), at,
         "Maket isometrik, digerakkan gulir",
         ["Jam mengikuti waktu setempat.", "Ditandai permanen: data contoh."],
     )
     _pane(
-        c, T.LEFT + 238.0, top + 24.0, T.WIDTH - 244.0, 44.0, at,
+        c, T.LEFT + 238.0, row, T.WIDTH - 244.0, pane_h(2), at,
         "Pertanyaan, jawaban, alasan",
         ["Percakapan contoh dihitung", "mesin skor yang sama."],
     )
-    _pane(c, T.LEFT + 6.0, top + 72.0, T.WIDTH - 12.0, 18.0, at, "Tiga sinyal   |   Cakupan data dan yang belum terdata   |   Masuk ke aplikasi")
+    _pane(
+        c, T.LEFT + pad, row + pane_h(2) + gap, T.WIDTH - 2 * pad, bar_h, at,
+        "Tiga sinyal   |   Cakupan data dan yang belum terdata   |   Masuk ke aplikasi",
+    )
 
     # (b) The WebGIS.
-    app_top = top + landing_h + 26.0
+    app_top = top + landing_h + 30.0
     _frame(c, T.LEFT, app_top, T.WIDTH, app_h, at, "b. Aplikasi WebGIS  /app")
-    _pane(c, T.LEFT + 6.0, app_top + 6.0, T.WIDTH - 12.0, 14.0, at, "SpotOn   Kopi Minuman Roti Warteg ...   Sumber: OSM | MAPID   Radius 800 m   Akun")
+    _pane(
+        c, T.LEFT + pad, app_top + pad, T.WIDTH - 2 * pad, bar_h, at,
+        "SpotOn   Kopi Minuman Roti Warteg ...   Sumber: OSM | MAPID   Radius 800 m   Akun",
+    )
 
-    left_w, right_w = 126.0, 126.0
-    map_x = T.LEFT + 6.0 + left_w + 6.0
-    map_w = T.WIDTH - 12.0 - left_w - right_w - 12.0
-    body_top, body_h = app_top + 24.0, 118.0
+    side_w = 140.0
+    map_x = T.LEFT + pad + side_w + pad
+    map_w = T.WIDTH - 2 * pad - 2 * side_w - 2 * pad
+    body_top = app_top + pad + bar_h + gap
 
     _pane(
-        c, T.LEFT + 6.0, body_top, left_w, body_h, at,
+        c, T.LEFT + pad, body_top, side_w, body_h, at,
         "Pengaturan lanjutan",
         [
             "Bobot permintaan  wd",
-            "Bobot kompetisi   ws",
-            "Gerbang ruang     on/off",
+            "Bobot kompetisi  ws",
+            "Gerbang ruang  on/off",
             "Radius 400 - 800 m",
             "",
-            "Layer",
-            "  Skor peluang",
-            "  Simpul transit",
-            "  Listing properti",
-            "  Catatan lapangan",
-            "",
+            "Layer: skor peluang,",
+            "transit, listing,",
+            "catatan lapangan",
             "Legenda skor",
         ],
     )
@@ -390,39 +425,33 @@ def wireframe(doc):
     c.rect(map_x, at(body_top + body_h), map_w, body_h, stroke=1, fill=1)
     _hexes(c, map_x, body_top, map_w, body_h, at)
     c.setFillColor(T.INK)
-    c.setFont(T.F_BOLD, 6.9)
-    c.drawString(map_x + 4.0, at(body_top + 9.0), "Peta MAPID MAPS, grid H3 r8")
+    c.setFont(T.F_BOLD, CAPTION)
+    c.drawString(map_x + 5.0, at(body_top + 10.0), "Peta MAPID MAPS, grid H3 r8")
 
     _pane(
-        c, map_x + map_w + 6.0, body_top, right_w, body_h, at,
+        c, map_x + map_w + pad, body_top, side_w, body_h, at,
         "Tapak",
         [
-            "\"Usaha apa yang masuk",
-            "akal di sekitar sini?\"",
+            '"Usaha apa yang masuk',
+            'akal di sekitar sini?"',
             "",
-            "Query terstruktur",
-            "ditampilkan apa adanya.",
-            "",
-            "1. Petak A   skor 0,78",
-            "2. Petak B   skor 0,71",
-            "3. Petak C   skor 0,66",
+            "1. Petak A  skor 0,78",
+            "2. Petak B  skor 0,71",
+            "3. Petak C  skor 0,66",
             "",
             "Kenapa di sini?  N = 42",
             "dijawab: model",
         ],
     )
     _pane(
-        c, T.LEFT + 6.0, body_top + body_h + 6.0, T.WIDTH - 12.0, 36.0, at,
+        c, T.LEFT + pad, body_top + body_h + gap, T.WIDTH - 2 * pad, pane_h(2), at,
         "Tabel atribut, dapat diurutkan per kolom",
         [
-            "Petak | Nama | Skor | Permintaan | Kompetisi | Akses transit | Listing | Harga per m2 | N",
+            "Petak | Nama | Skor | Permintaan | Kompetisi | Akses transit | Listing | Harga | N",
             "Petak tanpa data ditandai belum terdata, tidak diinterpolasi.",
         ],
     )
-    doc.y = app_top + app_h + 12.0
-
-
-# --- 4. The three signals (section 2) --------------------------------------
+    doc.y = app_top + app_h + 14.0
 
 
 def _hexagon(c, cx, cy_pdf, r, fill, stroke, lw=0.9):
@@ -445,7 +474,7 @@ def three_signals(doc, f):
     carried entirely in prose.
     """
     c, at = doc.c, doc._at
-    doc.ensure(190.0)
+    doc.ensure(190.0 + CAPTION_ROOM)
     top = doc.y
 
     src_x, src_w, src_h, gap = T.LEFT, 158.0, 34.0, 12.0
@@ -524,7 +553,7 @@ def coverage(doc, f):
 
     legend_h, row_h, bar_h = 16.0, 27.0, 11.0
     H = legend_h + len(rows) * row_h + 6.0
-    doc.ensure(H + 6.0)
+    doc.ensure(H + 6.0 + CAPTION_ROOM)
     top = doc.y
 
     label_w = 152.0
@@ -597,7 +626,7 @@ def site_map(doc, f):
     c, at = doc.c, doc._at
     g = f["geometry"]
     H = 232.0
-    doc.ensure(H + 6.0)
+    doc.ensure(H + 6.0 + CAPTION_ROOM)
     top = doc.y
 
     lat0, lon0 = g["centre"]
@@ -675,7 +704,7 @@ def site_map(doc, f):
     # Labels go on the outward side of the cluster and are nudged apart where
     # they would otherwise sit on top of each other. Eleven markers in a
     # 1.6 km circle leave no room for tidiness by luck.
-    c.setFont(T.F_BOLD, 6.5)
+    c.setFont(T.F_BOLD, CAPTION)
     for x, y, name in sorted(labelled, key=lambda t: t[1]):
         # Anything sitting near the centre goes left, because the eastern half
         # is where the interchange piles up.
@@ -747,7 +776,7 @@ def grid_rationale(doc, f):
     """
     c, at = doc.c, doc._at
     H = 156.0
-    doc.ensure(H + 6.0)
+    doc.ensure(H + 6.0 + CAPTION_ROOM)
     top = doc.y
 
     pw = (T.WIDTH - 20.0) / 2
@@ -846,7 +875,7 @@ def score_anatomy(doc, f):
     """
     c, at = doc.c, doc._at
     row_h, axis_h = 30.0, 20.0
-    doc.ensure(200.0)
+    doc.ensure(200.0 + CAPTION_ROOM)
     top = doc.y
 
     label_w = 196.0
