@@ -41,6 +41,10 @@
 	import type { HexBase, ScoredHex } from '$lib/types';
 	import type { FeatureCollection } from 'geojson';
 
+	/** The MAPID Map Service key the `/app` layout read from `MAPID_MAPSERVICES_KEY`, or
+	    null. Handed to `basemapStyle`, which reads the two `PUBLIC_` names itself. */
+	let { mapidKey = null }: { mapidKey?: string | null } = $props();
+
 	const app = getAppState();
 	const c = $derived(copy());
 
@@ -880,10 +884,11 @@
 	 * Price tags on the units the selected cell captures.
 	 *
 	 * DOM markers rather than a symbol layer, and that is not a style preference. A
-	 * `text-field` needs a `glyphs` source, and the open raster basemap this falls back
-	 * to when `PUBLIC_MAPID_STYLE_URL` is unset has none — so every symbol label on this
-	 * map renders nothing today, silently, and the names the reader does see are these
-	 * markers. A price drawn the other way would be a feature that works on one
+	 * `text-field` needs a `glyphs` source, and the last-resort raster style in
+	 * `map/basemap.ts` has none — so a symbol label would render nothing there, silently,
+	 * on the one basemap nobody is watching. Markers do not read the style at all, so the
+	 * names the reader sees are the same over MAPID, over the open vector basemap and over
+	 * that one. A price drawn the other way would be a feature that works on one
 	 * developer's machine and nowhere else.
 	 *
 	 * The type leads and the price sits under it, because they answer two questions in
@@ -1077,7 +1082,7 @@
 			   known to be fetchable first: MapLibre given one it cannot load never fires
 			   `styledata`, so the layers below never mount and a map whose every figure
 			   is computed locally goes blank over a basemap it did not need. */
-			const style = await basemapStyle(appliedTheme);
+			const style = await basemapStyle(appliedTheme, mapidKey);
 			if (disposed) return;
 			const m = new gl.Map({
 				container,
@@ -1133,7 +1138,7 @@
 		ready = false;
 		void (async () => {
 			// The probe behind this is cached per key, so a theme switch costs no request.
-			const style = await basemapStyle(theme);
+			const style = await basemapStyle(theme, mapidKey);
 			// The reader may have switched back while this was in flight. Applying a
 			// stale style would leave the map in the theme they just left.
 			if (app.resolvedTheme !== theme) return;
