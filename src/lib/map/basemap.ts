@@ -158,6 +158,20 @@ export async function basemapStyle(
 		console.warn(
 			`[SpotOn] PUBLIC_MAPID_STYLE_URL is neither a URL nor a MAPID key ("${configured}"), so the open raster basemap is being used instead.`
 		);
+	} else if (!key) {
+		/*
+		 * Nothing is configured at all, which used to be the one branch that fell back in
+		 * silence. It is also the branch a bare clone lands on, and the map it falls back to
+		 * is no longer neutral: CARTO now stamps "API KEY REQUIRED" and its own signup URL
+		 * diagonally across every tile it serves unkeyed. Saying nothing here leaves that
+		 * watermark as the only account of what happened, and the watermark names CARTO,
+		 * which is not the basemap this product is meant to be drawing on.
+		 */
+		console.warn(
+			'[SpotOn] No MAPID Map Service key is set, so the open raster basemap is being used instead. ' +
+				'The "API KEY REQUIRED" watermark across the map is CARTO stamping its own unkeyed tiles, not a fault in SpotOn. ' +
+				'A Map Service key from the MAPID Dashboard goes in PUBLIC_MAPID_MAP_KEY.'
+		);
 	}
 	return rasterStyle(theme);
 }
