@@ -52,10 +52,69 @@ export const mapidStyleUrl = (theme: 'light' | 'dark', key: string): string =>
 	`${STYLE_HOST}/${MAPID_STYLE[theme]}/style.json?key=${encodeURIComponent(key)}`;
 
 /**
- * The open raster basemap, used when MAPID's cannot be.
+ * The open basemap, used when MAPID's cannot be.
  *
- * Equally valid attribution, and a map that draws. It carries no building footprints,
- * so the 3D view can tilt over it but has nothing to stand up.
+ * CARTO publishes this cartography twice, and the two halves stopped being equivalent.
+ * The raster tiles are the ones everybody linked for a decade, and CARTO now stamps
+ * "API KEY REQUIRED" and its own signup URL diagonally across every one it serves
+ * unkeyed. They still answer 200, so nothing errors anywhere and the nag is simply drawn
+ * into the picture, which leaves the reader blaming MAPID or this app for a charge
+ * neither of them made. The vector tiles behind `positron` and `dark-matter` are the
+ * same map rendered from the same OpenStreetMap data, and they are served clean.
+ *
+ * Vector also returns the two things the raster fallback quietly cost. It carries
+ * building footprints, so the 3D view has something to stand up rather than only
+ * tilting, and it carries a `glyphs` source, so `text-field` layers render at all.
+ *
+ * CARTO's fair use limit applies to both, a key is free and lifts it, and the finished
+ * product is meant to be on MAPID MAPS rather than on either of these.
+ */
+const CARTO_VECTOR = { light: 'positron-gl-style', dark: 'dark-matter-gl-style' } as const;
+
+/** One credit line for both, so it reads the same whichever the reader ends up on. */
+const OPEN_ATTRIBUTION =
+	'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a> · basemap final: MAPID MAPS';
+
+const vectorStyles = new Map<string, Promise<StyleSpecification | null>>();
+
+/**
+ * CARTO's vector style, read here rather than handed to MapLibre as a URL.
+ *
+ * Passing the URL straight through would work and would save a round trip, since the
+ * browser has the file cached by the time the map asks a second time. It is not worth
+ * what it reintroduces: a style URL MapLibre cannot load leaves a blank canvas and never
+ * fires `styledata`, which is the single outcome this file exists to prevent. Fetched
+ * here, a style that does not arrive is a `null` the caller can answer, and the caller
+ * always returns something MapLibre can mount.
+ *
+ * Cached per theme, because switching theme must not pay for the same file twice.
+ */
+function vectorStyle(theme: 'light' | 'dark'): Promise<StyleSpecification | null> {
+	const cached = vectorStyles.get(theme);
+	if (cached) return cached;
+	const pending = fetch(`https://a.basemaps.cartocdn.com/gl/${CARTO_VECTOR[theme]}/style.json`)
+		.then((res) => (res.ok ? (res.json() as Promise<StyleSpecification>) : null))
+		.then((style) => {
+			// The style credits CARTO and OpenStreetMap through its own TileJSON, which is a
+			// second request and a different wording. Say it here, once, in ours.
+			const source = style?.sources?.carto;
+			if (source && source.type === 'vector') source.attribution = OPEN_ATTRIBUTION;
+			return style;
+		})
+		.catch(() => null);
+	vectorStyles.set(theme, pending);
+	return pending;
+}
+
+/**
+ * The raster basemap, kept for the one case the vector style cannot cover.
+ *
+ * THIS ONE IS WATERMARKED, and it is reached only when CARTO's style server does not
+ * answer at all. Its tiles come from the host that just failed, so it will usually draw
+ * nothing. Drawing is not what it is for. It is a style MapLibre can mount without
+ * asking anyone anything, so `styledata` fires, the recommendation layers go on, and
+ * every figure in SpotOn stays readable over an empty canvas. Losing the basemap has to
+ * cost the basemap and nothing else.
  */
 export function rasterStyle(theme: 'light' | 'dark'): StyleSpecification {
 	const variant = theme === 'dark' ? 'dark_all' : 'light_all';
@@ -70,8 +129,7 @@ export function rasterStyle(theme: 'light' | 'dark'): StyleSpecification {
 					`https://c.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}.png`
 				],
 				tileSize: 256,
-				attribution:
-					'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a> · basemap final: MAPID MAPS'
+				attribution: OPEN_ATTRIBUTION
 			}
 		},
 		layers: [{ id: 'base', type: 'raster', source: 'base' }]
@@ -102,7 +160,7 @@ function keyWorks(key: string, theme: 'light' | 'dark'): Promise<boolean> {
 	const cached = probes.get(key);
 	if (cached) return cached;
 	const fellBack =
-		'so the open raster basemap is being used instead. Nothing else changes: every figure in SpotOn is computed locally, ' +
+		'so the open basemap is being used instead. Nothing else changes: every figure in SpotOn is computed locally, ' +
 		'and the relief view stands the catchments up rather than the basemap, so it works over either. ' +
 		'What is lost is MAPID MAPS itself, which the finished product is meant to draw on. ' +
 		'A Map Service key from the MAPID Dashboard goes in PUBLIC_MAPID_MAP_KEY.';
@@ -156,22 +214,22 @@ export async function basemapStyle(
 		// is it resolves as a path relative to the page, 404s, and leaves a blank canvas
 		// with no error anywhere the user can see.
 		console.warn(
-			`[SpotOn] PUBLIC_MAPID_STYLE_URL is neither a URL nor a MAPID key ("${configured}"), so the open raster basemap is being used instead.`
+			`[SpotOn] PUBLIC_MAPID_STYLE_URL is neither a URL nor a MAPID key ("${configured}"), so the open basemap is being used instead.`
 		);
 	} else if (!key) {
 		/*
 		 * Nothing is configured at all, which used to be the one branch that fell back in
-		 * silence. It is also the branch a bare clone lands on, and the map it falls back to
-		 * is no longer neutral: CARTO now stamps "API KEY REQUIRED" and its own signup URL
-		 * diagonally across every tile it serves unkeyed. Saying nothing here leaves that
-		 * watermark as the only account of what happened, and the watermark names CARTO,
-		 * which is not the basemap this product is meant to be drawing on.
+		 * silence. It is the branch a bare clone lands on, so it is the one most people see,
+		 * and what it draws is somebody else's cartography under a product that names MAPID
+		 * MAPS on its own attribution line. Worth one line in the console.
 		 */
 		console.warn(
-			'[SpotOn] No MAPID Map Service key is set, so the open raster basemap is being used instead. ' +
-				'The "API KEY REQUIRED" watermark across the map is CARTO stamping its own unkeyed tiles, not a fault in SpotOn. ' +
+			'[SpotOn] No MAPID Map Service key is set, so the open basemap is being used instead. ' +
+				'Nothing else changes, every figure in SpotOn is computed locally. ' +
 				'A Map Service key from the MAPID Dashboard goes in PUBLIC_MAPID_MAP_KEY.'
 		);
 	}
-	return rasterStyle(theme);
+
+	// Vector first, raster only if CARTO's style server does not answer. See `rasterStyle`.
+	return (await vectorStyle(theme)) ?? rasterStyle(theme);
 }

@@ -10,7 +10,7 @@ Key: ✅ done · 🟡 partial · ⬜ not started
 | Component | Status | Where |
 |---|---|---|
 | Interactive map as the primary element | ✅ | [`MapView.svelte`](../src/lib/components/app/MapView.svelte) — full-bleed map, panels floating above it |
-| **MAPID MAPS** basemap | 🟡 | The basemap can be swapped via the `PUBLIC_MAPID_STYLE_URL` env var; currently an open raster basemap, because there is no MAPID style key yet |
+| **MAPID MAPS** basemap | 🟡 | The basemap can be swapped via the `PUBLIC_MAPID_STYLE_URL` env var; currently an open vector basemap (CARTO Positron and Dark Matter), because there is no MAPID Map Service key yet |
 | Zoom | ✅ | Custom zoom controls + scroll/pinch |
 | Click on objects | ✅ | Click a catchment → detail panel |
 | Data filtering | ✅ | Business category, demand/competition weights, commercial-space gate |
