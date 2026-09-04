@@ -31,7 +31,19 @@ function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): 
 		if (!c.covered?.[cat]) return null;
 		return Math.round((c.mapid?.[cat] ?? 0) * areaFactor(radius));
 	}
-	return Math.round((c.osm[cat] ?? 0) * areaFactor(radius));
+	// Sisi OSM juga bisa belum tercakup, dan dulu tidak bisa mengatakannya.
+	//
+	// `?? 0` yang lama diam-diam mengarang nol untuk kategori yang memang belum
+	// pernah diambil dari OSM — dan itu bukan kemungkinan teoretis: menambah
+	// kategori baru berarti `hexes.json` yang belum dibangun ulang tidak punya
+	// kuncinya sama sekali. Akibatnya petak mana pun tampak tanpa pesaing, dan
+	// justru kategori yang paling sedikit datanya yang menang di seluruh peta.
+	//
+	// Yang membedakan "nol" dari "belum diambil" adalah ADA TIDAKNYA KUNCI, bukan
+	// nilainya: `build-hexes.mjs` menulis 0 secara eksplisit untuk tiap kategori
+	// yang benar-benar diambil dan ternyata kosong.
+	const n = c.osm?.[cat];
+	return typeof n === 'number' ? Math.round(n * areaFactor(radius)) : null;
 }
 
 /** Skala normalisasi penawaran: catchment terpadat pada kategori ini. Petak yang

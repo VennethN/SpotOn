@@ -115,26 +115,68 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://geoserver.mapid.io/
 
 ## 2. Cakupan sekarang
 
-25 dataset katalog premium, **15.835 titik unik** setelah 7.147 duplikat dibuang.
+55 dataset katalog premium, **24.614 titik unik** setelah 11.462 duplikat dibuang.
+**Kesembilan kategori tercakup penuh di kelima kota administrasi.**
 
-| Kategori SpotOn | Jakpus | Jakbar | Jaksel | Jaktim | Jakut | Titik |
-|---|:--:|:--:|:--:|:--:|:--:|--:|
-| kopi | ✅ | ✅ | ✅ | ✅ | ✅ | 895 |
-| warung | ✅ | ✅ | ✅ | ✅ | ✅ | 8.813 |
-| minimarket | ✅ | ✅ | ✅ | ✅ | ✅ | 2.928 |
-| apotek | ✅ | ✅ | ✅ | ✅ | ✅ | 3.199 |
-| laundry | — | — | — | — | — | 0 |
+| Kategori SpotOn | Jakpus | Jakbar | Jaksel | Jaktim | Jakut | Titik | Dataset sumber |
+|---|:--:|:--:|:--:|:--:|:--:|--:|---|
+| kopi | ✅ | ✅ | ✅ | ✅ | ✅ | 2.351 | COFFEE SHOP + BRAND COFFEE SHOP |
+| minuman | ✅ | ✅ | ✅ | ✅ | ✅ | 858 | MINUMAN |
+| roti | ✅ | ✅ | ✅ | ✅ | ✅ | 1.869 | ROTI DAN KUE |
+| warung | ✅ | ✅ | ✅ | ✅ | ✅ | 6.094 | RESTORAN |
+| minimarket | ✅ | ✅ | ✅ | ✅ | ✅ | 2.928 | MINIMARKET |
+| kelontong | ✅ | ✅ | ✅ | ✅ | ✅ | 2.698 | TOKO KELONTONG |
+| laundry | ✅ | ✅ | ✅ | ✅ | ✅ | 3.714 | LAYANAN ATAU JASA → BINATU |
+| bengkel | ✅ | ✅ | ✅ | ✅ | ✅ | 903 | PERAWATAN DAN PERBAIKAN OTOMOTIF |
+| apotek | ✅ | ✅ | ✅ | ✅ | ✅ | 3.199 | APOTEK |
 
-Empat dari lima kategori tercakup penuh di kelima kota administrasi.
+Dua angka yang layak diperhatikan karena keduanya bergerak tanpa data baru:
 
-**`laundry` tidak ada di katalog premium.** Ini kesimpulan yang berbeda sifatnya
-dari sebelumnya. Dulu jawaban "tidak ketemu" datang dari
-`search_layers_public`, yang hanya mengindeks layer publik dan karena itu tidak
-bisa membedakan "tidak ada" dari "tidak terlihat dari sini" — `APOTEK` pernah
-dilaporkan begitu padahal ada lengkap untuk kelima kota. Sekarang pencarian
-memakai endpoint katalog premium yang sebenarnya, jadi kosong berarti memang
-kosong. `LAUNDRY` tetap tinggal di manifest supaya ketiadaannya diuji ulang tiap
-kali skrip jalan, bukan pelan-pelan mengeras jadi asumsi.
+**`kopi` naik 895 → 2.351** setelah `BRAND COFFEE SHOP` masuk manifest. Dataset
+itu terpisah dari `COFFEE SHOP` dan justru lebih besar — gerai berjaringan
+(Kopi Kenangan, Starbucks, Tomoro, Fore) tidak ada di dalam `COFFEE SHOP` sama
+sekali. Selama ini dua pertiga kedai kopi Jakarta tidak terhitung sebagai
+pesaing.
+
+**`warung` turun 8.813 → 6.094**, dan itu perbaikan, bukan kehilangan. Selisih
+2.719 pindah ke `roti` dan `minuman`. Sebelum keduanya jadi kategori, seluruh
+toko roti, gerai boba, dan kedai es krim jatuh ke `warung` — karena `TIPE_1`
+mereka berbunyi "MAKANAN DAN MINUMAN" dan tidak ada aturan yang lebih spesifik
+menangkapnya lebih dulu. Toko donat terhitung sebagai pesaing warteg.
+
+### `force`: waktu taksonomi tidak bisa dibaca
+
+`BRAND COFFEE SHOP` menyimpan **nama merek** di `TIPE_3` — "STARBUCKS",
+"KOPI KENANGAN", "TOMORO COFFEE". Aturan klasifikasi mencari kata seperti COFFEE
+atau KOPI, dan "STARBUCKS" tidak memuat keduanya; yang tersisa `TIPE_2` =
+"MINUMAN", sehingga seluruh gerai Starbucks akan terhitung kedai minuman.
+
+Karena itu entri manifest boleh membawa `force`, yang memakukan seluruh isi satu
+dataset ke satu kategori. Dipakai hanya untuk dataset berisi satu jenis usaha
+saja. Dataset payung seperti `MAKANAN DAN MINUMAN` atau `LAYANAN ATAU JASA`
+justru tidak boleh dipakukan — isinya campuran, dan memakukannya membuang
+perbedaan yang mau dilihat.
+
+### Koreksi kedua: `laundry` ada, dan sempat dinyatakan tidak
+
+Dokumen ini pernah menyatakan dengan yakin bahwa `laundry` tidak ada di katalog
+premium. Itu keliru, dan kekeliruannya berjenis sama dengan yang di §1 —
+menyimpulkan terlalu jauh dari satu cara mencari.
+
+Yang dicari waktu itu hanya **nama dataset**. Tidak ada dataset bernama LAUNDRY,
+jadi kesimpulannya "tidak ada". Padahal laundry tersimpan sebagai **subtipe di
+dalam dataset lain**: `LAYANAN ATAU JASA` → `TIPE_3` = "BINATU (LAUNDRY)",
+3.723 titik di kelima kota. Bukan sedikit, dan bukan tersembunyi — cuma tidak
+bernama seperti yang ditebak.
+
+Kekeliruan yang sama sempat menyembunyikan SPBU, yang di katalog bernama
+`PENGISIAN BAHAN BAKAR`, dan tukang jahit (`JAHIT`), pijat (`PIJAT`), serta
+depot air (`ISI AIR GALON`) — semuanya subtipe di dalam dataset payung.
+
+Aturan yang sekarang dipegang: **tidak ketemu lewat nama bukan tidak ada.**
+Sebelum menyatakan sesuatu tidak tersedia, buka taksonomi `TIPE_1/2/3` dataset
+payung yang relevan. Dan kalaupun sudah, sebut apa yang sudah diperiksa —
+bukan "tidak ada", melainkan "tidak ada di antara yang saya periksa".
 
 Sel bertanda **—** diperlakukan sebagai **belum tercakup**, bukan nol pesaing.
 Ini konsekuensi langsung dari prinsip proyek: ketiadaan data bukan bukti
@@ -228,32 +270,59 @@ Putuskan itu dulu sebelum menukar bawaannya.
 
 ---
 
-## 3. Yang bisa didapat di luar lima kategori
+## 3. Yang bisa didapat di luar sembilan kategori
 
 Katalog premium punya 16 kategori (~90.000 dataset). Semuanya kini terbaca lewat
-jalur yang sama — menambahkan satu kategori berarti menambah satu baris ke
+jalur yang sama — menambahkan satu jenis usaha berarti menambah satu baris ke
 `MANIFEST`, bukan sesi impor manual.
 
-Yang menarik bukan menambah jenis usaha, melainkan **menambal permintaan** —
+Yang menarik bukan lagi menambah jenis usaha, melainkan **menambal permintaan** —
 satu-satunya sinyal yang masih sepenuhnya contoh.
 
-Sudah diverifikasi tersedia untuk kelima kota DKI lewat `search-mapid.mjs`:
+### Cara mencarinya, setelah dua kali salah
+
+Dua kesimpulan "tidak ada" di dokumen ini ternyata keliru, dan keduanya karena
+pencarian berhenti di nama dataset. Urutan yang benar:
+
+1. `node scripts/search-mapid.mjs <ISTILAH>` — apakah ada dataset dengan nama itu.
+2. Kalau tidak ada, **buka dataset payung yang relevan dan baca `TIPE_1/2/3`-nya.**
+   Payung yang sudah diketahui gemuk: `LAYANAN ATAU JASA` (2.528 titik di Jakpus,
+   ±22 jenis jasa), `MAKANAN DAN MINUMAN`, `PERAWATAN DAN PERBAIKAN OTOMOTIF`.
+3. Baru setelah keduanya kosong, tulis "tidak ada" — dan sebut apa yang diperiksa.
+
+### Sisi permintaan, sudah diverifikasi kelima kota DKI
 
 | Dataset | Buat SpotOn |
 |---|---|
-| `APARTEMEN` | Kepadatan hunian = pembeli yang tinggal di sana. Penghasil permintaan, bukan pesaing. |
-| `PUSAT PERBELANJAAN` | Mal = pengunjung siang hari yang bukan penduduk setempat. |
-| `PASAR` | Penarik kunjungan harian; menjelaskan keramaian yang bukan dari penduduk setempat. |
-| `ATM` | Proksi aktivitas komersial dan ekonomi tunai. |
-| `RUMAH SAKIT`, `KLINIK` | Penghasil permintaan sekaligus pelengkap kategori apotek. |
-| `SEKOLAH` | Populasi harian yang berulang dan mudah diprediksi. |
-| `HOTEL` | Kunjungan non-penduduk. |
+| `DEMOGRAFI` | 44 poligon per kota. **Kandidat terkuat** untuk mengganti `d` (permintaan) yang sekarang dikarang. |
+| `HARGA PROPERTI` | 1.398 titik per kota, dengan harga per m². Sinyal daya beli sekaligus biaya sewa. |
+| `PROPERTI RUKO` | 399 per kota, lengkap dengan `HARGA`, `LUAS TANAH/BANGUNAN`, `JUMLAH LANTAI`, `LEBAR JALAN`. Kandidat pengganti gerbang ruang usaha yang sekarang contoh — perhatikan semuanya `TIPE_3 = JUAL`, bukan sewa. |
+| `APARTEMEN`, `KOS`, `PROPERTI KOST` | Kepadatan hunian = pembeli yang tinggal di sana. |
+| `PUSAT PERBELANJAAN`, `PASAR` | Penarik kunjungan; menjelaskan keramaian yang bukan dari penduduk setempat. |
+| `ATM DAN BANK` | 840 per kota. Proksi aktivitas komersial dan ekonomi tunai. |
+| `RUMAH SAKIT`, `KLINIK`, `LABORATORIUM MEDIS` | Penghasil permintaan sekaligus pelengkap kategori apotek. |
+| `SEKOLAH`, `KURSUS BAHASA` | Populasi harian yang berulang dan mudah diprediksi. |
+| `HOTEL`, `AGEN PERJALANAN` | Kunjungan non-penduduk. |
 
-Dicari dan **tidak ada** di katalog: `LAUNDRY`, `BINATU`, `SPBU`, `PERKANTORAN`,
-`MALL`. Dua yang terakhir bukan berarti datanya tidak ada — `PUSAT PERBELANJAAN`
-menutup `MALL`, dan kantor kemungkinan tersimpan di bawah nama lain pada
-kategori Pemerintah. Nama istilah di katalog tidak selalu yang pertama terpikir;
-telusuri dengan `search-mapid.mjs` sebelum menyimpulkan.
+### Jenis usaha lain yang tersedia tapi belum jadi kategori
+
+`LAYANAN LOGISTIK` (agen JNE/J&T/Kantor Pos, 355 per kota) · `PENGISIAN BAHAN
+BAKAR` · `DEALER MOTOR` · `TOKO PAKAIAN` · `TOKO ELEKTRONIK` · `TOKO HEWAN
+PELIHARAAN` · `TOKO BUNGA DAN TANAMAN` · `BIOSKOP` · `KATERING` · `LAPANGAN
+PADEL`. Dari dalam `LAYANAN ATAU JASA`: `KONTRAKTOR`, `KANTOR PENGACARA`,
+`PEGADAIAN`, `NOTARIS`, `AGEN PROPERTI`, `SERVICE LAPTOP/KOMPUTER`, `JAHIT`,
+`PIJAT`, `ISI AIR GALON`.
+
+Semuanya punya dataset MAPID, tetapi **belum tentu punya padanan tag OSM yang
+layak** — dan tanpa keduanya sebuah kategori akan bernilai nol diam-diam pada
+sumber yang tidak punya datanya. Syarat itu dijelaskan di
+[`categories.ts`](../src/lib/domain/categories.ts).
+
+Yang dicari dan tidak ketemu, baik lewat nama maupun di dalam payung yang sudah
+dibuka: barbershop/salon, warnet, toko emas, optik, toko buku, konter pulsa,
+fotokopi, toko bangunan, karaoke, tambal ban, cuci mobil. Perlu dicatat 221
+titik di `LAYANAN ATAU JASA` bertipe `LAINNYA` dan belum dibuka isinya — jadi
+daftar ini "belum ketemu", bukan "tidak ada".
 
 Kategori katalog yang belum ditelusuri per dataset, dan kandidat terkuatnya:
 

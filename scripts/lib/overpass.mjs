@@ -38,6 +38,16 @@ const BUSY = new Set([429, 502, 503, 504]);
  * @param {string} label  disebut pada pesan galat supaya ketahuan kueri mana
  * @param {{ attempts?: number }} [opts]
  */
+/**
+ * Kueri di sini memasang `[timeout:180]`, jadi menunggu tiga menit itu wajar.
+ * Yang tidak wajar adalah menunggu selamanya: `fetch` tanpa sinyal tidak pernah
+ * menyerah sendiri, dan cermin yang mati menggantung tanpa membalas apa pun.
+ * Satu cermin yang tidak menjawab pernah menghabiskan seluruh jatah percobaan
+ * dengan cara yang paling membingungkan — tidak ada galat, tidak ada kemajuan,
+ * hanya diam.
+ */
+const REQUEST_TIMEOUT_MS = 200_000;
+
 export async function overpass(query, label, opts = {}) {
 	// Kueri berat (mis. batas administrasi dengan `out geom`) sering perlu
 	// beberapa kali giliran sebelum ada cermin yang lowong. Delapan percobaan
@@ -45,8 +55,17 @@ export async function overpass(query, label, opts = {}) {
 	const attempts = opts.attempts ?? 8;
 	let lastErr;
 
+	// Cermin yang gagal di tingkat sambungan — habis waktu, sertifikat
+	// kedaluwarsa, DNS — dicoret untuk sisa panggilan ini. Berbeda dari cermin
+	// sibuk, yang justru layak dicoba lagi: yang ini tidak akan tiba-tiba pulih
+	// dalam hitungan detik, dan tiap percobaan ke sana memakan jatah percobaan
+	// yang seharusnya jatuh ke cermin yang hidup.
+	const dead = new Set();
+
 	for (let i = 0; i < attempts; i++) {
-		const url = ENDPOINTS[i % ENDPOINTS.length];
+		const alive = ENDPOINTS.filter((e) => !dead.has(e));
+		if (alive.length === 0) break;
+		const url = alive[i % alive.length];
 		try {
 			// Overpass membalas 406 untuk permintaan tanpa User-Agent yang jelas —
 			// bukan soal isi kuerinya. Header ini yang membuatnya dilayani.
@@ -57,7 +76,8 @@ export async function overpass(query, label, opts = {}) {
 					'user-agent': UA,
 					accept: 'application/json'
 				},
-				body: new URLSearchParams({ data: query })
+				body: new URLSearchParams({ data: query }),
+				signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
 			});
 			// Overpass dipakai bersama-sama; kena batas laju itu wajar, bukan galat.
 			if (BUSY.has(res.status)) {
@@ -70,8 +90,10 @@ export async function overpass(query, label, opts = {}) {
 			return await res.json();
 		} catch (err) {
 			lastErr = err;
-			console.log(`  (${label}) ${err.message} — ganti cermin…`);
-			await sleep(5000 * (i + 1));
+			dead.add(url);
+			const host = new URL(url).host;
+			console.log(`  (${label}) ${host}: ${err.message} — dicoret, ganti cermin…`);
+			await sleep(2000);
 		}
 	}
 

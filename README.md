@@ -41,7 +41,7 @@ src/lib/
     weights.ts     bobot bawaan + pembersih nilai (satu pintu)
     nlq.ts         pertanyaan → query terstruktur → jawaban
     narrate.ts     hasil mesin skor → kalimat manusia
-    categories.ts  lima jenis usaha dan tag OSM-nya
+    categories.ts  sembilan jenis usaha, tag OSM dan dataset MAPID-nya
   server/        hanya berjalan di server (dijaga SvelteKit)
     source.ts      satu-satunya tempat sumber data ditentukan  ← tukar di sini saat API MAPID siap
     llm.ts         lapisan pemahaman bahasa (OpenRouter)

@@ -1,5 +1,14 @@
 /** Kunci jenis usaha yang dinilai SpotOn. */
-export type CategoryKey = 'kopi' | 'warung' | 'minimarket' | 'laundry' | 'apotek';
+export type CategoryKey =
+	| 'kopi'
+	| 'minuman'
+	| 'roti'
+	| 'warung'
+	| 'minimarket'
+	| 'kelontong'
+	| 'laundry'
+	| 'bengkel'
+	| 'apotek';
 
 export type PerCategory<T> = Record<CategoryKey, T>;
 

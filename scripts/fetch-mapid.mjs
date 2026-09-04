@@ -48,7 +48,17 @@ import {
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-const CATEGORIES = ['kopi', 'warung', 'minimarket', 'laundry', 'apotek'];
+const CATEGORIES = [
+	'kopi',
+	'minuman',
+	'roti',
+	'warung',
+	'minimarket',
+	'kelontong',
+	'laundry',
+	'bengkel',
+	'apotek'
+];
 
 /** Lima kota administrasi DKI. Katalog memberi satu dataset per kota. */
 const KOTA = ['JAKARTA PUSAT', 'JAKARTA BARAT', 'JAKARTA SELATAN', 'JAKARTA TIMUR', 'JAKARTA UTARA'];
@@ -62,23 +72,41 @@ const KOTA = ['JAKARTA PUSAT', 'JAKARTA BARAT', 'JAKARTA SELATAN', 'JAKARTA TIMU
  * sekaligus — sekalipun untuk kota tertentu isinya kebetulan tidak memuat satu
  * kedai kopi pun. Itulah bedanya "sudah diperiksa" dari "ada isinya".
  *
- * LAUNDRY sengaja tetap didaftar meski sudah diketahui tidak ada di katalog.
- * Kalau dihapus, ketiadaannya berhenti diperiksa dan pelan-pelan berubah jadi
- * asumsi; dibiarkan di sini, tiap kali skrip jalan ia diuji ulang dan muncul
- * di laporan sebagai "dicari, tidak ketemu". Kalau suatu saat MAPID
- * menerbitkannya, ia akan terambil sendiri tanpa ada yang perlu ingat.
+ * `force` memakukan seluruh isi satu dataset ke satu kategori, melewati RULES.
+ * Dipakai hanya untuk dataset yang memang berisi satu jenis usaha saja dan yang
+ * taksonominya tidak bisa dibaca. BRAND COFFEE SHOP adalah kasusnya: TIPE_3-nya
+ * berisi nama merek, dan "STARBUCKS" tidak memuat kata coffee maupun kopi. Tanpa
+ * `force` ia jatuh ke TIPE_2 "MINUMAN" dan seluruh gerai Starbucks terhitung
+ * sebagai kedai minuman, bukan kedai kopi. Jangan pakai `force` pada dataset
+ * payung seperti MAKANAN DAN MINUMAN atau LAYANAN ATAU JASA — isinya campuran,
+ * dan memakukannya justru membuang perbedaan yang mau kita lihat.
+ *
+ * KENAPA LAUNDRY TIDAK PUNYA BARIS SENDIRI
+ *
+ * Sempat disimpulkan "laundry tidak ada di katalog premium" karena tidak ada
+ * dataset yang bernama LAUNDRY. Yang dicari waktu itu hanya NAMA DATASET,
+ * padahal laundry ada sebagai subtipe di dalam dataset lain: LAYANAN ATAU JASA
+ * → TIPE_3 "BINATU (LAUNDRY)", 3.723 titik di kelima kota. Kekeliruan yang
+ * sama sempat menyembunyikan SPBU, yang di katalog bernama PENGISIAN BAHAN
+ * BAKAR. Pelajarannya: tidak ketemu lewat nama bukan tidak ada — periksa
+ * taksonomi TIPE di dalam dataset payung sebelum menyimpulkan.
  */
 const MANIFEST = [
 	{ term: 'COFFEE SHOP', covers: ['kopi'] },
+	{ term: 'BRAND COFFEE SHOP', covers: ['kopi'], force: 'kopi' },
+	{ term: 'MINUMAN', covers: ['kopi', 'minuman'] },
+	{ term: 'ROTI DAN KUE', covers: ['roti'] },
 	{ term: 'RESTORAN', covers: ['warung'] },
-	{ term: 'MAKANAN DAN MINUMAN', covers: ['kopi', 'warung'] },
+	{ term: 'MAKANAN DAN MINUMAN', covers: ['kopi', 'minuman', 'roti', 'warung'] },
 	{ term: 'MINIMARKET', covers: ['minimarket'] },
-	{ term: 'APOTEK', covers: ['apotek'] },
-	{ term: 'LAUNDRY', covers: ['laundry'] }
+	{ term: 'TOKO KELONTONG', covers: ['kelontong'] },
+	{ term: 'LAYANAN ATAU JASA', covers: ['laundry', 'bengkel'] },
+	{ term: 'PERAWATAN DAN PERBAIKAN OTOMOTIF', covers: ['bengkel'] },
+	{ term: 'APOTEK', covers: ['apotek'] }
 ];
 
 /**
- * Taksonomi MAPID (TIPE_1 → TIPE_2 → TIPE_3) dipetakan ke lima kategori SpotOn.
+ * Taksonomi MAPID (TIPE_1 → TIPE_2 → TIPE_3) dipetakan ke sembilan kategori SpotOn.
  * Dicocokkan dari yang paling spesifik ke paling umum: sebuah gerai bisa
  * bertipe "MAKANAN DAN MINUMAN / MINUMAN / COFFEESHOP", dan yang menentukan
  * kategorinya adalah TIPE_3, bukan TIPE_1.
@@ -86,8 +114,21 @@ const MANIFEST = [
 const RULES = [
 	{ cat: 'kopi', re: /COFFEE|KOPI|KEDAI KOPI|CAFE|KAFE/i },
 	{ cat: 'apotek', re: /APOTEK|APOTIK|FARMASI|PHARMAC/i },
-	{ cat: 'laundry', re: /LAUNDRY|BINATU|CUCI/i },
-	{ cat: 'minimarket', re: /MINIMARKET|MART|SWALAYAN|SUPERMARKET|KELONTONG|INDOMARET|ALFAMART/i },
+	// Dulu memuat `CUCI` juga. Dibuang karena "CUCI MOBIL" adalah bengkel, bukan
+	// binatu — dan aturan ini diperiksa lebih dulu, jadi satu kata yang terlalu
+	// longgar akan merebutnya. Waktu itu tidak ketahuan sebab kategori laundry
+	// memang belum punya satu titik pun.
+	{ cat: 'laundry', re: /LAUNDRY|BINATU/i },
+	{ cat: 'bengkel', re: /BENGKEL|PERBAIKAN OTOMOTIF|SERVIS (MOTOR|MOBIL)/i },
+	{ cat: 'roti', re: /ROTI|KUE|BAKERY|PASTRI|DONAT/i },
+	// `^MINUMAN$` diikat ke seluruh nilai, bukan potongan. TIPE_1 untuk SEMUA
+	// gerai makanan berbunyi "MAKANAN DAN MINUMAN", jadi pola yang longgar akan
+	// menyapu setiap restoran ke kategori minuman begitu TIPE_2 dan TIPE_3-nya
+	// kosong.
+	{ cat: 'minuman', re: /^MINUMAN$|BOBA|MILK ?TEA|THAI TEA|JUS$|JUICE|ES KRIM|DESSERT/i },
+	{ cat: 'kelontong', re: /KELONTONG|SEMBAKO/i },
+	// `KELONTONG` sudah dipindah ke kategorinya sendiri di atas.
+	{ cat: 'minimarket', re: /MINIMARKET|MART|SWALAYAN|SUPERMARKET|INDOMARET|ALFAMART/i },
 	{ cat: 'warung', re: /RESTORAN|RESTAURANT|WARUNG|RUMAH MAKAN|MAKANAN|FAST ?FOOD|KULINER/i }
 ];
 
@@ -126,7 +167,7 @@ async function main() {
 	const wanted = [];
 	const missing = [];
 
-	for (const { term, covers } of MANIFEST) {
+	for (const { term, covers, force } of MANIFEST) {
 		for (const kota of KOTA) {
 			const hits = await searchPremium(`${term} ${kota}`);
 			// Pencocokan AND per kata membuat kueri sempit ini nyaris selalu
@@ -144,7 +185,15 @@ async function main() {
 			// yang didahulukan.
 			const hit = cocok.find((l) => CANONICAL.test(l.name ?? '')) ?? cocok[0];
 			if (hit) {
-				wanted.push({ id: hit._id, name: hit.name, term, kota, covers, origin: 'katalog' });
+				wanted.push({
+					id: hit._id,
+					name: hit.name,
+					term,
+					kota,
+					covers,
+					force: force ?? null,
+					origin: 'katalog'
+				});
 			} else {
 				missing.push({ term, kota });
 			}
@@ -165,7 +214,15 @@ async function main() {
 			skipped++;
 			continue;
 		}
-		wanted.push({ id: l._id, name: l.name, term: null, kota: null, covers: [], origin: 'proyek' });
+		wanted.push({
+			id: l._id,
+			name: l.name,
+			term: null,
+			kota: null,
+			covers: [],
+			force: null,
+			origin: 'proyek'
+		});
 	}
 	console.log(
 		`      ${projectLayers.length} layer · ${skipped} salinan katalog dilewati · ` +
@@ -186,7 +243,7 @@ async function main() {
 		for (const f of features) {
 			const c = f.geometry?.coordinates;
 			if (!Array.isArray(c) || c.length < 2) continue;
-			const cat = classify(f.properties);
+			const cat = w.force ?? classify(f.properties);
 			if (!cat) {
 				const t = f.properties?.TIPE_3 || f.properties?.TIPE_2 || f.properties?.TIPE_1 || '?';
 				unmatched.set(t, (unmatched.get(t) ?? 0) + 1);
@@ -223,6 +280,7 @@ async function main() {
 			term: w.term,
 			kota: w.kota,
 			covers: w.covers,
+			force: w.force,
 			features: features.length,
 			kept
 		});

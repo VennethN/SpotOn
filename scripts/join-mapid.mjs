@@ -41,7 +41,17 @@ import { normKota } from './lib/mapid.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const WALK_M = 800;
-const CATEGORIES = ['kopi', 'warung', 'minimarket', 'laundry', 'apotek'];
+const CATEGORIES = [
+	'kopi',
+	'minuman',
+	'roti',
+	'warung',
+	'minimarket',
+	'kelontong',
+	'laundry',
+	'bengkel',
+	'apotek'
+];
 
 const R = 6371008.8;
 const rad = (d) => (d * Math.PI) / 180;
