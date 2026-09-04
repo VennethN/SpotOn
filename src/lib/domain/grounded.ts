@@ -74,26 +74,71 @@ export function ungroundedFigures(reply: string, allowed: ReadonlySet<string>): 
 }
 
 /**
- * A quantity written as a word rather than as digits.
+ * A quantity written as a word rather than as digits, and the digits it stands for.
  *
- * The digit rule above cannot see these, and "balik modal dalam delapan bulan" is the
- * same fabrication as the one with an 8 in it. Counts are banned outright, because the
- * facts hand over digits and there is never a reason to spell one out instead.
+ * The digit rule above cannot see these, and "balik modal dalam delapan bulan" is the same
+ * fabrication as the one with an 8 in it. So a spelled count is held to the SAME rule as a
+ * digit: it passes only when the figure it spells is one the facts carry. "The strongest of
+ * the five" passes on a list of five, and "delapan bulan" fails on a sheet with no eight in
+ * it, which is exactly how their digit forms are treated.
  *
- * Scale words are the exception and have to be, since "Rp 59,8 juta" is the natural way
- * to write a figure that IS grounded. So a scale word is allowed only where a grounded
- * figure sits immediately in front of it. "Beberapa juta" has no figure in front and is
- * a claim about money nobody measured.
+ * Counts used to be refused outright, on the argument that the facts hand over digits and
+ * there is never a reason to spell one out. There is: English counts small things in words,
+ * "the five", "one of the two", "out of a hundred", and a reply thrown away for it was a
+ * true reply lost, with the reader none the wiser and Tapak a little plainer.
  *
  * `satu` and `one` are not counts here. They are articles as often as they are numbers
- * ("salah satu", "one of them"), and a rule that rejected them would reject most ordinary
- * sentences to catch a quantity that the scale words already catch.
+ * ("salah satu", "one of them"), and a rule that read them as quantities would reject most
+ * ordinary sentences to catch a quantity that the scale words already catch.
+ *
+ * Compounds are not read. "Dua belas" is two words to this and the first of them is 2,
+ * which a sheet carrying 12 does not have, so it is refused, exactly as every count in
+ * words was before. The sheet hands the model digits and a model shown digits writes
+ * them, so what this buys is the handful of small counts English says in words.
  */
-const SPELLED_COUNT =
-	/\b(dua|tiga|empat|lima|enam|tujuh|delapan|sembilan|sepuluh|sebelas|belasan|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen)\b/i;
+const SPELLED: Record<string, string> = {
+	dua: '2',
+	tiga: '3',
+	empat: '4',
+	lima: '5',
+	enam: '6',
+	tujuh: '7',
+	delapan: '8',
+	sembilan: '9',
+	sepuluh: '10',
+	sebelas: '11',
+	seratus: '100',
+	two: '2',
+	three: '3',
+	four: '4',
+	five: '5',
+	six: '6',
+	seven: '7',
+	eight: '8',
+	nine: '9',
+	ten: '10',
+	eleven: '11',
+	twelve: '12',
+	hundred: '100'
+};
+const SPELLED_WORD = new RegExp(`\\b(${Object.keys(SPELLED).join('|')})\\b`, 'gi');
 
+/**
+ * A quantity that names no figure at all. "Belasan pesaing" and "dozens of shops" are
+ * claims about a count nobody made, and there is nothing in the facts they could be
+ * checked against, so they are refused outright.
+ */
+const VAGUE_COUNT = /\b(belasan|puluhan|ratusan|ribuan|jutaan|dozen|dozens|hundreds|thousands|millions)\b/i;
+
+/**
+ * A scale a figure is written on. Allowed where a grounded figure sits immediately in
+ * front of it, since "Rp 59,8 juta" is the natural way to write a figure that IS grounded.
+ * "Beberapa juta" has no figure in front and is a claim about money nobody measured. The
+ * one scale word that stands on its own is "hundred", which is the ruler every score is
+ * read against, and it passes for the same reason 100 does.
+ */
 const SCALE_WORD =
-	/(\d[\d.,]*\s*)?\b(puluh(?:an)?|ratus(?:an)?|ribu(?:an)?|juta(?:an)?|miliar|milyar|triliun|persen|hundred|thousand|million|billion|trillion|percent)\b/gi;
+	/(\d[\d.,]*\s*)?\b(puluh|ratus|ribu|juta|miliar|milyar|triliun|persen|hundred|thousand|million|billion|trillion|percent)\b/gi;
 
 /**
  * Whether every quantity word in a reply is one a grounded figure introduced.
@@ -103,10 +148,18 @@ const SCALE_WORD =
  * facts by the time this runs.
  */
 export function quantityWordsGrounded(reply: string, allowed: ReadonlySet<string>): boolean {
-	if (SPELLED_COUNT.test(reply)) return false;
+	if (VAGUE_COUNT.test(reply)) return false;
+	for (const m of reply.matchAll(SPELLED_WORD)) {
+		if (!allowed.has(SPELLED[m[1].toLowerCase()])) return false;
+	}
 	for (const m of reply.matchAll(SCALE_WORD)) {
 		const lead = m[1]?.trim();
-		if (!lead || !allowed.has(normaliseFigure(lead))) return false;
+		if (lead) {
+			if (!allowed.has(normaliseFigure(lead))) return false;
+			continue;
+		}
+		// No figure in front. "A hundred" is the scale itself; "a million" is a figure.
+		if (!allowed.has(SPELLED[m[2].toLowerCase()] ?? '')) return false;
 	}
 	return true;
 }
@@ -273,10 +326,42 @@ function rupiah(v: number): string {
  * How long a written reply may be.
  *
  * Longer than small talk's leash, because this one is carrying an answer rather than a
- * courtesy, and shorter than an essay. Three or four sentences is what somebody who has
+ * courtesy, and shorter than an essay. Four or five sentences is what somebody who has
  * walked the area would say before stopping to let you ask the next thing.
+ *
+ * It was 460, and the interface's own composed explanation runs past that in English. A
+ * model saying the same thing at the same length was thrown away for saying it, on every
+ * explanation, and the only symptom was the template standing in.
  */
-export const REPLY_MAX_CHARS = 460;
+export const REPLY_MAX_CHARS = 720;
+
+/**
+ * Why a reply would be refused, or null when it would not be.
+ *
+ * Said rather than swallowed, in the server log and in the answer's provenance, because a
+ * reply dropped in silence has exactly one symptom, Tapak sounding plainer, and that is
+ * not a symptom anybody reports. Indonesian, like every other line of provenance.
+ */
+export function groundingFault(
+	raw: unknown,
+	facts: string,
+	named: readonly string[],
+	everyName: readonly string[]
+): string | null {
+	if (typeof raw !== 'string') return 'bukan teks';
+	const s = raw.trim().replace(/\s+/g, ' ');
+	if (!s) return 'kosong';
+	if (s.length > REPLY_MAX_CHARS) {
+		return `terlalu panjang, ${s.length} karakter dari batas ${REPLY_MAX_CHARS}`;
+	}
+	const allowed = allowedFigures(facts);
+	const figures = ungroundedFigures(s, allowed);
+	if (figures.length) return `memuat angka yang tidak ada di fakta: ${figures.join(', ')}`;
+	if (!quantityWordsGrounded(s, allowed)) return 'memuat jumlah dalam kata yang tidak ada di fakta';
+	const places = unnamedPlaces(s, named, everyName);
+	if (places.length) return `menyebut kawasan yang tidak ada di jawaban: ${places.join(', ')}`;
+	return null;
+}
 
 /**
  * A model-written answer, or null if it broke the fence.
@@ -293,10 +378,5 @@ export function cleanGroundedReply(
 ): string | null {
 	if (typeof raw !== 'string') return null;
 	const s = raw.trim().replace(/\s+/g, ' ');
-	if (!s || s.length > REPLY_MAX_CHARS) return null;
-	const allowed = allowedFigures(facts);
-	if (ungroundedFigures(s, allowed).length) return null;
-	if (!quantityWordsGrounded(s, allowed)) return null;
-	if (unnamedPlaces(s, named, everyName).length) return null;
-	return s;
+	return groundingFault(s, facts, named, everyName) ? null : s;
 }
