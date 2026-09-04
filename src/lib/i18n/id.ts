@@ -1194,7 +1194,9 @@ export const id = {
 		   muncul di atas peta. Pertanyaannya memang tidak pernah dikirim, jadi giliran itu
 		   harus tetap menjawab sesuatu, bukan berhenti di "sebentar" selamanya. */
 		outOfQuota: 'Kuota pertanyaan minggu ini sudah habis, jadi ini belum bisa saya jawab.',
-		failed: (err: string) => `Maaf, catatan saya tidak kebuka barusan. ${err} Coba tanya lagi?`,
+		/* Tanpa detail dari kegagalannya. Yang salah itu kode status atau galat jaringan,
+		   urusan konsol, dan pembaca tidak bisa berbuat apa-apa selain bertanya lagi. */
+		failed: 'Maaf, catatan saya tidak kebuka barusan. Coba tanya lagi?',
 		nothing: 'Saya belum menemukan apa-apa untuk itu.'
 	},
 
