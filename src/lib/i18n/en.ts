@@ -1485,6 +1485,15 @@ export const en: Copy = {
 			ai: 'Tapak cannot answer again until the quota refills or the plan goes up.',
 			analysis: 'Areas and units cannot be opened again until the quota refills or the plan goes up.'
 		},
+		/* ── leaving ───────────────────────────────────────────────────────────────
+		   The button used to stand alone at the foot of the page with nothing saying
+		   what pressing it would cost. What it costs is the session and nothing else,
+		   and the one control here that ends something should name what it ends. */
+		sessionTitle: 'Session',
+		signOutNote:
+			'Signing out only closes the session in this browser. The account, the plan and what is left on it all stay as they are.',
+		signingOut: 'Closing your session',
+
 		signedOut: 'Your session has ended',
 		signedOutNote: 'Sign in again to carry on. What is already on the screen stays readable.',
 		seePlans: 'See the plans',
