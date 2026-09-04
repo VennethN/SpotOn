@@ -1,13 +1,13 @@
 <script lang="ts">
 	/**
-	 * Sosok Tapak: satu figur skala putih, digambar dengan tata bahasa yang sama
-	 * dengan figur di maket — kepala bulat, badan kapsul, kaki terbuka satu langkah.
-	 * Digambar sebagai SVG, bukan adegan WebGL kedua: satu ikon kecil tidak sepadan
-	 * dengan biaya konteks GL sendiri.
+	 * Tapak's figure: a single white scale figure, drawn in the same visual grammar
+	 * as the figures in the diorama — round head, capsule body, legs one stride apart.
+	 * Drawn as SVG rather than a second WebGL scene: one small icon is not worth the
+	 * cost of a GL context of its own.
 	 */
 	interface Props {
 		size?: number;
-		/** Berjalan: kaki dibuka. Diam: kaki dirapatkan. */
+		/** Walking: legs apart. Still: legs together. */
 		walking?: boolean;
 	}
 	let { size = 34, walking = true }: Props = $props();
@@ -20,18 +20,18 @@
 	aria-hidden="true"
 	class:walking
 >
-	<!-- bayangan kontak: figur maket selalu menempel pada alasnya -->
+	<!-- contact shadow: a model figure always sits on its base -->
 	<ellipse cx="13" cy="32.4" rx="7.5" ry="1.5" class="shadow" />
 	<g class="body">
-		<!-- kaki -->
+		<!-- legs -->
 		<rect class="limb" x="10.6" y="20" width="2.5" height="11.6" rx="1.2" />
 		<rect class="limb back" x="13" y="20" width="2.5" height="11.6" rx="1.2" />
-		<!-- lengan -->
+		<!-- arms -->
 		<rect class="limb arm" x="7.6" y="11.6" width="2.1" height="8.4" rx="1" />
 		<rect class="limb arm back" x="16.3" y="11.6" width="2.1" height="8.4" rx="1" />
-		<!-- badan -->
+		<!-- body -->
 		<rect class="torso" x="9" y="9.4" width="8" height="12.4" rx="4" />
-		<!-- kepala -->
+		<!-- head -->
 		<circle class="head" cx="13" cy="5.4" r="3.6" />
 	</g>
 </svg>
@@ -57,7 +57,7 @@
 	.limb {
 		fill: #e4e1db;
 	}
-	/* Anggota badan sisi jauh diredupkan — itu yang memberi kedalaman tanpa bayangan. */
+	/* The far-side limbs are dimmed — that is what gives depth without a shadow. */
 	.limb.back {
 		fill: #d3d0ca;
 	}
@@ -65,7 +65,7 @@
 		fill: #edeae5;
 	}
 
-	/* Pose satu langkah, dibekukan seperti figur di maket. */
+	/* A one-stride pose, frozen like the figures in the diorama. */
 	.walking .limb:not(.arm) {
 		transform-origin: 50% 20px;
 	}

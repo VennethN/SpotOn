@@ -7,18 +7,18 @@ import type { RequestHandler } from './$types';
 
 /**
  * GET /api/scores?kategori=kopi&wd=0.5&ws=0.5&gate=1&radius=800
- * Opportunity Score terhitung per catchment. Antarmuka menghitung ulang secara
- * lokal saat slider digeser agar umpan baliknya seketika; endpoint ini adalah
- * kontrak yang sama untuk konsumen lain (ekspor, pengujian, integrasi).
+ * The computed Opportunity Score per catchment. The interface recomputes locally as
+ * the sliders move so the feedback is instant; this endpoint is the same contract
+ * for every other consumer (export, testing, integration).
  */
 export const GET: RequestHandler = ({ url }) => {
-	const kategori = readCategory(url);
+	const category = readCategory(url);
 	const weights = readWeights(url);
-	const rows = scoreAll(loadHexes(), kategori, weights);
+	const rows = scoreAll(loadHexes(), category, weights);
 
 	return json({
-		kategori,
-		definisi: CATEGORY_MAP[kategori],
+		kategori: category,
+		definition: CATEGORY_MAP[category],
 		weights,
 		rows: [...rows].sort((a, b) => (b.score ?? -1) - (a.score ?? -1))
 	});

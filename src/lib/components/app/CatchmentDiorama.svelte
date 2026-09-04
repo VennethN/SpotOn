@@ -1,14 +1,14 @@
 <script lang="ts">
 	/**
-	 * Maket kawasan terpilih, di dalam aplikasi.
+	 * A model of the selected area, inside the app.
 	 *
-	 * Bukan denah sebenarnya — ini skema. Yang diambil dari data adalah isinya:
-	 * berapa orang di jalan pada jam yang dipilih (profil 24 jam), berapa gerai
-	 * pesaing sejenis (OSM), dan berapa petak yang benar-benar sedang disewakan
-	 * (Properti Go). Kawasan tanpa data ditampilkan kosong, bukan diisi contoh.
+	 * Not an actual plan — this is a schematic. What comes from the data is its
+	 * contents: how many people are on the street at the selected hour (the 24-hour
+	 * profile), how many competing outlets there are (OSM), and how many lots are
+	 * genuinely up for rent (Properti Go). An area with no data shows empty, not filled in.
 	 *
-	 * Bahasanya sengaja bahasa orang: "seramai apa", bukan "indeks permintaan".
-	 * Angka lengkapnya tetap ada, satu klik di bawah.
+	 * The wording is deliberately plain: "how busy", not "demand index". The full
+	 * figures are still there, one click below.
 	 */
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
@@ -17,9 +17,9 @@
 	import { formatHour, pct } from '$lib/utils/format';
 
 	/**
-	 * Panel ini jauh lebih kecil daripada panggung halaman depan, jadi kameranya
-	 * dirapatkan: pada bingkai selebar ±340 px, bentang penuh membuat kafe dan
-	 * petak sewa mengecil sampai tidak ada yang terbaca.
+	 * This panel is far smaller than the landing page's stage, so its camera is
+	 * pulled in: at a frame ±340 px wide, the full span shrinks the cafe and the
+	 * rental lot until neither of them reads.
 	 */
 	const CAMERA_T = 0.88;
 
@@ -29,7 +29,7 @@
 	const catName = $derived(c.category[app.category].name);
 	const catMany = $derived(c.category[app.category].many);
 
-	/** Petak dengan skor tertinggi pada kategori aktif — untuk tombol "pilihkan saja". */
+	/** The highest-scoring cell in the active category — for the "just pick one" button. */
 	const best = $derived(
 		app.rows
 			.filter((r) => !r.nodata)
@@ -39,26 +39,26 @@
 			)
 	);
 
-	// Dibuka pada jam mesin pengguna, lalu bertahan saat pindah kawasan — supaya dua
-	// kawasan bisa dibandingkan pada jam yang sama, bukan direset diam-diam.
+	// Opens at the user's machine hour, then persists across areas — so two areas can
+	// be compared at the same hour rather than being silently reset.
 	let hour = $state(localHour());
 
-	const jam = $derived(row?.jam ?? []);
-	const peak = $derived(jam.length ? Math.max(...jam) : 0);
+	const hourly = $derived(row?.hourly ?? []);
+	const peak = $derived(hourly.length ? Math.max(...hourly) : 0);
 
 	function at(h: number): number {
-		if (!jam.length) return 0;
+		if (!hourly.length) return 0;
 		const i = Math.floor(((h % 24) + 24) % 24);
 		const f = h - Math.floor(h);
-		return jam[i] * (1 - f) + jam[(i + 1) % 24] * f;
+		return hourly[i] * (1 - f) + hourly[(i + 1) % 24] * f;
 	}
 
 	const day = $derived(daylightAt(hour));
 	const nowCount = $derived(Math.round(at(hour)));
 	const density = $derived(peak > 0 ? at(hour) / peak : 0);
-	const busiest = $derived(jam.length ? jam.indexOf(peak) : -1);
+	const busiest = $derived(hourly.length ? hourly.indexOf(peak) : -1);
 
-	/** Seramai apa, dalam kata — bukan persentase yang harus ditafsirkan sendiri. */
+	/** How busy, in words — not a percentage the reader has to interpret themselves. */
 	const busyWord = $derived(
 		density >= 0.8
 			? c.mood.busiest
@@ -71,9 +71,9 @@
 </script>
 
 {#if !row}
-	<!-- Keadaan kosong yang bisa ditindaklanjuti. Kalimat "silakan pilih di peta"
-	     saja menyerahkan pekerjaan kembali ke pengguna yang justru belum tahu
-	     petak mana yang layak dilihat. -->
+	<!-- An empty state that can be acted on. A bare "please pick one on the map"
+	     hands the work straight back to a user who does not yet know which cell is
+	     worth looking at. -->
 	<div class="empty">
 		<p>{c.app.emptyMood}</p>
 		{#if best}
@@ -142,7 +142,7 @@
 					<div><dt>{c.mood.rows.now}</dt><dd>{nowCount}</dd></div>
 					<div><dt>{c.mood.rows.peak}</dt><dd>{peak} · {formatHour(busiest)}</dd></div>
 					<div><dt>{c.mood.rows.rivals}</dt><dd>{row.osm}</dd></div>
-					<div><dt>{c.mood.rows.busy}</dt><dd>{pct(row.ramai)}%</dd></div>
+					<div><dt>{c.mood.rows.busy}</dt><dd>{pct(row.busy)}%</dd></div>
 					<div><dt>{c.mood.rows.space}</dt><dd>{row.listings} / {row.nProp}</dd></div>
 					<div><dt>{c.mood.rows.points}</dt><dd>{row.nTot}</dd></div>
 				</dl>
@@ -176,7 +176,7 @@
 		background: var(--sky);
 		border: 1px solid var(--separator);
 	}
-	/* Penanda permanen: adegan ini skema, dan tidak boleh dikira peta bangunan asli. */
+	/* A permanent marker: this scene is schematic, never a real building map. */
 	.mark {
 		position: absolute;
 		left: 0.5rem;

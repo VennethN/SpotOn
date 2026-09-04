@@ -1,23 +1,23 @@
 <script lang="ts">
 	/**
-	 * Skala peluang tujuh langkah — satu rona, muda ke tua.
+	 * The seven-step opportunity ramp — one hue, light to dark.
 	 *
-	 * Sebelumnya pita yang sama ditulis ulang di tiga tempat (legenda peta, panel
-	 * lanjutan, halaman depan). Tiga salinan berarti tiga kesempatan untuk berbeda
-	 * dari warna yang benar-benar dipakai peta, dan legenda yang berbeda dari
-	 * petanya lebih buruk daripada tidak ada legenda.
+	 * The same strip used to be rewritten in three places (the map legend, the
+	 * advanced panel, the landing page). Three copies means three chances to differ
+	 * from the colours the map actually uses, and a legend that disagrees with its
+	 * map is worse than no legend at all.
 	 *
-	 * Warna "belum terdata" sengaja di luar skala: ia bukan nilai kecil, ia bukan
-	 * nilai — jadi ditandai kotak berlubang, bukan langkah paling pucat.
+	 * The "no data" colour is deliberately off the ramp: it is not a small value, it
+	 * is not a value — so it is marked with an outlined box, not the palest step.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
 
 	interface Props {
-		/** Teks di kedua ujung. Kosongkan bila konteksnya sudah menjelaskan. */
+		/** Text at both ends. Leave empty when the context already explains it. */
 		ends?: [string, string] | null;
-		/** Baris "belum terdata" beserta keterangannya. */
+		/** The "no data" row and its caption. */
 		nodata?: string | null;
-		/** Pita tipis untuk panel sempit. */
+		/** A thin strip for narrow panels. */
 		dense?: boolean;
 	}
 	let { ends, nodata = null, dense = false }: Props = $props();
@@ -89,7 +89,7 @@
 		font-size: 0.625rem;
 		color: var(--label-2);
 	}
-	/* Arsir yang sama persis dengan yang dipakai peta untuk petak tanpa data. */
+	/* Exactly the hatching the map uses for cells with no data. */
 	.key {
 		width: 0.6875rem;
 		height: 0.6875rem;

@@ -13,8 +13,8 @@
   "nStruk": 60,
   "nMenu": 55,
   "nProp": 24,
-  "nontunai": 0.75,
-  "jam": [
+  "cashless": 0.75,
+  "hourly": [
    0,
    0,
    0,
@@ -40,7 +40,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.68,
    "warung": 0.21,
    "minimarket": 0.47,
@@ -76,8 +76,8 @@
   "nStruk": 56,
   "nMenu": 43,
   "nProp": 22,
-  "nontunai": 0.69,
-  "jam": [
+  "cashless": 0.69,
+  "hourly": [
    0,
    0,
    0,
@@ -103,7 +103,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.68,
    "warung": 0.57,
    "minimarket": 0.53,
@@ -139,8 +139,8 @@
   "nStruk": 35,
   "nMenu": 29,
   "nProp": 17,
-  "nontunai": 0.62,
-  "jam": [
+  "cashless": 0.62,
+  "hourly": [
    0,
    0,
    0,
@@ -166,7 +166,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.24,
    "warung": 0.32,
    "minimarket": 0.19,
@@ -202,8 +202,8 @@
   "nStruk": 55,
   "nMenu": 45,
   "nProp": 21,
-  "nontunai": 0.71,
-  "jam": [
+  "cashless": 0.71,
+  "hourly": [
    0,
    0,
    0,
@@ -229,7 +229,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.21,
    "warung": 0.33,
    "minimarket": 0.3,
@@ -281,8 +281,8 @@
   "nStruk": 40,
   "nMenu": 39,
   "nProp": 13,
-  "nontunai": 0.64,
-  "jam": [
+  "cashless": 0.64,
+  "hourly": [
    0,
    0,
    0,
@@ -308,7 +308,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.46,
    "warung": 0.41,
    "minimarket": 0.29,
@@ -344,8 +344,8 @@
   "nStruk": 40,
   "nMenu": 35,
   "nProp": 12,
-  "nontunai": 0.57,
-  "jam": [
+  "cashless": 0.57,
+  "hourly": [
    0,
    0,
    0,
@@ -371,7 +371,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.2,
    "warung": 0.31,
    "minimarket": 0.39,
@@ -407,8 +407,8 @@
   "nStruk": 46,
   "nMenu": 46,
   "nProp": 20,
-  "nontunai": 0.64,
-  "jam": [
+  "cashless": 0.64,
+  "hourly": [
    0,
    0,
    0,
@@ -434,7 +434,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.29,
    "warung": 0.47,
    "minimarket": 0.49,
@@ -470,8 +470,8 @@
   "nStruk": 25,
   "nMenu": 29,
   "nProp": 10,
-  "nontunai": 0.57,
-  "jam": [
+  "cashless": 0.57,
+  "hourly": [
    0,
    0,
    0,
@@ -497,7 +497,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.59,
    "warung": 0.19,
    "minimarket": 0.19,
@@ -549,8 +549,8 @@
   "nStruk": 36,
   "nMenu": 27,
   "nProp": 12,
-  "nontunai": 0.5,
-  "jam": [
+  "cashless": 0.5,
+  "hourly": [
    0,
    0,
    0,
@@ -576,7 +576,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.51,
    "warung": 0.36,
    "minimarket": 0.38,
@@ -612,8 +612,8 @@
   "nStruk": 23,
   "nMenu": 11,
   "nProp": 9,
-  "nontunai": 0.4,
-  "jam": [
+  "cashless": 0.4,
+  "hourly": [
    0,
    0,
    0,
@@ -639,7 +639,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.22,
    "warung": 0.65,
    "minimarket": 0.44,
@@ -675,8 +675,8 @@
   "nStruk": 24,
   "nMenu": 14,
   "nProp": 7,
-  "nontunai": 0.44,
-  "jam": [
+  "cashless": 0.44,
+  "hourly": [
    0,
    0,
    0,
@@ -702,7 +702,7 @@
    1,
    0
   ],
-  "ramai": {
+  "busy": {
    "kopi": 0.51,
    "warung": 0.44,
    "minimarket": 0.74,

@@ -1,20 +1,20 @@
 import { browser } from '$app/environment';
 
 /**
- * Pegas yang diparameterkan seperti pada perkakas desain Apple: rasio redaman
- * (seberapa banyak lonjakan) dan response (seberapa cepat mencapai target dalam
- * detik) — bukan massa/kekakuan/redaman fisik.
+ * A spring parameterised the way Apple's design tools do it: a damping ratio (how
+ * much overshoot) and a response (how quickly it reaches the target, in seconds) —
+ * not physical mass/stiffness/damping.
  *
- * Sifat yang penting: pegas selalu bergerak dari nilai yang SEDANG tampil, dan
- * kecepatan ikut terbawa saat target berubah di tengah jalan. Itulah yang membuat
- * animasi bisa direbut dan dibalik kapan saja tanpa lompatan.
+ * The property that matters: the spring always moves from the value CURRENTLY on
+ * screen, and its velocity carries over when the target changes mid-flight. That is
+ * what lets an animation be interrupted and reversed at any moment without a jump.
  */
 export type SpringOptions = {
-	/** 1 = kritis (tanpa lonjakan). < 1 memantul. */
+	/** 1 = critically damped (no overshoot). < 1 bounces. */
 	damping?: number;
-	/** detik menuju target; makin kecil makin sigap. */
+	/** seconds to the target; smaller is snappier. */
 	response?: number;
-	/** ambang berhenti, dalam satuan nilai. */
+	/** settle threshold, in units of the value. */
 	epsilon?: number;
 };
 
@@ -25,9 +25,9 @@ export function prefersReducedMotion(): boolean {
 }
 
 /**
- * Nilai pegas berbasis rune. Baca `.current` di markup; setel `.target` untuk
- * menganimasikan; panggil `.snap()` untuk memindahkan tanpa gerak (dipakai saat
- * jari sedang menyeret — di sana umpan balik harus 1:1, bukan dipegasi).
+ * A rune-based spring value. Read `.current` in markup; set `.target` to animate;
+ * call `.snap()` to move without motion (used while a finger is dragging — there
+ * the feedback has to be 1:1, not sprung).
  */
 export class SpringValue {
 	current = $state(0);
@@ -51,7 +51,7 @@ export class SpringValue {
 		return this.#velocity;
 	}
 
-	/** Animasikan ke `value`. `velocity` menyambung kecepatan gestur agar tidak ada jahitan. */
+	/** Animate to `value`. `velocity` carries the gesture's speed over so there is no seam. */
 	to(value: number, velocity?: number) {
 		this.#target = value;
 		if (velocity !== undefined) this.#velocity = velocity;
@@ -67,7 +67,7 @@ export class SpringValue {
 		}
 	}
 
-	/** Pindahkan seketika (tracking 1:1 selama gestur). */
+	/** Move instantly (1:1 tracking during a gesture). */
 	snap(value: number, velocity = 0) {
 		this.#stop();
 		this.#target = value;
@@ -89,14 +89,14 @@ export class SpringValue {
 	}
 
 	#tick = (now: number) => {
-		// Batasi dt agar tab yang kembali aktif tidak meledakkan integrasi.
+		// Cap dt so a tab coming back to life does not blow up the integration.
 		const dt = Math.min(0.064, (now - this.#last) / 1000);
 		this.#last = now;
 
 		const { damping: zeta, response, epsilon } = this.#opts;
 		const omega = (2 * Math.PI) / response;
 		const dx = this.current - this.#target;
-		// pegas teredam: a = -ω²·x - 2ζω·v, diintegrasikan semi-implisit
+		// damped spring: a = -ω²·x - 2ζω·v, integrated semi-implicitly
 		const accel = -omega * omega * dx - 2 * zeta * omega * this.#velocity;
 		this.#velocity += accel * dt;
 		this.current += this.#velocity * dt;
@@ -114,20 +114,20 @@ export class SpringValue {
 }
 
 /**
- * Titik istirahat yang diproyeksikan dari kecepatan lepas — bentuk peluruhan
- * eksponensial yang dipakai iOS, bukan v²/2a dari buku teks. Dipakai untuk memilih
- * titik snap ke arah lemparan, bukan ke titik lepas.
+ * The resting point projected from the release velocity — the exponential-decay
+ * form iOS uses, not the textbook v²/2a. Used to pick the snap point in the
+ * direction of the throw, rather than at the point of release.
  */
 export function project(velocity: number, decelerationRate = 0.998): number {
 	return ((velocity / 1000) * decelerationRate) / (1 - decelerationRate);
 }
 
-/** Perlawanan progresif di luar batas: melambat, tidak membeku. */
+/** Progressive resistance past the edge: it slows down, it does not freeze. */
 export function rubberband(overshoot: number, dimension: number, constant = 0.55): number {
 	return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));
 }
 
-/** Riwayat pointer pendek → kecepatan lepas (px/detik). */
+/** A short pointer history → the release velocity (px/second). */
 export class VelocityTracker {
 	#samples: Array<{ v: number; t: number }> = [];
 
@@ -140,7 +140,7 @@ export class VelocityTracker {
 		this.#samples = [];
 	}
 
-	/** Kecepatan rata-rata pada ~100 ms terakhir. */
+	/** Average velocity over the last ~100 ms. */
 	velocity(): number {
 		const s = this.#samples;
 		if (s.length < 2) return 0;

@@ -3,13 +3,13 @@ import { DEFAULT_WEIGHTS, normalizeWeights } from '$lib/domain/weights';
 import type { CategoryKey, Weights } from '$lib/types';
 
 /**
- * Query string → argumen mesin skor.
+ * Query string → scoring-engine arguments.
  *
- * Hanya membaca dan mengubah bentuk; pembersihan nilainya satu pintu di
- * `domain/weights`, sama dengan yang dipakai endpoint yang menerima body JSON.
+ * Only reads and reshapes; value sanitising has a single entry point in
+ * `domain/weights`, the same one used by endpoints that take a JSON body.
  */
-/** `?source=` bila dikenali; `undefined` supaya `normalizeWeights` yang memutus
-    bawaannya — berkas ini membaca, bukan menentukan. */
+/** `?source=` when recognised; `undefined` so `normalizeWeights` decides the
+    default — this file reads, it does not decide. */
 function readSource(url: URL): Weights['source'] | undefined {
 	const raw = url.searchParams.get('source');
 	return raw === 'mapid' || raw === 'osm' ? raw : undefined;
@@ -26,16 +26,14 @@ export function readWeights(url: URL): Weights {
 		ws: num('ws', DEFAULT_WEIGHTS.ws),
 		gate: (url.searchParams.get('gate') ?? '1') !== '0',
 		radius: num('radius', DEFAULT_WEIGHTS.radius),
-		// Tanpa baris ini endpoint mengabaikan `?source=` sepenuhnya — dan
-		// hasilnya tetap terlihat wajar, jadi tidak ada yang menandakan bahwa
-		// saklarnya tidak berfungsi.
+		// Without this line the endpoint ignores `?source=` entirely — and the result
+		// still looks plausible, so nothing signals that the switch is doing nothing.
 		//
-		// Bawaannya dibaca dari DEFAULT_WEIGHTS, bukan ditulis ulang di sini.
-		// Sempat tertulis `: 'osm'` langsung, dan itu menjadikan berkas ini
-		// penjaga kedua yang memutuskan hal yang sama dengan cara sendiri —
-		// persis pola yang sudah pernah menggigit modul bobot ini. Waktu bawaan
-		// dipindah ke MAPID, satu baris ini akan diam-diam mempertahankan OSM
-		// untuk seluruh endpoint sementara antarmuka sudah berpindah.
+		// The default is read from DEFAULT_WEIGHTS rather than restated here. It once
+		// read `: 'osm'` directly, which made this file a second guard deciding the
+		// same thing its own way — exactly the pattern that has already bitten this
+		// weights module. When the default moved to MAPID, this one line would have
+		// quietly kept OSM for every endpoint while the interface had already moved.
 		source: readSource(url)
 	});
 }

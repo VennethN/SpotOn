@@ -1,27 +1,27 @@
 /**
- * Satu tempat untuk mengubah angka jadi teks.
+ * One place to turn numbers into text.
  *
- * Sebelumnya tiap komponen menulis pemformatnya sendiri, dan hasilnya dua
- * kebiasaan yang saling bertabrakan di layar: jam puncak yang sama tertulis
- * "12:00" di panel detail tapi "12.00" di maket dan di grafik. Yang begini
- * tidak pernah ketahuan sampai dua-duanya kebetulan tampil berdampingan.
+ * Every component used to write its own formatter, and the result was two
+ * conventions colliding on screen: the same peak hour written "12:00" in the detail
+ * panel but "12.00" in the diorama and the chart. That kind of thing never gets
+ * noticed until the two happen to appear side by side.
  *
- * Dipakai domain (menyusun kalimat "kenapa di sini?") maupun komponen, jadi
- * modul ini sengaja tidak bergantung pada apa pun.
+ * Used by the domain layer (building the "why here?" sentences) as well as by the
+ * components, so this module deliberately depends on nothing.
  */
 
-/** Ribuan bergaya Indonesia: 7577 → "7.577". */
+/** Indonesian-style thousands: 7577 → "7.577". */
 export const num = (v: number): string => v.toLocaleString('id-ID');
 
-/** 0..1 → "0".."100". Null/undefined jadi "—", bukan "0" — belum tahu bukan nol. */
+/** 0..1 → "0".."100". Null/undefined becomes "—", not "0" — unknown is not zero. */
 export const pct = (v: number | null | undefined): string =>
 	v === null || v === undefined ? '—' : String(Math.round(v * 100));
 
 /**
- * Jam gaya Indonesia: 12 → "12.00", 20.35 → "20.21", negatif → "—".
+ * Indonesian-style hours: 12 → "12.00", 20.35 → "20.21", negative → "—".
  *
- * Menerima jam pecahan supaya jam maket (yang bergerak halus mengikuti gulir)
- * dan jam bulat (dari profil 24 jam) memakai pemformat yang sama.
+ * Accepts fractional hours so the diorama clock (which moves smoothly with the
+ * scroll) and whole hours (from the 24-hour profile) share one formatter.
  */
 export function formatHour(hour: number): string {
 	if (hour < 0) return '—';
@@ -30,12 +30,12 @@ export function formatHour(hour: number): string {
 	return `${String(h).padStart(2, '0')}.${String(m).padStart(2, '0')}`;
 }
 
-/** Posisi 0..6 pada skala warna peluang. */
+/** Position 0..6 on the opportunity colour ramp. */
 export function rampIndex(score: number): number {
 	return Math.max(0, Math.min(6, Math.round(score * 6)));
 }
 
-/** Variabel CSS warna untuk satu skor — abu-abu "belum terdata" bila null. */
+/** The CSS colour variable for one score — the "no data" grey when null. */
 export function rampVar(score: number | null): string {
 	if (score === null) return 'var(--nodata)';
 	return `var(--ramp-${rampIndex(score)})`;

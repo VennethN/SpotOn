@@ -44,10 +44,10 @@
 					<span class="sub">{c.detail.nStruk(row.nStruk)}</span>
 				</div>
 				<div class="tile">
-					<!-- Label sumbernya mengikuti saklar, bukan ditulis mati "OSM".
-					     Sejak bawaan pindah ke MAPID, versi lamanya memberi tanda
-					     OSM pada angka yang datang dari MAPID — salah menyebut asal
-					     angka, pada produk yang seluruh janjinya justru itu. -->
+					<!-- The source label follows the switch rather than being hardcoded
+					     to "OSM". Since the default moved to MAPID, the old version
+					     labelled figures that came from MAPID as OSM — misnaming where
+					     a figure came from, in a product whose whole promise is that. -->
 					<span class="eyebrow">
 						{c.detail.rivals}
 						<span class="tag real">{row.source === 'mapid' ? 'MAPID' : 'OSM'}</span>
@@ -58,7 +58,7 @@
 				<div class="tile">
 					<span class="eyebrow">{c.detail.supplyEff}</span>
 					<span class="val">{pct(row.supply)}</span>
-					<span class="sub">{c.detail.busyPct(pct(row.ramai))}</span>
+					<span class="sub">{c.detail.busyPct(pct(row.busy))}</span>
 				</div>
 				<div class="tile">
 					<span class="eyebrow">{c.detail.space} <span class="tag mock">MOCK</span></span>
@@ -67,7 +67,7 @@
 				</div>
 				<div class="tile">
 					<span class="eyebrow">{c.detail.cashless} <span class="tag mock">MOCK</span></span>
-					<span class="val">{pct(row.nontunai)}%</span>
+					<span class="val">{pct(row.cashless)}%</span>
 					<span class="sub">{c.detail.cashlessSub}</span>
 				</div>
 			</div>
@@ -77,7 +77,7 @@
 					{c.detail.hourTitle(row.nStruk)}
 					<span class="tag mock">MOCK</span>
 				</h3>
-				<HourBars jam={row.jam} dense />
+				<HourBars hourly={row.hourly} dense />
 			</section>
 
 			<section>
@@ -102,13 +102,13 @@
 			<div class="note">
 				<strong>{c.detail.summaryLead}</strong>
 				{c.detail.summary(
-					formatHour(row.puncak),
+					formatHour(row.peakHour),
 					name,
 					row.osm,
 					app.weights.radius,
 					supplyPhrase(row, c),
 					row.listings,
-					def.propKat
+					def.propertyCategory
 				)}
 				<span class="muted">{c.detail.summaryNote}</span>
 			</div>
