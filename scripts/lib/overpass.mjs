@@ -7,6 +7,11 @@
  * yang lama sedang penuh) tidak pernah sampai ke skrip lainnya.
  */
 
+import { createHash } from 'node:crypto';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 const ENDPOINTS = [
 	'https://overpass-api.de/api/interpreter',
 	'https://overpass.kumi.systems/api/interpreter',
@@ -48,12 +53,59 @@ const BUSY = new Set([429, 502, 503, 504]);
  */
 const REQUEST_TIMEOUT_MS = 200_000;
 
+/**
+ * Singgahan jawaban Overpass, supaya kueri yang SUDAH berhasil tidak perlu
+ * diulang ketika kueri lain di skrip yang sama gagal.
+ *
+ * `build-hexes.mjs` menembakkan lima kueri berturut-turut. Sepanjang sesi ini
+ * Overpass sedang penuh berkepanjangan, dan tiga kali pembangunan ulang hangus
+ * karena satu kelompok terakhir menyerah — membuang empat kueri sebelumnya yang
+ * sudah lolos, masing-masing setelah menunggu menit-menitan. Dengan singgahan
+ * ini percobaan berikutnya melanjutkan dari tempat yang gagal.
+ *
+ * Umurnya sengaja pendek. Ini alat supaya percobaan ulang tidak menyakitkan,
+ * BUKAN cara mempercepat pembangunan data: kalau isinya boleh tua, `hexes.json`
+ * bisa diam-diam dibangun dari OSM minggu lalu tanpa ada yang sadar. Hapus
+ * kapan saja — `rm -rf scripts/.overpass-cache`.
+ */
+const CACHE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '.overpass-cache');
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+function cachePath(query) {
+	return resolve(CACHE_DIR, `${createHash('sha1').update(query).digest('hex')}.json`);
+}
+
+function readCache(query, label) {
+	try {
+		const p = cachePath(query);
+		const age = Date.now() - statSync(p).mtimeMs;
+		if (age > CACHE_TTL_MS) return null;
+		const hit = JSON.parse(readFileSync(p, 'utf8'));
+		console.log(`  (${label}) pakai singgahan, umur ${Math.round(age / 60000)} menit`);
+		return hit;
+	} catch {
+		return null;
+	}
+}
+
+function writeCache(query, data) {
+	try {
+		mkdirSync(CACHE_DIR, { recursive: true });
+		writeFileSync(cachePath(query), JSON.stringify(data));
+	} catch {
+		// Singgahan gagal ditulis bukan alasan menggagalkan pengambilan data.
+	}
+}
+
 export async function overpass(query, label, opts = {}) {
 	// Kueri berat (mis. batas administrasi dengan `out geom`) sering perlu
 	// beberapa kali giliran sebelum ada cermin yang lowong. Delapan percobaan
 	// melewati tiap cermin lebih dari dua kali.
 	const attempts = opts.attempts ?? 8;
 	let lastErr;
+
+	const cached = readCache(query, label);
+	if (cached) return cached;
 
 	// Cermin yang gagal di tingkat sambungan — habis waktu, sertifikat
 	// kedaluwarsa, DNS — dicoret untuk sisa panggilan ini. Berbeda dari cermin
@@ -87,7 +139,9 @@ export async function overpass(query, label, opts = {}) {
 				continue;
 			}
 			if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-			return await res.json();
+			const data = await res.json();
+			writeCache(query, data);
+			return data;
 		} catch (err) {
 			lastErr = err;
 			dead.add(url);

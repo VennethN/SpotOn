@@ -33,3 +33,6 @@ vite.config.ts.timestamp-*
 !.env.example
 *.pem
 *.key
+
+# Singgahan jawaban Overpass — hanya untuk mempermudah percobaan ulang.
+scripts/.overpass-cache/
