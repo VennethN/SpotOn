@@ -66,9 +66,18 @@ export class AppState {
 	ai = $state<AiAnswer | null>(null);
 	aiLoading = $state(false);
 	aiError = $state<string | null>(null);
-	/** A category's columns are on their way — the heatmap says so rather than lying flat. */
-	sliceLoading = $state(false);
-	sliceError = $state<string | null>(null);
+	/**
+	 * Categories with a request in the air, and categories whose request failed.
+	 *
+	 * Kept PER CATEGORY rather than as one "loading" flag, because the user can
+	 * switch category while a request is still out. A single flag set by whoever
+	 * started and cleared by whoever finished gets stuck on: ask for kopi, switch to
+	 * a category already cached (which starts and clears nothing), and kopi's reply
+	 * arrives to find itself no longer the active category — so it never clears the
+	 * flag, and the legend claims to be loading for the rest of the session.
+	 */
+	pending = $state<CategoryKey[]>([]);
+	sliceErrors = $state<Partial<Record<CategoryKey, string>>>({});
 	theme = $state<Theme>('system');
 	/** The system dark preference, watched so the effective theme stays reactive. */
 	systemDark = $state(false);
@@ -92,6 +101,10 @@ export class AppState {
 
 	/** Are the active category's columns here yet? */
 	ready = $derived(Boolean(this.slices[this.category]));
+
+	/** Is the ACTIVE category still on its way, and did it fail? */
+	sliceLoading = $derived(this.pending.includes(this.category));
+	sliceError = $derived(this.sliceErrors[this.category] ?? null);
 
 	/**
 	 * The base cells with every loaded category's columns stitched back on.
@@ -197,8 +210,13 @@ export class AppState {
 		if (running) return running;
 
 		const job = (async () => {
-			this.sliceError = null;
-			if (cat === this.category) this.sliceLoading = true;
+			this.pending = [...this.pending, cat];
+			// A retry starts clean: a stale message next to a request that is running
+			// again reads as a failure that has just happened.
+			if (this.sliceErrors[cat]) {
+				const { [cat]: _gone, ...rest } = this.sliceErrors;
+				this.sliceErrors = rest;
+			}
 			try {
 				const res = await fetch(`/api/catchments/${cat}`);
 				if (!res.ok) throw new Error(`Gagal memuat data kategori (${res.status}).`);
@@ -214,12 +232,13 @@ export class AppState {
 				}
 				this.slices = { ...this.slices, [cat]: slice };
 			} catch (err) {
-				if (cat === this.category) {
-					this.sliceError = err instanceof Error ? err.message : 'Gagal memuat data kategori.';
-				}
+				this.sliceErrors = {
+					...this.sliceErrors,
+					[cat]: err instanceof Error ? err.message : 'Gagal memuat data kategori.'
+				};
 			} finally {
 				this.#inFlight.delete(cat);
-				if (cat === this.category) this.sliceLoading = false;
+				this.pending = this.pending.filter((k) => k !== cat);
 			}
 		})();
 
