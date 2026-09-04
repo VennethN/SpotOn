@@ -1142,6 +1142,12 @@ Four rules hold it up, and they are the product's own rules applied to geometry:
   that carries no geometry at all. That last one is the raster fallback and nothing
   else. A blank disc never has to be interpreted.
 
+The full-screen view OPENS CLOSE, on the block around the point, and steps out to the
+whole range on request. The whole disc was the first framing, and on a screen the whole
+disc is a texture: a house is four pixels, and a house is what the reader came in to
+see. The marks are sized in screen pixels for the same reason, placed again as the
+framing moves rather than rebuilt, so a stop is the same size at every distance.
+
 The card's model runs on JAKARTA'S clock, not the reader's. It ran on the reader's own
 hour when all the hour lit was the sky, which was a fact about them. Now the lit doors on
 it are a claim about the place at this minute, the same claim the "open now" row under
