@@ -13,7 +13,7 @@ import { RADII, snapRadius } from '$lib/domain/weights';
 import {
 	Preview,
 	readStream,
-	type ChatSink,
+	type ModelSink,
 	type Completion,
 	type ToolCall
 } from '$lib/server/stream';
@@ -408,7 +408,7 @@ export async function parseWithLLM(
 	w: Weights,
 	fallbackCategory: readonly CategoryKey[],
 	lang = 'id',
-	sink?: ChatSink
+	sink?: ModelSink
 ): Promise<ParseResult> {
 	const key = env.OPENROUTER_API_KEY?.trim();
 	if (!key) return null;
@@ -459,6 +459,13 @@ export async function parseWithLLM(
 			console.error('[SpotOn] Model chain time budget exhausted, falling back to the rule parser.');
 			break;
 		}
+
+		/* Said out loud, because this is where the longest silences are. A model that is
+		   full takes its full sixty seconds to say so, and the reader was watching one
+		   unchanging line through all of it and then through the next model's turn too.
+		   "The one before did not answer, trying another" is both true and the only
+		   thing on screen that will move for a while. */
+		if (i > 0) sink?.retrying();
 
 		const controller = new AbortController();
 		const timer = setTimeout(() => controller.abort(), Math.min(ATTEMPT_MS, left));
