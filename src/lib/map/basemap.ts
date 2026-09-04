@@ -85,9 +85,11 @@ export const mapidStyleUrl = (theme: 'light' | 'dark', key: string): string =>
  */
 const CARTO_VECTOR = { light: 'positron-gl-style', dark: 'dark-matter-gl-style' } as const;
 
-/** One credit line for both, so it reads the same whichever the reader ends up on. */
+/* One credit line for both, so it reads the same whichever the reader ends up on. It
+   used to end with a note that the finished product is meant to be on MAPID MAPS,
+   which is a note to the team, and it was printed on every map a reader opened. */
 const OPEN_ATTRIBUTION =
-	'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a> · basemap final: MAPID MAPS';
+	'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>';
 
 const vectorStyles = new Map<string, Promise<StyleSpecification | null>>();
 
@@ -238,8 +240,8 @@ export async function basemapStyle(
 		/*
 		 * Nothing is configured at all, which used to be the one branch that fell back in
 		 * silence. It is the branch a bare clone lands on, so it is the one most people see,
-		 * and what it draws is somebody else's cartography under a product that names MAPID
-		 * MAPS on its own attribution line. Worth one line in the console.
+		 * and what it draws is somebody else's cartography under a product built for MAPID
+		 * MAPS. Worth one line in the console.
 		 */
 		console.warn(
 			'[SpotOn] No MAPID Map Service key is set, so the open basemap is being used instead. ' +
