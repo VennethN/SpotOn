@@ -893,7 +893,7 @@ export const en: Copy = {
 		sapaan:
 			"Hello. Transit areas in Jakarta are all I know about, but I know them fairly well. What kind of business are you thinking of?",
 		tentang:
-			'I read footfall, how many rivals are already there, and what space is on the market in each cell around a station, then answer from those figures. Where there is no data, I say so.',
+			'I am Tapak, your guide in SpotOn. I read footfall, how many rivals are already there, and what space is on the market in each cell around a station, then answer from those figures. Where there is no data, I say so.',
 		usaha:
 			'What usually decides it is who walks past, who is already selling there, and whether there is space you can actually take. Those three are the ones I can put numbers to, area by area.'
 	},
