@@ -10,6 +10,8 @@
 	 * Warna "belum terdata" sengaja di luar skala: ia bukan nilai kecil, ia bukan
 	 * nilai — jadi ditandai kotak berlubang, bukan langkah paling pucat.
 	 */
+	import { copy } from '$lib/state/lang.svelte';
+
 	interface Props {
 		/** Teks di kedua ujung. Kosongkan bila konteksnya sudah menjelaskan. */
 		ends?: [string, string] | null;
@@ -18,7 +20,10 @@
 		/** Pita tipis untuk panel sempit. */
 		dense?: boolean;
 	}
-	let { ends = ['0 · kecil', '100 · besar'], nodata = null, dense = false }: Props = $props();
+	let { ends, nodata = null, dense = false }: Props = $props();
+
+	const c = $derived(copy());
+	const labels = $derived(ends === null ? null : (ends ?? [c.scale.low, c.scale.high]));
 
 	const STEPS = [0, 1, 2, 3, 4, 5, 6];
 </script>
@@ -29,10 +34,10 @@
 			<span style:background={`var(--ramp-${s})`}></span>
 		{/each}
 	</div>
-	{#if ends}
+	{#if labels}
 		<div class="ends">
-			<span>{ends[0]}</span>
-			<span>{ends[1]}</span>
+			<span>{labels[0]}</span>
+			<span>{labels[1]}</span>
 		</div>
 	{/if}
 	{#if nodata}

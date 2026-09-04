@@ -7,7 +7,8 @@
 	 * dan kadang berganti warna — per platform. Satu tombol menghapus sekaligus
 	 * salinan kodenya dan selisih rupanya.
 	 */
-	import { nextTheme, themeLabel, type Theme } from '$lib/state/theme.svelte';
+	import { copy } from '$lib/state/lang.svelte';
+	import { nextTheme, type Theme } from '$lib/state/theme.svelte';
 
 	interface Props {
 		theme: Theme;
@@ -16,14 +17,16 @@
 		ghost?: boolean;
 	}
 	let { theme, onchange, ghost = false }: Props = $props();
+
+	const label = $derived(copy().theme[theme]);
 </script>
 
 <button
 	type="button"
 	class={ghost ? 'ghost' : 'btn'}
 	onclick={() => onchange(nextTheme(theme))}
-	aria-label={themeLabel(theme)}
-	title={themeLabel(theme)}
+	aria-label={label}
+	title={label}
 >
 	<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
 		{#if theme === 'dark'}

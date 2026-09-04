@@ -65,6 +65,14 @@ Pilih niat yang tepat:
 
 Panggil tidak_dimengerti bila pertanyaannya di luar jangkauan di atas — misalnya kota selain Jakarta, jenis usaha yang tidak ada dalam daftar, pertanyaan soal modal/perizinan/pajak, atau kalimat yang tidak jelas maksudnya. Jangan menebak jenis usaha terdekat hanya supaya bisa menjawab; lebih baik mengaku tidak paham.`;
 
+/* Satu-satunya kalimat yang benar-benar ditulis model dan dibaca pengguna adalah
+   `alasan` pada tidak_dimengerti. Ia harus keluar dalam bahasa yang sedang
+   dipilih pembaca, bukan bahasa prompt-nya. */
+const LANG_RULE: Record<string, string> = {
+	id: 'Tulis argumen `alasan` dalam bahasa Indonesia.',
+	en: 'Write the `alasan` argument in English.'
+};
+
 const TOOLS = [
 	{
 		type: 'function',
@@ -143,7 +151,8 @@ function isCat(v: unknown): v is CategoryKey {
 export async function parseWithLLM(
 	question: string,
 	w: Weights,
-	fallbackCategory: CategoryKey
+	fallbackCategory: CategoryKey,
+	lang = 'id'
 ): Promise<ParseResult> {
 	const key = env.OPENROUTER_API_KEY?.trim();
 	if (!key) return null;
@@ -165,7 +174,7 @@ export async function parseWithLLM(
 			body: JSON.stringify({
 				model,
 				messages: [
-					{ role: 'system', content: SYSTEM },
+					{ role: 'system', content: `${SYSTEM}\n\n${LANG_RULE[lang] ?? LANG_RULE.id}` },
 					{
 						role: 'user',
 						content: `Kategori yang sedang aktif: ${fallbackCategory}.\nPertanyaan: ${question}`

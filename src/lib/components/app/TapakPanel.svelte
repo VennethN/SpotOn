@@ -9,16 +9,29 @@
 	import { onMount } from 'svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { copy, lang } from '$lib/state/lang.svelte';
 	import { Tapak } from '$lib/state/tapak.svelte';
 	import { pct } from '$lib/utils/format';
 
 	const app = getAppState();
+	const c = $derived(copy());
 	const tapak = new Tapak(app);
 
 	let draft = $state('');
 	let log = $state<HTMLDivElement | null>(null);
 
 	onMount(() => tapak.greet());
+
+	/* Tiap giliran menyimpan kalimat jadi, bukan kunci, jadi percakapan lama tidak
+	   ikut berganti bahasa. Daripada menyisakan dua bahasa dalam satu utas, utasnya
+	   dimulai ulang — percakapannya pendek dan sapaan pembukanya sama saja. */
+	let lastLang = lang();
+	$effect(() => {
+		const now = lang();
+		if (now === lastLang) return;
+		lastLang = now;
+		tapak.reset();
+	});
 
 	// Tapak ikut menoleh saat pengguna memilih kawasan sendiri di peta.
 	$effect(() => {
@@ -93,11 +106,13 @@
 	<form onsubmit={send}>
 		<input
 			bind:value={draft}
-			placeholder="Atau tanya sendiri…"
-			aria-label="Tanya Tapak"
+			placeholder={c.app.ask}
+			aria-label={c.app.askAria}
 			disabled={tapak.busy}
 		/>
-		<button type="submit" class="btn accent" disabled={tapak.busy || !draft.trim()}>Tanya</button>
+		<button type="submit" class="btn accent" disabled={tapak.busy || !draft.trim()}>
+			{c.app.askSend}
+		</button>
 	</form>
 </div>
 

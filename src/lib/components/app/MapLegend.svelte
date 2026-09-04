@@ -12,8 +12,10 @@
 	 */
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 
 	const app = getAppState();
+	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
 
 	let open = $state(true);
@@ -27,8 +29,8 @@
 		aria-expanded={open}
 		aria-controls="legend-body"
 	>
-		<span class="cat">{app.definition.name}</span>
-		<span class="lbl">skor peluang</span>
+		<span class="cat">{c.category[app.category].name}</span>
+		<span class="lbl">{c.app.legendUnit}</span>
 		<span class="chev" aria-hidden="true" class:up={open}>
 			<svg viewBox="0 0 10 10" width="9" height="9">
 				<path
@@ -45,7 +47,7 @@
 
 	{#if open}
 		<div class="body" id="legend-body">
-			<ScoreRamp dense nodata={`${coverage.belumTerdata} petak belum terdata — tidak dinilai`} />
+			<ScoreRamp dense nodata={c.app.legendNodata(coverage.belumTerdata)} />
 		</div>
 	{/if}
 </div>
@@ -56,7 +58,7 @@
 		left: 0.75rem;
 		bottom: 2.75rem;
 		z-index: 6;
-		width: 12.5rem;
+		width: 13.75rem;
 		border-radius: var(--r-md);
 		overflow: hidden;
 	}

@@ -2,45 +2,46 @@
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import WeightSlider from '$lib/components/ui/WeightSlider.svelte';
 	import { getAppState, type LayerKey } from '$lib/state/app.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 
 	const app = getAppState();
-
-	const layerRows: Array<{ key: LayerKey; label: string; swatch: string }> = [
-		{ key: 'score', label: 'Opportunity Score', swatch: 'var(--ramp-4)' },
-		{ key: 'rute', label: 'Jalur angkutan', swatch: 'var(--route-mrt)' },
-		{ key: 'poi', label: 'Sebaran pesaing', swatch: 'var(--good)' },
-		{ key: 'nodata', label: 'Hex belum terdata', swatch: 'var(--nodata)' },
-		{ key: 'label', label: 'Label stasiun', swatch: 'transparent' }
-	];
-
+	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
+
+	const layerRows: Array<{ key: LayerKey; swatch: string }> = [
+		{ key: 'score', swatch: 'var(--ramp-4)' },
+		{ key: 'rute', swatch: 'var(--route-mrt)' },
+		{ key: 'poi', swatch: 'var(--good)' },
+		{ key: 'nodata', swatch: 'var(--nodata)' },
+		{ key: 'label', swatch: 'transparent' }
+	];
 </script>
 
 <div class="stack">
 	<section>
-		<h2 class="eyebrow">Bobot peluang</h2>
+		<h2 class="eyebrow">{c.control.weights}</h2>
 		<WeightSlider
 			id="w-demand"
-			label="Permintaan"
+			label={c.control.demand}
 			bind:value={app.weights.wd}
-			hint="Struk Go: jumlah transaksi, mix kategori, profil jam, rasio non-tunai."
+			hint={c.control.demandHint}
 		/>
 		<WeightSlider
 			id="w-supply"
-			label="Persaingan"
+			label={c.control.supply}
 			bind:value={app.weights.ws}
-			hint="Menu Go: kepadatan pesaing dibobot kondisi pembeli — pesaing ramai menekan peluang lebih keras."
+			hint={c.control.supplyHint}
 		/>
 	</section>
 
 	<section>
-		<h2 class="eyebrow">Gerbang ruang usaha</h2>
+		<h2 class="eyebrow">{c.control.gate}</h2>
 		<label class="switch">
 			<input type="checkbox" bind:checked={app.weights.gate} />
 			<span class="track" aria-hidden="true"><span class="thumb"></span></span>
 			<span class="switch-text">
-				Wajib ada listing
-				<span class="sub">Tanpa ruang yang bisa ditempati, peluang tidak dapat dieksekusi.</span>
+				{c.control.gateLabel}
+				<span class="sub">{c.control.gateSub}</span>
 			</span>
 		</label>
 	</section>
@@ -51,63 +52,47 @@
 	     jadi — hasilnya tampak masuk akal padahal tidak berdasar. Kontrol yang
 	     diam-diam tidak melakukan apa yang tertulis lebih buruk daripada tidak ada. -->
 	<section>
-		<h2 class="eyebrow">Jangkauan jalan kaki</h2>
-		<p class="note">
-			Tetap <strong>800 m</strong> (±10 menit jalan kaki) — dipakai saat kisi dibangun,
-			untuk menghitung akses transit dan pesaing tiap petak.
-		</p>
+		<h2 class="eyebrow">{c.control.walk}</h2>
+		<p class="note">{c.control.walkNote(app.weights.radius)}</p>
 	</section>
 
 	<section>
-		<h2 class="eyebrow">Layer</h2>
+		<h2 class="eyebrow">{c.control.layers}</h2>
 		<div class="layers">
 			{#each layerRows as row (row.key)}
 				<label class="layer">
 					<input type="checkbox" bind:checked={app.layers[row.key]} />
 					<span class="swatch" style:background={row.swatch}></span>
-					<span>{row.label}</span>
+					<span>{c.control.layerNames[row.key]}</span>
 				</label>
 			{/each}
 		</div>
 	</section>
 
 	<section>
-		<h2 class="eyebrow">Legenda</h2>
-		<ScoreRamp ends={['Rendah', 'Tinggi']} />
+		<h2 class="eyebrow">{c.control.legend}</h2>
+		<ScoreRamp ends={[c.control.legendLow, c.control.legendHigh]} />
 		<ul class="legend">
-			<li><span class="key nodata"></span>Belum terdata (N = 0)</li>
-			<li><span class="key jenuh"></span>Ditandai jenuh</li>
-			<li><span class="key dot"></span>Titik stasiun · klik untuk detail</li>
+			<li><span class="key nodata"></span>{c.control.keyNodata}</li>
+			<li><span class="key jenuh"></span>{c.control.keySaturated}</li>
+			<li><span class="key dot"></span>{c.control.keyDot}</li>
 		</ul>
 	</section>
 
 	<section>
-		<h2 class="eyebrow">Kejujuran data</h2>
+		<h2 class="eyebrow">{c.control.honesty}</h2>
 		<p class="prose">
-			<strong>{coverage.terdata} dari {coverage.total}</strong> petak punya data misi
-			({coverage.titikMisi} titik contoh). <strong>{coverage.poi}</strong> POI pesaing terhitung dari
-			OSM pada radius {app.weights.radius} m.
+			{c.control.honesty1(coverage.terdata, coverage.total, coverage.titikMisi)}
+			{c.control.honesty2(coverage.poi, app.weights.radius)}
 		</p>
-		<p class="prose">
-			Petak tanpa data <strong>tidak diinterpolasi</strong> — ditandai arsir dan masuk daftar
-			prioritas survei. Setiap skor disertai N pada tabel dan panel, sehingga pengguna dapat menilai
-			sendiri seberapa tebal dasar angkanya.
-		</p>
+		<p class="prose">{c.control.honesty3}</p>
 	</section>
 
 	<section>
-		<h2 class="eyebrow">Provenans</h2>
-		<p class="prose">
-			<strong>Nyata <span class="tag real">OSM</span></strong> — simpul transit empat moda (MRT, KRL,
-			LRT, TransJakarta), geometri jalurnya, dan {coverage.poi} POI pesaing sejenis pada radius
-			{app.weights.radius} m, dari Overpass API (ODbL). Akses transit tiap petak dihitung dari sini.
-		</p>
-		<p class="prose">
-			<strong>Contoh <span class="tag mock">MOCK</span></strong> — atribut khas dataset misi MAPID
-			(Struk Go, Menu Go, Properti Go) karena datanya belum publik. Strukturnya mengikuti kolom asli
-			sehingga tinggal ditukar saat API MAPID tersedia.
-		</p>
-		<p class="prose muted">Basemap wajib pada produk final: MAPID MAPS.</p>
+		<h2 class="eyebrow">{c.control.prov}</h2>
+		<p class="prose"><span class="tag real">OSM</span> {c.control.provReal}</p>
+		<p class="prose"><span class="tag mock">MOCK</span> {c.control.provMock}</p>
+		<p class="prose muted">{c.control.provBasemap}</p>
 	</section>
 </div>
 
@@ -179,10 +164,6 @@
 		font-size: 0.75rem;
 		line-height: 1.5;
 		color: var(--label-2);
-	}
-	.note strong {
-		color: var(--label-1);
-		font-weight: 600;
 	}
 	.layers {
 		display: flex;
@@ -256,9 +237,5 @@
 		font-size: 0.6875rem;
 		line-height: 1.5;
 		color: var(--label-2);
-	}
-	.prose strong {
-		color: var(--label-1);
-		font-weight: 600;
 	}
 </style>

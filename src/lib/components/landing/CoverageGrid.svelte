@@ -12,6 +12,8 @@
 	 * tetap terbaca sebagai "nilainya kecil", dan itu bukan yang terjadi. Yang
 	 * terjadi adalah tidak tahu.
 	 */
+	import { copy } from '$lib/state/lang.svelte';
+
 	interface Props {
 		/** Satu karakter per petak, '1' = belum terdata. */
 		mask: string;
@@ -19,6 +21,8 @@
 		nodata: number;
 	}
 	let { mask, terdata, nodata }: Props = $props();
+
+	const c = $derived(copy());
 
 	const COLS = 31;
 	/* Denah heksagon runcing-atas, dipipihkan ke proyeksi isometrik lalu diberi
@@ -61,7 +65,7 @@
 	<svg
 		viewBox={`-1 -1 ${w + 2} ${h + 2}`}
 		role="img"
-		aria-label={`Kisi ${mask.length} petak: ${terdata} sudah ada datanya, ${nodata} belum.`}
+		aria-label={c.data.gridLabel(mask.length, terdata, nodata)}
 	>
 		<defs>
 			<!-- Satu gradasi untuk seluruh bidang, bukan satu per petak: cahaya
@@ -89,11 +93,11 @@
 	<figcaption>
 		<span class="key">
 			<span class="sw ada" aria-hidden="true"></span>
-			<b>{terdata}</b> petak sudah ada datanya
+			<b>{terdata}</b> {c.data.gridAda}
 		</span>
 		<span class="key">
 			<span class="sw kosong" aria-hidden="true"></span>
-			<b>{nodata}</b> belum terdata — tidak dinilai, masuk antrean survei
+			<b>{nodata}</b> {c.data.gridKosong}
 		</span>
 	</figcaption>
 </figure>

@@ -2,6 +2,7 @@ import { getContext, setContext } from 'svelte';
 import { CATEGORY_MAP } from '$lib/domain/categories';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_WEIGHTS } from '$lib/domain/weights';
+import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
 import type { AiAnswer, Hex, CategoryKey, ScoredHex, Weights } from '$lib/types';
 
@@ -114,7 +115,8 @@ export class AppState {
 				body: JSON.stringify({
 					question,
 					kategori: this.category,
-					weights: this.weights
+					weights: this.weights,
+					lang: lang()
 				})
 			});
 			if (!res.ok) throw new Error(`Gagal memproses pertanyaan (${res.status}).`);

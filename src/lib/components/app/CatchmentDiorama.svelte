@@ -12,8 +12,9 @@
 	 */
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
-	import { formatHour, pct } from '$lib/utils/format';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { copy } from '$lib/state/lang.svelte';
+	import { formatHour, pct } from '$lib/utils/format';
 
 	/**
 	 * Panel ini jauh lebih kecil daripada panggung halaman depan, jadi kameranya
@@ -23,8 +24,10 @@
 	const CAMERA_T = 0.88;
 
 	const app = getAppState();
+	const c = $derived(copy());
 	const row = $derived(app.selected);
-	const def = $derived(app.definition);
+	const catName = $derived(c.category[app.category].name);
+	const catMany = $derived(c.category[app.category].many);
 
 	/** Petak dengan skor tertinggi pada kategori aktif — untuk tombol "pilihkan saja". */
 	const best = $derived(
@@ -58,12 +61,12 @@
 	/** Seramai apa, dalam kata — bukan persentase yang harus ditafsirkan sendiri. */
 	const busyWord = $derived(
 		density >= 0.8
-			? 'paling ramai'
+			? c.mood.busiest
 			: density >= 0.5
-				? 'cukup ramai'
+				? c.mood.busy
 				: density >= 0.2
-					? 'agak sepi'
-					: 'sepi'
+					? c.mood.quiet
+					: c.mood.empty
 	);
 </script>
 
@@ -72,10 +75,10 @@
 	     saja menyerahkan pekerjaan kembali ke pengguna yang justru belum tahu
 	     petak mana yang layak dilihat. -->
 	<div class="empty">
-		<p>Belum ada kawasan yang dipilih. Tekan salah satu petak di peta untuk melihat suasananya.</p>
+		<p>{c.app.emptyMood}</p>
 		{#if best}
 			<button type="button" class="btn" onclick={() => app.select(best.id)}>
-				Pilihkan yang terbaik untuk {def.name.toLowerCase()}
+				{c.app.pickBest(catName.toLowerCase())}
 			</button>
 		{/if}
 	</div>
@@ -90,63 +93,60 @@
 				nodata={row.nodata}
 				rivals={row.osm}
 				vacancies={row.listings}
-				label={`Skema kawasan ${row.name} pukul ${formatHour(hour)}. ${
+				label={c.mood.sceneLabel(
+					row.name,
+					formatHour(hour),
 					row.nodata
-						? 'Belum ada data untuk kawasan ini, jadi jalannya ditampilkan kosong.'
-						: `Sekitar ${nowCount} transaksi pada jam ini, ${row.osm} ${def.name.toLowerCase()} pesaing, dan ${row.listings} tempat yang sedang disewakan.`
-				}`}
+						? c.mood.sceneNodata
+						: c.mood.sceneBody(nowCount, row.osm, catMany, row.listings)
+				)}
 			/>
-			<span class="mark">skema · bukan denah sebenarnya</span>
+			<span class="mark">{c.app.schema}</span>
 		</div>
 
 		<label class="clock">
-			<span class="lbl">Jam</span>
+			<span class="lbl">{c.app.clock}</span>
 			<input
 				type="range"
 				min="0"
 				max="23.5"
 				step="0.5"
 				bind:value={hour}
-				aria-label="Geser untuk melihat kawasan ini pada jam lain"
+				aria-label={c.app.clockAria}
 			/>
 			<span class="now">{formatHour(hour)}</span>
 		</label>
 
 		{#if row.nodata}
-			<p class="read">
-				Kawasan ini <strong>belum ada datanya</strong>, jadi jalannya sengaja dibiarkan kosong —
-				bukan berarti benar-benar sepi.
-			</p>
+			<p class="read">{c.mood.nodata}</p>
 		{:else}
 			<p class="read">
-				Pukul {formatHour(hour)} di sini <strong>{busyWord}</strong>.
+				{c.mood.reading(formatHour(hour), busyWord)}
 				{#if busiest >= 0}
-					Paling ramai sekitar pukul {formatHour(busiest)}.
+					{c.mood.peakAt(formatHour(busiest))}
 				{/if}
-				Ada <strong>{row.osm}</strong> {def.name.toLowerCase()} lain di sekitarnya, dan
+				{c.mood.rivals(row.osm, catMany)}
 				{#if row.listings > 0}
-					<strong>{row.listings}</strong> tempat yang sedang disewakan.
+					{c.mood.listings(row.listings)}
 				{:else}
-					<strong>tidak ada</strong> tempat yang sedang disewakan.
+					{c.mood.noListings}
 				{/if}
 			</p>
 
 			<details class="numbers">
-				<summary>Lihat angka lengkapnya</summary>
+				<summary>{c.app.fullNumbers}</summary>
 				<dl>
-					<div><dt>Skor peluang</dt><dd>{pct(row.score)}</dd></div>
-					<div><dt>Permintaan</dt><dd>{pct(row.demand)}</dd></div>
-					<div><dt>Penawaran efektif</dt><dd>{pct(row.supply)}</dd></div>
-					<div><dt>Transaksi jam ini</dt><dd>{nowCount}</dd></div>
-					<div><dt>Puncak harian</dt><dd>{peak} · pukul {formatHour(busiest)}</dd></div>
-					<div><dt>Pesaing (OSM)</dt><dd>{row.osm}</dd></div>
-					<div><dt>Pesaing ramai</dt><dd>{pct(row.ramai)}%</dd></div>
-					<div><dt>Ruang disewakan</dt><dd>{row.listings} dari {row.nProp}</dd></div>
-					<div><dt>Titik data</dt><dd>{row.nTot}</dd></div>
+					<div><dt>{c.mood.rows.score}</dt><dd>{pct(row.score)}</dd></div>
+					<div><dt>{c.mood.rows.demand}</dt><dd>{pct(row.demand)}</dd></div>
+					<div><dt>{c.mood.rows.supply}</dt><dd>{pct(row.supply)}</dd></div>
+					<div><dt>{c.mood.rows.now}</dt><dd>{nowCount}</dd></div>
+					<div><dt>{c.mood.rows.peak}</dt><dd>{peak} · {formatHour(busiest)}</dd></div>
+					<div><dt>{c.mood.rows.rivals}</dt><dd>{row.osm}</dd></div>
+					<div><dt>{c.mood.rows.busy}</dt><dd>{pct(row.ramai)}%</dd></div>
+					<div><dt>{c.mood.rows.space}</dt><dd>{row.listings} / {row.nProp}</dd></div>
+					<div><dt>{c.mood.rows.points}</dt><dd>{row.nTot}</dd></div>
 				</dl>
-				<p class="prov">
-					Transaksi &amp; ruang usaha: data contoh MAPID. Pesaing &amp; lokasi stasiun: OSM.
-				</p>
+				<p class="prov">{c.mood.prov}</p>
 			</details>
 		{/if}
 	</div>
@@ -215,10 +215,6 @@
 		font-size: 0.8125rem;
 		line-height: 1.55;
 		color: var(--label-2);
-	}
-	.read strong {
-		color: var(--label-1);
-		font-weight: 600;
 	}
 
 	.numbers summary {

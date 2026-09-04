@@ -11,10 +11,12 @@
 	import { pct, rampIndex } from '$lib/utils/format';
 	import { base } from '$app/paths';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { copy } from '$lib/state/lang.svelte';
 	import type { ScoredHex } from '$lib/types';
 	import type { FeatureCollection } from 'geojson';
 
 	const app = getAppState();
+	const c = $derived(copy());
 
 	let container: HTMLDivElement;
 	let map = $state<MapLibreMap | null>(null);
@@ -456,25 +458,25 @@
 
 <div class="map-root" bind:this={container}>
 	{#if !ready}
-		<div class="loading eyebrow">Memuat peta…</div>
+		<div class="loading eyebrow">{c.app.loadingMap}</div>
 	{/if}
 </div>
 
 <div class="zoom material">
-	<button type="button" onclick={() => map?.zoomIn()} aria-label="Perbesar">+</button>
-	<button type="button" onclick={() => map?.zoomOut()} aria-label="Perkecil">−</button>
-	<button type="button" onclick={() => fitAll()} aria-label="Kembalikan tampilan awal">⤢</button>
+	<button type="button" onclick={() => map?.zoomIn()} aria-label={c.app.zoomIn}>+</button>
+	<button type="button" onclick={() => map?.zoomOut()} aria-label={c.app.zoomOut}>−</button>
+	<button type="button" onclick={() => fitAll()} aria-label={c.app.reset}>⤢</button>
 </div>
 
 <div class="tip material" bind:this={tipEl} class:show={!!hovered} aria-hidden="true">
 	{#if hovered}
 		<strong>{hovered.name}</strong>
 		{#if hovered.nodata}
-			<span class="tip-sub">Data misi MAPID: N = 0 · kandidat prioritas survei</span>
+			<span class="tip-sub">{c.app.tipNodata}</span>
 		{:else}
 			<span class="tip-score" style:color={`var(--ramp-${rampIndex(hovered.score ?? 0)})`}>
 				{pct(hovered.score)}
-				<span class="tip-unit">skor {app.definition.name.toLowerCase()}</span>
+				<span class="tip-unit">{c.app.tipScore(c.category[app.category].name.toLowerCase())}</span>
 			</span>
 			<span class="tip-sub">
 				Permintaan {pct(hovered.demand)} · penawaran {pct(hovered.supply)}<br />
