@@ -12,6 +12,19 @@
 	const def = $derived(CATEGORY_MAP[app.category]);
 	const name = $derived(c.category[app.category].name);
 	const across = $derived(app.selectedAcrossCategories);
+
+	/**
+	 * The per-format comparison is the one place that needs EVERY category at once,
+	 * so it is the one place that asks for them all. Everywhere else works from the
+	 * single active category, which is why the app does not load them up front.
+	 *
+	 * Only once a cell is actually selected: this panel is collapsed until then, and
+	 * fetching thirteen slices for a panel nobody has opened is the cost this whole
+	 * arrangement exists to avoid.
+	 */
+	$effect(() => {
+		if (app.selectedId) app.loadAllCategories();
+	});
 </script>
 
 {#if !row}
