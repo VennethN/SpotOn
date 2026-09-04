@@ -17,6 +17,7 @@
 		"@sveltejs/adapter-vercel": "^6.3.4",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"@types/node": "^26.2.0",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
@@ -26,6 +27,7 @@
 		"@types/three": "^0.185.4",
 		"h3-js": "^4.5.0",
 		"maplibre-gl": "^6.3.0",
+		"mongodb": "^7.5.0",
 		"three": "^0.185.1"
 	}
 }
