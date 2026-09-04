@@ -12,12 +12,15 @@
 	 * ditunjukkan cara membaca kisi, bukan kawasan tertentu.
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
+	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
 	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import type { WorldFactory } from '$lib/scene/world';
 
 	let host = $state<HTMLElement | null>(null);
 	let ink = $state('#1c1a16');
 	let accent = $state('#0071e3');
+	let ramp = $state<string[]>([]);
+	let nodata = $state('#9aa2ad');
 
 	const reduced = prefersReducedMotion();
 	// Pegas: gulir mentah terasa gugup, pegas memberi massa pada kisinya.
@@ -50,13 +53,18 @@
 		};
 	});
 
-	// Tinta alat ukur mengikuti tema halaman, bukan dipatok satu warna: adegan ini
-	// duduk di atas kertas, dan kertasnya bisa terang atau gelap.
+	// Warna adegan diambil dari token tema, bukan dipatok di dalam adegan: skala
+	// peluangnya harus persis skala yang dipakai peta, dan kertasnya bisa terang
+	// atau gelap. Dibaca ulang saat temanya berganti.
 	$effect(() => {
 		const read = () => {
 			const cs = getComputedStyle(document.documentElement);
-			ink = cs.getPropertyValue('--label-2').trim() || ink;
+			ink = cs.getPropertyValue('--label-1').trim() || ink;
 			accent = cs.getPropertyValue('--accent').trim() || accent;
+			nodata = cs.getPropertyValue('--nodata').trim() || nodata;
+			ramp = [0, 1, 2, 3, 4, 5, 6].map((i) =>
+				cs.getPropertyValue(`--ramp-${i}`).trim()
+			);
 		};
 		read();
 		const mo = new MutationObserver(read);
@@ -74,14 +82,20 @@
 	<div class="frame">
 		<SceneCanvas
 			{load}
-			state={{ progress: spring.current, ink, accent }}
-			label="Maket kisi heksagon: tiap petak satu heksagon, tingginya mewakili peluang, petak yang belum terdata dibiarkan cekung. Lingkaran putus-putus menandai jangkauan berjalan kaki dari petak yang sedang dibidik."
+			state={{ progress: spring.current, ink, accent, ramp, nodata }}
+			label="Maket kisi heksagon: tiap petak satu heksagon, tinggi dan warnanya mewakili skor peluang pada skala yang sama dengan peta, dan petak yang belum terdata dibiarkan cekung tanpa warna. Lingkaran putus-putus menandai jangkauan berjalan kaki dari petak yang sedang dibidik."
 		/>
 		<span class="mark">skema · bukan kawasan tertentu</span>
 	</div>
 	<figcaption>
-		Satu heksagon, satu petak. Tingginya peluang; yang cekung belum ada datanya; lingkaran
-		putus-putus itu jangkauan jalan kaki yang dipakai saat kisinya dibangun.
+		<p>
+			Satu heksagon, satu petak. <strong>Tinggi dan warnanya sama-sama skor peluang</strong>, pada
+			skala yang sama persis dengan peta di dalam aplikasi. Yang cekung dan tak berwarna belum ada
+			datanya. Lingkaran putus-putus itu jangkauan jalan kaki yang dipakai saat kisinya dibangun.
+		</p>
+		<!-- Legendanya duduk tepat di bawah bidang yang memakainya: kalau skala harus
+		     dicari di tempat lain, warnanya berhenti jadi keterangan. -->
+		<div class="legend"><ScoreRamp dense nodata="belum terdata — di luar skala" /></div>
 	</figcaption>
 </figure>
 
@@ -112,15 +126,31 @@
 		color: var(--label-3);
 	}
 	figcaption {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(9rem, 13rem);
+		gap: 0.75rem 2rem;
+		align-items: start;
 		font-size: 0.75rem;
 		line-height: 1.55;
 		color: var(--label-2);
+	}
+	figcaption p {
 		max-width: 54ch;
+	}
+	figcaption strong {
+		color: var(--label-1);
+		font-weight: 600;
 	}
 
 	@media (max-width: 720px) {
 		.frame {
 			aspect-ratio: 4 / 3;
+		}
+		figcaption {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.legend {
+			max-width: 16rem;
 		}
 	}
 </style>
