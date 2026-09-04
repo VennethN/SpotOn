@@ -16,7 +16,8 @@
 	 * have all left: the first is a statistic nobody acts on mid-task, and the other
 	 * two now sit next to what they actually change.
 	 */
-		import BrandMark from '$lib/components/ui/BrandMark.svelte';
+		import AccountChip from '$lib/components/app/AccountChip.svelte';
+	import BrandMark from '$lib/components/ui/BrandMark.svelte';
 	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import { base } from '$app/paths';
@@ -33,6 +34,10 @@
 </a>
 
 <div class="tools material">
+	<!-- What is left, first: it is the only thing here that can stop the next click
+	     working, and the two beside it are preferences. -->
+	<AccountChip />
+	<span class="sep" aria-hidden="true"></span>
 	<LangToggle />
 	<span class="sep" aria-hidden="true"></span>
 	<ThemeToggle theme={app.theme} onchange={(t) => app.setTheme(t)} />
