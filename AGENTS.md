@@ -107,7 +107,7 @@ src/lib/
   components/account/    surfaces that only exist on the account page
   components/ui/         shared between them
   domain/                scoring, natural-language query, categories, narration, markdown
-  state/                 app, tapak, lang, theme, account
+  state/                 app, tapak, lang, theme, account, clock
   server/source.ts       the one place the data source is decided
   server/gridmap.ts      where each cell is on the page, for every page that draws one
   server/answer.ts       one question answered, in one place, for both reply shapes
@@ -367,8 +367,10 @@ absent-name rules, which the real data no longer exercises now that every point
 in it has a name, the cost-of-space layer against the grid on disk, the
 opening-hours reader and every cell's activity count against the point file the
 curve is drawn from, which measure each kind of question is understood to be
-asking about, the field surveys against the two files they produced, and the
-markdown reader together with the fence around a reply arriving in pieces.
+asking about, the field surveys against the two files they produced, the
+markdown reader together with the fence around a reply arriving in pieces, and
+the greeting against the clock it is read from and both dictionaries that word
+it.
 
 ## The field surveys are evidence, and they never reach the score
 
@@ -627,6 +629,53 @@ same reason: "kenapa lokasi penting" is a question carrying its own subject, and
 answering it with one catchment's arithmetic would be answering something nobody asked.
 The long tail is not pinned in `selftest-nlq.mjs` and must not be grown there. With no
 key at all the plain forms work, and everything else is the model's job.
+
+## The greeting knows the hour and nothing else
+
+Two surfaces say hello: the question box the app opens on, and Tapak's first bubble.
+Both greet by the clock on the reader's own DEVICE, through `state/clock`, which reads
+it once when the page loads and then leaves it alone. `domain/daypart` holds the bands
+and the pick, as pure functions over a clock reading, so nothing in the domain ever
+calls `new Date()`.
+
+The day is cut into the five parts Indonesian greetings already use: `dini_hari`,
+`pagi`, `siang`, `sore`, `malam`. They are the domain's own vocabulary, the way
+`CategoryKey` is, because there is no English set of five that lines up with them and
+English has no single word for sore at all. One boundary is bent: `pagi` runs to noon
+rather than to eleven, since "selamat pagi" at half past eleven is ordinary and "good
+afternoon" before twelve is wrong.
+
+Four rules hold it up, and `selftest-daypart.mjs` asserts all of them.
+
+- **A greeting knows the hour and nothing else.** Not the weather, not whether the
+  street outside is busy, not whether the reader has had a long day. This is the same
+  rule that keeps invented figures off the screen, with the number taken out: "the
+  shops are just opening" is exactly the claim nobody measured. The test refuses a
+  digit in any wording for the same reason `domain/chat` refuses one in a model's
+  reply.
+- **The wording rotates with the day, it is not drawn at random.** Somebody who reloads
+  to check something reads the same sentence rather than watching the page change its
+  mind, and a rotation is something the server can work out and a coin toss is not.
+  Three wordings per part, held as a tuple in `types.ts` so the two dictionaries cannot
+  come to hold different numbers of them, and the test checks that every one of them is
+  reachable.
+- **The server reads Jakarta, and the device corrects it.** The opening card is
+  server-rendered and the server has no device to ask. Jakarta is the same fixed zone
+  the week already turns on, so a reader there sees one greeting either side of
+  hydration and a reader elsewhere sees it corrected once on the way in. That is the
+  trade `state/lang` already makes by rendering Indonesian first. The test sweeps a
+  year of readings to check the two agree in Jakarta, and that they disagree in London
+  in both halves of the year, since an offset remembered rather than a zone asked for
+  would drift in March.
+- **Both surfaces say the same thing.** The salutation is one table, `copy().greeting`.
+  The card prints it alone and `tapak.greet` opens with it, so the two cannot come to
+  disagree about what time it is. The part and the wording travel to the dictionary as
+  POSITIONS rather than as a finished phrase, which is what lets switching language
+  change the words without changing which greeting is being said.
+
+The heading under it does not move. "Mau buka usaha apa?" is what the reader is here to
+answer and it is the same question at every hour, so the greeting sits above it rather
+than rewriting it.
 
 ## The answer streams, and what is in the stream
 
