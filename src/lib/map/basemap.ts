@@ -33,15 +33,23 @@ const MAPID_STYLE = { light: 'light-v2.0', dark: 'dark-v2.0' } as const;
 const looksLikeKey = (s: string) => /^[0-9a-f]{16,64}$/i.test(s);
 
 /**
- * The Map Service key, from either variable it might reasonably be in.
+ * The Map Service key, from whichever place it might reasonably be in.
  *
- * `PUBLIC_MAPID_MAP_KEY` is the name that says what it holds. But the key was in
- * `PUBLIC_MAPID_STYLE_URL` first, because that was the only setting there was and a
- * dashboard that hands out a key next to a field asking for a URL is going to be
- * answered with a key. Reading it from there too costs one test and saves everyone who
- * has already done that from being told they put it in the wrong place.
+ * `MAPID_MAPSERVICES_KEY` is the setting, named after the MAPID Dashboard section that
+ * hands it out, so the dashboard and the environment use the same words. It carries no
+ * `PUBLIC_` prefix, so SvelteKit keeps it on the server: the `/app` layout load reads it
+ * and hands it down, and that is what `given` is.
+ *
+ * `PUBLIC_MAPID_MAP_KEY` is read too, because that is where the key went before the
+ * server route existed. And the key was in `PUBLIC_MAPID_STYLE_URL` before that, because
+ * that was the only setting there was and a dashboard that hands out a key next to a
+ * field asking for a URL is going to be answered with a key. Reading all three costs two
+ * tests and saves everyone who has already done either from being told they put it in
+ * the wrong place.
  */
-function mapidKey(): string | null {
+function mapidKey(given?: string | null): string | null {
+	const handed = given?.trim();
+	if (handed) return handed;
 	const named = env.PUBLIC_MAPID_MAP_KEY?.trim();
 	if (named) return named;
 	const legacy = env.PUBLIC_MAPID_STYLE_URL?.trim();
@@ -163,7 +171,7 @@ function keyWorks(key: string, theme: 'light' | 'dark'): Promise<boolean> {
 		'so the open basemap is being used instead. Nothing else changes: every figure in SpotOn is computed locally, ' +
 		'and the relief view stands the catchments up rather than the basemap, so it works over either. ' +
 		'What is lost is MAPID MAPS itself, which the finished product is meant to draw on. ' +
-		'A Map Service key from the MAPID Dashboard goes in PUBLIC_MAPID_MAP_KEY.';
+		'A Map Service key from the MAPID Dashboard goes in MAPID_MAPSERVICES_KEY.';
 	const probe = fetch(mapidStyleUrl(theme, key))
 		.then((res) => {
 			if (!res.ok) console.warn(`[SpotOn] MAPID MAPS refused the key (HTTP ${res.status}), ${fellBack}`);
@@ -190,11 +198,15 @@ function keyWorks(key: string, theme: 'light' | 'dark'): Promise<boolean> {
 /**
  * The style to draw on, resolved.
  *
+ * `given` is the Map Service key the server read from `MAPID_MAPSERVICES_KEY`, when
+ * there is one. See `mapidKey` for the two `PUBLIC_` names read when there is not.
+ *
  * Async because of the probe above, and the callers are async already: the map waits on
  * `import('maplibre-gl')` before it can be built at all.
  */
 export async function basemapStyle(
-	theme: 'light' | 'dark'
+	theme: 'light' | 'dark',
+	given?: string | null
 ): Promise<string | StyleSpecification> {
 	/*
 	 * A full style URL wins and is not probed, because it is the only setting that can
@@ -206,7 +218,7 @@ export async function basemapStyle(
 		return configured;
 	}
 
-	const key = mapidKey();
+	const key = mapidKey(given);
 	if (key && (await keyWorks(key, theme))) return mapidStyleUrl(theme, key);
 
 	if (configured && !key) {
@@ -226,7 +238,7 @@ export async function basemapStyle(
 		console.warn(
 			'[SpotOn] No MAPID Map Service key is set, so the open basemap is being used instead. ' +
 				'Nothing else changes, every figure in SpotOn is computed locally. ' +
-				'A Map Service key from the MAPID Dashboard goes in PUBLIC_MAPID_MAP_KEY.'
+				'A Map Service key from the MAPID Dashboard goes in MAPID_MAPSERVICES_KEY.'
 		);
 	}
 
