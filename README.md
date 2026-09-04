@@ -116,6 +116,8 @@ Salin `.env.example` menjadi `.env`, lalu isi.
 | `OPENROUTER_API_KEY` | Kunci OpenRouter untuk lapisan pemahaman bahasa. **Boleh kosong** — tanpa kunci, pertanyaan diurai pengurai aturan cadangan dan aplikasi tetap berjalan. |
 | `OPENROUTER_MODEL` | Opsional — nama model apa pun yang dilayani OpenRouter, mis. `anthropic/claude-sonnet-5` atau `openai/gpt-5`. Dibaca saat runtime, jadi menggantinya di Vercel tidak perlu build ulang. Kosong → default `anthropic/claude-sonnet-5`. Model yang sedang aktif dapat diperiksa di `GET /api/meta` (kuncinya sendiri tidak pernah ikut). |
 | `PUBLIC_MAPID_STYLE_URL` | URL gaya MAPID MAPS. Bila kosong, dipakai basemap raster terbuka (OpenStreetMap/CARTO) — **wajib diisi untuk produk final.** |
+| `MAPID_API_KEY` | Kunci API MAPID (baca saja) — dipakai **skrip data**, bukan aplikasinya. Boleh diberikan lewat variabel lingkungan, dan yang dari lingkungan menang atas `.env`. Beda dari kunci Map Service untuk `PUBLIC_MAPID_STYLE_URL`. Lihat [`docs/04-data-mapid.md`](docs/04-data-mapid.md). |
+| `MAPID_PROJECT_ID` | Opsional — proyek GEO MAPID yang dibaca skrip. Kosong → proyek bawaan. |
 
 ### Pembagian tugas model dan mesin skor
 
