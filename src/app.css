@@ -1,0 +1,405 @@
+/* SpotOn — sistem desain.
+   Material tembus pandang, hierarki dari berat + ukuran + leading, gerak berbasis pegas.
+   Warna, radius, dan bayangan seluruhnya token; komponen tidak pernah menulis nilai mentah. */
+
+/* Albert Sans variabel (wght 100–900), di-host sendiri.
+   Geometris: mangkuk huruf mendekati lingkaran penuh dan sambungannya mulus —
+   sepadan dengan maket putih yang presisi. Tidak ada sumbu lebar, dan memang
+   tidak dipakai: memampatkan huruf geometris justru merusak lingkarannya. */
+@font-face {
+	font-family: 'Albert Sans';
+	src: url('/fonts/albert-latin.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+		U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+		U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'Albert Sans';
+	src: url('/fonts/albert-latin-ext.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+		U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+		U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+	--font-display: 'Albert Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+	color-scheme: light;
+
+	/* label — hierarki opasitas, bukan abu-abu datar (tetap terbaca di atas material) */
+	--label-1: rgba(0, 0, 0, 0.88);
+	--label-2: rgba(0, 0, 0, 0.56);
+	--label-3: rgba(0, 0, 0, 0.36);
+	--label-4: rgba(0, 0, 0, 0.22);
+
+	/* permukaan */
+	--bg-base: #eceef1;
+	--bg-elevated: #ffffff;
+	--fill-1: rgba(120, 128, 140, 0.09);
+	--fill-2: rgba(120, 128, 140, 0.14);
+	--fill-3: rgba(120, 128, 140, 0.2);
+	--separator: rgba(0, 0, 0, 0.09);
+	--separator-strong: rgba(0, 0, 0, 0.16);
+
+	/* material — lapisan mengambang, konten mengalir di bawahnya */
+	--mat-thick: rgba(252, 252, 253, 0.82);
+	--mat-regular: rgba(252, 252, 253, 0.72);
+	--mat-thin: rgba(255, 255, 255, 0.58);
+	--mat-edge: rgba(255, 255, 255, 0.7);
+	--blur-thick: saturate(180%) blur(30px);
+	--blur-regular: saturate(180%) blur(22px);
+	--blur-thin: saturate(160%) blur(14px);
+
+	/* aksen & semantik */
+	--accent: #0071e3;
+	--accent-ink: #ffffff;
+	--accent-soft: rgba(0, 113, 227, 0.12);
+	--good: #1c8f4a;
+	--warn: #b5610a;
+	--critical: #d1352b;
+	--nodata: #9aa2ad;
+
+	/* skala peluang (rendah → tinggi) */
+	--ramp-0: #dbe7f7;
+	--ramp-1: #b3cdf0;
+	--ramp-2: #86b0e6;
+	--ramp-3: #5691dc;
+	--ramp-4: #2f72cd;
+	--ramp-5: #1c56a5;
+	--ramp-6: #143f7c;
+
+	/* jalur angkutan — empat rona yang jelas berbeda, dan sengaja bukan biru:
+	   petak peluang memakai skala biru, jadi jalur biru akan lenyap di atasnya */
+	--route-mrt: #ef8f3c;
+	--route-krl: #e05a5a;
+	--route-lrt: #46b077;
+	--route-brt: #c76bbe;
+
+	/* kedalaman — permukaan besar terbaca lebih tebal daripada chip kecil */
+	--shadow-chip: 0 1px 2px rgba(15, 22, 36, 0.08);
+	--shadow-panel:
+		0 0.5px 1px rgba(15, 22, 36, 0.06), 0 6px 16px -6px rgba(15, 22, 36, 0.14),
+		0 20px 40px -24px rgba(15, 22, 36, 0.22);
+	--shadow-sheet:
+		0 0.5px 1px rgba(15, 22, 36, 0.08), 0 12px 32px -8px rgba(15, 22, 36, 0.2),
+		0 40px 80px -32px rgba(15, 22, 36, 0.34);
+
+	/* radius */
+	--r-xs: 6px;
+	--r-sm: 9px;
+	--r-md: 13px;
+	--r-lg: 18px;
+	--r-xl: 24px;
+
+	/* kertas: alas halaman di bawah panggung maket — sedikit hangat, bukan putih layar */
+	--paper: #edebe6;
+	--paper-line: rgba(28, 26, 22, 0.14);
+
+	/* ruang — em/rem agar layout ikut membesar bersama teks pengguna */
+	--gap: 0.75rem;
+	--pad: 0.875rem;
+}
+
+:root[data-theme='dark'],
+:root:where(:not([data-theme='light'])) {
+	/* dark mode diterapkan lewat media query di bawah; blok ini hanya penampung */
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:where(:not([data-theme='light'])) {
+		color-scheme: dark;
+		--label-1: rgba(255, 255, 255, 0.92);
+		--label-2: rgba(255, 255, 255, 0.58);
+		--label-3: rgba(255, 255, 255, 0.38);
+		--label-4: rgba(255, 255, 255, 0.22);
+		--bg-base: #0b0c0e;
+		--bg-elevated: #16181c;
+		--fill-1: rgba(142, 152, 168, 0.14);
+		--fill-2: rgba(142, 152, 168, 0.2);
+		--fill-3: rgba(142, 152, 168, 0.28);
+		--separator: rgba(255, 255, 255, 0.1);
+		--separator-strong: rgba(255, 255, 255, 0.18);
+		--mat-thick: rgba(28, 30, 35, 0.8);
+		--mat-regular: rgba(28, 30, 35, 0.68);
+		--mat-thin: rgba(36, 39, 45, 0.55);
+		--mat-edge: rgba(255, 255, 255, 0.09);
+		--accent: #2b8fff;
+		--accent-soft: rgba(43, 143, 255, 0.18);
+		--good: #34c26a;
+		--warn: #e0921f;
+		--critical: #ff6257;
+		--nodata: #6b727d;
+		--ramp-0: #16305a;
+		--ramp-1: #1c4079;
+		--ramp-2: #245399;
+		--ramp-3: #2e69bb;
+		--ramp-4: #4a8ada;
+		--ramp-5: #78acea;
+		--ramp-6: #a9ccf6;
+		--shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.5);
+		--shadow-panel: 0 0.5px 1px rgba(0, 0, 0, 0.5), 0 8px 24px -8px rgba(0, 0, 0, 0.7);
+		--shadow-sheet: 0 0.5px 1px rgba(0, 0, 0, 0.6), 0 24px 60px -20px rgba(0, 0, 0, 0.85);
+		--route-mrt: #ffa45c;
+		--route-krl: #ff7b74;
+		--route-lrt: #5ecb8d;
+		--route-brt: #de85d4;
+		--paper: #111316;
+		--paper-line: rgba(255, 255, 255, 0.13);
+	}
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--label-1: rgba(255, 255, 255, 0.92);
+	--label-2: rgba(255, 255, 255, 0.58);
+	--label-3: rgba(255, 255, 255, 0.38);
+	--label-4: rgba(255, 255, 255, 0.22);
+	--bg-base: #0b0c0e;
+	--bg-elevated: #16181c;
+	--fill-1: rgba(142, 152, 168, 0.14);
+	--fill-2: rgba(142, 152, 168, 0.2);
+	--fill-3: rgba(142, 152, 168, 0.28);
+	--separator: rgba(255, 255, 255, 0.1);
+	--separator-strong: rgba(255, 255, 255, 0.18);
+	--mat-thick: rgba(28, 30, 35, 0.8);
+	--mat-regular: rgba(28, 30, 35, 0.68);
+	--mat-thin: rgba(36, 39, 45, 0.55);
+	--mat-edge: rgba(255, 255, 255, 0.09);
+	--accent: #2b8fff;
+	--accent-soft: rgba(43, 143, 255, 0.18);
+	--good: #34c26a;
+	--warn: #e0921f;
+	--critical: #ff6257;
+	--nodata: #6b727d;
+	--ramp-0: #16305a;
+	--ramp-1: #1c4079;
+	--ramp-2: #245399;
+	--ramp-3: #2e69bb;
+	--ramp-4: #4a8ada;
+	--ramp-5: #78acea;
+	--ramp-6: #a9ccf6;
+	--shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.5);
+	--shadow-panel: 0 0.5px 1px rgba(0, 0, 0, 0.5), 0 8px 24px -8px rgba(0, 0, 0, 0.7);
+	--shadow-sheet: 0 0.5px 1px rgba(0, 0, 0, 0.6), 0 24px 60px -20px rgba(0, 0, 0, 0.85);
+	--route-mrt: #ffa45c;
+	--route-krl: #ff7b74;
+	--route-lrt: #5ecb8d;
+	--route-brt: #de85d4;
+	--paper: #111316;
+	--paper-line: rgba(255, 255, 255, 0.13);
+}
+
+/* transparansi & kontras: preferensi sistem menang atas estetika */
+@media (prefers-reduced-transparency: reduce) {
+	:root {
+		--mat-thick: var(--bg-elevated);
+		--mat-regular: var(--bg-elevated);
+		--mat-thin: var(--bg-elevated);
+		--blur-thick: none;
+		--blur-regular: none;
+		--blur-thin: none;
+	}
+}
+@media (prefers-contrast: more) {
+	:root {
+		--label-2: var(--label-1);
+		--separator: var(--separator-strong);
+		--mat-thick: var(--bg-elevated);
+		--mat-regular: var(--bg-elevated);
+	}
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	overscroll-behavior: none;
+}
+
+body {
+	background: var(--bg-base);
+	color: var(--label-1);
+	font-family:
+		-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', system-ui, sans-serif;
+	font-size: 0.875rem;
+	line-height: 1.45;
+	letter-spacing: 0;
+	font-optical-sizing: auto;
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
+	font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3 {
+	margin: 0;
+	font-weight: 600;
+	line-height: 1.15; /* leading rapat untuk teks besar */
+}
+h1 {
+	font-size: 1.0625rem;
+	letter-spacing: -0.017em; /* tracking negatif saat ukuran naik */
+}
+h2 {
+	font-size: 0.9375rem;
+	letter-spacing: -0.01em;
+}
+
+p {
+	margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+	color: inherit;
+	letter-spacing: inherit;
+}
+
+button {
+	-webkit-tap-highlight-color: transparent;
+	touch-action: manipulation;
+}
+
+:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: var(--r-xs);
+}
+
+code,
+.mono {
+	font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+	font-size: 0.6875rem;
+	letter-spacing: 0;
+}
+
+/* ── primitif ─────────────────────────────────────────────────────────── */
+
+/* label bagian: kecil → tracking positif agar tetap terbaca */
+.eyebrow {
+	font-size: 0.625rem;
+	font-weight: 600;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--label-3);
+	line-height: 1.3;
+}
+
+.material {
+	background: var(--mat-regular);
+	-webkit-backdrop-filter: var(--blur-regular);
+	backdrop-filter: var(--blur-regular);
+	border: 1px solid var(--separator);
+	box-shadow: var(--shadow-panel);
+}
+/* tepi terang di atas = cahaya menimpa material */
+.material::before {
+	content: '';
+	position: absolute;
+	inset: 0 0 auto;
+	height: 1px;
+	background: var(--mat-edge);
+	pointer-events: none;
+	border-radius: inherit;
+}
+
+.tag {
+	display: inline-block;
+	font-size: 0.5625rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	padding: 0 0.3em;
+	border: 1px solid;
+	border-radius: 3px;
+	vertical-align: 0.12em;
+	line-height: 1.5;
+}
+.tag.real {
+	border-color: color-mix(in srgb, var(--good) 55%, transparent);
+	color: var(--good);
+}
+.tag.mock {
+	border-color: color-mix(in srgb, var(--warn) 55%, transparent);
+	color: var(--warn);
+}
+
+.muted {
+	color: var(--label-3);
+}
+
+/* tombol pil — umpan balik pada pointer-down, bukan saat lepas */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375em;
+	border: 1px solid var(--separator);
+	background: var(--fill-1);
+	color: var(--label-1);
+	border-radius: 999px;
+	padding: 0.3em 0.75em;
+	font-size: 0.75rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition:
+		transform 100ms ease-out,
+		background-color 140ms ease-out;
+}
+.btn:hover {
+	background: var(--fill-2);
+}
+.btn:active {
+	transform: scale(0.96);
+	background: var(--fill-3);
+}
+.btn.accent {
+	background: var(--accent);
+	color: var(--accent-ink);
+	border-color: transparent;
+	box-shadow: var(--shadow-chip);
+}
+.btn.accent:hover {
+	filter: brightness(1.06);
+}
+
+/* scrollbar tipis agar panel padat tetap tenang */
+.scroll {
+	overflow: auto;
+	scrollbar-width: thin;
+	scrollbar-color: var(--fill-3) transparent;
+	overscroll-behavior: contain;
+}
+.scroll::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+.scroll::-webkit-scrollbar-thumb {
+	background: var(--fill-3);
+	border-radius: 99px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 120ms !important;
+	}
+}

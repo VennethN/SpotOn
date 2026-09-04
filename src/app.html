@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="id">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="text-scale" content="scale" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#eceef1" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0c0e" />
+		<meta
+			name="description"
+			content="SpotOn — WebGIS rekomendasi site-selection berbasis AI untuk ritel & F&B di kawasan transit Jakarta."
+		/>
+		<script>
+			// Terapkan tema sebelum paint pertama agar tidak berkedip.
+			try {
+				const t = localStorage.getItem('spoton:theme');
+				if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+			} catch (e) {
+				/* localStorage tidak tersedia — pakai preferensi sistem */
+			}
+		</script>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<!--
+		THESIS: SpotOn shows you the street you would open on, at the hour you would open it.
+		It refuses the GIS-SaaS arrangement: no map screenshot in a browser mock, no feature-card grid.
+		OWN-WORLD: a real-time 3D block — massing buildings, lit shopfronts, a walking crowd — lit
+		entirely by the hour of day. No fixed palette: dawn haze, midday glare, dusk sodium, night
+		lightbox. Interface floats over it as thin Archivo, never in panels.
+		STORY: the visitor recognizes their own street, sees it fill and empty by hour, and learns
+		the empty lot is rentable and the crowd is measured.
+		FIRST VIEWPORT: full-bleed street at the visitor's local hour; crowd at true density; one lot
+		outlined with the business they could open standing in it; headline and "Buka SpotOn" over it.
+		FORM: user-pinned (Shader Portal form, real people and buildings as content); rolls 5d4ab2ca
+		and 3bae6bfc both re-rolled by the user; seed key 3bae6bfc.
+		FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+		-->
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
