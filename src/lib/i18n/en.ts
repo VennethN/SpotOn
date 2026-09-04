@@ -652,6 +652,11 @@ export const en: Copy = {
 		   standing inside. */
 		doors: (day: string, h: number, n: number, of: number) =>
 			`${day} at ${hour(h)}, ${n} of the ${of} doors counted here are open.`,
+		/* Beside the count of open doors, measured against this street's own busiest
+		   hour. Somebody dragging the slider is asking whether that count is a lot for
+		   here, and a count with nothing to compare it against does not answer that. */
+		peakHour: 'This is the hour with the most doors open here.',
+		share: (persen: number) => `About ${persen}% of its busiest hour for open doors.`,
 		basis: (r: number) =>
 			`The crowd rises and falls with those doors, and never goes past the trade that actually stands within ${r} m of this centre. The people are drawn, the doors are counted.`,
 		/* Four kinds of silence, kept apart. Not one of them is settled by moving the
