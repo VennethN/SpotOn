@@ -39,6 +39,8 @@
 	} from '$lib/domain/transit';
 	import Fineprint from '$lib/components/ui/Fineprint.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
+	import { standingOf } from '$lib/domain/metrics';
+	import { standingPhrase } from '$lib/domain/narrate';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 
@@ -76,6 +78,12 @@
 	const access = $derived(cell?.access ?? 0);
 	const band = $derived(accessBand(access));
 	const uplift = $derived(accessUplift(access));
+	/* The index against the grid. The band above says "strong" on a fixed scale, and
+	   this says where strong sits among the 562: the same phrase the score panel prints
+	   under the same figure, from the same ladder. */
+	const standing = $derived(
+		app.selected ? standingPhrase(standingOf(app.selected, 'akses_transit', app.ladders.akses_transit), c) : ''
+	);
 	const hasRail = $derived(modes.some((m) => RAIL.includes(m.mode)));
 	/* Nothing counted yet, rather than nothing to count. Only reachable from a place:
 	   with the range measured from the cell the counts are on the grid and are here
@@ -144,6 +152,7 @@
 			     different things. -->
 			<p class="band">
 				{fromPlace ? c.mood.transitBandCell[band] : c.mood.transitBand[band]}
+				{#if standing}{c.mood.transitStanding(standing)}{/if}
 				<span class="uplift">{c.mood.transitUplift(uplift)}</span>
 			</p>
 

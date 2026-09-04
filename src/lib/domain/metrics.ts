@@ -1,4 +1,4 @@
-import { applyBands, rankRows, type Band, type Measure } from './rank';
+import { MIN_BAND, applyBands, ladderOf, levelOn, rankRows, type Band, type Measure } from './rank';
 import { stopTotal } from './transit';
 import type { MetricKey, ScoredHex } from '$lib/types';
 
@@ -157,6 +157,46 @@ export const DEFAULT_METRIC: MetricKey = 'skor';
 /** Can this question be answered at all with no business type named? */
 export const needsBusinessType = (key: MetricKey): boolean =>
 	Boolean(METRIC_MAP[key]?.needsType);
+
+/**
+ * Every reading of one measure across the grid, sorted, with the unmeasured left out.
+ * The scale one cell's figure is read against.
+ */
+export const ladderFor = (rows: readonly ScoredHex[], key: MetricKey): number[] =>
+	ladderOf(rows, METRIC_MAP[key]);
+
+/**
+ * Where one cell's figure sits among every cell that has one, 0 lowest to 1 highest.
+ *
+ * This is what makes an index readable. "Busyness 65" is a number on a scale, and the
+ * scale is not the comparator a reader needs: whether 65 is a lot depends on what the
+ * rest of the grid reads. A count is its own comparator, 207 businesses can be pictured,
+ * so the card sets the four indices against the grid and leaves the counts alone.
+ *
+ * Null below `MIN_BAND` readings, for the reason the bands stop there: a standing among
+ * five cells is a fact about the sample. And null where this cell has no reading at all,
+ * which is never the bottom of the ladder, because "nobody counted" is not "the least".
+ */
+export function standingOf(
+	row: ScoredHex,
+	key: MetricKey,
+	ladder: readonly number[]
+): number | null {
+	if (ladder.length < MIN_BAND) return null;
+	return levelOn(METRIC_MAP[key].read(row), ladder);
+}
+
+/**
+ * A standing as the whole number every surface prints it as.
+ *
+ * FLOORED, never rounded. "Higher than N% of areas" is a claim, and the claim has to be
+ * true: the second-highest cell of 462 stands at 0.998, and rounded that reads "higher
+ * than 100% of areas", which it is not. Floored it reads 99, which it is. One function,
+ * because the fact sheet the model reads from and the sentence the interface composes
+ * both print this figure, and the grounding fence only lets the sentence through if the
+ * two agree to the digit.
+ */
+export const standingShare = (level: number): number => Math.floor(level * 100);
 
 /**
  * Which direction a ranking actually runs, given what the question asked for.

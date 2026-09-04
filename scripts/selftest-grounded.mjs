@@ -92,9 +92,17 @@ for (const s of [
 	'The asking price is Rp 59.8 million per m², and that is a price to buy, not a rent.',
 	'Tosari punya 11 simpul transit dalam radius 800 m, jadi aksesnya 71 dari 100.',
 	// No figures at all is still an answer, and a legitimate one.
-	'There is no rental data for Jakarta at all, so I cannot give you a rent for Tosari.'
+	'There is no rental data for Jakarta at all, so I cannot give you a rent for Tosari.',
+	/* A count in words, where the figure it spells is on the sheet. These were refused
+	   outright, and every one of them is a true sentence a model writes in English
+	   without thinking: "the five" on a list of five, "a hundred" for the ruler every
+	   score is read against. Thrown away, they cost the reader the model's reply and
+	   left the template standing in, with no symptom but Tapak sounding plainer. */
+	'Tosari is the strongest of the twelve laundries\' neighbours at 68 out of a hundred.',
+	'Skornya 68 dari seratus, dan ada tujuh unit dipasarkan dalam radius 800 m.',
+	'Seven units are on the market around it, at Rp 59.8 million per m².'
 ]) {
-	check(`grounded reply survives: "${s.slice(0, 46)}…"`, ok(s) !== null);
+	check(`grounded reply survives: "${s.slice(0, 46)}…"`, ok(s) !== null, `rejected: ${grounded.groundingFault(s, FACTS, NAMED, EVERY)}`);
 }
 
 /* Every one of these is a sentence a model writes without blinking, and every one of them
@@ -107,13 +115,29 @@ for (const [s, why] of [
 	['Margin laundry biasanya 60%.', 'a claim about margins'],
 	['Balik modal dalam delapan bulan.', 'the same fabrication, spelled out'],
 	['Tempat di sana harganya beberapa juta per meter.', 'a scale word with no figure behind it'],
-	['Ada belasan pesaing di sekitarnya.', 'a spelled quantity'],
+	['Ada belasan pesaing di sekitarnya.', 'a vague quantity'],
+	['There are dozens of rivals and it costs about a million per m².', 'a vague count and a bare scale'],
+	['Tosari has five rivals, which is few.', 'a count in words the sheet does not carry'],
 	// A right figure said about a place this answer never named. The number checks out,
 	// which is exactly why a reader cannot catch this one.
 	['Bendungan Hilir scores 68 out of 100 for laundries.', 'a place the answer did not name']
 ]) {
 	check(`thrown away, ${why}: "${s.slice(0, 40)}…"`, ok(s) === null, `survived: ${ok(s)}`);
 }
+
+/* A refusal says why. A reply dropped in silence has exactly one symptom, Tapak sounding
+   plainer, and nobody reports that. So the reason travels into the log and the
+   provenance, and it has to name the figure. */
+check(
+	'a refusal names the figure nobody computed',
+	(grounded.groundingFault('Warteg balik modal dalam 8 bulan.', FACTS, NAMED, EVERY) ?? '').includes('8'),
+	`got ${grounded.groundingFault('Warteg balik modal dalam 8 bulan.', FACTS, NAMED, EVERY)}`
+);
+check(
+	'a refusal names the place the answer never named',
+	(grounded.groundingFault('Bendungan Hilir scores 68 out of 100.', FACTS, NAMED, EVERY) ?? '').includes('Bendungan Hilir')
+);
+check('a reply that clears the fence has no fault', grounded.groundingFault('Tosari scores 68 out of 100.', FACTS, NAMED, EVERY) === null);
 
 /* The other half of the name rule, and the one that would show up as the feature quietly
    not working. Eighty-seven catchments are named with a single word and some of those are
@@ -206,6 +230,20 @@ check('"out of 100" is not an ungrounded figure', ok('Tosari scores 68 out of 10
 	const ans = nlq.answer(`kenapa ${top}`, cells, W, ['laundry'], [top]);
 	const facts = grounded.factSheet(ans);
 	check('an explanation produces a fact sheet with its own figures in it', ans.explain != null && facts.includes(top));
+	/* The standing is on the sheet, so a reply saying "higher than 78% of areas" is
+	   quoting a figure the model was handed. The top cell says it in words with no figure,
+	   which is why the second check reads a cell from the middle of the ladder. */
+	check('the sheet says where the score stands', facts.includes('petak yang punya angka ini'));
+	const mid = nlq.answer('di mana sebaiknya buka laundry', cells, W, ['laundry']).items[4]?.name;
+	const midAns = mid ? nlq.answer(`kenapa ${mid}`, cells, W, ['laundry'], [mid]) : null;
+	const midFacts = midAns ? grounded.factSheet(midAns) : '';
+	check(
+		'a standing from the middle of the ladder is a figure on the sheet and in the sentence',
+		midAns !== null &&
+			/Lebih tinggi dari \d+% petak/.test(midFacts) &&
+			grounded.ungroundedFigures(narrate.narrate(midAns, i18n.DICT.en), grounded.allowedFigures(midFacts)).length === 0,
+		`sheet: ${midFacts.split('\n').find((l) => l.includes('Skor peluang'))}`
+	);
 	for (const [lang, dict] of [['id', i18n.DICT.id], ['en', i18n.DICT.en]]) {
 		const composed = narrate.narrate(ans, dict);
 		const bad = grounded.ungroundedFigures(composed, grounded.allowedFigures(facts));

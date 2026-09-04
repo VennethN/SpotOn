@@ -276,9 +276,23 @@ export async function resolveQuestion(
 	);
 	if (!written) return computed;
 
+	/* Written, and refused. The composed sentence stands in exactly as it does when nothing
+	   came back, and the difference is said in the provenance, because from the reader's
+	   side a model that is away and a model whose every reply is being thrown away look the
+	   same, and only one of them is a bug. */
+	if (!written.text) {
+		return {
+			...computed,
+			provenance: [
+				...computed.provenance,
+				`Model sempat menulis kalimat jawabannya, tapi kalimat itu dibuang mesin dan diganti kalimat baku karena ${written.fault}. Lihat \`domain/grounded\`.`
+			]
+		};
+	}
+
 	return {
 		...computed,
-		reply: written,
+		reply: written.text,
 		provenance: [
 			...computed.provenance,
 			'Kalimat jawabannya ditulis model dari angka yang sudah dihitung di atas. Tiap angka di dalamnya dicocokkan kembali ke angka-angka itu, dan yang memuat angka di luarnya dibuang mesin, bukan diperbaiki — lihat `domain/grounded`.'

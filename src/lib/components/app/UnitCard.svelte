@@ -46,6 +46,8 @@
 	import CatchmentDiorama from '$lib/components/app/CatchmentDiorama.svelte';
 	import PivotMark from '$lib/components/ui/PivotMark.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
+	import { standingShare } from '$lib/domain/metrics';
+	import { unitStanding } from '$lib/domain/units';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { pct, rampIndex } from '$lib/utils/format';
@@ -56,6 +58,25 @@
 	const l = $derived(unit?.listing ?? null);
 	const row = $derived(unit?.row ?? null);
 
+	/**
+	 * Where this unit's price per m² sits among every unit on the market with one.
+	 *
+	 * The same comparator the area card gives its indices, said for a price: "Rp 28.6m
+	 * per m²" is a number very few readers can place, and "dearer than 30% of the units
+	 * on the market" is one anybody can. Per m² rather than the total, because the total
+	 * ranks a kiosk against a shophouse. Empty when the listing carries no per-m² price,
+	 * or too few units do to rank against.
+	 */
+	const priceStanding = $derived.by(() => {
+		if (!unit) return '';
+		const level = unitStanding(unit, 'harga_m2', app.unitLadder);
+		if (level === null) return '';
+		if (level === 1) return c.units.standingDearest;
+		if (level === 0) return c.units.standingCheapest;
+		const share = standingShare(level);
+		return share === 0 ? c.units.standingNearCheapest : c.units.standing(share);
+	});
+
 	/** The unit's measured characteristics, skipping whatever the listing left empty. An
 	    absent floor count is left out rather than printed as one. */
 	const traits = $derived.by(() => {
@@ -64,7 +85,13 @@
 		if (l.land !== null) out.push(c.property.unitLand(l.land));
 		if (l.build !== null) out.push(c.property.unitBuild(l.build));
 		if (l.floors !== null) out.push(c.property.unitFloors(l.floors));
-		if (l.ppm !== null) out.push(c.property.unitPerM2(l.ppm));
+		if (l.ppm !== null) {
+			out.push(c.property.unitPerM2(l.ppm));
+			// Beside the figure it is about, and only there: under the price in the head
+			// it widened that column until the location line under the name broke in
+			// three.
+			if (priceStanding) out.push(priceStanding);
+		}
 		if (l.cert) out.push(l.cert);
 		return out;
 	});
@@ -81,13 +108,15 @@
 	const figures = $derived.by(() => {
 		if (!l || !unit) return [];
 		const r = c.units.rows;
-		const out: Array<[string, string]> = [
+		const out: Array<[string, string, string?]> = [
 			[r.type, c.property.types[l.type] ?? l.type],
 			[r.cell, unit.cellName],
 			[r.distance, c.units.value('jarak_pusat', unit.distance)]
 		];
 		if (l.price !== null) out.push([r.price, c.units.value('harga', l.price)]);
-		if (l.ppm !== null) out.push([r.ppm, c.units.value('harga_m2', l.ppm)]);
+		// The per-m² price carries its standing under it, the way an index does on the
+		// score panel: it is the one figure here whose meaning depends on the others.
+		if (l.ppm !== null) out.push([r.ppm, c.units.value('harga_m2', l.ppm), priceStanding]);
 		if (l.land !== null) out.push([r.land, c.units.value('luas_tanah', l.land)]);
 		if (l.build !== null) out.push([r.build, c.units.value('luas_bangunan', l.build)]);
 		if (l.floors !== null) out.push([r.floors, c.units.value('lantai', l.floors)]);
@@ -140,8 +169,11 @@
 			<details class="numbers">
 				<summary>{c.units.cardFigures}</summary>
 				<dl>
-					{#each figures as [label, value] (label)}
-						<div><dt>{label}</dt><dd>{value}</dd></div>
+					{#each figures as [label, value, note] (label)}
+						<div>
+							<dt>{label}{#if note}<small>{note}</small>{/if}</dt>
+							<dd>{value}</dd>
+						</div>
 					{/each}
 				</dl>
 				<p class="prov">{c.units.provenance}</p>
@@ -208,6 +240,20 @@
 		line-height: 1.1;
 		color: var(--label-1);
 		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+	.numbers dt {
+		display: flex;
+		flex-direction: column;
+		gap: 0.0625rem;
+	}
+	.numbers dt small {
+		font-size: 0.6875rem;
+		color: var(--label-4);
+	}
+	/* The figure never breaks: "Rp 1.4m/m²" split over two lines reads as two figures.
+	   The label beside it is the one that wraps. */
+	.numbers dd {
 		white-space: nowrap;
 	}
 	.close {

@@ -8,6 +8,8 @@ import {
 } from '$lib/domain/competitors';
 import { capturedOpen, parseHours, readHours, type OpenPlace } from '$lib/domain/activity';
 import { priceLadder } from '$lib/domain/cost';
+import { ladderFor } from '$lib/domain/metrics';
+import { ladderOf } from '$lib/domain/rank';
 import { parseField, type FieldRecord } from '$lib/domain/field';
 import { capturedListings, parseListings, type Listing } from '$lib/domain/premises';
 import {
@@ -656,6 +658,23 @@ export class AppState {
 	rowById = $derived(new Map(this.rows.map((r) => [r.id, r])));
 
 	/**
+	 * Every reading on the grid of each index a cell is set against, sorted.
+	 *
+	 * The scale "busyness 65" is read on, which is not the 100 it is out of but the rest
+	 * of the grid. Held here for the reason `priceLadder` is: five surfaces read these,
+	 * the area card's head, the score panel, the transit panel, the hover readout and
+	 * Tapak's remark, and as separate expressions each would walk the scored rows again
+	 * on every change. Cut from `rows`, so they follow the business type and the walking
+	 * range the map is painted for.
+	 */
+	ladders = $derived({
+		skor: ladderFor(this.rows, 'skor'),
+		permintaan: ladderFor(this.rows, 'permintaan'),
+		penawaran: ladderFor(this.rows, 'penawaran'),
+		akses_transit: ladderFor(this.rows, 'akses_transit')
+	});
+
+	/**
 	 * The single 0..1 the heatmap paints, per cell. Null means nothing may be painted.
 	 *
 	 * Here rather than in the map layer so there is one place that decides what a
@@ -1286,6 +1305,14 @@ export class AppState {
 	 * frame for what is a lookup.
 	 */
 	unitById = $derived(new Map(this.units.map((u) => [u.id, u])));
+
+	/**
+	 * Every asking price per m² among the units on the market, sorted: what one unit's
+	 * price is set against. Per m² rather than the total, because a kiosk on 6 m² and a
+	 * shophouse on 200 m² are not two prices for the same thing, and only the per-m²
+	 * figure puts them on one ladder. Empty outside unit mode, like `units` itself.
+	 */
+	unitLadder = $derived(ladderOf(this.units, UNIT_METRIC_MAP.harga_m2));
 
 	get selectedUnit(): ScoredUnit | null {
 		if (this.pivot !== 'unit' || !this.selectedUnitId) return null;

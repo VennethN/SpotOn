@@ -106,6 +106,13 @@
 		if (app.selectedId && untrack(() => compact && sheetIndex === 0)) sheetIndex = 1;
 	});
 
+	// The area card asked for the question box. On a compact screen the box is inside
+	// the sheet, under the card, so the sheet goes to its top detent before the field
+	// takes the focus: a keyboard opening under a half-height sheet would cover it.
+	$effect(() => {
+		if (tapak.focusRequest > 0 && untrack(() => compact)) sheetIndex = 2;
+	});
+
 	/**
 	 * The question box does not simply vanish: it leaves towards the right, towards
 	 * where the panel is about to stand. The motion in between points at the
@@ -203,7 +210,7 @@
 				</div>
 			{:else if app.selectedId}
 				<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>
-					<SpotCard />
+					<SpotCard {tapak} />
 				</div>
 			{/if}
 			<TapakPanel {tapak} />
@@ -236,7 +243,7 @@
 				aria-label={c.app.mood}
 				transition:materialize={{ origin: 'top left' }}
 			>
-				<div class="spot-scroll"><SpotCard /></div>
+				<div class="spot-scroll"><SpotCard {tapak} /></div>
 			</aside>
 		{:else}
 			<MapLegend />

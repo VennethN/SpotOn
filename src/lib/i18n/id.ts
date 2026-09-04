@@ -812,6 +812,17 @@ export const id = {
 			access: 'Akses transit',
 			space: 'Unit dipasarkan'
 		},
+		/* Pembanding di bawah tiap indeks. Cacah sudah jadi pembandingnya sendiri, 207
+		   usaha itu angka yang bisa dibayangkan siapa pun, sedangkan indeks tidak: 65
+		   dari 100 belum berarti apa-apa sebelum disandingkan dengan seluruh kisi. Jadi
+		   empat indeks menyebut posisinya di antara semua kawasan yang punya angka itu,
+		   seperti yang sudah dilakukan harga di panelnya sendiri, dan cacah dibiarkan. */
+		standing: (persen: number) => `lebih tinggi dari ${persen}% kawasan`,
+		standingLowest: 'paling rendah dari semua kawasan',
+		standingNearLowest: 'termasuk yang paling rendah dari semua kawasan',
+		standingHighest: 'paling tinggi dari semua kawasan',
+		standingNote:
+			'Tiap "lebih tinggi dari" menyandingkan kawasan ini dengan semua kawasan lain yang punya angka itu, untuk jenis usaha dan jarak jalan kaki yang sama.',
 		/* ── Akses transit ──────────────────────────────────────────────────
 		   Bagian ini ditulis untuk pembaca yang tidak membaca angka indeks. Yang
 		   dipimpin adalah nama stasiunnya — "Blok M" bisa dibayangkan, dicek, dan
@@ -874,6 +885,9 @@ export const id = {
 		transitRail: 'Stasiun rel yang terjangkau',
 		transitBus: (n: number) => `${n} halte TransJakarta dalam jarak jalan kaki`,
 		transitWalk: (m: number) => `${m} m`,
+		/* Indeksnya disandingkan dengan kisi, setelah pitanya. "Kuat" itu skala tetap,
+		   dan ini posisi si kuat di antara yang lain. */
+		transitStanding: (posisi: string) => `Indeks aksesnya ${posisi}.`,
 		transitUplift: (persen: number) =>
 			`Akses ini menaikkan skor peluang petak ini sekitar ${persen}% dibanding petak tanpa transit sama sekali.`,
 		transitWhyRail:
@@ -1169,18 +1183,16 @@ export const id = {
 		   ganti bahasa mengganti kata-katanya dan bukan sapaannya. */
 		greet: (total: number, part: DayPart, wording: number) =>
 			`${SAPAAN[part][wording]} Saya Tapak. Saya sudah keliling ${total} petak di sekitar MRT, KRL, LRT, dan koridor TransJakarta. Lagi kepikiran buka usaha apa?`,
-		/* Pertanyaan ini dulu berbunyi "Modalnya kira-kira bagaimana?" dengan pilihan
-		   "Pas-pasan" dan "Agak longgar" — dua kata yang tidak memberi tahu apa pun
-		   soal apa yang akan berubah. Yang sebenarnya dipilih di sini cuma satu:
-		   apakah hasilnya disaring ke kawasan yang tempatnya memang sedang
-		   disewakan, di kelas sewa bawah. Jadi itu yang ditanyakan, dan itu yang
-		   tertulis di tombolnya. */
-		budgetAsk: (cat: string) => `Oke, ${cat}. Sewa tempatnya bagaimana?`,
+		/* Saringan sewa, ditawarkan di atas sebuah peringkat dan bukan ditanyakan
+		   sebelum ada peringkat. Dulu keduanya jawaban untuk "Sewa tempatnya bagaimana?"
+		   yang berdiri di antara jenis usaha dan jawaban pertama, jadi pembaca menjawab
+		   dua pertanyaan dari naskah sebelum mendengar satu pun dari data. Dulu juga
+		   berbunyi "Pas-pasan" dan "Agak longgar", dua kata yang tidak memberi tahu apa
+		   pun soal apa yang akan berubah. Yang dipilih di sini cuma satu: apakah
+		   hasilnya disaring ke kawasan yang tempatnya memang sedang disewakan, di kelas
+		   sewa bawah. Jadi itu yang tertulis di tombolnya. */
 		budgetTight: 'Harus yang sewanya murah',
 		budgetLoose: 'Berapa pun, asal kawasannya bagus',
-		prefaceTight:
-			'Baik. Saya saring ke kawasan yang tempatnya memang sedang disewakan, di kelas sewa bawah.',
-		prefaceLoose: 'Baik, semua kawasan saya lihat, tanpa saringan sewa.',
 		restart: 'Mau lihat usaha apa sekarang?',
 		tryOther: 'Coba usaha lain',
 		avoid: 'Mana yang sebaiknya dihindari?',
@@ -1192,6 +1204,13 @@ export const id = {
 		   sisanya diketik sendiri, dan yang membaca kalimatnya lapisan pemahaman,
 		   bukan daftar frasa di sini. */
 		why: (name: string) => `Kenapa ${name}?`,
+		/* Jalan dari kartu kawasan ke percakapan, soal kawasan yang ada di kartu itu.
+		   Tombol, bukan menu: yang dibukanya kolom pertanyaan, yang menerima apa saja,
+		   dan nama kawasannya dimasukkan ke percakapan supaya apa pun yang diketik
+		   berikutnya dibaca sebagai pertanyaan soal kawasan itu. */
+		askAbout: 'Tanya Tapak soal kawasan ini',
+		aboutPlace: (name: string) => `${name}, ya. Mau tahu apa soal kawasan itu?`,
+		askAboutPlaceholder: (name: string) => `Tanya apa saja soal ${name}…`,
 		retry: 'Coba lagi',
 		/* Diucapkan Tapak sendiri di dalam percakapannya, terpisah dari pemberitahuan yang
 		   muncul di atas peta. Pertanyaannya memang tidak pernah dikirim, jadi giliran itu
@@ -1210,6 +1229,13 @@ export const id = {
 			'Sebelum saya jawab, mau buka usaha apa? Skor peluang selalu untuk satu jenis usaha, karena 83 untuk kedai kopi bukan 83 untuk laundry.',
 		notUnderstood: (why: string) =>
 			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk sejumlah jenis usaha. Mau saya carikan salah satunya?`,
+		/* Pengurai aturan tidak menemukan satu pun kata yang dikenalnya, dan tidak ada
+		   kalimat model yang bisa dikutip. Disebutkan apa yang BISA ditanyakan, bukan
+		   permintaan maaf: tanpa model cuma bentuk yang lugas yang terbaca, dan pembaca
+		   lebih terbantu mendengar bentuknya daripada disodori peringkat yang tidak
+		   pernah dia minta. */
+		unclear:
+			'Yang itu belum saya tangkap. Coba tanya di mana sebaiknya buka usaha, kenapa satu kawasan masuk daftar, atau berapa harga tempat di sana, dan saya jawab dari angkanya.',
 		coverageNone: 'Semua kawasan sudah ada datanya.',
 		coverageSome: (n: number) =>
 			`Ada ${n} kawasan yang datanya belum saya punya sama sekali. Saya tidak menilainya. Daripada saya karang, lebih baik saya bilang belum tahu.`,
@@ -1259,6 +1285,11 @@ export const id = {
 				`Skor peluangnya sendiri ${nilai} dari 100 untuk ${cat}.`,
 			lead: (name: string, cat: string, nilai: string) =>
 				`${name} dapat ${nilai} dari 100 untuk ${cat}, dan ini yang menyusunnya.`,
+			/* Angkanya disandingkan dengan kisi, memakai potongan kalimat yang sama dengan
+			   yang dicetak kartu di bawahnya. Untuk skor dan untuk ukuran apa pun yang
+			   ditanyakan, karena "itu banyak atau tidak" pertanyaan yang ditimbulkan
+			   semua angka itu. */
+			standing: (posisi: string) => `Itu ${posisi}.`,
 			crowd: (usaha: number, radius: number, nilai: string) =>
 				`Ada ${num(usaha)} usaha lain dalam radius ${radius} m, jadi keramaiannya ${nilai} dari 100.`,
 			rivals: (n: number, cat: string, nilai: string) =>
@@ -1279,8 +1310,16 @@ export const id = {
 		},
 		remarkUncovered: (name: string, cat: string) =>
 			`Kawasan ${name} belum didata, jadi ${cat} di sekitarnya belum pernah dihitung. Belum ada angka yang bisa saya berikan.`,
-		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
-			`${name} ${verdict} untuk ${cat}, nilainya ${nilai}. Ada ${osm} pesaing sejenis, dan ${listing}.`,
+		remark: (
+			name: string,
+			verdict: string,
+			cat: string,
+			nilai: string,
+			osm: number,
+			listing: string,
+			posisi: string
+		) =>
+			`${name} ${verdict} untuk ${cat}, nilainya ${nilai}${posisi ? `, ${posisi}` : ''}. Ada ${osm} pesaing sejenis, dan ${listing}.`,
 		verdictGood: 'termasuk bagus',
 		verdictMid: 'menengah',
 		verdictLow: 'terus terang kurang menjanjikan',
@@ -1369,6 +1408,13 @@ export const id = {
 		cardIn: (petak: string) => `di petak ${petak}`,
 		cardWalk: (m: number) => `${num(m)} m dari pusat petak`,
 		cardAbout: 'Tentang tempatnya',
+		/* Harga per m² disandingkan dengan semua unit lain yang dipasarkan dan punya
+		   angkanya. Disebut "lebih mahal dari", seperti peringkat harga kawasan, bukan
+		   "lebih tinggi dari": tidak ada yang membaca harga sebagai tinggi. */
+		standing: (persen: number) => `lebih mahal dari ${persen}% unit yang dipasarkan`,
+		standingCheapest: 'unit termurah yang dipasarkan',
+		standingNearCheapest: 'termasuk unit termurah yang dipasarkan',
+		standingDearest: 'unit termahal yang dipasarkan',
 		/* Dulu "Tentang kawasannya", dan itu benar waktu semua yang di bawahnya diukur
 		   dari pusat petak. Sekarang jangkauannya diukur dari pintu depan tempat ini,
 		   jadi judulnya menyebut titik ukurnya, dan baris di bawahnya menyebut mana yang

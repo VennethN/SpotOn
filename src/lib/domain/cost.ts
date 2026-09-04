@@ -1,4 +1,5 @@
 import type { Hex } from '$lib/types';
+import { levelOn } from './rank';
 
 /**
  * What a shopfront costs here, and what that is worth to a score.
@@ -115,16 +116,11 @@ export function priceLadder(all: Array<Pick<Hex, 'prop'>>, radius: number): numb
  * order they happened to be sorted in.
  */
 export function priceLevel(price: number | null, ladder: number[]): number | null {
+	// The arithmetic is `levelOn` in `domain/rank`, shared with every other figure that
+	// is set against the grid. What is the price's own is the gate: below `MIN_LADDER`
+	// readings a rank says more about the sample than about the city.
 	if (price === null || ladder.length < MIN_LADDER) return null;
-	let below = 0;
-	while (below < ladder.length && ladder[below] < price) below++;
-	let atOrBelow = below;
-	while (atOrBelow < ladder.length && ladder[atOrBelow] === price) atOrBelow++;
-	// The midpoint of the tied run, divided by the last index rather than the length:
-	// the cheapest observation must land on 0 and the dearest on 1, and dividing by the
-	// length leaves the dearest short of it.
-	const mid = (below + atOrBelow - 1) / 2;
-	return mid / (ladder.length - 1);
+	return levelOn(price, ladder);
 }
 
 /** The multiplier one price level earns. `null` — nothing listed in range, or too few
