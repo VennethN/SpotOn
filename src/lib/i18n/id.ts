@@ -807,7 +807,7 @@ export const id = {
 		   dari berapa. Tanpa penyebutnya angka itu terbaca sebagai seluruh jalan,
 		   padahal yang mencantumkan jam buka tidak sampai seperenamnya. */
 		hoursNow: (dari: number) => `buka sekarang, dari ${dari} yang terbaca`,
-		hoursThin: 'Belum cukup jam buka yang terbaca di sini',
+		hoursThin: 'Belum cukup jam buka yang terbaca',
 		/* Ini harga jual per m², dan keterangan inilah yang menahan angkanya supaya
 		   tidak terbaca sebagai harga satu unit. */
 		costCap: (unit: number) => `per m² tanah · ${unit} unit dipasarkan`,

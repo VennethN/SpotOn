@@ -805,7 +805,7 @@ export const en: Copy = {
 		   say out of how many. Without the denominator that number reads as the whole
 		   street, and fewer than one business in six publishes hours at all. */
 		hoursNow: (dari: number) => `open now, of ${dari} with published hours`,
-		hoursThin: 'Too few published opening hours to read here',
+		hoursThin: 'Too few published opening hours here',
 		/* This is an asking price to buy, per m², and this line is what stops the
 		   figure being read as the price of one unit. */
 		costCap: (unit: number) => `per m² of land · ${unit} units on the market`,
