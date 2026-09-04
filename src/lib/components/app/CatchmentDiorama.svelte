@@ -32,17 +32,26 @@
 	 * did its own arithmetic would be a second opinion about the same street, and the
 	 * day the two disagreed there would be no way to tell which was right.
 	 *
+	 * THE MODEL IS THE MAP, CUT TO THE WALKING RANGE. It was a schematic block, one
+	 * composed street standing for every cell with only the counts varying. It is now
+	 * the place: the basemap's own building footprints, streets, water and parks, read
+	 * off its tiles by `domain/basemap` and cut to the disc of the walking radius around
+	 * the point the range is measured from, with the map's own marks standing on it
+	 * where the map draws them. `AppState.loadArea` reads it, and this card is what asks
+	 * for it, because this card is where the model is first seen.
+	 *
 	 * THE CLOCK IS NOT ON THIS PANEL. It used to be the centre of it: a slider from
 	 * midnight to midnight, a crowd that thickened towards noon, a sentence reading "at
 	 * 20.06 it is fairly busy here, busiest around 12.00". Every one of those figures
 	 * came out of a random number generator seeded with the cell id. So the hour came
-	 * off, and what is left here is the reader's own clock lighting the model, which is
-	 * a fact about them rather than a claim about the place.
+	 * off. What lights the model here is Jakarta's clock at this minute, the same clock
+	 * the "open now" row underneath reads, because the doors drawn lit on the model are
+	 * the doors that row counts and a model lit by the reader's own hour would show a
+	 * midnight street with its shops open.
 	 *
-	 * The hour is now a room of its own, one tap away, and it is a different thing from
-	 * the one that was removed: `CatchmentZoom` scrubs the day over a crowd driven by
-	 * the opening hours counted from OpenStreetMap, and holds the crowd still, saying
-	 * so, wherever those were not counted.
+	 * The hour is a room of its own, one tap away: `CatchmentZoom` scrubs the day over
+	 * the same model, and each counted door lights when its published hours say it is
+	 * open. Where the doors were not counted, none is drawn, and the view says so.
 	 */
 	import ActivityPanel from '$lib/components/app/ActivityPanel.svelte';
 	import FieldPanel from '$lib/components/app/FieldPanel.svelte';
@@ -51,13 +60,13 @@
 	import PropertyPanel from '$lib/components/app/PropertyPanel.svelte';
 	import RivalsPanel from '$lib/components/app/RivalsPanel.svelte';
 	import ScorePanel from '$lib/components/app/ScorePanel.svelte';
-	import CatchmentScene from '$lib/components/ui/CatchmentScene.svelte';
+	import AreaScene from '$lib/components/ui/AreaScene.svelte';
 	import TransitPanel from '$lib/components/app/TransitPanel.svelte';
-	import { jakartaNow, weekProfile } from '$lib/domain/activity';
+	import { jakartaHour, jakartaNow, weekProfile } from '$lib/domain/activity';
 	import { readCost } from '$lib/domain/cost';
 	import { lastRecorded, totalRecorded } from '$lib/domain/field';
 	import { countStops, railTotal, stopTotal } from '$lib/domain/transit';
-	import { daylightAt, localHour } from '$lib/scene/daylight';
+	import { daylightAt } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { tick } from 'svelte';
 	import { categoryNames } from '$lib/domain/narrate';
@@ -66,11 +75,11 @@
 	import { scrollerOf } from '$lib/utils/dom';
 
 	/**
-	 * This panel is far smaller than the landing page's stage, so its camera is
-	 * pulled in: at a frame ±340 px wide, the full span shrinks the cafe and the
-	 * rental lot until neither of them reads.
+	 * This panel is far smaller than the full-screen view, so its camera is all the way
+	 * in: at a frame ±340 px wide, the whole disc shrinks the streets to a texture, and
+	 * what the card needs to show is the block around the point itself.
 	 */
-	const CAMERA_T = 0.88;
+	const CAMERA_T = 1;
 
 	/** Which sections the card can open. The order is the order of the rows. */
 	type SectionKey = 'score' | 'rivals' | 'hours' | 'cost' | 'transit' | 'field';
@@ -107,10 +116,6 @@
 			null
 		)
 	);
-
-	/** The reader's own hour, for the light. It says nothing about the place. */
-	const hour = localHour();
-	const day = $derived(daylightAt(hour));
 
 	/**
 	 * Nothing counted here: the catalogue has never read this cell's city.
@@ -168,6 +173,17 @@
 		return () => clearInterval(tick);
 	});
 	const jakarta = $derived(jakartaNow(clock));
+	/** The same clock, with its minutes, for the light over the model. */
+	const hour = $derived(jakartaHour(clock));
+	const day = $derived(daylightAt(hour));
+
+	/* The basemap around the point, at this radius. Asked for here rather than in
+	   `select`, because it is keyed on things `select` does not decide: the radius,
+	   the open place, and which basemap the map turned out to be on. */
+	$effect(() => {
+		void app.areaKey;
+		void app.loadArea();
+	});
 	/* The week the section draws, kept apart from the clock so a minute passing reads a
 	   number out of it rather than rebuilding it. */
 	const profile = $derived(weekProfile(app.selectedOpen));
@@ -472,15 +488,14 @@
 			class:reading={opened !== null && cramped}
 			style:--sky={day.skyHorizon}
 		>
-			<CatchmentScene
+			<AreaScene
 				{hour}
-				density={busyness}
-				category={app.categories[0]}
+				day={jakarta.day}
 				cameraT={CAMERA_T}
 				nodata={blank}
-				rivals={row.osm}
-				vacancies={row.units}
-				transit={cell?.transit}
+				{radius}
+				geometry={app.areaReady}
+				marks={app.areaMarks}
 				label={c.mood.sceneLabel(
 					row.name,
 					blank
@@ -490,7 +505,9 @@
 							: c.mood.sceneBody(row.density, row.osm, catMany, row.units)
 				)}
 			/>
-			<span class="mark">{c.app.schema}</span>
+			<!-- Where the model came from, or why it is not here yet. One mark for the
+			     four states, so it never has to be worked out from a blank disc. -->
+			<span class="mark">{c.app.model[app.areaStatus]}</span>
 
 			<!-- Over the model rather than under it, because the model IS the thing it
 			     opens: the same block, the whole screen, and the hour on a slider. -->
@@ -605,7 +622,7 @@
 	.stage.reading {
 		aspect-ratio: 16 / 5;
 	}
-	/* A permanent marker: this scene is schematic, never a real building map. */
+	/* A permanent marker: what the model is built from, and its state. */
 	.mark {
 		position: absolute;
 		left: 0.5rem;
@@ -618,14 +635,14 @@
 		padding: 0.1rem 0.35rem;
 	}
 
-	/* Light on a dark scrim, like the schematic mark opposite it: the sky behind runs
+	/* Light on a dark scrim, like the mark opposite it: the sky behind runs
 	   from black to white with the reader's own hour, and a token from the theme would
 	   be invisible at one end of it. */
 	.enter {
 		position: absolute;
-		/* The opposite corner from the schematic mark. Side by side at the width of this
-		   card the two overlap, and the one that loses is the mark saying this is not a
-		   real site plan. */
+		/* The opposite corner from the mark. Side by side at the width of this card the
+		   two overlap, and the one that loses is the mark saying where the model came
+		   from. */
 		right: 0.5rem;
 		top: 0.5rem;
 		display: inline-flex;
