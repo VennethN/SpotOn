@@ -14,11 +14,46 @@
  *    pose — some mid-stride, some seated, some queuing — and the only thing that
  *    moves is what the scroll moves. Hence no rAF spinning for nothing: a frame is
  *    drawn only when the state actually changes.
+ *
+ * TWO SCENES, ONE FILE
+ *
+ * The landing page and the app want different things from this model, and the
+ * difference is not decoration.
+ *
+ * The landing page's is a STORY. One cafe, one stop, one empty lot beside it, and
+ * the whole of rule 2 in force: it is showing what the product is about, and a
+ * saturated colour anywhere in it would be pointing at something that is not the
+ * point. `variant: 'story'`, which is the default, so nothing there had to change.
+ *
+ * The app's is an INSTRUMENT. It stands for one real catchment, it is opened from a
+ * panel full of that catchment's figures, and a reader who steps inside it is asking
+ * what is actually here. So `variant: 'catchment'` relaxes rule 2 exactly as far as
+ * it takes to encode the data and no further: the masses stay white, and a small
+ * fixed set of colours identifies the things the panel names. Transit wears the
+ * mode's own colour off the map, competitors wear the competitors' red, and the
+ * lots up for rent stay the lots up for rent. Everything else is still the hour's.
+ *
+ * It also draws what the cell actually has rather than a fixed street. A catchment
+ * with no TransJakarta stop has no platform and no bus. One with a rail station has
+ * an entrance on the pavement in that line's colour. The counts are capped, because
+ * thirty shelters in one block is not a model of anything, and the panel beside it
+ * carries the real figure.
  */
 
 import * as THREE from 'three';
 import type { CategoryKey } from '$lib/types';
 import { daylightAt, type DaylightSample } from './daylight';
+
+/** Transit nodes within walking range, by mode, exactly as the grid counts them. */
+export interface SceneTransit {
+	mrt: number;
+	krl: number;
+	lrt: number;
+	brt: number;
+}
+
+/** Which of the two scenes this is. See the note at the top of the file. */
+export type SceneVariant = 'story' | 'catchment';
 
 export interface StreetState {
 	/** 0..24 */
@@ -34,7 +69,18 @@ export interface StreetState {
 	rivals: number;
 	/** Commercial space currently up for rent — read as an outlined lot. */
 	vacancies: number;
+	variant: SceneVariant;
+	/**
+	 * What this catchment reaches, drawn as the stops themselves.
+	 *
+	 * Only read in the catchment variant. The story keeps its one stop whatever is
+	 * passed, because the landing page is not standing for any particular place and a
+	 * block with no bus in it would be a claim about a cell nobody picked.
+	 */
+	transit: SceneTransit;
 }
+
+const NO_TRANSIT: SceneTransit = { mrt: 0, krl: 0, lrt: 0, brt: 0 };
 
 const DEFAULT_STATE: StreetState = {
 	hour: 12,
@@ -43,11 +89,35 @@ const DEFAULT_STATE: StreetState = {
 	cameraT: 0,
 	nodata: false,
 	rivals: 0,
-	vacancies: 1
+	vacancies: 1,
+	variant: 'story',
+	transit: NO_TRANSIT
 };
 
 const WHITE = new THREE.Color(0xffffff);
 const LAMP_ON = new THREE.Color(0xffdcb0);
+
+/**
+ * The only saturated colours in the catchment variant, and they are the map's own.
+ *
+ * A reader arrives here from a panel where the MRT is orange and TransJakarta is
+ * pink, and from a map drawing the routes in those same colours. Picking new ones
+ * for the model would mean learning the legend twice.
+ *
+ * They are worn by small parts — a band, a canopy, a sign — and never by a mass. A
+ * whole building in route orange would read as a claim that the building is the
+ * station.
+ */
+const MODE_COLOUR: Record<keyof SceneTransit, number> = {
+	mrt: 0xef8f3c,
+	krl: 0xe05a5a,
+	lrt: 0x46b077,
+	brt: 0xc76bbe
+};
+/** Competitors, in the red they are drawn in on the map and counted in on the card. */
+const RIVAL_COLOUR = 0xd1352b;
+/** The rail modes, in the order an entrance is given to them: the heaviest line first. */
+const RAIL_MODES: Array<keyof SceneTransit> = ['mrt', 'krl', 'lrt'];
 
 /** A very faint tint per business type — enough to tell them apart, not to shout. */
 const CATEGORY_TINT: Record<CategoryKey, number> = {
@@ -97,7 +167,7 @@ const LOT_GAP = 1.3;
    composition: zero space for rent has to genuinely look like zero. Their centres
    are computed, not written by hand — hand-written figures once had the second and
    third lots overlapping their neighbours. */
-const LOT_SLOTS = [0, 1, 2].map(
+const LOT_SLOTS = [0, 1, 2, 3].map(
 	(i) => CAFE_Z + CAFE_D / 2 + LOT_GAP + LOT_PAD_D / 2 + i * (LOT_PAD_D + LOT_GAP)
 );
 
@@ -108,7 +178,19 @@ const LOT_SLOTS = [0, 1, 2].map(
 const SUBJECT_Z0 = CAFE_Z - CAFE_D / 2 - 1.8;
 const SUBJECT_Z1 = LOT_SLOTS[LOT_SLOTS.length - 1] + LOT_PAD_D / 2 + 1.8;
 
-const MAX_RIVALS = 10;
+/**
+ * How many of each thing the block can hold before the model stops being one.
+ *
+ * These are ceilings on the DRAWING, not on the data. A catchment with thirty
+ * TransJakarta stops in walking range really has thirty, and the panel beside this
+ * says so; thirty shelters in one block would be a picture of a bus depot. The scene
+ * carries the label that says it is schematic for exactly this reason.
+ */
+const MAX_RIVALS = 24;
+/** Rail entrances on the pavement, one per rail node. */
+const MAX_ENTRANCES = 5;
+/** TransJakarta shelters down the median, beyond the platform itself. */
+const MAX_SHELTERS = 5;
 
 const MAX_WALKERS = 96;
 const MAX_SEATED = 16;
@@ -193,6 +275,19 @@ export class StreetWorld {
 	#lotSlots: THREE.Group[] = [];
 	#rivalMarks!: THREE.InstancedMesh;
 	#bus = new THREE.Group();
+	/** The TransJakarta platform. Hidden in a catchment with no corridor in range. */
+	#stopGroup = new THREE.Group();
+	/** One rail entrance per rail node, wearing its line's colour on the canopy and
+	    on the totem beside it. */
+	#entrances: Array<{
+		group: THREE.Group;
+		canopy: THREE.MeshStandardMaterial;
+		sign: THREE.MeshStandardMaterial;
+	}> = [];
+	/** Shelters down the median, one per TransJakarta node past the platform itself. */
+	#shelters: THREE.Group[] = [];
+	/** The band along the platform roof, which carries TransJakarta's colour. */
+	#stopBand!: THREE.MeshStandardMaterial;
 	#proposedMat!: THREE.MeshStandardMaterial;
 	/** The rental lot's lines and hatching — colour set against the ground each hour. */
 	#lotLineMats: Array<THREE.LineBasicMaterial | THREE.MeshBasicMaterial> = [];
@@ -205,7 +300,9 @@ export class StreetWorld {
 	#raf = 0;
 	#running = false;
 	#reduced: boolean;
-	#lastWindowLevel = -1;
+	#lastPaintKey = '';
+	/** How many of the front-row shopfronts are competitors, for `#paintLights`. */
+	#rivalFronts = 0;
 	#lastCrowdKey = '';
 	/** A frame is drawn only while this is true. A frozen scene does not need 60 fps. */
 	#dirty = true;
@@ -248,6 +345,7 @@ export class StreetWorld {
 		this.#buildRoad();
 		this.#buildStop();
 		this.#buildBus();
+		this.#buildTransit();
 		this.#buildBlocks();
 		this.#buildCafe();
 		this.#buildLot();
@@ -364,7 +462,7 @@ export class StreetWorld {
 	/* ── TransJakarta stop ────────────────────────────────────────────────── */
 
 	#buildStop() {
-		const g = new THREE.Group();
+		const g = this.#stopGroup;
 		const shell = new THREE.MeshStandardMaterial({ color: 0xe6e3dd, roughness: 0.8 });
 
 		const platform = new THREE.Mesh(
@@ -410,7 +508,122 @@ export class StreetWorld {
 		posts.castShadow = true;
 		g.add(posts);
 
+		// The band along the roof, in TransJakarta's own colour on the map. White in the
+		// story, where nothing is standing for a particular corridor.
+		const band = new THREE.Mesh(
+			new THREE.BoxGeometry(6.1, 0.34, STOP_LEN + 1.5),
+			new THREE.MeshStandardMaterial({ color: 0xe6e3dd, roughness: 0.7 })
+		);
+		band.position.set(0, 3.6, STOP_Z);
+		g.add(band);
+		this.#stopBand = band.material as THREE.MeshStandardMaterial;
+
 		this.#scene.add(g);
+	}
+
+	/* ── what this catchment reaches ──────────────────────────────────────── */
+
+	/**
+	 * The stops themselves, one object per counted node.
+	 *
+	 * Built once at full count and revealed by the data, the way the rental lots are:
+	 * a catchment's transit does not change while it is on screen, and rebuilding
+	 * geometry on every selection is how a panel starts dropping frames.
+	 *
+	 * Rail gets an ENTRANCE and not a station. A station in walking range is usually
+	 * not on this street, and drawing the platform would put a line through a block
+	 * that has no line through it. A stair box with a canopy is what the walk to it
+	 * actually ends at, and it is small enough to stand on a pavement without
+	 * pretending to be the infrastructure behind it.
+	 */
+	#buildTransit() {
+		const shell = new THREE.MeshStandardMaterial({ color: 0xeceae5, roughness: 0.8 });
+		const dark = new THREE.MeshStandardMaterial({ color: 0x8f8d88, roughness: 0.9 });
+
+		// Rail entrances, down the pavement opposite the cafe so they never fight it for
+		// the eye. Spread wide enough apart to be counted rather than read as one row.
+		for (let i = 0; i < MAX_ENTRANCES; i++) {
+			const g = new THREE.Group();
+			const z = -34 + i * 17;
+
+			const box = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.6, 4.6), shell);
+			box.position.set(0, 1.3 + WALK_Y, 0);
+			box.castShadow = true;
+			box.receiveShadow = true;
+			g.add(box);
+
+			// The mouth of the stairs: a dark face, so the box reads as a way down rather
+			// than as one more small building.
+			const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.9, 3.1), dark);
+			mouth.position.set(-1.74, 0.95 + WALK_Y, 0);
+			g.add(mouth);
+
+			// Two strengths of the same colour. The canopy is a roof and takes it washed
+			// half into white, because a fully saturated slab that size stops being a
+			// canopy and becomes the brightest object in the model. The totem beside it
+			// takes it neat: it is small, and it is the thing you actually pick a station
+			// out by from across a road.
+			const canopyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62 });
+			const canopy = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.3, 5.4), canopyMat);
+			canopy.position.set(-0.3, 2.85 + WALK_Y, 0);
+			canopy.castShadow = true;
+			g.add(canopy);
+
+			const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.2, 0.22), shell);
+			post.position.set(-2.4, 2.1 + WALK_Y, 2.6);
+			post.castShadow = true;
+			g.add(post);
+			const signMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+			const sign = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.15, 1.15), signMat);
+			sign.position.set(-2.4, 3.7 + WALK_Y, 2.6);
+			g.add(sign);
+
+			g.position.set(-(WALK_HALF - 2.6), 0, z);
+			g.visible = false;
+			this.#scene.add(g);
+			this.#entrances.push({ group: g, canopy: canopyMat, sign: signMat });
+		}
+
+		// TransJakarta shelters, on the median past the platform. The platform itself is
+		// the first node; these are the rest of them.
+		for (let i = 0; i < MAX_SHELTERS; i++) {
+			const g = new THREE.Group();
+			const side = i % 2 === 0 ? 1 : -1;
+			const z = side * (STOP_LEN / 2 + 8 + Math.floor(i / 2) * 11);
+
+			const island = new THREE.Mesh(new THREE.BoxGeometry(STOP_HALF * 2, 0.42, 6.4), shell);
+			island.position.set(0, 0.21, 0);
+			island.receiveShadow = true;
+			g.add(island);
+
+			const roof = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.22, 6.0), shell);
+			roof.position.set(0, 2.9, 0);
+			roof.castShadow = true;
+			g.add(roof);
+
+			const legs = new THREE.InstancedMesh(new THREE.BoxGeometry(0.14, 2.6, 0.14), shell, 4);
+			let k = 0;
+			for (const sx of [-1, 1] as const) {
+				for (const sz of [-1, 1] as const) {
+					this.#place(sx * 1.5, 1.5, sz * 2.6);
+					legs.setMatrixAt(k++, this.#dummy.matrix);
+				}
+			}
+			legs.castShadow = true;
+			g.add(legs);
+
+			const band = new THREE.Mesh(
+				new THREE.BoxGeometry(3.5, 0.26, 6.1),
+				new THREE.MeshStandardMaterial({ color: MODE_COLOUR.brt, roughness: 0.65 })
+			);
+			band.position.set(0, 2.68, 0);
+			g.add(band);
+
+			g.position.set(0, 0, z);
+			g.visible = false;
+			this.#scene.add(g);
+			this.#shelters.push(g);
+		}
 	}
 
 	/* ── TransJakarta bus (articulated) ───────────────────────────────────── */
@@ -580,7 +793,13 @@ export class StreetWorld {
 
 		// Ground-floor shopfronts — front row only. A shopfront on a building standing
 		// behind another block faces nobody.
-		const fronts = boxes.filter((b) => b.front);
+		//
+		// Ordered nearest the stop first, and it matters: in a catchment the first few of
+		// these are painted as the competitors already trading here, and they have to be
+		// the ones a reader can actually see. `#signSpots` above is sorted the same way,
+		// so the Nth board and the Nth red frontage land on the SAME building and one
+		// competitor reads as one shop rather than as two marks.
+		const fronts = boxes.filter((b) => b.front).sort((a, b) => Math.abs(a.z) - Math.abs(b.z));
 		this.#shopfronts = new THREE.InstancedMesh(
 			new THREE.BoxGeometry(0.26, 2.4, 1),
 			new THREE.MeshBasicMaterial({ toneMapped: false }),
@@ -976,11 +1195,7 @@ export class StreetWorld {
 		this.#hemi.groundColor.set(d.groundColor).lerp(WHITE, 0.45);
 		this.#hemi.intensity = d.ambientIntensity;
 
-		if (Math.abs(d.windowLights - this.#lastWindowLevel) > 0.012) {
-			this.#lastWindowLevel = d.windowLights;
-			this.#paintLights(d);
-		}
-
+		const catchment = this.#state.variant === 'catchment';
 		const tint = CATEGORY_TINT[this.#state.category] ?? CATEGORY_TINT.kopi;
 		this.#proposedMat.color.setHex(tint);
 		this.#proposedMat.emissive.setHex(tint);
@@ -994,7 +1209,26 @@ export class StreetWorld {
 			? 0
 			: Math.max(0, Math.min(this.#signSpots.length, Math.round(this.#state.rivals)));
 		this.#rivalMarks.count = rivals;
-		(this.#rivalMarks.material as THREE.MeshStandardMaterial).color.setHex(tint);
+		// The same competitors, on the same buildings, one storey down. Only in a
+		// catchment: the story's front row is its street, not somebody's competition.
+		this.#rivalFronts = catchment ? Math.min(this.#shopfronts.count, rivals) : 0;
+		// In the story a competitor wears the category's own faint tint, because the whole
+		// scene is about that one trade. In a catchment it wears the red it is drawn in on
+		// the map and counted in on the card: here it is not the subject, it is what is
+		// already standing where the reader is thinking of opening.
+		(this.#rivalMarks.material as THREE.MeshStandardMaterial).color.setHex(
+			catchment ? RIVAL_COLOUR : tint
+		);
+
+		// Keyed on the competitors as well as the light: the shopfronts carry both, and
+		// keyed on the light alone a change of business type repainted nothing.
+		const paintKey = `${d.windowLights.toFixed(2)}|${this.#rivalFronts}`;
+		if (paintKey !== this.#lastPaintKey) {
+			this.#lastPaintKey = paintKey;
+			this.#paintLights(d);
+		}
+
+		this.#applyTransit(catchment);
 
 		// A lot's lines must always work against their ground: white over a dark model,
 		// dark over a model lit by midday sun. Pinned to white, they disappear at exactly
@@ -1018,6 +1252,57 @@ export class StreetWorld {
 		if (this.#reduced) this.renderOnce();
 	}
 
+	/**
+	 * The stops this catchment actually has, revealed by the counts on the grid.
+	 *
+	 * The story keeps its street whole: one platform, one bus, no entrances. It stands
+	 * for the product rather than for a place, and a landing page whose bus disappears
+	 * would be making a claim about a cell nobody chose.
+	 *
+	 * NOT gated on `nodata`, unlike the competitors and the lots above. Those come from
+	 * the premium catalogue, which has not read every city. The transit counts come from
+	 * OpenStreetMap and are on the grid for every cell, so a catchment whose competitors
+	 * nobody has counted can still be shown the station it is standing next to, which is
+	 * the same rule the panel's own sections follow.
+	 */
+	#applyTransit(catchment: boolean) {
+		const t = this.#state.transit;
+
+		if (!catchment) {
+			this.#stopGroup.visible = true;
+			this.#bus.visible = true;
+			this.#stopBand.color.setHex(0xe6e3dd);
+			for (const e of this.#entrances) e.group.visible = false;
+			for (const g of this.#shelters) g.visible = false;
+			return;
+		}
+
+		// The platform is the first TransJakarta node, and the shelters are the rest. No
+		// corridor in range takes the platform and the bus with it, so an area that is
+		// only reachable by rail looks like one.
+		const brt = Math.max(0, Math.round(t.brt));
+		this.#stopGroup.visible = brt > 0;
+		this.#bus.visible = brt > 0;
+		this.#stopBand.color.setHex(MODE_COLOUR.brt);
+		this.#shelters.forEach((g, i) => (g.visible = i < brt - 1));
+
+		// One entrance per rail node, taking the modes in turn so a cell served by two
+		// lines shows both colours rather than five of whichever came first.
+		let i = 0;
+		for (const mode of RAIL_MODES) {
+			for (let k = 0; k < Math.max(0, Math.round(t[mode])); k++) {
+				const e = this.#entrances[i];
+				if (!e) break;
+				e.group.visible = true;
+				e.sign.color.setHex(MODE_COLOUR[mode]);
+				e.canopy.color.setHex(MODE_COLOUR[mode]).lerp(WHITE, 0.5);
+				i++;
+			}
+			if (i >= this.#entrances.length) break;
+		}
+		for (; i < this.#entrances.length; i++) this.#entrances[i].group.visible = false;
+	}
+
 	#paintLights(d: DaylightSample) {
 		const warm = new THREE.Color(0xffe3bd);
 		const cool = new THREE.Color(0xdae6f0);
@@ -1038,8 +1323,26 @@ export class StreetWorld {
 		}
 		if (this.#windows.instanceColor) this.#windows.instanceColor.needsUpdate = true;
 
+		/**
+		 * The ground floors, and the first few of them are the competition.
+		 *
+		 * This is the one thing in the model that says how crowded the trade already is,
+		 * and it says it where the eye is: a band at street level on the buildings facing
+		 * the road. The signboards above them were carrying that on their own and could
+		 * not, being 3 m of board on a face at the edge of the frame.
+		 *
+		 * Unlit on purpose. The frontage material is basic and untone-mapped, so this
+		 * colour is exactly the red the panel counts them in, at midday and at midnight
+		 * alike. A competitor that faded out after dark would be a competitor that shut,
+		 * which is a different fact and one this scene has not been told.
+		 */
+		const rival = new THREE.Color(RIVAL_COLOUR).lerp(WHITE, 0.18);
 		const m = this.#shopfronts.count;
 		for (let i = 0; i < m; i++) {
+			if (i < this.#rivalFronts) {
+				this.#shopfronts.setColorAt(i, rival);
+				continue;
+			}
 			const seed = this.#windowSeeds[n + i] ?? 0.5;
 			const level = Math.min(1, d.windowLights * 1.35);
 			this.#color
