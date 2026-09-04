@@ -49,7 +49,8 @@
 	 */
 	import { untrack } from 'svelte';
 	import { base } from '$app/paths';
-	import HexField from '$lib/components/account/HexField.svelte';
+	import CatchmentField from '$lib/components/account/CatchmentField.svelte';
+	import GridDiorama from '$lib/components/account/GridDiorama.svelte';
 	import PlanCrest from '$lib/components/account/PlanCrest.svelte';
 	import QuotaMeter from '$lib/components/account/QuotaMeter.svelte';
 	import WeekStrip from '$lib/components/account/WeekStrip.svelte';
@@ -57,6 +58,7 @@
 	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeControl from '$lib/components/ui/ThemeControl.svelte';
 	import MeterMark from '$lib/components/ui/MeterMark.svelte';
+	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { METER_KEYS, PACKS, PACK_KEYS, PLANS, PLAN_KEYS } from '$lib/domain/plans';
 	import { AccountState } from '$lib/state/account.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -120,27 +122,42 @@
 			     under it is either a reading of that plan or an offer to change it. -->
 			<section class="bay" style:--in="0ms">
 				<div class="hero material">
-					<HexField />
-					<div class="hero-in">
-						<span class="crest"><PlanCrest plan={allowance.plan} size={38} /></span>
-						<div class="hero-text">
-							<p class="eyebrow">{c.account.currentPlan}</p>
-							<h1>{c.account.plan[allowance.plan].name}</h1>
-							<p class="price">
-								{plan.price === 0 ? c.account.priceFree : c.account.priceMonth(plan.price)}
-							</p>
+					<div class="hero-text">
+						<p class="eyebrow">{c.account.currentPlan}</p>
+						<div class="titleline">
+							<span class="crest"><PlanCrest plan={allowance.plan} size={38} /></span>
+							<div>
+								<h1>{c.account.plan[allowance.plan].name}</h1>
+								<p class="price">
+									{plan.price === 0 ? c.account.priceFree : c.account.priceMonth(plan.price)}
+								</p>
+							</div>
 						</div>
+
+						<!-- Tapak stands beside the name rather than an initial in a circle. It
+						     is the same figure that walks the diorama and answers on the map, and
+						     an account page is where a product is most tempted to introduce a
+						     stranger. -->
 						<div class="who">
-							<p class="who-name">{account.account.name}</p>
-							<p class="who-mail muted">{account.account.email}</p>
+							<TapakFigure size={30} walking={false} />
+							<div class="who-text">
+								<p class="who-name">{account.account.name}</p>
+								<p class="who-mail muted">{account.account.email}</p>
+							</div>
 							{#if account.account.demo}
-								<p><span class="tag">{c.account.demoBadge}</span></p>
+								<span class="tag">{c.account.demoBadge}</span>
 							{/if}
 						</div>
+
+						{#if account.account.demo}
+							<p class="note demo-note">{c.account.demoNote}</p>
+						{/if}
 					</div>
-					{#if account.account.demo}
-						<p class="note demo-note">{c.account.demoNote}</p>
-					{/if}
+
+					<!-- The page's one three-dimensional object. Its heights are the trade
+					     around ninety-one real cells, and it is marked as a model so nobody
+					     reads its arrangement as a map. -->
+					<GridDiorama model={data.model} />
 				</div>
 			</section>
 
@@ -157,7 +174,14 @@
 				<WeekStrip weekStart={allowance.weekStart} {refillAt} />
 			</section>
 
-			<section class="bay" style:--in="110ms">
+			<!-- What the second meter is a meter OF. "1,500 areas a week" is an allowance
+			     nobody can picture, and the picture is the city. -->
+			<section class="bay" style:--in="90ms">
+				<p class="eyebrow section-label">{c.account.fieldTitle}</p>
+				<CatchmentField field={data.field} cells={data.cells} measured={data.measured} />
+			</section>
+
+			<section class="bay" style:--in="130ms">
 				<p class="eyebrow section-label">{c.account.plans}</p>
 				<div class="tiers">
 					{#each PLAN_KEYS as key (key)}
@@ -198,7 +222,7 @@
 				<p class="note">{c.account.planNote}</p>
 			</section>
 
-			<section class="bay" style:--in="160ms">
+			<section class="bay" style:--in="170ms">
 				<p class="eyebrow section-label">{c.account.packs}</p>
 				<p class="note">{c.account.packsNote}</p>
 				<div class="packs">
@@ -316,21 +340,30 @@
 
 	/* ── the head ─────────────────────────────────────────────────────────────── */
 
+	/* Two columns: what the account is on, and the object it is on a grid of. The model
+	   is given real room rather than being a strip behind the type, because a scene
+	   squeezed to a band reads as a texture and this one is carrying readings. */
 	.hero {
 		position: relative;
 		overflow: hidden;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) minmax(14rem, 19rem);
+		gap: 1.25rem;
+		align-items: center;
 		padding: 1.25rem;
 		border-radius: var(--r-xl);
 		background: var(--bg-elevated);
 	}
-	.hero-in {
-		position: relative;
+	.hero-text {
+		min-width: 0;
 		display: flex;
-		align-items: flex-start;
-		gap: 0.875rem;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.titleline {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
 	}
 	/* The crest wears the accent here and only here. It is the one place on the page
 	   saying which tier this account is on, and the three cards below it repeat that in
@@ -345,12 +378,6 @@
 		background: var(--accent-soft);
 		color: var(--accent);
 	}
-	.hero-text {
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-	}
 	h1 {
 		font-size: 1.75rem;
 		letter-spacing: -0.026em;
@@ -361,13 +388,21 @@
 		font-weight: 550;
 		color: var(--label-2);
 	}
+
+	/* Tapak, the name and the address on one line. The figure sits on the baseline of
+	   the pair rather than above it: it is standing next to a name, not labelling it. */
 	.who {
-		margin-left: auto;
-		text-align: right;
 		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.25rem 0.5rem;
+		margin-top: 0.1875rem;
+		padding-top: 0.625rem;
+		border-top: 1px solid var(--separator);
 		font-size: 0.75rem;
+	}
+	.who-text {
+		min-width: 0;
 	}
 	.who-name {
 		font-weight: 650;
@@ -377,8 +412,6 @@
 	}
 	.demo-note {
 		position: relative;
-		padding-top: 0.625rem;
-		border-top: 1px solid var(--separator);
 	}
 
 	/* ── the meters ───────────────────────────────────────────────────────────── */
@@ -543,19 +576,12 @@
 		margin-top: 0.5rem;
 	}
 
-	/* On a narrow screen the head stacks: the identity drops under the plan rather than
-	   being squeezed against it, because a right-aligned column two words wide reads as
-	   a mistake. */
-	@media (max-width: 30rem) {
-		.hero-in {
-			flex-wrap: wrap;
-		}
-		.who {
-			margin-left: 0;
-			text-align: left;
-			width: 100%;
-			padding-top: 0.625rem;
-			border-top: 1px solid var(--separator);
+	/* On a narrow screen the model drops under the plan rather than being squeezed
+	   beside it. A scene two thumbs wide is a smudge, and the type it was competing with
+	   loses as well. */
+	@media (max-width: 46rem) {
+		.hero {
+			grid-template-columns: minmax(0, 1fr);
 		}
 	}
 </style>

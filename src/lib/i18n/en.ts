@@ -1265,6 +1265,25 @@ export const en: Copy = {
 			signedout: 'Your session has ended. Sign in again.'
 		},
 
+		/* Both drawings on this page read real figures off the grid on disk rather than
+		   being decoration shaped like data. The numbers arrive as arguments, so a
+		   rebuilt grid moves the sentences with it. What is coloured is TRADE, not an
+		   opportunity score: nobody choosing a plan has named a business type, and an
+		   opportunity score without one is a score for a business they never mentioned. */
+		modelLabel: 'A model of the hexagon grid: each column stands as tall as the trade around one catchment.',
+		modelMark: 'a model, not a map',
+		fieldTitle: 'The areas you can open',
+		fieldLead: (cells: number) => `${num(cells)} catchments, each where it really is.`,
+		fieldNote: (unread: number) =>
+			unread === 0
+				? 'Coloured by the trade standing around each one, which is what the map paints before any business type has been named.'
+				: `Coloured by the trade standing around each one, which is what the map paints before any business type has been named. ${num(unread)} catchments sit in cities the catalogue has never read, and those are drawn empty rather than quiet.`,
+		fieldLabel: (cells: number, read: number) =>
+			`A map of ${num(cells)} catchments, ${num(read)} of them with their trade counted.`,
+		fieldLow: 'quiet',
+		fieldHigh: 'busiest',
+		fieldNoData: 'not in the catalogue',
+
 		plans: 'Plans',
 		plan: {
 			free: {
