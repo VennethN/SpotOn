@@ -21,19 +21,8 @@ import {
 	type UnitFilter
 } from '$lib/domain/units';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
-import {
-	EMPTY_TILE,
-	areaKeyOf,
-	assembleArea,
-	decodeTile,
-	modelZoom,
-	parseRoutes,
-	tileUrl,
-	tilesCovering,
-	type DecodedTile,
-	type RouteLine,
-	type TileAddress
-} from '$lib/domain/basemap';
+import { areaKeyOf, parseRoutes, type RouteLine } from '$lib/domain/basemap';
+import { AreaReader } from './area';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_WEIGHTS, snapRadius } from '$lib/domain/weights';
 import { localMetres } from '$lib/utils/geo';
@@ -45,7 +34,6 @@ import type {
 	AiStage,
 	AreaGeometry,
 	AreaMarks,
-	BasemapSource,
 	BasemapTiles,
 	CategoryKey,
 	CategorySlice,
@@ -522,15 +510,8 @@ export class AppState {
 	#routesJob: Promise<void> | null = null;
 	/** The area reading asked for last, so a slower earlier one cannot land on top of it. */
 	#areaKey: string | null = null;
-	/**
-	 * Decoded tiles, by URL, in the order they were asked for.
-	 *
-	 * Per tile rather than per area, because a tile is a little wider than a walking
-	 * range and neighbouring cells share most of theirs: moving one cell over reads at
-	 * most one or two new tiles. Bounded, because a tile decoded is a few megabytes of
-	 * coordinates and a reader who has crossed the city has no use for the first ones.
-	 */
-	#tiles = new Map<string, Promise<DecodedTile>>();
+	/** The tiles, fetched and decoded once each. See `state/area`. */
+	#reader = new AreaReader();
 
 	constructor(base: HexBase[], meta?: GridMeta, wallet?: Wallet) {
 		this.base = base;
@@ -970,31 +951,6 @@ export class AppState {
 		return this.#routesJob;
 	}
 
-	/** One tile of the basemap, decoded, fetched at most once while it is remembered. */
-	#tile(source: BasemapSource, at: TileAddress): Promise<DecodedTile> {
-		const url = tileUrl(source, at);
-		const hit = this.#tiles.get(url);
-		if (hit) return hit;
-		const job = (async () => {
-			const res = await fetch(url);
-			// A tile with nothing in it is answered with nothing rather than with an
-			// error, which is how MapLibre reads the same two statuses.
-			if (res.status === 204 || res.status === 404) return EMPTY_TILE;
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			return decodeTile(await res.arrayBuffer(), source, at);
-		})();
-		// Forgotten on failure, so the next area asks again rather than every later one
-		// being answered by the request that failed.
-		job.catch(() => this.#tiles.delete(url));
-		this.#tiles.set(url, job);
-		const MAX_TILES = 16;
-		if (this.#tiles.size > MAX_TILES) {
-			const oldest = this.#tiles.keys().next().value;
-			if (oldest !== undefined) this.#tiles.delete(oldest);
-		}
-		return job;
-	}
-
 	/**
 	 * Read the basemap around the point the range is measured from, at the current
 	 * radius, and cut it to the walking range.
@@ -1022,19 +978,9 @@ export class AppState {
 		const radius = this.weights.radius;
 		try {
 			await this.loadRoutes();
-			// Every source the style draws buildings from, each at the zoom it goes to.
-			// A source with nothing for this city answers with empty tiles, which cost a
-			// request each and nothing more.
-			let zoom = 0;
-			const jobs: Promise<DecodedTile>[] = [];
-			for (const source of basemap.sources) {
-				const z = modelZoom(source);
-				zoom = Math.max(zoom, z);
-				for (const at of tilesCovering(from, radius, z)) jobs.push(this.#tile(source, at));
-			}
-			const tiles = await Promise.all(jobs);
+			const geometry = await this.#reader.read(basemap, from, radius, this.routes ?? [], key);
 			if (this.#areaKey !== key) return;
-			this.area = assembleArea(tiles, from, radius, this.routes ?? [], key, zoom);
+			this.area = geometry;
 		} catch {
 			if (this.#areaKey === key) this.areaFailedKey = key;
 		}

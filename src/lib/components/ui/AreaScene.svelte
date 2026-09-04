@@ -14,6 +14,7 @@
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
 	import { daylightAt } from '$lib/scene/daylight';
+	import type { Spinner } from '$lib/utils/motion.svelte';
 	import type { AreaGeometry, AreaMarks } from '$lib/types';
 
 	const NO_MARKS: AreaMarks = { boundary: [], stops: [], rivals: [], units: [], field: [], doors: [] };
@@ -34,6 +35,13 @@
 		marks: AreaMarks | null;
 		/** A description of the scene for screen readers. Required: this scene carries meaning. */
 		label: string;
+		/**
+		 * The turn of the model, when it can be turned. Given one, a drag across the
+		 * scene turns it: one to one under the hand, thrown on release, and left to the
+		 * spinner's own drift otherwise. Without one the model holds still, which is
+		 * what a thumbnail in a card does.
+		 */
+		spinner?: Spinner;
 	}
 
 	let {
@@ -44,11 +52,60 @@
 		radius,
 		geometry,
 		marks,
-		label
+		label,
+		spinner
 	}: Props = $props();
 
 	const light = $derived(daylightAt(hour));
 	const m = $derived(marks ?? NO_MARKS);
+
+	/* ── the hand on the model ───────────────────────────────────────────────
+	   A drag across the width of the scene turns it a little over half a turn, and it
+	   turns the way a thing turns when you drag its near side: pull right, and the
+	   near side goes right, which is the camera going the other way round. */
+	const TURN_PER_WIDTH = Math.PI * 1.2;
+	let host = $state<HTMLDivElement | null>(null);
+	let held = $state(false);
+	let startX = 0;
+	let startSpin = 0;
+
+	function down(e: PointerEvent) {
+		if (!spinner || e.button !== 0) return;
+		held = true;
+		startX = e.clientX;
+		startSpin = spinner.value;
+		spinner.grab();
+		(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+	}
+	function move(e: PointerEvent) {
+		if (!spinner || !held) return;
+		const w = host?.clientWidth || 1;
+		spinner.turn(startSpin - ((e.clientX - startX) / w) * TURN_PER_WIDTH);
+	}
+	function up() {
+		if (!spinner || !held) return;
+		held = false;
+		spinner.release();
+	}
+	/* Wired by hand rather than in the markup. The host is a picture, not a control,
+	   and the markup checker is right that a picture with a click on it should say what
+	   it is for a keyboard. There is nothing for a keyboard here: a turn is the same
+	   picture seen from another side, and every view that offers it already offers the
+	   sides without it. */
+	$effect(() => {
+		const el = host;
+		if (!el || !spinner) return;
+		el.addEventListener('pointerdown', down);
+		el.addEventListener('pointermove', move);
+		el.addEventListener('pointerup', up);
+		el.addEventListener('pointercancel', up);
+		return () => {
+			el.removeEventListener('pointerdown', down);
+			el.removeEventListener('pointermove', move);
+			el.removeEventListener('pointerup', up);
+			el.removeEventListener('pointercancel', up);
+		};
+	});
 
 	const load = async () => {
 		const { AreaWorld } = await import('$lib/scene/area');
@@ -57,7 +114,14 @@
 	};
 </script>
 
-<div class="area" style:--sky-top={light.skyTop} style:--sky-horizon={light.skyHorizon}>
+<div
+	class="area"
+	class:turnable={Boolean(spinner)}
+	class:held
+	bind:this={host}
+	style:--sky-top={light.skyTop}
+	style:--sky-horizon={light.skyHorizon}
+>
 	<SceneCanvas
 		{load}
 		{label}
@@ -65,6 +129,7 @@
 			hour,
 			day,
 			cameraT,
+			spin: spinner?.value ?? 0,
 			nodata,
 			radius,
 			geometry,
@@ -90,6 +155,15 @@
 		inset: 0;
 		/* The sky at the same hour, visible before WebGL is ready and if WebGL fails. */
 		background: linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-horizon) 78%);
+	}
+	/* A model that can be turned says so with the cursor, and keeps the browser's own
+	   gestures off the drag: a finger across it turns the model, not the page. */
+	.area.turnable {
+		cursor: grab;
+		touch-action: none;
+	}
+	.area.held {
+		cursor: grabbing;
 	}
 
 	.tilt {

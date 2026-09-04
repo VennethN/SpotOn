@@ -252,6 +252,19 @@ export const en: Copy = {
 			'A model of the hexagonal grid. Height and colour are real opportunity scores, sampled evenly across the whole grid, on the same scale as the map. Only the arrangement is schematic: the tallest are placed in the middle. Cells whose city has not been surveyed are left sunken and colourless.'
 	},
 
+	/* ── the place itself, as a model ──────────────────────────────────────
+	   One real catchment on the front page, built from the basemap the way it is
+	   inside the app, turning slowly while it is looked at. Its figure is the grid's. */
+	model: {
+		mark: 'See the place',
+		title: 'Any area can be seen as a model.',
+		lead: 'Its buildings, streets and stops are read off the same basemap, cut to the walking range, and can be turned by hand. Each building stands at the height the map records.',
+		caption: (name: string, n: number) =>
+			`${name}, the busiest catchment on the grid: ${n} businesses within walking range. The light follows Jakarta's clock at the moment this page opened.`,
+		hint: 'Drag to turn',
+		label: (name: string) => `A model of ${name}, built from the basemap, turning slowly.`
+	},
+
 	ai: {
 		mark: 'Ask the map',
 		title: 'Ask in plain language, and the map changes.',
@@ -724,7 +737,7 @@ export const en: Copy = {
 		hourValue: (h: number) => clockHour(h),
 		/* The hour on its own, no words around it, for the numerals in the corner. */
 		clock: (h: number) => clockHour(h),
-		hint: 'Drag to move through the day',
+		hint: 'Drag to move through the day, or drag the model to turn it',
 		play: 'Run the day',
 		pause: 'Stop',
 		now: 'Now',
