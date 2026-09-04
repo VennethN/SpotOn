@@ -1,5 +1,5 @@
 import { CATEGORY_KEYS } from './categories';
-import type { Hex, CategoryKey, ScoredHex, Typology, Weights } from '$lib/types';
+import type { Hex, CategoryKey, PoiSource, ScoredHex, Typology, Weights } from '$lib/types';
 
 /**
  * Mesin Opportunity Score — hitungan saja.
@@ -16,12 +16,32 @@ import type { Hex, CategoryKey, ScoredHex, Typology, Weights } from '$lib/types'
  */
 const areaFactor = (radius: number) => Math.pow(radius / 800, 2);
 
-const osmCount = (c: Hex, cat: CategoryKey, radius: number) =>
-	c.nodata ? 0 : Math.round((c.osm[cat] ?? 0) * areaFactor(radius));
+/**
+ * Cacah pesaing menurut sumber aktif. `null` berarti BELUM TERCAKUP — kota ini
+ * belum disurvei sumber tersebut.
+ *
+ * Membedakan null dari 0 adalah inti kejujuran mesin ini. Nol pesaing membuat
+ * penawaran jatuh dan skor melambung; kalau ketiadaan data ikut dibaca sebagai
+ * nol, justru wilayah yang paling sedikit diperiksa yang dinobatkan sebagai
+ * peluang terbaik — persis kebalikan dari yang dicari pengguna.
+ */
+function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
+	if (c.nodata) return 0;
+	if (source === 'mapid') {
+		if (!c.covered?.[cat]) return null;
+		return Math.round((c.mapid?.[cat] ?? 0) * areaFactor(radius));
+	}
+	return Math.round((c.osm[cat] ?? 0) * areaFactor(radius));
+}
 
-/** Skala normalisasi penawaran: catchment terpadat pada kategori ini. */
-function maxOsm(all: Hex[], cat: CategoryKey, radius: number): number {
-	return Math.max(1, ...all.filter((c) => !c.nodata).map((c) => osmCount(c, cat, radius)));
+/** Skala normalisasi penawaran: catchment terpadat pada kategori ini. Petak yang
+    belum tercakup tidak boleh ikut menentukan skala. */
+function maxPoi(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number): number {
+	const counts = all
+		.filter((c) => !c.nodata)
+		.map((c) => poiCount(c, cat, source, radius))
+		.filter((n): n is number => n !== null);
+	return Math.max(1, ...counts);
 }
 
 function typologyOf(
@@ -66,13 +86,17 @@ export function scoreOne(
 		access: c.access,
 		nStruk: c.nStruk,
 		nMenu: c.nMenu,
-		nProp: c.nProp,
-		osm: osmCount(c, cat, w.radius)
+		nProp: c.nProp
 	};
+
+	const count = poiCount(c, cat, w.source, w.radius);
 
 	if (c.nodata) {
 		return {
 			...base,
+			osm: 0,
+			source: w.source,
+			covered: false,
 			nodata: true,
 			score: null,
 			demand: null,
@@ -87,9 +111,32 @@ export function scoreOne(
 		};
 	}
 
+	// Belum tercakup: petak ini nyata dan berpenghuni, hanya saja sumber aktif
+	// belum mensurvei kotanya. Menolak memberi skor adalah jawaban yang benar —
+	// angka apa pun di sini akan mengarang persaingan yang belum pernah dilihat.
+	if (count === null) {
+		return {
+			...base,
+			osm: 0,
+			source: w.source,
+			covered: false,
+			nodata: false,
+			score: null,
+			demand: c.d?.[cat] ?? 0,
+			supply: null,
+			ramai: c.ramai?.[cat] ?? 0,
+			listings: 0,
+			nTot: c.nStruk + c.nMenu + c.nProp,
+			nontunai: c.nontunai ?? 0,
+			jam: c.jam ?? [],
+			puncak: -1,
+			typology: 'Belum tercakup'
+		};
+	}
+
 	const demand = c.d?.[cat] ?? 0;
 	const ramai = c.ramai?.[cat] ?? 0;
-	const supply = Math.min(1, (base.osm / scale) * (0.55 + 0.9 * ramai));
+	const supply = Math.min(1, (count / scale) * (0.55 + 0.9 * ramai));
 	const listings = Math.round((c.listing?.[cat] ?? 0) * areaFactor(w.radius));
 	const gate = w.gate ? (listings > 0 ? 1 : 0.15) : 1;
 	// Akses transit adalah data NYATA (OSM), tidak seperti indikator misi yang
@@ -105,6 +152,9 @@ export function scoreOne(
 
 	return {
 		...base,
+		osm: count,
+		source: w.source,
+		covered: true,
 		nodata: false,
 		score,
 		demand,
@@ -121,7 +171,7 @@ export function scoreOne(
 
 /** Skor seluruh catchment untuk satu kategori. */
 export function scoreAll(all: Hex[], cat: CategoryKey, w: Weights): ScoredHex[] {
-	const scale = maxOsm(all, cat, w.radius);
+	const scale = maxPoi(all, cat, w.source, w.radius);
 	return all.map((c) => scoreOne(c, cat, w, scale));
 }
 
@@ -135,6 +185,6 @@ export function scoreAcrossCategories(
 	if (!target) return [];
 	return CATEGORY_KEYS.map((key) => ({
 		key,
-		score: scoreOne(target, key, w, maxOsm(all, key, w.radius)).score
+		score: scoreOne(target, key, w, maxPoi(all, key, w.source, w.radius)).score
 	}));
 }

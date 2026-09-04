@@ -254,7 +254,8 @@ export const en: Copy = {
 		Kompetitif: 'Competitive',
 		Jenuh: 'Saturated',
 		'Ramai, ruang terbatas': 'Busy, little space',
-		'Belum terdata': 'No data yet'
+		'Belum terdata': 'No data yet',
+		'Belum tercakup': 'Not yet surveyed'
 	},
 
 	supply: {
@@ -395,6 +396,13 @@ export const en: Copy = {
 		zoomOut: 'Zoom out',
 		reset: 'Reset the view',
 		legendUnit: 'opportunity score',
+		sourceLabel: 'Competitor data source',
+		sourceOsm: 'OpenStreetMap — even coverage, volunteered',
+		sourceMapid: 'MAPID — surveyed, only some cities so far',
+		legendUncovered: (n: number, cat: string) =>
+			`${n} cells are not yet covered by MAPID data for ${cat} — unscored, which is not the same as having no competitors`,
+		legendUncoveredAll: (cat: string) =>
+			`No MAPID data has been imported for ${cat}, so nothing can be scored. Import the dataset, or switch back to OSM.`,
 		legendNodata: (n: number) => `${n} cells have no data, left unscored`,
 		ask: 'Or ask your own…',
 		askAria: 'Ask Tapak',

@@ -259,7 +259,8 @@ export const id = {
 		Kompetitif: 'Bersaing ketat',
 		Jenuh: 'Sudah jenuh',
 		'Ramai, ruang terbatas': 'Ramai, tempat terbatas',
-		'Belum terdata': 'Belum terdata'
+		'Belum terdata': 'Belum terdata',
+		'Belum tercakup': 'Belum tercakup'
 	},
 
 	supply: {
@@ -401,6 +402,13 @@ export const id = {
 		zoomOut: 'Perkecil',
 		reset: 'Kembalikan tampilan awal',
 		legendUnit: 'skor peluang',
+		sourceLabel: 'Sumber data pesaing',
+		sourceOsm: 'OpenStreetMap — merata, dikumpulkan sukarela',
+		sourceMapid: 'MAPID — tersurvei, baru sebagian kota',
+		legendUncovered: (n: number, cat: string) =>
+			`${n} petak belum tercakup data MAPID untuk ${cat} — tidak dinilai, bukan berarti tanpa pesaing`,
+		legendUncoveredAll: (cat: string) =>
+			`Data MAPID untuk ${cat} belum diimpor sama sekali, jadi tidak ada petak yang bisa dinilai. Impor datasetnya, atau kembali ke OSM.`,
 		legendNodata: (n: number) => `${n} petak belum terdata, tidak dinilai`,
 		ask: 'Atau tanya sendiri…',
 		askAria: 'Tanya Tapak',

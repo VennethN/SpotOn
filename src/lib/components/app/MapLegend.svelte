@@ -18,6 +18,13 @@
 	const c = $derived(copy());
 	const coverage = $derived(app.coverage);
 
+	/* Petak yang tidak dinilai karena sumber aktif belum mencakup kota +
+	   kategori ini. Tanpa keterangannya, peta MAPID untuk kategori yang belum
+	   diimpor terbaca sebagai "semua skornya nol" — kesimpulan yang persis
+	   terbalik dari apa yang sebenarnya terjadi. */
+	const uncovered = $derived(app.weights.source === 'mapid' ? coverage.belumTercakup : 0);
+	const catName = $derived(c.category[app.category].name);
+
 	let open = $state(true);
 </script>
 
@@ -48,11 +55,34 @@
 	{#if open}
 		<div class="body" id="legend-body">
 			<ScoreRamp dense nodata={c.app.legendNodata(coverage.belumTerdata)} />
+
+			{#if uncovered > 0}
+				<p class="uncovered" class:blocking={coverage.dinilai === 0}>
+					{coverage.dinilai === 0
+						? c.app.legendUncoveredAll(catName)
+						: c.app.legendUncovered(uncovered, catName)}
+				</p>
+			{/if}
 		</div>
 	{/if}
 </div>
 
 <style>
+	.uncovered {
+		margin-top: 0.5rem;
+		font-size: 0.6875rem;
+		line-height: 1.45;
+		color: var(--label-3);
+		border-left: 2px dashed var(--nodata);
+		padding-left: 0.5rem;
+	}
+	/* Kalau tidak ada satu pun petak yang bisa dinilai, ini bukan catatan kaki —
+	   itu satu-satunya hal di panel ini yang perlu dibaca. */
+	.uncovered.blocking {
+		color: var(--label-1);
+		border-left-color: var(--warn);
+	}
+
 	.legend {
 		position: fixed;
 		left: 0.75rem;

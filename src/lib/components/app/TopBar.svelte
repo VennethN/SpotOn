@@ -5,7 +5,7 @@
 	import { CATEGORIES } from '$lib/domain/categories';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
-	import type { CategoryKey } from '$lib/types';
+	import type { CategoryKey, PoiSource } from '$lib/types';
 
 	const app = getAppState();
 	const c = $derived(copy());
@@ -34,6 +34,18 @@
 				label: c.category[def.key].short,
 				hint: c.category[def.key].name
 			}))}
+		/>
+	</div>
+
+	<div class="source">
+		<Segmented
+			label={c.app.sourceLabel}
+			value={app.weights.source}
+			onchange={(v: PoiSource) => app.setSource(v)}
+			options={[
+				{ value: 'osm', label: 'OSM', hint: c.app.sourceOsm },
+				{ value: 'mapid', label: 'MAPID', hint: c.app.sourceMapid }
+			]}
 		/>
 	</div>
 
