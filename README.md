@@ -64,7 +64,7 @@ src/routes/
   +page.server.ts  angka & percakapan contoh landing, dihitung mesin skor
   app/             WebGIS
   api/             endpoint
-scripts/         pembangun data (Overpass); helper bersamanya di scripts/lib/
+scripts/         pembangun data (Overpass + MAPID); helper bersamanya di scripts/lib/
 docs/            ketentuan kompetisi, proposal, dan status implementasi
 ```
 
@@ -86,6 +86,21 @@ Bangun ulang datanya:
 node scripts/build-hexes.mjs    # kisi + akses transit + pesaing  → src/lib/data/hexes.json
 node scripts/build-routes.mjs   # geometri jalur 4 moda           → static/data/routes.json
 ```
+
+**Nyata (MAPID).** 15.835 POI pesaing dari 25 dataset katalog data premium MAPID —
+kopi, warung, minimarket, dan apotek, lengkap untuk kelima kota administrasi DKI.
+Dibaca langsung dari katalog, tanpa langkah impor manual:
+
+```bash
+node scripts/fetch-mapid.mjs    # cari + baca dari katalog  → src/lib/data/mapid-poi.json
+node scripts/join-mapid.mjs     # gabungkan ke kisi         → src/lib/data/hexes.json
+```
+
+Saklar **OSM | MAPID** di bilah atas memilih sumber mana yang menilai; keduanya lepas
+dan tidak pernah dicampur dalam satu skor. `laundry` tidak ada di katalog premium, jadi
+pada sumber MAPID ia tetap **belum tercakup** — bukan nol pesaing. Daftar dataset yang
+dibaca ada di [`docs/mapid-layers.md`](docs/mapid-layers.md); rinciannya di
+[`docs/04-data-mapid.md`](docs/04-data-mapid.md).
 
 **Contoh (mock).** Atribut khas dataset misi MAPID (Struk Go, Menu Go, Properti Go) karena
 datasetnya baru dibuka untuk 50 tim terkurasi. Strukturnya mengikuti kolom asli, dan seluruh
