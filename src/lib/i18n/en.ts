@@ -260,7 +260,7 @@ export const en: Copy = {
 		title: 'Any area can be seen as a model.',
 		lead: 'Its buildings, streets and stops are read off the same basemap, cut to the walking range, and can be turned by hand. Each building stands at the height the map records.',
 		caption: (name: string, n: number) =>
-			`${name}, the busiest catchment on the grid: ${n} businesses within walking range. The light follows Jakarta's clock at the moment this page opened.`,
+			`${name}: ${n} businesses within walking range of its centre. The light follows Jakarta's clock at the moment this page opened.`,
 		hint: 'Drag to turn',
 		label: (name: string) => `A model of ${name}, built from the basemap, turning slowly.`
 	},

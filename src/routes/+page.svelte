@@ -222,11 +222,11 @@
 		</Reveal>
 
 		<!-- The one object on this page that is a real place rather than a composition:
-		     the busiest catchment, the cell the top of the page counts, read off the
-		     basemap in the browser and turned slowly while it is in view. -->
+		     a catchment in the business district, read off the basemap in the browser and
+		     turned slowly while it is in view. -->
 		<Reveal distance={14}>
 			<div class="panel model">
-				<ModelStage cell={data.stage} radius={k.walkRadius} />
+				<ModelStage cell={data.showcase} radius={k.walkRadius} />
 			</div>
 		</Reveal>
 	</section>

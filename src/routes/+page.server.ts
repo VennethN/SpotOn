@@ -48,6 +48,9 @@ interface Script {
 
 const W = DEFAULT_WEIGHTS;
 
+/** The cell the front page models from the basemap. See `load` for why this one. */
+const SHOWCASE = 'Setiabudi Astra';
+
 export interface DemoSet {
 	id: string;
 	category: CategoryKey;
@@ -152,6 +155,15 @@ export const load: PageServerLoad = () => {
 	const busiest = scored.reduce((a, r) => (r.density > (a?.density ?? -1) ? r : a), scored[0]);
 	const topDensity = Math.max(1, ...scored.map((r) => r.density));
 
+	/* The cell modelled from the basemap further down. Chosen by name rather than by
+	   count, and the reason is what the model shows: a building stands at the height the
+	   tile carries, and a height is only visible where there are heights. The busiest
+	   cell is a kampung, which at the size of a whole disc is a texture. Setiabudi is the
+	   business district, and its towers are what a reader can see the model doing. The
+	   figure beside it is still that cell's own count. Should the grid ever lose the
+	   cell, the busiest stands in rather than the page breaking. */
+	const shown = scored.find((r) => r.name === SHOWCASE) ?? busiest;
+
 	/**
 	 * WHAT THE MAP LOOKS LIKE AFTER EACH QUESTION.
 	 *
@@ -231,18 +243,21 @@ export const load: PageServerLoad = () => {
 		queryMaps,
 		spread,
 		field,
-		/* The same cell stands twice: on the composed street at the top, and as itself,
-		   modelled from the basemap, further down. Where it is and its own boundary go
-		   with it so the model can be read in the browser around the real point. */
 		stage: {
 			name: busiest.name,
-			lat: busiest.lat,
-			lon: busiest.lon,
-			boundary: busiest.boundary,
 			businesses: busiest.density,
 			rivals: busiest.osm,
 			units: busiest.units,
 			share: Math.min(1, busiest.density / topDensity)
+		},
+		/* The cell modelled from the basemap. Where it is and its own boundary go with
+		   it so the model can be read in the browser around the real point. */
+		showcase: {
+			name: shown.name,
+			lat: shown.lat,
+			lon: shown.lon,
+			boundary: shown.boundary,
+			businesses: shown.density
 		},
 		conversation
 	};
