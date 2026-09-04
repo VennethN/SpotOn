@@ -128,7 +128,7 @@ Copy `.env.example` to `.env` and fill it in.
 | Variable | What it does |
 | --- | --- |
 | `OPENROUTER_API_KEY` | language understanding. Without it the app still works, questions fall back to the rule parser, and every figure is still computed by the scoring engine. |
-| `OPENROUTER_MODEL` | optional model override |
+| `OPENROUTER_MODEL` | optional model override: one slug pins one model, several separated by commas replace the whole fallback chain and are tried left to right. Empty means the free chain in `src/lib/server/llm.ts`. |
 | `PUBLIC_MAPID_MAP_KEY` | the MAPID MAPS **Map Service key**. The style URL is built from it, and the light or dark style is picked to match the reader's theme. |
 | `PUBLIC_MAPID_STYLE_URL` | a full style **URL**, for a style the app does not know about. Wins over the key, and pins one style regardless of theme. A bare key left in here is read as a key, because this is where the key used to go. |
 | `MAPID_API_KEY` | read by the data scripts, not by the application |
@@ -553,6 +553,82 @@ because the reply is now streamed onto the reader's screen as the model writes i
 check that only ran at the end would put "warteg biasanya balik modal dalam 8 bulan" in
 front of them for two seconds before taking it away. By then it has been read, which is
 the whole harm. `withinFence` in `domain/chat` is that one rule, applied in both places.
+
+## It is a thread, and the thread is part of the question
+
+Every question used to go out on its own. So somebody who was handed five catchments and
+typed "kenapa Setiabudi Astra" got the same five names back, under the same sentence,
+with nothing on screen to say the question had not been read. That is not a small
+shortfall in a guide who opens by asking what you want to open: a follow-up is BY
+DEFINITION a sentence that does not carry its own subject, and every one of them was
+parsed as though it did.
+
+So the turns before this one travel with it, in `AskInput.history`, and the model reads
+them as ordinary messages. That is the whole mechanism, and it is deliberately the only
+one: there is no table here of the shapes a follow-up may take. "Kenapa yang itu",
+"bandingkan dua teratas", "kalau apotek", "coba yang 500 m" are all the same to this
+code, which is that they are read in context and the understanding layer decides, per
+turn, whether answering needs data at all. A phrasebook would be the wrong shape twice
+over: it would be wrong the first time somebody said something not in it, and it would
+have to be kept in step with a model that does not need it.
+
+Three rules hold it up, and each of them is one of this file's existing rules applied to
+a conversation:
+
+- **The reader's words travel whole. Tapak's do not.** An answer is mostly figures, and
+  a figure the model has seen written down is a figure it can write down again in a
+  casual reply, where nothing recomputes it. So an answer goes back as the NAMES it put
+  on screen and nothing else, and any sentence riding along has to clear the very fence
+  a casual reply clears, which is `domain/chat`'s and which no digit clears. What a
+  follow-up points at is a name. A name is all this has to carry.
+- **The thread is read as input, not as our own output coming back.** Anything can post
+  to `/api/ai/query`. The turns are capped in number and in length, the roles are read
+  as a closed pair, and anything that is not a string is dropped. Nothing is trusted for
+  looking familiar.
+- **The engine is told less than the model is.** `resolveQuestion` hands the model the
+  whole thread and hands the scoring engine one list of names. The engine knows all 562
+  catchments and cannot know which of them were on screen a moment ago, and that is the
+  only thing about the conversation it needs.
+
+### EXPLAIN, the one shape that was missing
+
+`domain/metrics` already separates the SHAPE of a question from the MEASURE it is about,
+and every shape there answered "which places". None of them answered "why that one",
+which is the question a reader asks the moment they have been handed a list. So `EXPLAIN`
+takes one named catchment and hands back the parts its score is made of.
+
+Nothing new is computed for it. The row comes off the same `scoreAll` on the same grid as
+every ranking, and what the intent adds is only that its parts travel SEPARATELY, in
+`AiAnswer.explain`, so the reply can be rebuilt in the reader's language. That is the
+same split `measure` already makes on a recommendation row, and it is why the reply is
+not the engine's `why` line: that line is API output and is pinned to Indonesian.
+
+Four things about it are worth knowing before changing it:
+
+- **`target` is read before the sentence.** "Kenapa yang itu" carries no name at all.
+  The understanding layer resolves it against the thread and writes the name into
+  `target`, and only a query that carries none falls back to reading names out of the
+  question. `COMPARE` now reads it the same way, which is what makes "bandingkan dua
+  teratas" work: it used to read the sentence alone, so it could only ever be used by
+  somebody who typed both names into the very message asking for the comparison.
+- **An explanation needs a business type**, for the same reason a ranking by opportunity
+  score does. There is no score to take apart until somebody has said what for, and
+  `runQuery` asks rather than picking one.
+- **Nothing in `field` is in `Explanation`.** The surveys are evidence beside a score and
+  never a term in it, so a shape whose whole job is to say what a score is MADE OF is the
+  last place they belong. Listed among the parts, "nobody has been down this street"
+  reads as one of the reasons for the number.
+- **No filters ride on it.** One named place is not a pool to narrow, and a chip row
+  saying "cheap space" under a reply about one catchment would claim a narrowing that
+  never happened.
+
+The rule parser gets the narrow half of this, exactly as it gets the narrow half of chat.
+It recognises a why-word plus either a name from the conversation or a pointer and
+nothing else, which is the same test `ruleChatTopic` applies to a greeting and for the
+same reason: "kenapa lokasi penting" is a question carrying its own subject, and
+answering it with one catchment's arithmetic would be answering something nobody asked.
+The long tail is not pinned in `selftest-nlq.mjs` and must not be grown there. With no
+key at all the plain forms work, and everything else is the model's job.
 
 ## The greeting knows the hour and nothing else
 
