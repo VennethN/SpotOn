@@ -76,7 +76,8 @@ src/lib/
   components/
     app/           the WebGIS surface — components that read AppState
     landing/       the landing page's own composition
-    ui/            stateless components, used by both surfaces
+    account/       the account page: quota meters, the week strip, plan crests
+    ui/            stateless components, shared between the surfaces
 src/hooks.server.ts  reads the session cookie into `locals.account`, once per request
 src/routes/
   +page.svelte     landing
