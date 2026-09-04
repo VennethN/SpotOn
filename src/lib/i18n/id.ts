@@ -1308,7 +1308,7 @@ export const id = {
 		demoHead: 'Mode demo',
 		demoEnter: 'Masuk sebagai akun demo',
 		demoWhy:
-			'Tidak ada basis data yang dipasang, jadi SpotOn jalan dengan satu akun contoh. Kuota, paket, dan pembelian semuanya tetap berjalan seperti aslinya, cuma disimpan di memori server dan hilang begitu servernya berhenti.',
+			'Tidak ada database yang dipasang, jadi SpotOn jalan dengan satu akun contoh. Kuota, paket, dan pembelian semuanya tetap berjalan seperti aslinya, cuma disimpan di memori server dan hilang begitu servernya berhenti.',
 		demoBadge: 'Akun demo',
 		demoNote: 'Akun ini tidak disimpan di mana pun. Isinya hilang begitu server berhenti.',
 
@@ -1316,7 +1316,7 @@ export const id = {
 			credentials: 'Email atau kata sandinya tidak cocok.',
 			taken: 'Alamat itu sudah dipakai akun lain.',
 			invalid: 'Isiannya belum lengkap, atau kata sandinya terlalu pendek.',
-			unavailable: 'Basis datanya tidak bisa dihubungi. Coba sebentar lagi.',
+			unavailable: 'Database-nya tidak bisa dihubungi. Coba sebentar lagi.',
 			signedout: 'Sesi Anda sudah berakhir. Masuk lagi ya.'
 		},
 
