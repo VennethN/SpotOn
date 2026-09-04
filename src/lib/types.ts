@@ -787,6 +787,29 @@ export interface AiAnswer {
 	 * it back. Absent on every other shape of answer.
 	 */
 	explain?: Explanation;
+	/**
+	 * The answer, written by the model from the figures this turn computed.
+	 *
+	 * WHY THE MODEL IS ALLOWED TO WRITE THIS
+	 *
+	 * Because the alternative was a state machine. An operation ran and an interface
+	 * template read the result out, so every ranking opened with the same clause and two
+	 * different questions about one catchment came back word for word identical. A guide
+	 * that answers "why that one" and "is the rent any good there" with the same
+	 * paragraph is not answering either.
+	 *
+	 * WHAT IT DOES NOT CHANGE
+	 *
+	 * Every figure in it was still computed by `domain/scoring` on the data. The model is
+	 * handed the ones this turn produced and may write those and NO OTHERS, which
+	 * `domain/grounded` checks after the fact rather than asking for in a prompt. A reply
+	 * carrying a figure nobody computed is thrown away whole.
+	 *
+	 * Absent whenever there is no model, the writing pass timed out, or the reply broke
+	 * that fence. The interface then composes its own sentence from the same figures, so
+	 * this is never the only way an answer can be said.
+	 */
+	reply?: string;
 	headline: string;
 	items: Recommendation[];
 	/** Ids of the catchments highlighted on the map. */
@@ -817,7 +840,16 @@ export type AiStage =
 	/** The model has named the operation and is writing out its arguments. */
 	| 'choosing'
 	/** The operation is understood and the scoring engine is running it on the data. */
-	| 'computing';
+	| 'computing'
+	/**
+	 * The figures are in and the model is writing the answer from them.
+	 *
+	 * Last, and after `computing` rather than instead of it, because that is the order the
+	 * work happens in: nothing is written until there is something to write about. It is
+	 * the one stage a reader could be forgiven for thinking is the whole job, so it says
+	 * what it is rather than "thinking".
+	 */
+	| 'writing';
 
 /**
  * One line of a streamed answer.

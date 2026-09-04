@@ -225,7 +225,7 @@ export const en: Copy = {
 		p3: 'The questions are samples. The numbers are not: every colour and value here comes from the same engine the app runs.',
 		meet: {
 			title: 'Meet Tapak, your guide.',
-			body: 'Tapak reads the question, works out what to look up, then answers with the reasons attached. Not one figure in that answer is written by the model. Every one is computed by the scoring engine on the data, and where a catchment has never been surveyed, Tapak says so rather than filling the gap.'
+			body: 'Tapak reads the question, works out what to look up, then answers with the reasons attached. The model writes the sentence. It does not write the figures: every one of those is computed by the scoring engine on the data, and a figure that is not among them is thrown out before it reaches the screen. Where a catchment has never been surveyed, Tapak says so rather than filling the gap.'
 		},
 		mapEmpty: 'Map of 562 catchments around Jakarta transit, waiting for the first question.',
 		mapLabel: (kind: string) =>
@@ -237,7 +237,10 @@ export const en: Copy = {
 			reading: 'One moment, I am reading your question',
 			retrying: 'No answer from that one, trying another',
 			choosing: 'I have it, working out what to look up',
-			computing: 'Now counting it up from my notes'
+			computing: 'Now counting it up from my notes',
+			/* The figures exist by the time this line shows. What is left is the
+			   sentence, and saying so is more honest than "one moment". */
+			writing: 'I have the figures, putting the answer together'
 		},
 		more: (n: number) => `+${n} more in the app`,
 		play: 'Play conversation',
