@@ -814,6 +814,17 @@ export const en: Copy = {
 			access: 'Transit access',
 			space: 'Units on the market'
 		},
+		/* The comparator under each index. A count is its own comparator, 207
+		   businesses is a number anybody can picture, and an index is not: 65 out of
+		   100 means nothing until it is set against the rest of the grid. So the four
+		   indices say where they sit among every area that has one, the way the price
+		   already does on its own panel, and the counts get none. */
+		standing: (persen: number) => `higher than ${persen}% of areas`,
+		standingLowest: 'the lowest of all areas',
+		standingNearLowest: 'among the lowest of all areas',
+		standingHighest: 'the highest of all areas',
+		standingNote:
+			'Each "higher than" sets this area against every other area that has that figure, for the same business type and walking range.',
 		/* ── Transit access ─────────────────────────────────────────────────
 		   Written for a reader who does not read index numbers. The station names
 		   lead: "Blok M" can be pictured, checked and argued with; "access 0.82"
