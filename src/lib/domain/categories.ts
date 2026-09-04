@@ -18,7 +18,15 @@ export interface CategoryDef {
 	osmTag: string | null;
 	/** The MAPID dataset the competitor count comes from — shown so the figure can be traced. */
 	mapidSet: string;
-	/** The Properti Go category considered a match for this kind of business. */
+	/**
+	 * The Properti Go category considered a match for this kind of business.
+	 *
+	 * THIS IS THE LABEL THE READER SEES, NOT A KEY TO COMPARE AGAINST RAW DATA.
+	 * It appears verbatim in the narration ("tersedia N listing Retail F&B"), so it is
+	 * spelled the way the rules spell it. The data is not spelled that way: the real
+	 * `Kategori Properti` column reads `Retail FnB`. Compare with
+	 * `matchesPropertyCategory()`, never with `===`.
+	 */
 	propertyCategory: string;
 }
 
@@ -166,4 +174,41 @@ export const CATEGORY_KEYS = CATEGORIES.map((c) => c.key);
 
 export function isCategory(v: unknown): v is CategoryKey {
 	return typeof v === 'string' && CATEGORY_KEYS.includes(v as CategoryKey);
+}
+
+/**
+ * Canonicalises a Properti Go `Kategori Properti` value so the rules' spelling and the
+ * data's spelling land on the same string.
+ *
+ * WHY THIS EXISTS
+ *
+ * The rules (§A.4.1) list the dropdown option as `Retail F&B`, and that is what
+ * `propertyCategory` says. The organisers' own sample data spells it **`Retail FnB`**.
+ * Comparing the two with `===` yields false, and false here is not a visible failure: it
+ * means zero matching listings, zero listings closes the commercial-space gate, and the
+ * gate closing suppresses the opportunity score. Seven of the thirteen categories map to
+ * that one value, so a single unnoticed character would have muted most of the F&B side
+ * of the product — silently, and in the direction that looks like a real answer.
+ *
+ * The `&` → `N` rule is what does the work: `F&B` and `FnB` are the same name written two
+ * ways, and Indonesian usage moves between them freely. Case and punctuation are dropped
+ * for the same reason — `Retail (…, dll)` and `Retail (…, dll.)` differ by a full stop
+ * that means nothing.
+ *
+ * Deliberately NOT a fuzzy match. `RETAILFNB` and `RETAILTOKOBAJU…` stay distinct, which
+ * is the whole point: a shop unit is not a restaurant unit.
+ */
+export function normPropertyCategory(v: string): string {
+	return String(v ?? '')
+		.toUpperCase()
+		.replace(/&/g, 'N')
+		.replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Does a raw `Kategori Properti` value from Properti Go count as commercial space for
+ * this business type? Use this instead of comparing `propertyCategory` directly.
+ */
+export function matchesPropertyCategory(def: CategoryDef, raw: string): boolean {
+	return normPropertyCategory(def.propertyCategory) === normPropertyCategory(raw);
 }
