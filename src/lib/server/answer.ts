@@ -94,11 +94,13 @@ export interface AskInput {
  *
  * `emit` is told which stage is running and, for a casual turn, what the model is
  * writing. It is never told a figure, because by the time any figure exists the answer
- * is finished and the whole object goes at once.
+ * is finished and the whole object goes at once. Left off entirely when nobody is
+ * listening, which is also what keeps the one-piece reply making the upstream request it
+ * has always made.
  */
 export async function resolveQuestion(
 	input: AskInput,
-	emit: (event: AiEvent) => void
+	emit?: (event: AiEvent) => void
 ): Promise<AiAnswer> {
 	const question = input.question;
 
@@ -115,13 +117,17 @@ export async function resolveQuestion(
 
 	const catchments = loadHexes();
 
-	emit({ kind: 'stage', stage: 'reading' });
+	emit?.({ kind: 'stage', stage: 'reading' });
+	/* No sink when nobody is listening, and that is not just tidiness. A sink is what
+	   makes the model layer ask OpenRouter for a STREAMED completion, and models do not
+	   all behave identically with `stream: true` alongside tools. The one-piece JSON
+	   reply has no use for fragments, so it keeps making the request it always made. */
 	const parsed = await parseWithLLM(
 		question,
 		weights,
 		fallback,
 		input.lang === 'en' ? 'en' : 'id',
-		{
+		emit && {
 			delta: (text) => emit({ kind: 'delta', text }),
 			reset: () => emit({ kind: 'reset' })
 		}
@@ -160,7 +166,7 @@ export async function resolveQuestion(
 
 	// Said before the engine runs rather than after, which is the only way round that
 	// means anything: a stage announced once its work is done is a caption, not a state.
-	emit({ kind: 'stage', stage: 'computing' });
+	emit?.({ kind: 'stage', stage: 'computing' });
 
 	return parsed
 		? { ...runQuery(parsed.query, question, catchments, weights), parsedBy: 'model' }

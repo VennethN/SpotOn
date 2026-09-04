@@ -1,10 +1,22 @@
 import { env } from '$env/dynamic/private';
 import { CATEGORIES, CATEGORY_KEYS, normalizeCategories } from '$lib/domain/categories';
-import { CHAT_TOPICS, cleanChatReply, isChatTopic, type ChatTopic } from '$lib/domain/chat';
+import {
+	CHAT_TOPICS,
+	cleanChatReply,
+	isChatTopic,
+	ruleChatTopic,
+	type ChatTopic
+} from '$lib/domain/chat';
 import { DEFAULT_METRIC, METRIC_KEYS, isMetric, resolveOrder } from '$lib/domain/metrics';
 import { UNIT_METRIC_KEYS, isUnitMetric, resolveUnitOrder } from '$lib/domain/units';
 import { RADII, snapRadius } from '$lib/domain/weights';
-import { Preview, readStream, type ChatSink, type ToolCall } from '$lib/server/stream';
+import {
+	Preview,
+	readStream,
+	type ChatSink,
+	type Completion,
+	type ToolCall
+} from '$lib/server/stream';
 import type {
 	CategoryKey,
 	MetricKey,
@@ -414,8 +426,20 @@ export async function parseWithLLM(
 			}
 		],
 		tools: TOOLS,
-		// The model must pick one of the tools — including the "I don't understand" one.
-		tool_choice: 'required',
+		/* The tools are OFFERED, not forced, and the prompt above is what asks for one.
+		   `tool_choice: 'required'` used to be set here, and it cost more than it bought.
+		   Free models vary in how well they honour it: several answer a plain "halo" with
+		   a malformed call or with prose anyway, and prose was read as a failure, so the
+		   turn fell through the whole chain to the rule parser. Somebody saying hello got
+		   the narrow rule-based greeting, or nothing.
+
+		   So a completion with no tool call is now read as what it plainly is, a casual
+		   reply, and it goes through the SAME fence in `domain/chat` that `ngobrol`'s
+		   does. That fence is what makes this safe rather than merely lenient: a model
+		   that skips the tools and answers a data question in fluent invented prose
+		   writes a digit while doing it, the reply is thrown away, and the turn moves on
+		   to a model that will call `jalankan_query` — or to the rule parser, which
+		   computes the figures from data. */
 		// Required, and not merely a cost saving. Without this line OpenRouter
 		// reserves the model's entire output window (tens of thousands of tokens)
 		// up front, then rejects the request with a 402 if the key's remaining
@@ -464,28 +488,45 @@ export async function parseWithLLM(
 				continue;
 			}
 
-			let got: ToolCall | undefined;
+			let got: Completion;
 			if (preview) {
 				got = await readStream(res, preview);
 			} else {
-				const data = await res.json();
-				got = data?.choices?.[0]?.message?.tool_calls?.[0];
-			}
-			if (!got?.function?.name) {
-				// The model answered, but wrote prose instead of calling a tool. To this
-				// layer that is exactly as useless as a network error.
-				console.error(`[SpotOn] ${model} called no tool; moving on to the next model.`);
-				// Half a sentence from a model that then failed to name an operation is
-				// not an answer to anything, and leaving it on screen while the next
-				// model starts writing over it would read as one reply contradicting
-				// itself.
-				preview?.clear();
-				continue;
+				const message = (await res.json())?.choices?.[0]?.message;
+				got = {
+					call: message?.tool_calls?.[0],
+					content: typeof message?.content === 'string' ? message.content : undefined
+				};
 			}
 
-			if (i > 0) console.error(`[SpotOn] Answered by fallback model: ${model}`);
-			call = got;
-			break;
+			if (got.call?.function?.name) {
+				if (i > 0) console.error(`[SpotOn] Answered by fallback model: ${model}`);
+				call = got.call;
+				break;
+			}
+
+			/* No tool call, so read the prose as the casual reply it almost always is.
+			   Held to the same fence as `ngobrol`'s own reply: `cleanChatReply` returns
+			   null for anything carrying a digit or running long, and null here is not a
+			   chat turn at all. That is deliberate rather than a canned line — a model
+			   that answered a data question in prose has not chatted, it has guessed, and
+			   the next model in the chain deserves the turn. */
+			const prose = cleanChatReply(got.content);
+			if (prose) {
+				if (i > 0) console.error(`[SpotOn] Answered by fallback model: ${model} (prose)`);
+				// The topic is read off the QUESTION, never off the reply. It only decides
+				// which canned line stands in when there is no sentence, and there is one
+				// here, so a wrong guess costs nothing and a guess read off the model's
+				// own words would be the model labelling itself.
+				return { ok: false, chat: ruleChatTopic(question) ?? 'usaha', text: prose };
+			}
+
+			console.error(`[SpotOn] ${model} called no tool and wrote nothing usable; moving on.`);
+			// Half a sentence from a model that then said nothing usable is not an answer
+			// to anything, and leaving it on screen while the next model starts writing
+			// over it would read as one reply contradicting itself.
+			preview?.clear();
+			continue;
 		} catch (err) {
 			// Includes timeouts (AbortError). Not a reason to fail the request.
 			console.error(`[SpotOn] ${model} failed:`, (err as Error).message);
@@ -495,7 +536,7 @@ export async function parseWithLLM(
 		}
 	}
 
-	// The whole chain ran out without a single tool call → rule-based parser.
+	// The whole chain ran out without a tool call or a usable sentence → rule parser.
 	if (!call) return null;
 
 	/* Whatever the preview put on screen survives exactly ONE ending: a casual reply
