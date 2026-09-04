@@ -123,9 +123,6 @@
 		records.filter((r) => r.photo && !broken.includes(r.id)).slice(0, PHOTOS)
 	);
 
-	/** How many readings a share or a median needs before the join writes one. Read from
-	    the grid's own metadata, so raising the rule moves the sentence explaining it. */
-	const minReadings = $derived(app.meta?.mission?.minReadings ?? 0);
 	const mission = $derived(app.meta?.mission ?? null);
 
 	/** Receipts whose payment method was recognised. The share is taken over these, so
@@ -218,7 +215,7 @@
 						{#if stats.nontunai !== null}
 							{c.field.cashless(Number(pct(stats.nontunai)))}
 						{:else}
-							{c.field.cashlessThin(paid, minReadings)}
+							{c.field.cashlessThin(paid)}
 						{/if}
 					</p>
 					{#if methods.length}
@@ -239,7 +236,7 @@
 						{#if stats.harga !== null}
 							{c.field.menuTypical(stats.harga)}
 						{:else}
-							{c.field.menuTypicalThin(menus.length, minReadings)}
+							{c.field.menuTypicalThin(menus.length)}
 						{/if}
 					</p>
 					{#if menus.length}

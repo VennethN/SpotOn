@@ -190,7 +190,7 @@
 			<!-- Published, but too few to draw. Different from nobody publishing, and the
 			     reader is told which of the two they are looking at. -->
 			<p class="read">
-				{c.activity.thin(stat.h, minReadable, stat.n, radius)}
+				{c.activity.thin(stat.h, stat.n, radius)}
 				{#if stat.p > stat.h}
 					{c.activity.refused(stat.p - stat.h)}
 				{/if}

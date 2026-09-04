@@ -172,7 +172,7 @@
 		if (app.hoursLoading) return { counted: false, note: c.zoom.stillLoading };
 		if (app.openPlacesFailed) return { counted: false, note: c.zoom.stillFailed };
 		if (stat.p === 0) return { counted: false, note: c.zoom.stillNone };
-		if (stat.h < minReadable) return { counted: false, note: c.zoom.still(stat.h, minReadable) };
+		if (stat.h < minReadable) return { counted: false, note: c.zoom.still(stat.h) };
 		return { counted: true, note: null };
 	});
 
@@ -363,7 +363,7 @@
 
 			<p class="basis">
 				{#if crowd.counted}
-					{c.zoom.basis(radius)}
+					{c.zoom.basis()}
 				{:else}
 					{c.zoom.hint}
 				{/if}

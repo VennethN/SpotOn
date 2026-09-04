@@ -185,8 +185,18 @@ const SUBJECT_Z1 = LOT_ROWS[LOT_ROWS.length - 1] + PAD / 2 + 1.8;
  * out of its way and a station beside it. Nothing about it can be mistaken for the
  * corridor: different direction, different ground, different colour.
  */
-const RAIL_Z = -34;
+const RAIL_Z = -33;
 const RAIL_HALF = 5.5;
+/**
+ * The ground the line needs, which is more than the track it lays.
+ *
+ * A railway crossing a block does not thread between the buildings: it goes through
+ * where they were, and the station stands on cleared ground beside it. The apron is
+ * on the far side of the track, away from the road, so the clearing comes out of the
+ * end of the block rather than out of the middle of the street.
+ */
+const RAIL_APRON = 8.5;
+const RAIL_CLEAR: [number, number] = [RAIL_Z - RAIL_HALF - RAIL_APRON, RAIL_Z + RAIL_HALF + 1];
 /**
  * Where a station may stand along the line. Never over the road itself, and ordered
  * outwards from it, so one station lands beside the crossing where the reader is
@@ -195,7 +205,7 @@ const RAIL_HALF = 5.5;
 const RAIL_STOPS = [16, -16, 24, -24, 32, -32, 40, -40];
 const MAX_RAIL_STOPS = RAIL_STOPS.length;
 /** Anything else on the block keeps out of the crossing. */
-const inRailBand = (z: number) => Math.abs(z - RAIL_Z) < RAIL_HALF + 1.6;
+const inRailBand = (z: number) => z > RAIL_CLEAR[0] && z < RAIL_CLEAR[1];
 
 /**
  * The ceilings, which are ceilings on the DRAWING and nothing else.
@@ -628,13 +638,15 @@ export class CatchmentWorld {
 			roughness: 0.2,
 			metalness: 0.1
 		});
-		for (const cx of [-13.5, -24.1, -34.7]) {
+		// Standing on the near rail, and clear of the road: a train parked across a level
+		// crossing is a train blocking the street.
+		for (const cx of [-15.4, -26.0, -36.6]) {
 			const car = new THREE.Mesh(new THREE.BoxGeometry(9.6, 2.9, 2.9), shell);
-			car.position.set(cx, 2.05, RAIL_Z - 2.65);
+			car.position.set(cx, 2.05, RAIL_Z + 2.65);
 			car.castShadow = true;
 			this.#railGroup.add(car);
 			const band = new THREE.Mesh(new THREE.BoxGeometry(9.0, 0.95, 2.98), glass);
-			band.position.set(cx, 2.5, RAIL_Z - 2.65);
+			band.position.set(cx, 2.5, RAIL_Z + 2.65);
 			this.#railGroup.add(band);
 		}
 
@@ -647,17 +659,17 @@ export class CatchmentWorld {
 			const g = new THREE.Group();
 
 			const platform = new THREE.Mesh(new THREE.BoxGeometry(6.4, 1.0, 3.0), shell);
-			platform.position.set(0, 0.5, RAIL_HALF + 1.5);
+			platform.position.set(0, 0.5, -(RAIL_HALF + 1.5));
 			platform.castShadow = true;
 			platform.receiveShadow = true;
 			g.add(platform);
 
 			const hall = new THREE.Mesh(new THREE.BoxGeometry(4.6, 2.8, 4.4), shell);
-			hall.position.set(0, 1.4, RAIL_HALF + 5.2);
+			hall.position.set(0, 1.4, -(RAIL_HALF + 5.2));
 			hall.castShadow = true;
 			g.add(hall);
 			const mouth = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.9, 0.14), dark);
-			mouth.position.set(0, 0.95, RAIL_HALF + 3.0);
+			mouth.position.set(0, 0.95, -(RAIL_HALF + 3.0));
 			g.add(mouth);
 
 			// The canopy over the platform carries the line's colour, washed a third of the
@@ -665,12 +677,12 @@ export class CatchmentWorld {
 			// brightest thing in the model.
 			const canopyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62 });
 			const canopy = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.3, 4.2), canopyMat);
-			canopy.position.set(0, 3.4, RAIL_HALF + 2.4);
+			canopy.position.set(0, 3.4, -(RAIL_HALF + 2.4));
 			canopy.castShadow = true;
 			g.add(canopy);
 			for (const dx of [-3.2, 3.2]) {
 				const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.2, 0.2), shell);
-				post.position.set(dx, 1.75, RAIL_HALF + 1.5);
+				post.position.set(dx, 1.75, -(RAIL_HALF + 1.5));
 				g.add(post);
 			}
 
@@ -678,11 +690,11 @@ export class CatchmentWorld {
 			// road, and it takes the colour neat.
 			const signMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
 			const pole = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.4, 0.22), shell);
-			pole.position.set(3.6, 2.2, RAIL_HALF + 6.6);
+			pole.position.set(3.6, 2.2, -(RAIL_HALF + 6.6));
 			pole.castShadow = true;
 			g.add(pole);
 			const sign = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 0.16), signMat);
-			sign.position.set(3.6, 3.9, RAIL_HALF + 6.6);
+			sign.position.set(3.6, 3.9, -(RAIL_HALF + 6.6));
 			g.add(sign);
 
 			g.position.set(x, 0, RAIL_Z);
@@ -820,7 +832,12 @@ export class CatchmentWorld {
 					// Tested by its extent, not its centre point: a 16 m wide block whose
 					// centre falls outside the strip can still push halfway into it.
 					const intrudes =
-						side === 1 && row.front && cz + w / 2 > SUBJECT_Z0 && cz - w / 2 < SUBJECT_Z1;
+						(side === 1 && row.front && cz + w / 2 > SUBJECT_Z0 && cz - w / 2 < SUBJECT_Z1) ||
+						// The railway goes through where the buildings were, on both sides of
+						// the road and in both rows, and its station stands on the apron
+						// beside it. Tested by extent rather than centre, as the strip above
+						// is: a 16 m block whose centre falls outside still pushes halfway in.
+						(cz + w / 2 > RAIL_CLEAR[0] && cz - w / 2 < RAIL_CLEAR[1]);
 					if (!intrudes) {
 						boxes.push({
 							x: side * (row.x0 + d / 2),
@@ -1194,9 +1211,13 @@ export class CatchmentWorld {
 		for (let i = 0; i < MAX_WALKERS; i++) {
 			const side = rnd() < 0.5 ? -1 : 1;
 			const inner = rnd() < 0.5;
+			// The pavement, minus the length of it the railway took. A figure standing
+			// between the rails reads as a drawing error rather than as a pedestrian.
+			const span = 92 - (RAIL_CLEAR[1] - RAIL_CLEAR[0]);
+			const walkZ = -46 + rnd() * span;
 			this.#people.push({
 				x: side * (ROAD_HALF + (inner ? 1.3 : 3.1)) + (rnd() - 0.5) * 1.3,
-				z: -46 + rnd() * 92,
+				z: walkZ < RAIL_CLEAR[0] ? walkZ : walkZ + (RAIL_CLEAR[1] - RAIL_CLEAR[0]),
 				yaw: rnd() < 0.5 ? 0 : Math.PI,
 				// each person gets their own leg angle: a row frozen in unison reads as a
 				// pattern rather than as a crowd

@@ -25,7 +25,10 @@
 	const app = getAppState();
 	const c = $derived(copy());
 
+	/* Both forms, because one competitor is not "1 coffee shops". The count decides
+	   which one the sentence gets. */
 	const catMany = $derived(categoryNames(app.categories, c, 'many'));
+	const catOne = $derived(categoryNames(app.categories, c));
 	/* The dots actually drawn, not the scored row's figure. This panel is a caption
 	   for the map, so it counts what the map is showing. */
 	const drawn = $derived(app.selectedPois.length);
@@ -80,8 +83,8 @@
 		     the map stops showing it. The count is the same either way. -->
 		<p class="read">
 			<span class="dot" aria-hidden="true"></span>{app.layers.poi
-				? c.mood.rivalsCount(drawn, catMany)
-				: c.mood.rivalsHidden(drawn, catMany)}
+				? c.mood.rivalsCount(drawn, drawn === 1 ? catOne : catMany)
+				: c.mood.rivalsHidden(drawn, drawn === 1 ? catOne : catMany)}
 		</p>
 		{#if app.layers.poi && named === 0}
 			<!-- Every station on the map is named and not one competitor is, which
