@@ -237,7 +237,12 @@ export const en: Copy = {
 		gridWithData: 'cells with data',
 		gridEmpty: 'no data yet',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
-			`A grid of ${total} cells: ${terdata} sit in a surveyed city, ${nodata} do not.`
+			`A grid of ${total} cells: ${terdata} sit in a surveyed city, ${nodata} do not.`,
+		/* The field notes, mentioned without naming a single product. What a reader
+		   cares about is what they get, not which dataset it came out of. */
+		notesTitle: 'Some areas carry notes from people who went there.',
+		notesBody: (n: string) =>
+			`${n} field notes: receipts, what a meal costs, how busy the place looked when somebody called in, and space being offered to rent. All of it photographed, so the street can be seen first.`
 	},
 
 	spreadChart: {
@@ -944,6 +949,12 @@ export const en: Copy = {
 		tipBusy: (n: number) => `${n} businesses nearby`,
 		tipRivals: (n: number) => `${n} competitors`,
 		tipUnits: (n: number) => `${n} units listed`,
+		/* This line used to read "MAPID + OSM, r=800 m". Both halves were shorthand only
+		   somebody who already knew could read: `r` is the radius, and the source is
+		   already named in the legend open on the same screen. What is left is the one
+		   thing worth being reminded of while pointing at a cell, which is how far out
+		   the counting went. */
+		tipRadius: (m: number) => `within an ${m} m walk`,
 		sheet: 'Information panel',
 		sheetGrip: 'Resize panel'
 	},

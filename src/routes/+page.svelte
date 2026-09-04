@@ -143,6 +143,23 @@
 				<CoverageGrid map={data.coverage} surveyed={k.surveyed} unsurveyed={k.unsurveyed} />
 			</div>
 		</Reveal>
+
+		<!-- The one thing on this page that is not a count of something: what somebody
+		     wrote down while standing on the street. It sits here rather than in a band
+		     of its own because it is a second kind of data, not a second claim, and a
+		     whole section would promise more of it than 191 catchments can carry.
+
+		     It disappears with the data. `fieldNotes` is null until the surveys have been
+		     joined, and a sentence about photographs nobody can open would be the one
+		     promise on this page the product could not keep. -->
+		{#if k.fieldNotes}
+			<Reveal delay={120} distance={10}>
+				<div class="notes">
+					<h3 class="lede">{c.data.notesTitle}</h3>
+					<p>{c.data.notesBody(n(k.fieldNotes))}</p>
+				</div>
+			</Reveal>
+		{/if}
 	</section>
 
 	<!-- ── how it works ─────────────────────────────────────────────────── -->
@@ -456,6 +473,29 @@
 
 	/* Half a band above and half below, so the space BETWEEN two sections is one
 	   band rather than two stacked. */
+	/* Two lines under the coverage picture, indented off a quiet rule rather than the
+	   accent one. The accent marks the sentence that carries a section, and this is an
+	   aside to the section rather than the section itself. */
+	.notes {
+		/* Wide enough that the title holds one line and the sentence under it runs
+		   three. At the narrower measure a `.lead` uses, the title broke in two and the
+		   block read as a second heading for the section rather than a note under it. */
+		max-width: 64ch;
+		padding-left: 1.125rem;
+		border-left: 2px solid var(--paper-line);
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+	}
+	.notes h3 {
+		max-width: none;
+	}
+	.notes p {
+		font-size: 0.9375rem;
+		line-height: 1.6;
+		color: var(--ink-2);
+	}
+
 	.band {
 		padding-block: calc(var(--s-band) / 2);
 		display: flex;

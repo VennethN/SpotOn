@@ -1073,9 +1073,15 @@
 			if (disposed) return;
 			gl.setWorkerUrl(maplibreWorkerUrl);
 			appliedTheme = app.resolvedTheme;
+			/* Resolved before the map is built rather than after. The style has to be
+			   known to be fetchable first: MapLibre given one it cannot load never fires
+			   `styledata`, so the layers below never mount and a map whose every figure
+			   is computed locally goes blank over a basemap it did not need. */
+			const style = await basemapStyle(appliedTheme);
+			if (disposed) return;
 			const m = new gl.Map({
 				container,
-				style: basemapStyle(appliedTheme),
+				style,
 				bounds: boundsOf(app.base),
 				fitBoundsOptions: { padding: { top: 90, bottom: 120, left: 60, right: 60 } },
 				attributionControl: false,
@@ -1125,11 +1131,18 @@
 		if (!m || appliedTheme === null || appliedTheme === theme) return;
 		appliedTheme = theme;
 		ready = false;
-		m.setStyle(basemapStyle(theme));
-		m.once('styledata', () => {
-			addLayers(m);
-			ready = true;
-		});
+		void (async () => {
+			// The probe behind this is cached per key, so a theme switch costs no request.
+			const style = await basemapStyle(theme);
+			// The reader may have switched back while this was in flight. Applying a
+			// stale style would leave the map in the theme they just left.
+			if (app.resolvedTheme !== theme) return;
+			m.setStyle(style);
+			m.once('styledata', () => {
+				addLayers(m);
+				ready = true;
+			});
+		})();
 	});
 
 	// Sources & colours are refreshed whenever the scores, layers, or selection change.
@@ -1370,8 +1383,7 @@
 				<span class="tip-unit">{c.app.tipDensity}</span>
 			</span>
 			<span class="tip-sub">
-				{row.source === 'mapid' ? 'MAPID' : row.source === 'osm' ? 'OSM' : 'MAPID + OSM'}, r={app.weights.radius} m ·
-				{c.app.tipUnits(row.units)}
+				{c.app.tipRadius(app.weights.radius)} · {c.app.tipUnits(row.units)}
 			</span>
 		{:else if hovered.row}
 			{@const row = hovered.row}
@@ -1381,8 +1393,7 @@
 			</span>
 			<span class="tip-sub">
 				{c.app.tipBusy(row.density)} · {c.app.tipRivals(row.osm)}<br />
-				{row.source === 'mapid' ? 'MAPID' : row.source === 'osm' ? 'OSM' : 'MAPID + OSM'}, r={app.weights.radius} m ·
-				{c.app.tipUnits(row.units)}
+				{c.app.tipRadius(app.weights.radius)} · {c.app.tipUnits(row.units)}
 			</span>
 		{:else}
 			<!-- No category loaded yet: the cell is named and nothing more is claimed. -->

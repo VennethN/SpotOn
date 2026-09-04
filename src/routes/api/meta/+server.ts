@@ -25,7 +25,7 @@ export const GET: RequestHandler = () => {
 			model: activeModel(),
 			enabled: llmEnabled(),
 			note: llmEnabled()
-				? 'Model hanya memilih operasi dan mengisi argumen; seluruh angka dihitung mesin skor.'
+				? 'Model cuma memilih operasi dan mengisi argumen, dan seluruh angka dihitung mesin skor.'
 				: 'OPENROUTER_API_KEY belum dipasang, jadi pertanyaan diurai pengurai aturan cadangan.'
 		},
 		provenance
