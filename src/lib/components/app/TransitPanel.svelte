@@ -1,0 +1,255 @@
+<script lang="ts">
+	/**
+	 * What the selected area reaches by transit.
+	 *
+	 * This sits inside the area panel rather than in the technical drawer, because
+	 * transit access is the one input a non-technical reader already has intuitions
+	 * about — everybody knows what being next to a station is worth. It is also the
+	 * only part of the score built entirely from REAL data (OSM), while the demand and
+	 * competition figures around it are still MAPID samples.
+	 *
+	 * So it leads with station NAMES, not with the access index. "Blok M, 320 m" is
+	 * something the reader can picture, check on the way home, and disagree with. The
+	 * index is underneath, doing the arithmetic it was always doing.
+	 */
+	import {
+		MODES,
+		RAIL,
+		accessBand,
+		accessUplift,
+		namedStops,
+		presentModes,
+		type Mode
+	} from '$lib/domain/transit';
+	import { getAppState } from '$lib/state/app.svelte';
+	import { copy } from '$lib/state/lang.svelte';
+
+	const app = getAppState();
+	const c = $derived(copy());
+
+	const row = $derived(app.selected);
+	const cell = $derived(app.base.find((h) => h.id === app.selectedId) ?? null);
+
+	const stops = $derived(app.selectedStops);
+	const rail = $derived(namedStops(stops, RAIL));
+	const busCount = $derived(stops.filter((s) => s.mode === 'brt').length);
+	/* The counts come from the GRID, not from the stop list — they are what access was
+	   actually computed from. The stop list only names them. If the file were missing
+	   these still read correctly. */
+	const modes = $derived(cell ? presentModes(cell.transit) : []);
+	const access = $derived(cell?.access ?? 0);
+	const band = $derived(accessBand(access));
+	const uplift = $derived(accessUplift(access));
+	const hasRail = $derived(modes.some((m) => RAIL.includes(m.mode)));
+	const waiting = $derived(app.stops === null);
+
+	const colour = (m: Mode) => `var(--route-${m})`;
+</script>
+
+{#if cell}
+	<section class="transit">
+		<header>
+			<h3 class="eyebrow">{c.mood.transit}</h3>
+			<button
+				type="button"
+				class="on-map"
+				class:on={app.layers.stops}
+				onclick={() => (app.layers.stops = !app.layers.stops)}
+				aria-pressed={app.layers.stops}
+			>
+				{app.layers.stops ? c.mood.transitHide : c.mood.transitShow}
+			</button>
+		</header>
+
+		{#if modes.length === 0}
+			<p class="none">{c.mood.transitNone}</p>
+		{:else}
+			<!-- The mode chips read off the grid's own counts, so they are right from the
+			     first frame — before the stop list has been fetched. -->
+			<ul class="modes">
+				{#each modes as m (m.mode)}
+					<li style:--dot={colour(m.mode)}>
+						<span class="dot" aria-hidden="true"></span>
+						<span class="n">{m.n}</span>
+						<span class="lbl">{c.mood.transitModes[m.mode]}</span>
+					</li>
+				{/each}
+			</ul>
+
+			<p class="band">
+				{c.mood.transitBand[band]}
+				<span class="uplift">{c.mood.transitUplift(uplift)}</span>
+			</p>
+
+			{#if rail.length}
+				<div class="rail">
+					<h4 class="eyebrow sub">{c.mood.transitRail}</h4>
+					<ul>
+						{#each rail as s (s.name)}
+							<li style:--dot={colour(s.mode)}>
+								<span class="dot" aria-hidden="true"></span>
+								<span class="nm">{s.name}</span>
+								<span class="mode">{c.mood.transitModes[s.mode]}</span>
+								<span class="dist">{c.mood.transitWalk(Math.round(s.distance))}</span>
+							</li>
+						{/each}
+					</ul>
+				</div>
+			{:else if waiting && hasRail}
+				<p class="none">{c.mood.transitLoading}</p>
+			{/if}
+
+			{#if busCount > 0}
+				<p class="bus"><span class="dot" style:--dot="var(--route-brt)"></span>{c.mood.transitBus(busCount)}</p>
+			{/if}
+
+			<p class="why">{hasRail ? c.mood.transitWhyRail : c.mood.transitWhyBus}</p>
+			<p class="prov">{c.mood.transitRadius(app.weights.radius)} · OSM</p>
+		{/if}
+	</section>
+{/if}
+
+<style>
+	.transit {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	header {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	header h3 {
+		margin-right: auto;
+	}
+	.on-map {
+		border: 1px solid var(--separator);
+		background: transparent;
+		color: var(--label-2);
+		border-radius: 999px;
+		padding: 0.125rem 0.5rem;
+		font-size: 0.625rem;
+		cursor: pointer;
+		white-space: nowrap;
+		transition:
+			background-color 140ms ease-out,
+			color 140ms ease-out;
+	}
+	.on-map:hover {
+		background: var(--fill-1);
+		color: var(--label-1);
+	}
+	.on-map.on {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-ink);
+	}
+
+	.dot {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 999px;
+		background: var(--dot);
+		flex: none;
+	}
+
+	.modes {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+	}
+	.modes li {
+		display: flex;
+		align-items: center;
+		gap: 0.3125rem;
+		border: 1px solid var(--separator);
+		border-radius: 999px;
+		padding: 0.1875rem 0.5rem 0.1875rem 0.4375rem;
+	}
+	.modes .n {
+		font-size: 0.8125rem;
+		font-weight: 700;
+		letter-spacing: -0.01em;
+		font-variant-numeric: tabular-nums;
+	}
+	.modes .lbl {
+		font-size: 0.6875rem;
+		color: var(--label-2);
+	}
+
+	.band {
+		font-size: 0.8125rem;
+		line-height: 1.45;
+		color: var(--label-1);
+	}
+	.uplift {
+		display: block;
+		font-size: 0.6875rem;
+		color: var(--label-3);
+		margin-top: 0.125rem;
+	}
+
+	.rail ul {
+		list-style: none;
+		margin: 0.25rem 0 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.1875rem;
+	}
+	.rail li {
+		display: flex;
+		align-items: baseline;
+		gap: 0.4375rem;
+		font-size: 0.75rem;
+	}
+	.rail .dot {
+		align-self: center;
+	}
+	.rail .nm {
+		font-weight: 600;
+		letter-spacing: -0.005em;
+		color: var(--label-1);
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.rail .mode {
+		font-size: 0.625rem;
+		color: var(--label-3);
+		margin-right: auto;
+	}
+	.rail .dist {
+		font-size: 0.6875rem;
+		color: var(--label-2);
+		font-variant-numeric: tabular-nums;
+		flex: none;
+	}
+	.sub {
+		color: var(--label-3);
+	}
+
+	.bus {
+		display: flex;
+		align-items: center;
+		gap: 0.4375rem;
+		font-size: 0.75rem;
+		color: var(--label-2);
+	}
+
+	.why,
+	.none {
+		font-size: 0.6875rem;
+		line-height: 1.5;
+		color: var(--label-3);
+	}
+	.prov {
+		font-size: 0.625rem;
+		color: var(--label-4, var(--label-3));
+	}
+</style>

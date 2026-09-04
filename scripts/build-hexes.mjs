@@ -25,13 +25,13 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { overpass, sleep } from './lib/overpass.mjs';
+import { BBOX, TRANSIT_QUERY, readStops } from './lib/transit.mjs';
 import * as h3 from 'h3-js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const RES = 8;
 /** The walking range used to compute access & competitors. */
 const WALK_M = 800;
-const BBOX = '-6.42,106.65,-6.05,107.05';
 
 
 /* ── distance ─────────────────────────────────────────────────────────────── */
@@ -101,14 +101,9 @@ function mulberry32(seed) {
 
 /* ── classification ───────────────────────────────────────────────────────── */
 
-function transitMode(tags = {}) {
-	const op = (tags.operator ?? '') + ' ' + (tags.network ?? '');
-	if (tags.station === 'subway' || tags.subway === 'yes') return 'mrt';
-	if (tags.station === 'light_rail' || tags.light_rail === 'yes') return 'lrt';
-	if (tags.railway === 'station' || tags.railway === 'halt') return 'krl';
-	if (/transjakarta/i.test(op)) return 'brt';
-	return null;
-}
+/* `transitMode` and the transit query now live in `lib/transit.mjs`: the app draws
+   the stops a cell captures, and it has to draw the very same ones this script
+   counted. See the note over there. */
 
 function poiCategory(tags = {}) {
 	if (tags.amenity === 'cafe') return 'kopi';
@@ -220,29 +215,8 @@ async function main() {
 
 	// 1) transit nodes — one query for every mode
 	console.log('[1/4] Fetching transit nodes…');
-	const transitQuery = `[out:json][timeout:180];(
-node["station"="subway"](${BBOX});
-node["railway"="station"](${BBOX});
-node["railway"="halt"](${BBOX});
-node["station"="light_rail"](${BBOX});
-node["highway"="bus_stop"]["operator"~"TransJakarta",i](${BBOX});
-node["public_transport"="platform"]["operator"~"TransJakarta",i](${BBOX});
-);out body;`;
-	const transitRaw = await overpass(transitQuery, 'transit');
-
-	const stops = [];
-	const seen = new Set();
-	for (const el of transitRaw.elements) {
-		if (el.type !== 'node' || el.lat == null) continue;
-		const mode = transitMode(el.tags);
-		if (!mode) continue;
-		// Opposite-direction stops are often two separate nodes ±30 m apart; a coarse
-		// dedup keeps one stopping place from being counted twice.
-		const key = `${mode}|${el.lat.toFixed(4)}|${el.lon.toFixed(4)}`;
-		if (seen.has(key)) continue;
-		seen.add(key);
-		stops.push({ lat: el.lat, lon: el.lon, mode, name: el.tags?.name ?? null });
-	}
+	const transitRaw = await overpass(TRANSIT_QUERY, 'transit');
+	const stops = readStops(transitRaw);
 	const byMode = stops.reduce((a, s) => ((a[s.mode] = (a[s.mode] ?? 0) + 1), a), {});
 	console.log(`      ${stops.length} nodes:`, byMode);
 

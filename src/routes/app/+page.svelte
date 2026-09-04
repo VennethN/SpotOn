@@ -90,16 +90,21 @@
 			</aside>
 		{/if}
 
+		<!-- Tapak and the area panel lead, and the numbers sit behind a fold.
+		     Most people arriving here are choosing somewhere to open a business, not
+		     auditing a model: they ask Tapak, they look at the area. The full figures
+		     stay one click away for when a claim needs checking, which is the order
+		     these three actually get used in. -->
 		<aside class="rail right scroll" aria-label={c.app.tapak}>
-			<section class="card material">
+			<section class="card material lead">
 				<h2 class="eyebrow head">{c.app.tapak} <span class="muted">{c.app.tapakSub}</span></h2>
 				<div class="body"><TapakPanel /></div>
 			</section>
-			<section class="card material">
+			<section class="card material lead">
 				<h2 class="eyebrow head">{c.app.mood}</h2>
 				<div class="body"><CatchmentDiorama /></div>
 			</section>
-			<section class="card material">
+			<section class="card material quiet">
 				<details>
 					<summary class="eyebrow head">{c.app.numbers}</summary>
 					<div class="body"><DetailPanel /></div>
@@ -153,7 +158,18 @@
 	}
 	.rail.right {
 		right: 0.75rem;
-		width: 23rem;
+		/* Wider than it was: this rail carries the two panels people actually work
+		   from, and at 23rem Tapak's answers and the station list both wrapped every
+		   other line. */
+		width: 26rem;
+	}
+	/* On a short screen the rail cannot hold both panels open, and what gets squeezed
+	   is whichever is lower. Letting it scroll keeps them at a readable size instead
+	   of shrinking both into uselessness. */
+	@media (min-width: 1024px) and (max-height: 800px) {
+		.rail.right {
+			width: 24rem;
+		}
 	}
 
 	.card {
@@ -162,6 +178,25 @@
 		overflow: hidden;
 		flex: none;
 	}
+	/* The two panels the product is actually driven from. They get the weight: a
+	   solid header rule and a slightly stronger shadow, so the eye lands on them
+	   before the technical card below. */
+	.card.lead > .head {
+		border-bottom-color: var(--separator-strong);
+		color: var(--label-1);
+	}
+	.card.lead {
+		box-shadow: var(--shadow-panel);
+	}
+	/* The numbers card is deliberately recessive — it is for checking a claim, not
+	   for making one. */
+	.card.quiet > details > summary {
+		color: var(--label-3);
+	}
+	.card.quiet {
+		background: var(--mat-regular);
+	}
+
 	.head {
 		padding: 0.5rem 0.75rem;
 		border-bottom: 1px solid var(--separator);

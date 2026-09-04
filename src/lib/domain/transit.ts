@@ -1,0 +1,131 @@
+import { haversine } from '$lib/utils/geo';
+import type { HexBase, TransitCounts } from '$lib/types';
+
+/**
+ * What a cell's transit access is actually made of.
+ *
+ * The grid stores transit as four COUNTS, because a count is all the score needs:
+ * access is a weighted sum of them, damped by a square root. But a count is not what
+ * someone choosing a location wants to read. "MRT ×2" says far less than "Blok M and
+ * ASEAN, both a ten-minute walk" — the second names places they can picture, check,
+ * and argue with.
+ *
+ * So the stops themselves are loaded separately (`static/data/stops.json`, written by
+ * `scripts/build-stops.mjs` from the very same Overpass query the grid counted) and
+ * matched back to a cell here, on demand, for one cell at a time.
+ */
+
+/** The four modes, densest last — the order they are listed in. */
+export const MODES = ['mrt', 'krl', 'lrt', 'brt'] as const;
+export type Mode = (typeof MODES)[number];
+
+/**
+ * Weights carried over from `build-hexes.mjs`, where access is computed. Repeated
+ * here only to EXPLAIN a number the grid already decided, never to recompute it —
+ * the panel reads `hex.access` as built.
+ */
+export const MODE_WEIGHT: Record<Mode, number> = { mrt: 1.0, krl: 0.9, lrt: 0.6, brt: 0.45 };
+
+/** Rail modes. Kept apart from BRT because they behave differently for a business:
+    a rail station is a single fixed doorway with all-day, all-week footfall, while
+    bus stops are many and spread out, so their crowd is thinner at any one of them. */
+export const RAIL: Mode[] = ['mrt', 'krl', 'lrt'];
+
+export interface Stop {
+	name: string | null;
+	mode: Mode;
+	lat: number;
+	lon: number;
+	/** Metres from the cell centre — filled in when matched to a cell. */
+	distance: number;
+}
+
+/** The on-disk shape: short keys, because this file carries ~1,100 of them. */
+interface RawStop {
+	n: string | null;
+	m: Mode;
+	y: number;
+	x: number;
+}
+
+export interface StopsFile {
+	meta: { count: number; byMode: Record<string, number> };
+	stops: RawStop[];
+}
+
+export function parseStops(file: StopsFile): Omit<Stop, 'distance'>[] {
+	return file.stops.map((s) => ({ name: s.n, mode: s.m, lat: s.y, lon: s.x }));
+}
+
+/**
+ * The stops one cell captures, nearest first.
+ *
+ * The same test the grid used when it counted them: distance from the CELL CENTRE,
+ * not from its boundary. Measuring from the boundary would return more stops than
+ * the cell was credited with, and the panel would disagree with the score sitting
+ * next to it.
+ */
+export function capturedStops(
+	cell: Pick<HexBase, 'lat' | 'lon'>,
+	stops: Omit<Stop, 'distance'>[],
+	radiusM: number
+): Stop[] {
+	const out: Stop[] = [];
+	// A cheap box test before the trigonometry: 0.012° is ~1.3 km, comfortably wider
+	// than the walking radius, and it discards nearly all 1,100 stops immediately.
+	const box = 0.012;
+	for (const s of stops) {
+		if (Math.abs(s.lat - cell.lat) > box || Math.abs(s.lon - cell.lon) > box) continue;
+		const distance = haversine(cell.lat, cell.lon, s.lat, s.lon);
+		if (distance <= radiusM) out.push({ ...s, distance });
+	}
+	return out.sort((a, b) => a.distance - b.distance);
+}
+
+/** Named stops of one mode, nearest first, deduplicated by name.
+    Platforms of one station are separate OSM nodes, and a list that reads
+    "Dukuh Atas, Dukuh Atas, Dukuh Atas" looks like a bug, not like three platforms. */
+export function namedStops(stops: Stop[], modes: Mode[]): Stop[] {
+	const seen = new Set<string>();
+	const out: Stop[] = [];
+	for (const s of stops) {
+		if (!modes.includes(s.mode) || !s.name) continue;
+		const key = s.name.toLowerCase();
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push(s);
+	}
+	return out;
+}
+
+/** Which access band this cell falls in — the key into the locale's wording. */
+export type AccessBand = 'strongest' | 'strong' | 'fair' | 'thin';
+
+export function accessBand(access: number): AccessBand {
+	if (access >= 0.8) return 'strongest';
+	if (access >= 0.55) return 'strong';
+	if (access >= 0.3) return 'fair';
+	return 'thin';
+}
+
+/**
+ * How much this cell's transit access is worth to its opportunity score, as a
+ * percentage uplift over a cell with no transit at all.
+ *
+ * `scoring.ts` multiplies every score by `0.6 + 0.4 × access`, so the worst-served
+ * cell keeps 60% of its score and the best-served keeps all of it. Stating the
+ * multiplier as "+X% against a cell with no transit" is the same fact in the form
+ * someone can act on — and it is read from the same constants the engine uses rather
+ * than being a second, prettier number invented for the panel.
+ */
+export const ACCESS_FLOOR = 0.6;
+export const ACCESS_SPAN = 0.4;
+
+export function accessUplift(access: number): number {
+	return Math.round(((ACCESS_FLOOR + ACCESS_SPAN * access) / ACCESS_FLOOR - 1) * 100);
+}
+
+/** Modes actually present in this cell, densest-last order, with their counts. */
+export function presentModes(transit: TransitCounts): Array<{ mode: Mode; n: number }> {
+	return MODES.map((mode) => ({ mode, n: transit[mode] })).filter((m) => m.n > 0);
+}

@@ -36,6 +36,17 @@ export function scatterPoints(
 
 export const emptyFC = (): FeatureCollection => ({ type: 'FeatureCollection', features: [] });
 
+/** Great-circle distance in metres. */
+export function haversine(aLat: number, aLon: number, bLat: number, bLon: number): number {
+	const rad = (d: number) => (d * Math.PI) / 180;
+	const dLat = rad(bLat - aLat);
+	const dLon = rad(bLon - aLon);
+	const x =
+		Math.sin(dLat / 2) ** 2 +
+		Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLon / 2) ** 2;
+	return 2 * EARTH_R * Math.asin(Math.sqrt(x));
+}
+
 /** Bounding box of all the points, with a little breathing room. */
 export function boundsOf(points: Array<{ lon: number; lat: number }>, padDeg = 0.012) {
 	const lons = points.map((p) => p.lon);
