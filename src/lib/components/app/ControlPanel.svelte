@@ -1,6 +1,7 @@
 <script lang="ts">
-	import WeightSlider from './WeightSlider.svelte';
-	import { getAppState, type LayerKey } from '$lib/state.svelte';
+	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
+	import WeightSlider from '$lib/components/ui/WeightSlider.svelte';
+	import { getAppState, type LayerKey } from '$lib/state/app.svelte';
 
 	const app = getAppState();
 
@@ -72,12 +73,7 @@
 
 	<section>
 		<h2 class="eyebrow">Legenda</h2>
-		<div class="ramp" aria-hidden="true">
-			{#each [0, 1, 2, 3, 4, 5, 6] as i (i)}
-				<span style:background={`var(--ramp-${i})`}></span>
-			{/each}
-		</div>
-		<div class="ramp-ends"><span>Rendah</span><span>Opportunity Score</span><span>Tinggi</span></div>
+		<ScoreRamp ends={['Rendah', 'Tinggi']} />
 		<ul class="legend">
 			<li><span class="key nodata"></span>Belum terdata (N = 0)</li>
 			<li><span class="key jenuh"></span>Ditandai jenuh</li>
@@ -219,22 +215,6 @@
 		flex: none;
 	}
 
-	.ramp {
-		display: flex;
-		height: 0.5rem;
-		border-radius: 99px;
-		overflow: hidden;
-		border: 1px solid var(--separator);
-	}
-	.ramp span {
-		flex: 1;
-	}
-	.ramp-ends {
-		display: flex;
-		justify-content: space-between;
-		font-size: 0.625rem;
-		color: var(--label-3);
-	}
 	.legend {
 		list-style: none;
 		margin: 0.25rem 0 0;

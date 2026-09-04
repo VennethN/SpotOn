@@ -1,7 +1,7 @@
-import { CATEGORIES, CATEGORY_MAP } from '$lib/categories';
-import { describeQuery, narrate } from '$lib/narrate';
-import { runQuery } from '$lib/nlq';
-import { DEFAULT_WEIGHTS } from '$lib/scoring';
+import { CATEGORIES, CATEGORY_MAP } from '$lib/domain/categories';
+import { describeQuery, narrate } from '$lib/domain/narrate';
+import { runQuery } from '$lib/domain/nlq';
+import { DEFAULT_WEIGHTS } from '$lib/domain/weights';
 import { grid, loadHexes } from '$lib/server/source';
 import type { CategoryKey, StructuredQuery } from '$lib/types';
 import type { PageServerLoad } from './$types';

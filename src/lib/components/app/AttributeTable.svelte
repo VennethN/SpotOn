@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { pct, rampVar } from '$lib/scoring';
-	import { getAppState } from '$lib/state.svelte';
+	import { pct, rampVar } from '$lib/utils/format';
+	import { getAppState } from '$lib/state/app.svelte';
 	import type { ScoredHex } from '$lib/types';
 
 	const app = getAppState();

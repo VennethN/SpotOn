@@ -1,6 +1,6 @@
+import { pct } from '$lib/utils/format';
 import { CATEGORY_MAP } from './categories';
-import { pct } from './scoring';
-import type { AiAnswer, StructuredQuery } from './types';
+import type { AiAnswer, ScoredHex, StructuredQuery } from '$lib/types';
 
 /**
  * Menerjemahkan hasil mesin skor ke satu kalimat yang bisa dibaca siapa pun.
@@ -59,4 +59,20 @@ export function describeQuery(q: StructuredQuery): string[] {
 	if (q.filter?.ruang_sewa_tersedia) out.push('ada ruang yang disewakan');
 	if (q.filter?.tier_harga === 'rendah') out.push('sewa kelas bawah');
 	return out;
+}
+
+/**
+ * Frasa penawaran harus mencerminkan KEDUA pendorongnya (jumlah pesaing ×
+ * keramaian). Kalau hanya keramaian yang dibaca, narasinya bisa berlawanan
+ * dengan skornya sendiri.
+ */
+export function supplyPhrase(r: ScoredHex): string {
+	const padat = (r.supply ?? 0) >= 0.6;
+	const ramai = r.ramai >= 0.45;
+	if (padat && ramai) return 'jumlahnya padat dan mayoritas ramai → penawaran kuat, celah pasar sempit';
+	if (padat && !ramai)
+		return 'jumlahnya padat tetapi mayoritas sepi/sedang → pasar penuh namun lesu, indikasi jenuh';
+	if (!padat && ramai)
+		return 'jumlahnya sedikit tetapi mayoritas ramai → permintaan tampak tertahan, ada ruang masuk';
+	return 'jumlahnya sedikit dan mayoritas sepi/sedang → penawaran lemah';
 }

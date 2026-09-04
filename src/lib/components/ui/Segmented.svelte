@@ -1,5 +1,5 @@
 <script lang="ts" generics="T extends string">
-	import { SpringValue, prefersReducedMotion } from '$lib/motion.svelte';
+	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
 
 	interface Option {
 		value: T;

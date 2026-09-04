@@ -6,11 +6,11 @@
 	// maplibre, berkasnya disentuh dev server dan worker mati tanpa suara.
 	import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import { env } from '$env/dynamic/public';
-	import { boundsOf, emptyFC, scatterPoints } from '$lib/geo';
-	import { prefersReducedMotion } from '$lib/motion.svelte';
-	import { pct, rampIndex } from '$lib/scoring';
+	import { boundsOf, emptyFC, scatterPoints } from '$lib/utils/geo';
+	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
+	import { pct, rampIndex } from '$lib/utils/format';
 	import { base } from '$app/paths';
-	import { getAppState } from '$lib/state.svelte';
+	import { getAppState } from '$lib/state/app.svelte';
 	import type { ScoredHex } from '$lib/types';
 	import type { FeatureCollection } from 'geojson';
 
