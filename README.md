@@ -24,22 +24,26 @@ npm run dev
 | `/app` | WebGIS: peta, panel kontrol, rekomendasi AI, tabel atribut |
 | `/api/catchments` | Indikator mentah per catchment |
 | `/api/scores?kategori=kopi&wd=0.5&ws=0.5&gate=1&radius=800` | Opportunity Score terhitung |
-| `/api/meta` | Kategori usaha, cakupan data, provenans |
+| `/api/meta` | Kategori usaha, cakupan data, provenans, dan model bahasa yang sedang aktif |
 | `/api/ai/query` | `POST { question, kategori, weights }` → rekomendasi ter-ranking |
 
 ## Struktur
 
 ```
 src/lib/
-  data/            dataset contoh (stasiun + geometri jalur MRT)
+  data/            kisi heksagon + simpul transit
   server/source.ts satu-satunya tempat sumber data ditentukan  ← tukar di sini saat API MAPID siap
   scoring.ts       mesin Opportunity Score (dipakai server dan klien)
   nlq.ts           pertanyaan bahasa natural → query terstruktur → jawaban
+  narrate.ts       hasil mesin skor → kalimat Tapak (dipakai /app dan landing)
+  tapak.svelte.ts  percakapan pemandu di dalam aplikasi
+  three/           maket isometrik: adegan jalan + model cahaya 24 jam
   motion.svelte.ts pegas, proyeksi momentum, rubber-banding
   state.svelte.ts  status antarmuka (rune, disebar lewat context)
   components/      panel WebGIS + komponen landing
 src/routes/
   +page.svelte     landing
+  +page.server.ts  angka & percakapan contoh landing, dihitung mesin skor
   app/             WebGIS
   api/             endpoint
 docs/              ketentuan kompetisi, proposal, dan status implementasi
@@ -78,7 +82,7 @@ Salin `.env.example` menjadi `.env`, lalu isi.
 | Variabel | Isi |
 |---|---|
 | `OPENROUTER_API_KEY` | Kunci OpenRouter untuk lapisan pemahaman bahasa. **Boleh kosong** — tanpa kunci, pertanyaan diurai pengurai aturan cadangan dan aplikasi tetap berjalan. |
-| `OPENROUTER_MODEL` | Opsional. Default `anthropic/claude-sonnet-5`. |
+| `OPENROUTER_MODEL` | Opsional — nama model apa pun yang dilayani OpenRouter, mis. `anthropic/claude-sonnet-5` atau `openai/gpt-5`. Dibaca saat runtime, jadi menggantinya di Vercel tidak perlu build ulang. Kosong → default `anthropic/claude-sonnet-5`. Model yang sedang aktif dapat diperiksa di `GET /api/meta` (kuncinya sendiri tidak pernah ikut). |
 | `PUBLIC_MAPID_STYLE_URL` | URL gaya MAPID MAPS. Bila kosong, dipakai basemap raster terbuka (OpenStreetMap/CARTO) — **wajib diisi untuk produk final.** |
 
 ### Pembagian tugas model dan mesin skor

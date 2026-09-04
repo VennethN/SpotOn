@@ -1,4 +1,5 @@
 import { CATEGORIES, CATEGORY_MAP } from './categories';
+import { narrate } from './narrate';
 import { pct } from './scoring';
 import type { AppState } from './state.svelte';
 import type { AiAnswer, CategoryKey } from './types';
@@ -164,43 +165,10 @@ export class Tapak {
 
 		this.turns[idx] = {
 			who: 'tapak',
-			text: this.#narrate(ans),
+			text: narrate(ans),
 			answer: ans,
 			chips: this.#followUps(ans)
 		};
-	}
-
-	/** Menerjemahkan hasil mesin ke satu kalimat yang bisa dibaca siapa pun. */
-	#narrate(ans: AiAnswer): string {
-		// Model mengaku tidak paham. Tapak ikut mengaku, bukan mengarang jawaban
-		// atas pertanyaan yang tidak ia mengerti — di sinilah kepercayaan dijaga.
-		if (ans.notUnderstood) {
-			return `${ans.notUnderstood} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk lima jenis usaha. Mau saya carikan salah satunya?`;
-		}
-
-		const cat = CATEGORY_MAP[ans.query.kategori].name.toLowerCase();
-		const n = ans.items.length;
-
-		if (ans.query.intent === 'COVERAGE') {
-			return n === 0
-				? 'Semua kawasan sudah ada datanya.'
-				: `Ada ${n} kawasan yang belum saya punya datanya sama sekali. Saya tidak menilainya — daripada saya karang, lebih baik saya bilang belum tahu.`;
-		}
-		if (ans.query.intent === 'FLAG_SATURATED') {
-			return n === 0
-				? 'Tidak ada yang benar-benar sesak untuk usaha ini.'
-				: `Ini ${n} kawasan yang menurut saya sebaiknya dihindari dulu untuk ${cat} — pesaingnya rapat dan kebanyakan ramai.`;
-		}
-		if (ans.query.intent === 'COMPARE') {
-			return n < 2 ? ans.headline : `Kalau dibandingkan, begini hasilnya.`;
-		}
-		if (n === 0) {
-			return `Belum ada kawasan yang cocok untuk ${cat} dengan syarat itu. Mau saya longgarkan syaratnya?`;
-		}
-		const top = ans.items[0];
-		return `Kalau saya yang pilih, ${top.name} dulu${
-			top.value != null ? ` — nilainya ${pct(top.value)} dari 100` : ''
-		}. Ini ${n} yang teratas menurut catatan saya.`;
 	}
 
 	#followUps(ans: AiAnswer): Chip[] {

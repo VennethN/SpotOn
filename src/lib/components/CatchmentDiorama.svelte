@@ -15,9 +15,26 @@
 	import { getAppState } from '$lib/state.svelte';
 	import { pct } from '$lib/scoring';
 
+	/**
+	 * Panel ini jauh lebih kecil daripada panggung halaman depan, jadi kameranya
+	 * dirapatkan: pada bingkai selebar ±340 px, bentang penuh membuat kafe dan
+	 * petak sewa mengecil sampai tidak ada yang terbaca.
+	 */
+	const CAMERA_T = 0.88;
+
 	const app = getAppState();
 	const row = $derived(app.selected);
 	const def = $derived(app.definition);
+
+	/** Petak dengan skor tertinggi pada kategori aktif — untuk tombol "pilihkan saja". */
+	const best = $derived(
+		app.rows
+			.filter((r) => !r.nodata)
+			.reduce<(typeof app.rows)[number] | null>(
+				(a, r) => (a === null || (r.score ?? 0) > (a.score ?? 0) ? r : a),
+				null
+			)
+	);
 
 	// Dibuka pada jam mesin pengguna, lalu bertahan saat pindah kawasan — supaya dua
 	// kawasan bisa dibandingkan pada jam yang sama, bukan direset diam-diam.
@@ -51,7 +68,17 @@
 </script>
 
 {#if !row}
-	<p class="empty">Pilih satu kawasan di peta untuk melihat suasananya.</p>
+	<!-- Keadaan kosong yang bisa ditindaklanjuti. Kalimat "silakan pilih di peta"
+	     saja menyerahkan pekerjaan kembali ke pengguna yang justru belum tahu
+	     petak mana yang layak dilihat. -->
+	<div class="empty">
+		<p>Belum ada kawasan yang dipilih. Tekan salah satu petak di peta untuk melihat suasananya.</p>
+		{#if best}
+			<button type="button" class="btn" onclick={() => app.select(best.id)}>
+				Pilihkan yang terbaik untuk {def.name.toLowerCase()}
+			</button>
+		{/if}
+	</div>
 {:else}
 	<div class="dio">
 		<div class="stage" style:--sky={day.skyHorizon}>
@@ -59,7 +86,7 @@
 				{hour}
 				{density}
 				category={app.category}
-				cameraT={0.62}
+				cameraT={CAMERA_T}
 				nodata={row.nodata}
 				rivals={row.osm}
 				vacancies={row.listings}
@@ -127,6 +154,10 @@
 
 <style>
 	.empty {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.625rem;
 		font-size: 0.8125rem;
 		line-height: 1.5;
 		color: var(--label-3);
