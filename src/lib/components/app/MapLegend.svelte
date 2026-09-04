@@ -19,11 +19,18 @@
 	const coverage = $derived(app.coverage);
 
 	/* Petak yang tidak dinilai karena sumber aktif belum mencakup kota +
-	   kategori ini. Tanpa keterangannya, peta MAPID untuk kategori yang belum
-	   diimpor terbaca sebagai "semua skornya nol" — kesimpulan yang persis
-	   terbalik dari apa yang sebenarnya terjadi. */
-	const uncovered = $derived(app.weights.source === 'mapid' ? coverage.belumTercakup : 0);
+	   kategori ini. Tanpa keterangannya, peta terbaca sebagai "semua skornya
+	   nol" — kesimpulan yang persis terbalik dari apa yang sebenarnya terjadi.
+
+	   Dulu dipaksa nol untuk sumber OSM, dengan anggapan hanya MAPID yang bisa
+	   belum tercakup. Anggapan itu berhenti benar sejak empat kategori makanan
+	   (warteg, mie, seafood, resto asing) dinyatakan tidak punya sumber OSM:
+	   memilih Warteg pada OSM membuat SELURUH petak digariskan putus-putus,
+	   dan justru pada keadaan itu keterangannya ditekan hilang. */
+	const uncovered = $derived(coverage.belumTercakup);
 	const catName = $derived(c.category[app.category].name);
+	const srcName = $derived(app.weights.source === 'mapid' ? 'MAPID' : 'OSM');
+	const otherSrcName = $derived(app.weights.source === 'mapid' ? 'OSM' : 'MAPID');
 
 	let open = $state(true);
 </script>
@@ -59,8 +66,8 @@
 			{#if uncovered > 0}
 				<p class="uncovered" class:blocking={coverage.dinilai === 0}>
 					{coverage.dinilai === 0
-						? c.app.legendUncoveredAll(catName)
-						: c.app.legendUncovered(uncovered, catName)}
+						? c.app.legendUncoveredAll(catName, srcName, otherSrcName)
+						: c.app.legendUncovered(uncovered, catName, srcName)}
 				</p>
 			{/if}
 		</div>

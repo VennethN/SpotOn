@@ -25,9 +25,17 @@ export const id = {
 	   akan tertulis "3 coffee shop". */
 	category: {
 		kopi: { name: 'Kedai Kopi', short: 'Kopi', many: 'kedai kopi' },
-		warung: { name: 'Warung Makan', short: 'Warung', many: 'warung makan' },
+		minuman: { name: 'Kedai Minuman', short: 'Minuman', many: 'kedai minuman' },
+		roti: { name: 'Toko Roti & Kue', short: 'Roti', many: 'toko roti' },
+		warteg: { name: 'Warung & Rumah Makan', short: 'Warteg', many: 'warung makan' },
+		cepatsaji: { name: 'Gerai Cepat Saji', short: 'Cepat Saji', many: 'gerai cepat saji' },
+		mie: { name: 'Mie & Bakso', short: 'Mie', many: 'kedai mie' },
+		seafood: { name: 'Rumah Makan Seafood', short: 'Seafood', many: 'rumah makan seafood' },
+		restoasing: { name: 'Restoran Masakan Asing', short: 'Resto Asing', many: 'restoran asing' },
 		minimarket: { name: 'Minimarket', short: 'Minimarket', many: 'minimarket' },
+		kelontong: { name: 'Toko Kelontong', short: 'Kelontong', many: 'toko kelontong' },
 		laundry: { name: 'Laundry', short: 'Laundry', many: 'laundry' },
+		bengkel: { name: 'Bengkel Kendaraan', short: 'Bengkel', many: 'bengkel' },
 		apotek: { name: 'Apotek', short: 'Apotek', many: 'apotek' }
 	},
 
@@ -75,7 +83,10 @@ export const id = {
 		hexes: { label: 'petak kawasan dinilai', sub: (r: number) => `heksagon H3, jalan kaki ${r} m` },
 		stops: { label: 'titik transit terdata', sub: 'MRT, KRL, LRT, TransJakarta' },
 		pois: { label: 'gerai pesaing terdata', sub: 'OpenStreetMap (ODbL)' },
-		cats: { label: 'jenis usaha dinilai', sub: 'kopi, warung, minimarket, laundry, apotek' },
+		cats: {
+			label: 'jenis usaha dinilai',
+			sub: 'kopi, minuman, roti, warteg, cepat saji, mie, seafood, resto asing, minimarket, kelontong, laundry, bengkel, apotek'
+		},
 		coverNote: (terdata: string, total: string, nodata: string) =>
 			`${terdata} dari ${total} petak sudah ada datanya. Sisanya ${nodata} kami tandai belum terdata: tidak kami tebak, tidak kami beri nilai.`
 	},
@@ -218,7 +229,7 @@ export const id = {
 
 	audience: {
 		mark: 'Untuk siapa',
-		title: 'Satu peta, lima jenis keputusan.',
+		title: 'Satu peta, tiga belas jenis keputusan.',
 		rows: [
 			{ t: 'Pemodal ritel & kuliner', d: 'Memilih lokasi cabang baru dari data, bukan dari firasat.' },
 			{ t: 'UMKM bermodal pas-pasan', d: 'Cari lokasi bagus yang sewanya masih masuk akal.' },
@@ -404,11 +415,16 @@ export const id = {
 		legendUnit: 'skor peluang',
 		sourceLabel: 'Sumber data pesaing',
 		sourceOsm: 'OpenStreetMap — merata, dikumpulkan sukarela',
-		sourceMapid: 'MAPID — tersurvei, baru sebagian kota',
-		legendUncovered: (n: number, cat: string) =>
-			`${n} petak belum tercakup data MAPID untuk ${cat} — tidak dinilai, bukan berarti tanpa pesaing`,
-		legendUncoveredAll: (cat: string) =>
-			`Data MAPID untuk ${cat} belum diimpor sama sekali, jadi tidak ada petak yang bisa dinilai. Impor datasetnya, atau kembali ke OSM.`,
+		sourceMapid: 'MAPID — tersurvei, lengkap 5 kota DKI',
+		/* Menyebut sumbernya, bukan menulis "MAPID" mati. Sejak empat kategori
+		   makanan dinyatakan tidak punya sumber OSM, keadaan "tidak ada yang bisa
+		   dinilai" justru paling sering terjadi pada OSM — dan kalimat lamanya
+		   menyuruh pengguna mengimpor dataset, langkah yang sudah tidak ada, lalu
+		   menyarankan kembali ke OSM yang justru sedang jadi masalahnya. */
+		legendUncovered: (n: number, cat: string, src: string) =>
+			`${n} petak belum tercakup data ${src} untuk ${cat} — tidak dinilai, bukan berarti tanpa pesaing`,
+		legendUncoveredAll: (cat: string, src: string, other: string) =>
+			`${src} tidak punya data pesaing untuk ${cat}, jadi tidak ada petak yang bisa dinilai. Coba sumber ${other}.`,
 		legendNodata: (n: number) => `${n} petak belum terdata, tidak dinilai`,
 		ask: 'Atau tanya sendiri…',
 		askAria: 'Tanya Tapak',
@@ -446,7 +462,7 @@ export const id = {
 
 	narrate: {
 		notUnderstood: (why: string) =>
-			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk lima jenis usaha. Mau saya carikan salah satunya?`,
+			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk tiga belas jenis usaha. Mau saya carikan salah satunya?`,
 		coverageNone: 'Semua kawasan sudah ada datanya.',
 		coverageSome: (n: number) =>
 			`Ada ${n} kawasan yang datanya belum saya punya sama sekali. Saya tidak menilainya; daripada saya karang, lebih baik saya bilang belum tahu.`,

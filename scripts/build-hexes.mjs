@@ -115,17 +115,109 @@ function transitMode(tags = {}) {
 
 function poiCategory(tags = {}) {
 	if (tags.amenity === 'cafe') return 'kopi';
-	if (tags.amenity === 'restaurant' || tags.amenity === 'fast_food') return 'warung';
+	if (tags.amenity === 'ice_cream') return 'minuman';
+	if (tags.shop === 'beverages' || tags.shop === 'bubble_tea') return 'minuman';
+	if (tags.shop === 'bakery' || tags.shop === 'pastry') return 'roti';
+	if (tags.amenity === 'fast_food') return 'cepatsaji';
+	// `amenity=restaurant` sengaja TIDAK dipetakan. Sejak warung dipecah jadi
+	// warteg/mie/seafood/resto asing, tidak ada satu kategori pun yang pantas
+	// menampungnya, dan OSM tidak bisa memilahnya: cuma 48,9% gerai makan di
+	// Jakarta Pusat punya tag `cuisine`, kosakatanya tidak mengenal warteg
+	// maupun rumah makan Padang, dan `seafood` tidak muncul sama sekali di
+	// sampel. Menebak-nebak dari `cuisine` akan menghasilkan cacah yang berat
+	// sebelah, paling parah untuk warteg yang paling jarang ditandai. Jadi
+	// keempat kategori itu dinyatakan tidak tercakup OSM lewat `osmTag: null`,
+	// dan restoran biasa tidak dihitung ke mana-mana.
 	if (tags.shop === 'convenience' || tags.shop === 'supermarket') return 'minimarket';
-	if (tags.shop === 'laundry') return 'laundry';
+	// Sengaja dipisah dari minimarket: `convenience` di OSM dipakai untuk gerai
+	// berjaringan, sedangkan `grocery`/`general`/`kiosk` untuk toko kelontong
+	// milik warga. Bagi orang yang mau membuka usaha keduanya pesaing yang
+	// berbeda, jadi menggabungkannya menyembunyikan justru yang dicari.
+	if (tags.shop === 'grocery' || tags.shop === 'general' || tags.shop === 'kiosk')
+		return 'kelontong';
+	if (tags.shop === 'laundry' || tags.shop === 'dry_cleaning') return 'laundry';
+	if (tags.shop === 'car_repair' || tags.shop === 'motorcycle_repair') return 'bengkel';
 	if (tags.amenity === 'pharmacy') return 'apotek';
 	return null;
 }
 
+/**
+ * POI diambil beberapa kueri, bukan satu.
+ *
+ * Waktu masih lima kategori, delapan nilai tag muat dalam satu kueri dan
+ * Overpass melayaninya tanpa keluhan. Sembilan kategori butuh delapan belas
+ * nilai, dan kueri itu mulai dibalas `504 Gateway Timeout` berulang-ulang —
+ * bukan sibuk, melainkan tidak selesai dalam jatah waktunya. Dipecah begini
+ * tiap kueri jauh lebih ringan, dan kegagalan satu kelompok tidak menyeret
+ * seluruh pengambilan.
+ *
+ * Ada jeda di antara kelompok karena Overpass dipakai bersama-sama; menembakkan
+ * empat kueri sekaligus adalah cara cepat untuk dijadikan tamu yang tidak
+ * diundang lagi.
+ */
+const POI_GROUPS = [
+	// `restaurant` sengaja TIDAK diminta. `poiCategory` memang tidak
+	// memetakannya ke mana pun sejak warung dipecah, jadi memintanya berarti
+	// mengangkut dan membuang sekitar 2.400 elemen tiap kali jalan — justru
+	// memberatkan kueri yang pemecahan kelompok ini dibuat untuk meringankannya.
+	{ key: 'amenity', values: 'cafe|fast_food|pharmacy|ice_cream' },
+	{ key: 'shop', values: 'convenience|supermarket|grocery|general|kiosk' },
+	{ key: 'shop', values: 'bakery|pastry|beverages|bubble_tea' },
+	{ key: 'shop', values: 'laundry|dry_cleaning|car_repair|motorcycle_repair' }
+];
+
 /** Bobot moda: kapasitas angkut berbeda, jadi kontribusi aksesnya berbeda. */
 const MODE_WEIGHT = { mrt: 1.0, krl: 0.9, lrt: 0.6, brt: 0.45 };
 
-const CATEGORIES = ['kopi', 'warung', 'minimarket', 'laundry', 'apotek'];
+/**
+ * URUTANNYA SENGAJA BUKAN URUTAN TAMPIL di `src/lib/domain/categories.ts`.
+ *
+ * Daftar ini hanya dipakai untuk membangkitkan atribut contoh (`ramai`,
+ * `listing`, `d`), dan tiap kategori menarik tiga angka dari pengacak yang
+ * disemai id petak. Selama lima kategori lama tetap di depan dan yang baru
+ * ditambahkan di belakang, angka contoh kelimanya tidak berubah sama sekali
+ * saat kisi dibangun ulang — yang berubah hanya tambahan di ujung. Menyisipkan
+ * kategori baru di tengah akan menggeser seluruh urutan undian dan mengubah
+ * ribuan angka contoh tanpa satu pun alasan nyata.
+ */
+const CATEGORIES = [
+	'kopi',
+	'warteg',
+	'minimarket',
+	'laundry',
+	'apotek',
+	'minuman',
+	'roti',
+	'kelontong',
+	'bengkel',
+	'cepatsaji',
+	'mie',
+	'seafood',
+	'restoasing'
+];
+
+/**
+ * Kategori yang benar-benar punya sumber di OSM. HANYA ini yang boleh muncul
+ * sebagai kunci pada `hexes.json.osm`.
+ *
+ * Ada tidaknya kunci itulah yang dibaca mesin skor sebagai "sudah diambil dan
+ * ternyata nol" versus "belum tercakup". Menulis nol untuk kategori yang tidak
+ * punya tag OSM akan menyatakan seluruh Jakarta bebas pesaing warteg — dan
+ * karena nol pesaing adalah skor terbaik yang bisa diberikan peta ini, seluruh
+ * peringkatnya jadi bohong. Daftar ini harus cocok dengan `osmTag` yang tidak
+ * null di `src/lib/domain/categories.ts`.
+ */
+const OSM_CATEGORIES = new Set([
+	'kopi',
+	'minuman',
+	'roti',
+	'cepatsaji',
+	'minimarket',
+	'kelontong',
+	'laundry',
+	'bengkel',
+	'apotek'
+]);
 
 /* ── program ──────────────────────────────────────────────────────────────── */
 
@@ -162,24 +254,27 @@ node["public_transport"="platform"]["operator"~"TransJakarta",i](${BBOX});
 
 	await sleep(4000);
 
-	// 2) POI pesaing — satu kueri untuk lima kategori
+	// 2) POI pesaing — dipecah beberapa kueri, lihat catatan di POI_GROUPS
 	console.log('[2/4] Mengambil POI pesaing…');
-	const poiQuery = `[out:json][timeout:180];(
-node["amenity"~"^(cafe|restaurant|fast_food|pharmacy)$"](${BBOX});
-node["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
-way["amenity"~"^(cafe|restaurant|fast_food|pharmacy)$"](${BBOX});
-way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
-);out center;`;
-	const poiRaw = await overpass(poiQuery, 'poi');
-
 	const pois = [];
-	for (const el of poiRaw.elements) {
-		const lat = el.lat ?? el.center?.lat;
-		const lon = el.lon ?? el.center?.lon;
-		if (lat == null || lon == null) continue;
-		const cat = poiCategory(el.tags);
-		if (!cat) continue;
-		pois.push({ lat, lon, cat });
+	for (const [gi, g] of POI_GROUPS.entries()) {
+		const q = `[out:json][timeout:180];(
+node["${g.key}"~"^(${g.values})$"](${BBOX});
+way["${g.key}"~"^(${g.values})$"](${BBOX});
+);out center;`;
+		const raw = await overpass(q, `poi ${gi + 1}/${POI_GROUPS.length}`);
+		let n = 0;
+		for (const el of raw.elements) {
+			const lat = el.lat ?? el.center?.lat;
+			const lon = el.lon ?? el.center?.lon;
+			if (lat == null || lon == null) continue;
+			const cat = poiCategory(el.tags);
+			if (!cat) continue;
+			pois.push({ lat, lon, cat });
+			n++;
+		}
+		console.log(`      [${gi + 1}/${POI_GROUPS.length}] ${String(n).padStart(5)} POI · ${g.key}=${g.values.slice(0, 46)}`);
+		if (gi < POI_GROUPS.length - 1) await sleep(4000);
 	}
 	const byCat = pois.reduce((a, p) => ((a[p.cat] = (a[p.cat] ?? 0) + 1), a), {});
 	console.log(`      ${pois.length} POI:`, byCat);
@@ -221,7 +316,7 @@ way["shop"~"^(convenience|supermarket|laundry)$"](${BBOX});
 		const access = Math.min(1, Math.sqrt(weighted) / 3.2);
 
 		const nearPois = poiIndex.near(lat, lon, WALK_M);
-		const osm = { kopi: 0, warung: 0, minimarket: 0, laundry: 0, apotek: 0 };
+		const osm = Object.fromEntries([...OSM_CATEGORIES].map((c) => [c, 0]));
 		for (const p of nearPois) osm[p.cat]++;
 
 		// Nama manusiawi: simpul transit terdekat yang punya nama.
