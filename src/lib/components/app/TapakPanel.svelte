@@ -12,6 +12,7 @@
 	 * reset and the map-selection remark live with the instance, on the page.
 	 */
 	import AskGlow from '$lib/components/ui/AskGlow.svelte';
+	import Dots from '$lib/components/ui/Dots.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { metricValue } from '$lib/domain/narrate';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -57,7 +58,11 @@
 				<div class="row">
 					<span class="avatar"><TapakFigure size={26} pacing={turn.pending} /></span>
 					<div class="bubble">
-						<p class:thinking={turn.pending}>{turn.text}</p>
+						<!-- Three dots taking their turn for as long as the wait does. The
+						     line used to end in a typed ellipsis, which is a full stop with
+						     two friends: it says the sentence trailed off, not that anything
+						     is still happening. -->
+						<p class:thinking={turn.pending}>{turn.text}{#if turn.pending}<Dots />{/if}</p>
 
 						{#if turn.answer && turn.answer.items.length}
 							<ul class="places">
@@ -173,22 +178,15 @@
 		background: var(--accent);
 		color: var(--accent-ink);
 	}
-	/* Waiting reads on two things at once: the figure beside the bubble is pacing, and
-	   the line itself breathes. Slow and shallow on purpose. It has to be legible as
-	   "still going" out of the corner of an eye, without pulling the eye off the
-	   answer above it. */
+	/* Waiting reads on two things: the figure beside the bubble paces, and the line
+	   ends in three dots taking their turn.
+
+	   The line used to breathe as well, its whole opacity rising and falling. With the
+	   dots moving inside it that was a third motion in one bubble, and three things
+	   moving at different rates in the same square inch is not "still going", it is
+	   fidgeting. The line holds still now and steps back in colour instead. */
 	.thinking {
 		color: var(--label-3);
-		animation: breathe-text 1.9s ease-in-out infinite;
-	}
-	@keyframes breathe-text {
-		0%,
-		100% {
-			opacity: 0.58;
-		}
-		50% {
-			opacity: 1;
-		}
 	}
 
 	.places {
@@ -335,13 +333,5 @@
 	}
 	form button:disabled:hover {
 		filter: none;
-	}
-
-	/* Reduced motion keeps the signal and drops the movement: the line still says
-	   Tapak is working, it just says it by holding still. */
-	@media (prefers-reduced-motion: reduce) {
-		.thinking {
-			animation: none;
-		}
 	}
 </style>
