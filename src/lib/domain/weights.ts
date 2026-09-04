@@ -8,7 +8,31 @@ import type { Weights } from '$lib/types';
  * means sooner or later the two diverge, and one endpoint starts accepting weights
  * the other rejects.
  */
-export const DEFAULT_WEIGHTS: Weights = { wd: 0.5, ws: 0.5, gate: true, radius: 800, source: 'osm' };
+/**
+ * The default `source` is MAPID, not OSM.
+ *
+ * It used to be OSM, and the reasoning held at the time: MAPID covered only one
+ * city for one category, so making it the default meant greeting the user with a
+ * mostly empty map. That reason has run out. MAPID now covers all thirteen
+ * categories across all five administrative cities, and is denser than OSM in every
+ * one of them — 16× on laundry, 13× on drinks stalls.
+ *
+ * What settles it points the other way entirely. Four food categories (warteg, mie,
+ * seafood, foreign restaurants) have no OSM source at all, because `cuisine` tagging
+ * in Jakarta is far too sparse and knows neither warteg nor Padang restaurants. With
+ * an OSM default, a user who picks Warteg — the business type people in Jakarta are
+ * most likely to ask about — would see the entire map marked "not covered" before
+ * touching anything.
+ *
+ * OSM is still on the switch, and is still never mixed into a single score.
+ */
+export const DEFAULT_WEIGHTS: Weights = {
+	wd: 0.5,
+	ws: 0.5,
+	gate: true,
+	radius: 800,
+	source: 'mapid'
+};
 
 const clamp01 = (v: unknown, fallback: number): number =>
 	typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
@@ -27,6 +51,10 @@ export function normalizeWeights(partial: Partial<Weights> | undefined): Weights
 		ws: clamp01(p.ws, DEFAULT_WEIGHTS.ws),
 		gate: typeof p.gate === 'boolean' ? p.gate : DEFAULT_WEIGHTS.gate,
 		radius: p.radius === 400 ? 400 : 800,
-		source: p.source === 'mapid' ? 'mapid' : 'osm'
+		// An unrecognised value falls back to the default, not to a hand-written
+		// 'osm'. This once read `? 'mapid' : 'osm'`, which meant the real source
+		// default lived in two places — and moving it in DEFAULT_WEIGHTS would have
+		// had no effect here at all.
+		source: p.source === 'mapid' || p.source === 'osm' ? p.source : DEFAULT_WEIGHTS.source
 	};
 }

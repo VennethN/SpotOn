@@ -6,19 +6,113 @@ export interface CategoryDef {
 	short: string;
 	/** Full name, for use in sentences. */
 	name: string;
-	/** The OSM tag the competitor count comes from — shown so the figure can be traced. */
-	osmTag: string;
+	/**
+	 * The OSM tag the competitor count comes from — shown so the figure can be traced.
+	 *
+	 * `null` means OSM CANNOT count this category, and the scoring engine treats
+	 * every cell as "not covered" on the OSM source. Not as zero. The difference is
+	 * decisive: zero competitors is the best opportunity this map can report, so a
+	 * category with no source but counted as zero would crown the whole of Jakarta
+	 * as the ideal location.
+	 */
+	osmTag: string | null;
+	/** The MAPID dataset the competitor count comes from — shown so the figure can be traced. */
+	mapidSet: string;
 	/** The Properti Go category considered a match for this kind of business. */
 	propertyCategory: string;
 }
 
+/**
+ * The business types that get scored.
+ *
+ * The order here is display order: food & drink first, then retail, then services.
+ * It differs from the order in `scripts/build-hexes.mjs`, which has to keep the
+ * five original categories up front — the reason for that lives over there.
+ *
+ * Every category must have A SOURCE ON BOTH SIDES, an OSM tag and a MAPID dataset.
+ * The source switch in the top bar picks one of them, and a category with only one
+ * side would quietly read as zero on the other — precisely the mistake this project
+ * works hardest to avoid, because zero competitors reads as the best opportunity.
+ * If a business type does not have both, it is not yet fit to be a category.
+ */
 export const CATEGORIES: CategoryDef[] = [
-	{ key: 'kopi', short: 'Kopi', name: 'Kedai Kopi', osmTag: 'amenity=cafe', propertyCategory: 'Coffee Shop' },
 	{
-		key: 'warung',
-		short: 'Warung',
-		name: 'Warung Makan',
-		osmTag: 'amenity=restaurant|fast_food',
+		key: 'kopi',
+		short: 'Kopi',
+		name: 'Kedai Kopi',
+		osmTag: 'amenity=cafe',
+		mapidSet: 'COFFEE SHOP + BRAND COFFEE SHOP',
+		propertyCategory: 'Coffee Shop'
+	},
+	{
+		key: 'minuman',
+		short: 'Minuman',
+		name: 'Kedai Minuman',
+		osmTag: 'shop=beverages|bubble_tea, amenity=ice_cream',
+		mapidSet: 'MINUMAN',
+		propertyCategory: 'Retail F&B'
+	},
+	{
+		key: 'roti',
+		short: 'Roti',
+		name: 'Toko Roti & Kue',
+		osmTag: 'shop=bakery|pastry',
+		mapidSet: 'ROTI DAN KUE',
+		propertyCategory: 'Retail F&B'
+	},
+	/**
+	 * `warung` used to be one category holding 6,094 points: warteg, sushi, KFC, and
+	 * Padang restaurants counted as the same competitor. For someone choosing a
+	 * location that is a misleading figure — a warteg does not compete with a
+	 * Japanese restaurant, and the density of fast-food outlets says nothing about
+	 * the opportunity for opening a rice stall.
+	 *
+	 * Four of its five splits carry `osmTag: null`. OSM has no usable tagging: only
+	 * 48.9% of eating places in Jakarta Pusat carry a `cuisine` tag at all, the
+	 * vocabulary that exists knows neither warteg nor Padang restaurants, and
+	 * `seafood` did not appear once in the sample. Forcing a mapping would produce
+	 * counts that are both too low and skewed — worst of all for warteg, the least
+	 * tagged of them. `cepat saji` survives because `amenity=fast_food` is a tag of
+	 * its own that does not depend on `cuisine`.
+	 */
+	{
+		key: 'warteg',
+		short: 'Warteg',
+		name: 'Warung & Rumah Makan',
+		osmTag: null,
+		mapidSet: 'RESTORAN → warteg, nasi goreng, padang, melayu, nusantara, ayam, jajanan',
+		propertyCategory: 'Retail F&B'
+	},
+	{
+		key: 'cepatsaji',
+		short: 'Cepat Saji',
+		name: 'Gerai Cepat Saji',
+		osmTag: 'amenity=fast_food',
+		mapidSet: 'RESTORAN → cepat saji',
+		propertyCategory: 'Retail F&B'
+	},
+	{
+		key: 'mie',
+		short: 'Mie',
+		name: 'Mie & Bakso',
+		osmTag: null,
+		mapidSet: 'RESTORAN → mie dan bakso, ramen',
+		propertyCategory: 'Retail F&B'
+	},
+	{
+		key: 'seafood',
+		short: 'Seafood',
+		name: 'Rumah Makan Seafood',
+		osmTag: null,
+		mapidSet: 'RESTORAN → seafood',
+		propertyCategory: 'Retail F&B'
+	},
+	{
+		key: 'restoasing',
+		short: 'Resto Asing',
+		name: 'Restoran Masakan Asing',
+		osmTag: null,
+		mapidSet: 'RESTORAN → korea, jepang, thailand, sushi, timur tengah, eropa, dll.',
 		propertyCategory: 'Retail F&B'
 	},
 	{
@@ -26,14 +120,39 @@ export const CATEGORIES: CategoryDef[] = [
 		short: 'Minimarket',
 		name: 'Minimarket',
 		osmTag: 'shop=convenience|supermarket',
+		mapidSet: 'MINIMARKET',
 		propertyCategory: 'Minimarket'
 	},
-	{ key: 'laundry', short: 'Laundry', name: 'Laundry', osmTag: 'shop=laundry', propertyCategory: 'Laundry' },
+	{
+		key: 'kelontong',
+		short: 'Kelontong',
+		name: 'Toko Kelontong',
+		osmTag: 'shop=grocery|general|kiosk',
+		mapidSet: 'TOKO KELONTONG',
+		propertyCategory: 'Ruko'
+	},
+	{
+		key: 'laundry',
+		short: 'Laundry',
+		name: 'Laundry',
+		osmTag: 'shop=laundry|dry_cleaning',
+		mapidSet: 'LAYANAN ATAU JASA → BINATU (LAUNDRY)',
+		propertyCategory: 'Laundry'
+	},
+	{
+		key: 'bengkel',
+		short: 'Bengkel',
+		name: 'Bengkel Kendaraan',
+		osmTag: 'shop=car_repair|motorcycle_repair',
+		mapidSet: 'PERAWATAN DAN PERBAIKAN OTOMOTIF',
+		propertyCategory: 'Ruko'
+	},
 	{
 		key: 'apotek',
 		short: 'Apotek',
 		name: 'Apotek',
 		osmTag: 'amenity=pharmacy',
+		mapidSet: 'APOTEK',
 		propertyCategory: 'Ruko'
 	}
 ];
