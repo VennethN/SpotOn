@@ -483,6 +483,79 @@ export const en: Copy = {
 			`${num(n)} commercial property listings from the MAPID Data Premium catalogue, across ${kota} administrative ${kota === 1 ? 'city' : 'cities'}. Every one of them is for sale.`
 	},
 
+	/* Field notes: MAPID Apps surveys somebody walked, not a catalogue. The
+	   difference has to show in every sentence. The competitor catalogue claims to
+	   hold every coffee shop in Jakarta, so a zero there is a finding. This claims
+	   nothing of the sort: 191 of the 562 cells carry a record, and an empty one only
+	   means nobody has been. Which is why every label says "recorded". */
+	field: {
+		title: 'Field notes',
+		notCensus:
+			'These are notes from people who went and stood there, not a census. An area with nothing recorded is not necessarily quiet, it may just be one nobody has walked yet.',
+		none: 'Nobody has recorded anything in this area yet.',
+		loading: 'Loading the records…',
+		failed: 'The records did not load. Every figure above is intact, only the list is missing.',
+		count: (n: number) => `${num(n)} ${n === 1 ? 'record' : 'records'} in this area`,
+		last: (tanggal: string) => `Last recorded ${tanggal}.`,
+		mapShow: 'Show on map',
+		mapHide: 'Hide from map',
+		walk: (m: number) => `${m} m`,
+		more: (n: number) => `+${n} more`,
+
+		/* Struk Go */
+		strukTitle: 'Receipts',
+		strukCount: (n: number) => `${num(n)} ${n === 1 ? 'receipt' : 'receipts'} photographed here`,
+		cashless: (persen: number) => `${persen}% of them were paid without cash.`,
+		cashlessThin: (n: number, min: number) =>
+			`Only ${n} ${n === 1 ? 'receipt names' : 'receipts name'} a payment method. Under ${min} of them, a share says nothing.`,
+
+		/* Menu Go */
+		menuTitle: 'Places to eat',
+		menuCount: (n: number) => `${num(n)} ${n === 1 ? 'place' : 'places'} a surveyor walked into`,
+		menuTypical: (v: number) => `A meal here runs to about ${rp(v)}.`,
+		menuTypicalThin: (n: number, min: number) =>
+			`Only ${n} ${n === 1 ? 'place has' : 'places have'} a price written down. Under ${min}, that is one warung's price and not the area's.`,
+		menuPrice: (v: number) => `${rp(v)} on average`,
+		menuNoPrice: (n: number) => `+${n} more with no price written down`,
+		crowd: { sepi: 'quiet', sedang: 'steady', ramai: 'queueing' },
+		crowdSeen: (kata: string) => `on the day: ${kata}`,
+
+		/* Properti Go. The only source of rentals this product has, so the copy says
+		   so outright. What the form records is the OFFER, and it never asks the price. */
+		propTitle: 'Space being offered',
+		propCount: (n: number) => `${num(n)} ${n === 1 ? 'place' : 'places'} recorded here`,
+		propRent: (n: number) => `${n} of them are up for rent.`,
+		propNoRent: 'All for sale, none of them up for rent.',
+		rentNote:
+			'This survey is the only one that records a rental. It records the offer, and it never asks what the rent is.',
+		offer: { sewa: 'For rent', jual: 'For sale' },
+
+		/* Community notes */
+		noteTitle: 'What people wrote',
+		noteCount: (n: number) => `${num(n)} ${n === 1 ? 'note' : 'notes'} about the streets around here`,
+		noteBy: (nama: string) => `by ${nama}`,
+
+		provenance: (n: number, petak: number, total: number) =>
+			`${num(n)} MAPID Apps field records, spread across ${petak} of the ${total} areas. Not one of them enters the score.`,
+
+		/* The date is written in the locale file rather than the component: month names
+		   and their order differ by language, and components only ever hand over a
+		   number or an ISO string. */
+		day: (iso: string) => {
+			const month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+			const [y, m, d] = iso.split('-').map(Number);
+			return month[m - 1] ? `${d} ${month[m - 1]} ${y}` : iso;
+		},
+		mapAria: (jenis: string, tempat: string, m: number) =>
+			`${jenis}: ${tempat}, ${m} m from the cell centre`,
+		kinds: {
+			struk: 'Receipt',
+			menu: 'Place to eat',
+			properti: 'Property',
+			catatan: 'Community note'
+		}
+	},
+
 
 
 	mood: {
@@ -933,7 +1006,9 @@ export const en: Copy = {
 			harga_tempat: 'asking price to buy',
 			unit_dipasarkan: 'units on the market',
 			akses_transit: 'transit access',
-			simpul_transit: 'transit nodes'
+			simpul_transit: 'transit nodes',
+			struk_dicatat: 'receipts recorded',
+			sewa_ditawarkan: 'premises up for rent'
 		},
 		sortedBy: (ukuran: string, naik: boolean) =>
 			`sorted by ${ukuran}, ${naik ? 'lowest' : 'highest'} first`,

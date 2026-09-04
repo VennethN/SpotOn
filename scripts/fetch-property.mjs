@@ -27,7 +27,7 @@
  *   TANAH RESIDENSIAL 1,213 · TANAH KOMERSIAL 931 · RUMAH BARU 111 · APARTEMEN BARU 34
  *
  * with no SEWA among them, in any city, in any family. TIPE_3 is exactly the
- * sale-or-rent dimension — `fetch-mission.mjs` reads the same distinction out of
+ * sale-or-rent dimension — `fetch-missions.mjs` reads the same distinction out of
  * Properti Go's `Jenis Properti` — so this is not an absence of the column, it is an
  * absence of rent in it.
  *

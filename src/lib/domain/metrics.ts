@@ -109,7 +109,34 @@ export const METRIC_MAP: Record<MetricKey, MetricDef> = {
 		sourced: 'mapid'
 	},
 	akses_transit: { read: (r) => r.access, kind: 'pct', best: 'desc' },
-	simpul_transit: { read: (r) => stopTotal(r.transit), kind: 'count', best: 'desc' }
+	simpul_transit: { read: (r) => stopTotal(r.transit), kind: 'count', best: 'desc' },
+	/*
+	 * The two field surveys that can be ranked, and the two that cannot.
+	 *
+	 * These read a COUNT of what somebody wrote down, and a count of one is exactly
+	 * true. The other two figures the surveys produce — what a meal costs here, what
+	 * share of the receipts were cashless — are an average and a share, and off one or
+	 * two readings they describe an afternoon rather than a street. They are shown on
+	 * the card, where the readings they came from are visible beside them, and they are
+	 * deliberately not offered here as something to sort a city by.
+	 *
+	 * Both return null where NOTHING was recorded, never 0, which puts them under the
+	 * rule the rest of this table lives by: an unmeasured cell is dropped from the
+	 * ranking rather than sorted to the bottom of it. It matters more here than
+	 * anywhere else in the table. 191 of the 562 cells carry any record at all, so a
+	 * zero would rank 371 streets nobody has visited as streets where nothing happens,
+	 * and they would fill the whole of "where is it quietest".
+	 */
+	struk_dicatat: {
+		read: (r) => r.field?.struk ?? null,
+		kind: 'count',
+		best: 'desc'
+	},
+	sewa_ditawarkan: {
+		read: (r) => r.field?.sewa ?? null,
+		kind: 'count',
+		best: 'desc'
+	}
 };
 
 /**

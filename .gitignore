@@ -36,3 +36,6 @@ vite.config.ts.timestamp-*
 
 # Singgahan jawaban Overpass — hanya untuk mempermudah percobaan ulang.
 scripts/.overpass-cache/
+
+# Scratch directory the gstack browse tooling writes into.
+.gstack/
