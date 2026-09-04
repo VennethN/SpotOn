@@ -281,6 +281,17 @@ export class AppState {
 	unitFilters = $state<UnitFilter[]>([]);
 
 	selectedId = $state<string | null>(null);
+	/**
+	 * The reader has stepped inside the selected area's model, where the hour can be
+	 * scrubbed.
+	 *
+	 * Held here rather than in the card that opens it, for two reasons. The model covers
+	 * the whole screen, and on a compact layout the card lives inside a dragged sheet,
+	 * which is a positioning context a full-screen surface cannot escape. And the state
+	 * belongs to the selection: a model of a catchment nobody has selected is a model of
+	 * nothing, so it is cleared wherever the selection is.
+	 */
+	zoomed = $state(false);
 	highlight = $state<string[]>([]);
 	ai = $state<AiAnswer | null>(null);
 	aiLoading = $state(false);
@@ -956,6 +967,7 @@ export class AppState {
 		if (this.pivot === p) return;
 		this.pivot = p;
 		this.highlight = [];
+		this.zoomed = false;
 		if (p === 'unit') {
 			this.selectedId = null;
 			void this.loadListings();
@@ -982,6 +994,7 @@ export class AppState {
 		this.selectedUnitId = id;
 		const unit = id ? this.units.find((u) => u.id === id) : null;
 		this.selectedId = unit?.cellId ?? null;
+		this.zoomed = false;
 		if (id) {
 			void this.loadCategories();
 			void this.loadStops();
@@ -1028,6 +1041,10 @@ export class AppState {
 
 	select(id: string | null) {
 		this.selectedId = id;
+		// The model on screen is a model of this cell. Closing the card leaves nothing for
+		// it to be of, and picking another cell would leave the reader inside a block they
+		// did not ask to be standing in.
+		this.zoomed = false;
 		if (id) {
 			// Picking a cell is a request for its figures, heatmap or no heatmap — the
 			// area panel and Tapak's remark both read the scored row.

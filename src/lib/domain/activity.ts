@@ -181,6 +181,29 @@ export function peakOf(day: number[]): { hour: number; n: number } {
 }
 
 /**
+ * How many of these doors are open at a fractional hour, eased between the two
+ * counted hours either side of it.
+ *
+ * For a MODEL, and that is why it returns a fraction. The counts themselves are per
+ * whole hour, which is the bar `scripts/lib/hours.mjs` sets and the only figure ever
+ * printed: a reader scrubbing to 07.30 is told about 07.00, the counted hour they are
+ * standing inside. What eases is the crowd in the diorama, so that dragging across an
+ * hour boundary is not forty people appearing between two frames.
+ *
+ * It never reads past the day it was handed. The last hour holds its own count rather
+ * than easing towards midnight, because midnight belongs to the next day's timetable
+ * and this array is one day.
+ */
+export function openAt(day: number[], hour: number): number {
+	if (!day.length) return 0;
+	const h = Math.max(0, Math.min(day.length - 1, hour));
+	const i = Math.floor(h);
+	const a = day[i] ?? 0;
+	const b = day[i + 1] ?? a;
+	return a + (b - a) * (h - i);
+}
+
+/**
  * The hour of the week it is in Jakarta right now.
  *
  * Jakarta's hour, not the reader's. The curve describes shutters on a street in
