@@ -888,6 +888,29 @@ check(
 		'a handful of readings ranks nothing',
 		metrics.standingOf(best, 'skor', ladder.slice(0, 3)) === null
 	);
+
+	/* And the explanation carries the same standing, so Tapak can say "that is the
+	   highest of all areas" about the very cell the card says it of. The measure asked
+	   about carries its own, counts included: "how busy" is answered by a count and "is
+	   that busy" by where the count sits. */
+	const why = nlq.answer(`kenapa ${best.name}`, cells, W, ['kopi'], [best.name]);
+	check(
+		'an explanation of the best cell stands it at the top',
+		why.explain?.standing.score === 1 && why.explain?.standing.measure === null,
+		`got ${JSON.stringify(why.explain?.standing)}`
+	);
+	const busy = nlq.answer(`seberapa ramai ${best.name}`, cells, W, ['kopi'], [best.name]);
+	const s = busy.explain?.standing.measure;
+	check(
+		'an explanation about busyness carries where the count stands',
+		busy.explain?.measure?.ukuran === 'keramaian' && typeof s === 'number' && s >= 0 && s <= 1,
+		`got ukuran=${busy.explain?.measure?.ukuran} standing=${s}`
+	);
+	check(
+		'a cell nobody scored is explained with no standing',
+		unscored === undefined ||
+			nlq.answer(`kenapa ${unscored.name}`, cells, W, ['kopi'], [unscored.name]).explain?.standing.score === null
+	);
 }
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nall checks passed');

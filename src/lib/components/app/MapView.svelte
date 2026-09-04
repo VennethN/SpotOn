@@ -37,7 +37,8 @@
 	import { base } from '$app/paths';
 	import { getAppState } from '$lib/state/app.svelte';
 	import type { ScoredUnit } from '$lib/domain/units';
-	import { categoryNames } from '$lib/domain/narrate';
+	import { standingOf } from '$lib/domain/metrics';
+import { categoryNames, standingPhrase } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 	import type { BasemapTiles, HexBase, ScoredHex } from '$lib/types';
 	import type { FeatureCollection } from 'geojson';
@@ -1494,6 +1495,10 @@
 				{row.density}
 				<span class="tip-unit">{c.app.tipDensity}</span>
 			</span>
+			<!-- The count against the grid. The readout is the one place a reader compares
+			     cells by moving the pointer, so it says where this one stands. -->
+			{@const busy = standingPhrase(standingOf(row, 'permintaan', app.ladders.permintaan), c)}
+			{#if busy}<span class="tip-sub">{busy}</span>{/if}
 			<span class="tip-sub">
 				{c.app.tipRadius(app.weights.radius)} · {c.app.tipUnits(row.units)}
 			</span>
@@ -1503,6 +1508,8 @@
 				{pct(row.score)}
 				<span class="tip-unit">{c.app.tipScore(categoryNames(app.categories, c, 'many'))}</span>
 			</span>
+			{@const standing = standingPhrase(standingOf(row, 'skor', app.ladders.skor), c)}
+			{#if standing}<span class="tip-sub">{standing}</span>{/if}
 			<span class="tip-sub">
 				{c.app.tipBusy(row.density)} · {c.app.tipRivals(row.osm)}<br />
 				{c.app.tipRadius(app.weights.radius)} · {c.app.tipUnits(row.units)}

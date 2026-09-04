@@ -187,6 +187,18 @@ export function standingOf(
 }
 
 /**
+ * A standing as the whole number every surface prints it as.
+ *
+ * FLOORED, never rounded. "Higher than N% of areas" is a claim, and the claim has to be
+ * true: the second-highest cell of 462 stands at 0.998, and rounded that reads "higher
+ * than 100% of areas", which it is not. Floored it reads 99, which it is. One function,
+ * because the fact sheet the model reads from and the sentence the interface composes
+ * both print this figure, and the grounding fence only lets the sentence through if the
+ * two agree to the digit.
+ */
+export const standingShare = (level: number): number => Math.floor(level * 100);
+
+/**
  * Which direction a ranking actually runs, given what the question asked for.
  *
  * One place, so the rule parser and the model reader cannot disagree about it.

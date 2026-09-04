@@ -885,6 +885,9 @@ export const id = {
 		transitRail: 'Stasiun rel yang terjangkau',
 		transitBus: (n: number) => `${n} halte TransJakarta dalam jarak jalan kaki`,
 		transitWalk: (m: number) => `${m} m`,
+		/* Indeksnya disandingkan dengan kisi, setelah pitanya. "Kuat" itu skala tetap,
+		   dan ini posisi si kuat di antara yang lain. */
+		transitStanding: (posisi: string) => `Indeks aksesnya ${posisi}.`,
 		transitUplift: (persen: number) =>
 			`Akses ini menaikkan skor peluang petak ini sekitar ${persen}% dibanding petak tanpa transit sama sekali.`,
 		transitWhyRail:
@@ -1282,6 +1285,11 @@ export const id = {
 				`Skor peluangnya sendiri ${nilai} dari 100 untuk ${cat}.`,
 			lead: (name: string, cat: string, nilai: string) =>
 				`${name} dapat ${nilai} dari 100 untuk ${cat}, dan ini yang menyusunnya.`,
+			/* Angkanya disandingkan dengan kisi, memakai potongan kalimat yang sama dengan
+			   yang dicetak kartu di bawahnya. Untuk skor dan untuk ukuran apa pun yang
+			   ditanyakan, karena "itu banyak atau tidak" pertanyaan yang ditimbulkan
+			   semua angka itu. */
+			standing: (posisi: string) => `Itu ${posisi}.`,
 			crowd: (usaha: number, radius: number, nilai: string) =>
 				`Ada ${num(usaha)} usaha lain dalam radius ${radius} m, jadi keramaiannya ${nilai} dari 100.`,
 			rivals: (n: number, cat: string, nilai: string) =>
@@ -1302,8 +1310,16 @@ export const id = {
 		},
 		remarkUncovered: (name: string, cat: string) =>
 			`Kawasan ${name} belum didata, jadi ${cat} di sekitarnya belum pernah dihitung. Belum ada angka yang bisa saya berikan.`,
-		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
-			`${name} ${verdict} untuk ${cat}, nilainya ${nilai}. Ada ${osm} pesaing sejenis, dan ${listing}.`,
+		remark: (
+			name: string,
+			verdict: string,
+			cat: string,
+			nilai: string,
+			osm: number,
+			listing: string,
+			posisi: string
+		) =>
+			`${name} ${verdict} untuk ${cat}, nilainya ${nilai}${posisi ? `, ${posisi}` : ''}. Ada ${osm} pesaing sejenis, dan ${listing}.`,
 		verdictGood: 'termasuk bagus',
 		verdictMid: 'menengah',
 		verdictLow: 'terus terang kurang menjanjikan',
@@ -1392,6 +1408,13 @@ export const id = {
 		cardIn: (petak: string) => `di petak ${petak}`,
 		cardWalk: (m: number) => `${num(m)} m dari pusat petak`,
 		cardAbout: 'Tentang tempatnya',
+		/* Harga per m² disandingkan dengan semua unit lain yang dipasarkan dan punya
+		   angkanya. Disebut "lebih mahal dari", seperti peringkat harga kawasan, bukan
+		   "lebih tinggi dari": tidak ada yang membaca harga sebagai tinggi. */
+		standing: (persen: number) => `lebih mahal dari ${persen}% unit yang dipasarkan`,
+		standingCheapest: 'unit termurah yang dipasarkan',
+		standingNearCheapest: 'termasuk unit termurah yang dipasarkan',
+		standingDearest: 'unit termahal yang dipasarkan',
 		/* Dulu "Tentang kawasannya", dan itu benar waktu semua yang di bawahnya diukur
 		   dari pusat petak. Sekarang jangkauannya diukur dari pintu depan tempat ini,
 		   jadi judulnya menyebut titik ukurnya, dan baris di bawahnya menyebut mana yang

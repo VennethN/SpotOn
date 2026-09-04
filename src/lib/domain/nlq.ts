@@ -5,9 +5,11 @@ import {
 	DEFAULT_METRIC,
 	METRIC_MAP,
 	applyFilters,
+	ladderFor,
 	needsBusinessType,
 	rankBy,
 	resolveOrder,
+	standingOf,
 	type MetricFilter
 } from './metrics';
 import { supplyPhrase } from './narrate';
@@ -931,6 +933,12 @@ export function runQuery(
 				? null
 				: { ukuran: asked, value: read, text: read === null ? 'belum terukur' : metricText(asked, read) };
 
+		/* Where each index sits among the rest of the grid, cut from the very rows every
+		   ranking is cut from. It is the one comparator "is that a lot" needs, and the
+		   score panel prints the same share from the same ladder, so the reply and the
+		   panel cannot disagree about it. */
+		const standingFor = (key: MetricKey) => standingOf(row, key, ladderFor(rows, key));
+
 		const explain: Explanation = {
 			id: row.id,
 			name: row.name,
@@ -950,7 +958,14 @@ export function runQuery(
 			units: row.units,
 			price: row.price,
 			priceLevel: row.priceLevel,
-			costFactor: row.costFactor
+			costFactor: row.costFactor,
+			standing: {
+				score: standingFor('skor'),
+				demand: standingFor('permintaan'),
+				supply: standingFor('penawaran'),
+				access: standingFor('akses_transit'),
+				measure: asked === DEFAULT_METRIC ? null : standingFor(asked)
+			}
 		};
 		return {
 			query,
