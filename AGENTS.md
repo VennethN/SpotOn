@@ -128,7 +128,7 @@ Copy `.env.example` to `.env` and fill it in.
 | Variable | What it does |
 | --- | --- |
 | `OPENROUTER_API_KEY` | language understanding. Without it the app still works, questions fall back to the rule parser, and every figure is still computed by the scoring engine. |
-| `OPENROUTER_MODEL` | optional model override |
+| `OPENROUTER_MODEL` | optional model override: one slug pins one model, several separated by commas replace the whole fallback chain and are tried left to right. Empty means the free chain in `src/lib/server/llm.ts`. |
 | `PUBLIC_MAPID_MAP_KEY` | the MAPID MAPS **Map Service key**. The style URL is built from it, and the light or dark style is picked to match the reader's theme. |
 | `PUBLIC_MAPID_STYLE_URL` | a full style **URL**, for a style the app does not know about. Wins over the key, and pins one style regardless of theme. A bare key left in here is read as a key, because this is where the key used to go. |
 | `MAPID_API_KEY` | read by the data scripts, not by the application |
