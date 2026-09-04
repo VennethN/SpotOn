@@ -78,6 +78,16 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 	   the reader has not named one and the figure they asked for needs one. */
 	if (ans.needsCategory) return c.narrate.needsCategory;
 
+	/* The model's own sentence, when it wrote one and it cleared `domain/grounded`.
+	   
+	   Read before every composed sentence below and after the three above, which is the
+	   right place for both reasons. It only ever exists on a turn that computed something,
+	   so it can never stand in front of a refusal or a greeting. And where it does exist
+	   it answers the question that was asked, which is the whole of why it is preferred:
+	   the sentences below are composed per INTENT, so a question about one catchment's
+	   rent and a question about why it is on the list produce the same words. */
+	if (ans.reply) return ans.reply;
+
 	const cat = categoryNames(ans.query.kategori, c, 'many');
 
 	/* "Why that one." Read before the intents below, because this answer carries one

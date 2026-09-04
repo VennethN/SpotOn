@@ -248,7 +248,7 @@ export const id = {
 		   angka di sini, jadi tidak ada yang bisa basi diam-diam. */
 		meet: {
 			title: 'Kenalan dengan Tapak, pemandu Anda.',
-			body: 'Tapak yang membaca pertanyaannya, menyusun pencariannya, lalu menjawab lengkap dengan alasannya. Tidak ada satu angka pun di jawaban itu yang ditulis modelnya. Semuanya dihitung mesin skornya dari data, dan kalau satu kawasan belum disurvei, Tapak bilang belum ada datanya, bukan mengarang.'
+			body: 'Tapak yang membaca pertanyaannya, menyusun pencariannya, lalu menjawab lengkap dengan alasannya. Kalimatnya ditulis modelnya, angkanya tidak: tiap angka dihitung mesin skornya dari data, dan angka yang tidak ada di hitungan itu dibuang mesin sebelum sampai ke layar. Kalau satu kawasan belum disurvei, Tapak bilang belum ada datanya, bukan mengarang.'
 		},
 		mapEmpty: 'Peta 562 petak kawasan transit Jakarta, menunggu pertanyaan pertama.',
 		mapLabel: (jenis: string) =>
@@ -273,7 +273,10 @@ export const id = {
 			   sedang terjadi persis ini: pertanyaannya sudah ditangkap, dan pencarian
 			   yang mau dijalankan sedang disusun. */
 			choosing: 'Sudah saya tangkap, sedang saya susun pencariannya',
-			computing: 'Sekarang saya hitung dari catatan saya'
+			computing: 'Sekarang saya hitung dari catatan saya',
+			/* Angkanya sudah ada waktu baris ini muncul. Yang sedang dikerjakan cuma
+			   kalimatnya, dan mengatakannya begitu lebih jujur daripada "sebentar". */
+			writing: 'Angkanya sudah dapat, saya rangkai jawabannya'
 		},
 		more: (n: number) => `+${n} lagi di dalam aplikasi`,
 		play: 'Jalankan percakapan',

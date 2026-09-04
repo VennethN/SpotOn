@@ -135,9 +135,13 @@ Copy `.env.example` to `.env` and fill it in.
 | `MONGODB_URI` | where accounts, sessions and quotas are stored. **Empty means demo mode**, which is a supported way to run this rather than a broken one: one account, one button to sign in, records in memory. See "Two metered actions" below. |
 | `MONGODB_DB` | optional database name inside that cluster. Empty means `spoton`. |
 
-The model only ever chooses an operation and fills in its arguments. Every
-number a user sees is computed by `domain/scoring.ts`, on data. That boundary is
+The model chooses an operation, fills in its arguments, and writes the sentence
+the reader sees. It does NOT produce a number. Every figure on screen is computed
+by `domain/scoring.ts`, on data, and a written sentence may only carry figures
+that were, which `domain/grounded` checks rather than requests. That boundary is
 the product's whole claim to being trustworthy, so do not move work across it.
+See "The answer is computed, and then it is said" below before changing either
+side of it.
 
 ## Two metered actions, and one of them is not the model
 
@@ -509,8 +513,12 @@ Tapak can say hello, say what SpotOn is, and talk generally about running a smal
 business. It could not before, and a greeting met with "that is outside what I can
 answer" reads as broken rather than rigorous.
 
-This is the one place the model writes a sentence the reader sees, which makes it the
-one place a fabricated figure could get in. "Warteg biasanya balik modal dalam 8 bulan"
+This is the one place the model writes a sentence with NOTHING COMPUTED BEHIND IT, which
+makes it the one place where the only possible source for a figure is invention. The
+answer to a data question is written by the model too, and is fenced differently for
+exactly that reason: there, figures exist and the rule is that the sentence may only carry
+those. See "The answer is computed, and then it is said". Here nothing was computed, so
+the rule is that it may carry none. "Warteg biasanya balik modal dalam 8 bulan"
 is fluent, plausible, entirely invented, and would sit in the same thread as figures
 that are traceable to a source. So `domain/chat` enforces what the prompt asks for:
 
@@ -553,6 +561,94 @@ because the reply is now streamed onto the reader's screen as the model writes i
 check that only ran at the end would put "warteg biasanya balik modal dalam 8 bulan" in
 front of them for two seconds before taking it away. By then it has been read, which is
 the whole harm. `withinFence` in `domain/chat` is that one rule, applied in both places.
+
+## The answer is computed, and then it is said
+
+For a long time an answer could be said exactly one way. The model picked an operation,
+the engine ran it, and a template in `i18n` read the result out. So every ranking opened
+with the same clause, every explanation was the same paragraph with different numbers, and
+two genuinely different questions about one catchment came back WORD FOR WORD IDENTICAL:
+
+> **why does it fit?**
+> Tosari scores 68 out of 100 for laundries, and here is what that is made of. […]
+>
+> **do you think tosari has good rent?**
+> Tosari scores 68 out of 100 for laundries, and here is what that is made of. […]
+
+The second question is about the price of space and is answerable: the figures were on the
+row the whole time. What answered it was a template keyed on the INTENT, and the intent was
+the same both times. No amount of conversation memory fixes that, because the memory was
+working. It was a state machine with a chat window in front of it.
+
+So the model writes the answer. `server/reply.ts` runs a second pass once the engine has
+finished: it is handed the question, the thread, and every figure this turn produced, and
+it writes the reply in the reader's language. The templates in `i18n` are still there and
+are still exactly right, as the fallback.
+
+**The engine did not move.** Every figure is still computed by `domain/scoring` on the
+data, before this pass exists and without reference to it. What changed is who writes the
+sentence around them, and nothing else.
+
+### The fence, which is what makes this a widening rather than a hole
+
+`domain/chat`'s rule is no digits, and that is right where it applies: a casual turn
+computes nothing, so any figure in it is invented by definition. It is the wrong rule here,
+where the engine has just produced a page of figures and the whole job is to say them.
+
+What replaces it is GROUNDING, in `domain/grounded`: a reply may carry a figure only if
+that figure is one it was handed. Not plausible, not the right order of magnitude —
+present, in the facts this turn computed. So the product's promise is unchanged and is
+worth stating in the same words as before: **no figure a reader sees came from the model.**
+
+Five things hold it up:
+
+- **The sheet and the whitelist are ONE STRING.** `factSheet` builds the text the model
+  reads from, and `cleanGroundedReply` builds its allowed set from that very text. Two
+  texts is how the two come to disagree, and a disagreement in that direction rejects true
+  figures rather than admitting false ones, which is the failure that hides.
+- **Both renderings of a figure are in the sheet.** The interface prints Rp 59,8 jt and the
+  engine's own prose writes Rp 59.750.000, and a model shown one will sometimes write the
+  other. Both are grounded because both are written down, and the short one is rounded
+  through `utils/format`'s `moneyScale`, the same function both locale files round through.
+  Divide by a million here instead and every catchment above a billion has its correct
+  price rejected, with no symptom but Tapak sounding plainer there.
+- **A quantity spelled out is still a quantity.** "Balik modal dalam delapan bulan" carries
+  no digit and is the same fabrication as the one that does. Counts in words are refused
+  outright, and a scale word ("juta", "million") only passes with a grounded figure
+  immediately in front of it, because "Rp 59,8 juta" is how a true figure is written and
+  "beberapa juta" is a claim about money nobody measured.
+- **A name is checked too.** A right figure quoted against the wrong catchment is wrong in
+  the one way a reader cannot catch, because the number checks out. The grid's names are a
+  closed set, so a reply naming a catchment this answer did not name is refused. Lone short
+  names are exempt and that hole is deliberate: Damai, Duri, Karet, Depok and Tebet are
+  ordinary words, and checking them would throw away true replies for saying "kawasannya
+  damai" while the list of places sits on screen directly under the sentence.
+- **It is never streamed.** Every other model-written sentence is, because a casual reply
+  carries no figures and watching one appear is watching a wait move. This one is made of
+  figures, and the rule about those has not moved: no figure is ever streamed. A number
+  arriving a digit at a time is a number being read before it has been checked, and the
+  check is the entire reason this is allowed to exist.
+
+A rejected reply is thrown away whole rather than repaired, and the composed sentence
+stands in. So the worst a misbehaving model can do is cost the reader the plainer answer.
+The same is true of no key, a timeout, or a model that is busy: `reply` is absent and
+everything downstream behaves as it did before this existed.
+
+`selftest-grounded.mjs` holds it, and its last check is the load-bearing one. The composed
+sentences are built entirely from computed figures, so they are grounded by construction
+and MUST clear the fence. If they cannot, the fence is rejecting true figures, and the
+symptom of that is not an error: it is Tapak silently falling back to the plain answer on
+every turn forever, while every test about invented figures still passes. That check has
+already earned its place once, on prices.
+
+### What this does not license
+
+The writing pass is not a second opinion and must not become one. It receives figures and
+a question and writes one answer. It does not choose the operation, does not decide which
+catchments are named, does not rank anything, and gets no say in what the map does. Those
+belong to the understanding layer and the engine, and the day something here starts
+deciding one of them, the fence stops meaning anything: it checks what a sentence SAYS, not
+what an answer IS.
 
 ## It is a thread, and the thread is part of the question
 
@@ -701,9 +797,11 @@ that long is indistinguishable from a broken interface. So two things travel:
   next taking over, which is where the longest silences live. `choosing` is the model
   naming its operation and writing the arguments, which is the first proof it woke up.
   `computing` is the scoring engine on the grid.
-- **The casual reply, as it is written.** The one sentence in the product the model
-  writes for itself. It is a preview: the sentence in the finished answer is the
+- **The casual reply, as it is written.** The one sentence the model writes with nothing
+  computed behind it. It is a preview: the sentence in the finished answer is the
   authoritative one, and a `reset` event says the preview is void and must come down.
+  The written ANSWER does not travel this way and must not, because it is made of
+  figures and the rule about those is the one above: no figure is ever streamed.
 
 Nothing is ever shown from a tool call's ARGUMENTS as they arrive. Half an enum value is
 not half an answer, and a category that appeared and then changed would be the interface
