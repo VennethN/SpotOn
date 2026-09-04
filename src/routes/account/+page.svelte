@@ -17,10 +17,20 @@
 	 *   it, which is a ratio and reads instantly as a bar.
 	 * - `WeekStrip` makes a refill date a POSITION. "Refills on Monday 24 August" is a
 	 *   date to hold against today's date; seven cells with today marked is a glance.
-	 * - `GrantBar` makes three tiers an ORDER. Six numbers across three cards is
-	 *   arithmetic the reader has to do to see the ladder they are being sold.
 	 * - `PlanCrest` makes a tier a RANK, at a size no wording is legible at, so the three
 	 *   cards are told apart while they are being scanned rather than after.
+	 *
+	 * THE TIER CARDS CARRY NO BAR, AND THAT IS THE CORRECTION THAT MATTERS MOST HERE.
+	 * They did: a thin track under each allowance, filled in proportion to the largest
+	 * tier, so the ladder could be seen rather than worked out. It was read by the first
+	 * person who saw it as USAGE, on three plans at once, which is impossible because an
+	 * account holds one plan. The mistake is instructive rather than careless. A bar chart
+	 * needs its bars in one frame to read as a comparison; split one per card there are no
+	 * peers in view, and a lone bar in a track is a gauge. Worse, the reader had just
+	 * learned that exact mark two sections above, where it genuinely IS their balance, so
+	 * the page taught one meaning and then reused it for another. The rank is carried by
+	 * the crests and the size by the figures, and neither of those can be mistaken for a
+	 * meter.
 	 *
 	 * The hexagon field behind the head is the one thing on the page that is decoration,
 	 * and it is uniform on purpose. One cell darker than another and it would be a map of
@@ -39,7 +49,6 @@
 	 */
 	import { untrack } from 'svelte';
 	import { base } from '$app/paths';
-	import GrantBar from '$lib/components/account/GrantBar.svelte';
 	import HexField from '$lib/components/account/HexField.svelte';
 	import PlanCrest from '$lib/components/account/PlanCrest.svelte';
 	import QuotaMeter from '$lib/components/account/QuotaMeter.svelte';
@@ -71,12 +80,6 @@
 		meter === 'ai'
 			? c.account.grantAi(PLANS[key].week.ai)
 			: c.account.grantAnalysis(PLANS[key].week.analysis);
-
-	/* The scale every comparison bar is drawn against: the largest grant on that meter,
-	   across the tiers that exist. Computed rather than pinned to Premier, so the bars
-	   still mean something the day a tier is added above it. */
-	const peak = (meter: MeterKey): number =>
-		Math.max(...PLAN_KEYS.map((k) => PLANS[k].week[meter]));
 
 	/** A code from the endpoint, said in the reader's language. A code this page has no
 	    sentence for still gets one, rather than showing the reader the code itself. */
@@ -167,14 +170,14 @@
 								{tier.price === 0 ? c.account.priceFree : c.account.priceMonth(tier.price)}
 							</p>
 
-							<!-- Each allowance as a figure and as a bar on one scale. The figure is
-							     the reading, the bar is what makes the three cards a ladder. -->
-							<div class="grants">
+							<!-- What the tier grants, as figures and as nothing else. There was a bar
+							     under each of these and it had to come out: see the note at the top of
+							     this file. -->
+							<ul class="grants">
 								{#each METER_KEYS as meter (meter)}
-									<p class="grant"><MeterMark {meter} size={12} />{grant(key, meter)}</p>
-									<GrantBar value={tier.week[meter]} peak={peak(meter)} />
+									<li class="grant"><MeterMark {meter} size={12} />{grant(key, meter)}</li>
 								{/each}
-							</div>
+							</ul>
 
 							<p class="blurb">{c.account.plan[key].blurb}</p>
 							{#if here}
@@ -437,11 +440,13 @@
 	}
 
 	.grants {
-		margin-top: 0.5rem;
+		margin: 0.5rem 0 0;
+		padding: 0;
+		list-style: none;
 	}
 	.grant {
 		display: flex;
-		margin-top: 0.4375rem;
+		margin-top: 0.375rem;
 		align-items: center;
 		gap: 0.375rem;
 		font-size: 0.75rem;
