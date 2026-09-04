@@ -18,10 +18,6 @@
 	 * turning a share into a percentage.
 	 */
 	import {
-		ACCESS_DIVISOR,
-		ACCESS_FLOOR,
-		ACCESS_SPAN,
-		MODE_WEIGHT,
 		modeShares,
 		railTotal,
 		stopTotal,
@@ -49,11 +45,10 @@
 	const transit = $derived(cell?.transit ?? null);
 	const total = $derived(transit ? stopTotal(transit) : 0);
 	const rail = $derived(transit ? railTotal(transit) : 0);
-	/* Both read from the cell rather than from the composition: the access index and
-	   its multiplier exist for every cell, including the ones the active source has
-	   not surveyed and which therefore have no score to take apart. */
+	/* Read from the cell rather than from the composition: transit access exists for
+	   every cell, including the ones the active source has not surveyed and which
+	   therefore have no score to take apart. */
 	const access = $derived(cell?.access ?? 0);
-	const accessFactor = $derived(ACCESS_FLOOR + ACCESS_SPAN * access);
 	const shares = $derived(transit ? modeShares(transit) : []);
 	const groups = $derived(transit ? stopsByMode(transit, app.selectedStops) : []);
 	/** The stop list is fetched on first selection; until it lands, only counts exist.
@@ -87,16 +82,16 @@
 			case 'start':
 				return n.start;
 			case 'demand':
-				return n.demand(app.weights.wd, Math.round((row?.demand ?? 0) * 100));
+				return n.demand(Math.round((row?.demand ?? 0) * 100));
 			case 'supply':
-				return n.supply(app.weights.ws, Math.round((row?.supply ?? 0) * 100));
+				return n.supply(Math.round((row?.supply ?? 0) * 100));
 			case 'clamp':
 				return n.clamp;
 			case 'gate':
 				if (!app.weights.gate) return n.gateOff;
-				return s.factor === 1 ? n.gatePass(row?.units ?? 0) : n.gateBlock(s.factor ?? 1);
+				return s.factor === 1 ? n.gatePass(row?.units ?? 0) : n.gateBlock();
 			case 'access':
-				return n.access(s.factor ?? 1, access);
+				return n.access();
 			case 'cost':
 				// Four different silences, and the row has to say which one it is. A step
 				// that reads the same whether nobody surveyed the city, nothing is for
@@ -109,8 +104,8 @@
 					if (cost?.absence === 'thin') return n.costThin(cost.priced);
 					return n.costUngraded;
 				}
-				if (s.factor === 1) return n.costCheapest(s.factor);
-				return n.cost(s.factor ?? 1, Math.round(cost.level * 100));
+				if (s.factor === 1) return n.costCheapest();
+				return n.cost(Math.round(cost.level * 100));
 		}
 	}
 </script>
@@ -242,7 +237,7 @@
 						<p class="top">
 							<span class="dot" aria-hidden="true"></span>
 							<span class="nm">{c.mood.transitModes[s.mode]}</span>
-							<span class="calc">{c.breakdown.accessRow(s.n, MODE_WEIGHT[s.mode])}</span>
+							<span class="calc">{c.breakdown.accessRow(s.n)}</span>
 							<span class="share">{c.breakdown.accessShare(Math.round(s.share * 100))}</span>
 						</p>
 						<span class="track" aria-hidden="true">
@@ -251,8 +246,8 @@
 					</li>
 				{/each}
 			</ul>
-			<p class="index">{c.breakdown.accessIndex(access, accessFactor)}</p>
-			<p class="formula">{c.breakdown.accessFormula(ACCESS_DIVISOR)}</p>
+			<p class="index">{c.breakdown.accessIndex(access)}</p>
+			<p class="formula">{c.breakdown.accessFormula}</p>
 
 			<!-- ── Every node, named ────────────────────────────────────────── -->
 			<h4 class="eyebrow sub">{c.breakdown.stationsTitle}</h4>

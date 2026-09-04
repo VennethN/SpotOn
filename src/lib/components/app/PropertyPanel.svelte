@@ -19,7 +19,7 @@
 	 * here does arithmetic of its own beyond turning a share into a percentage, so the
 	 * price on screen and the multiplier that moved the score cannot come apart.
 	 */
-	import { COST_FLOOR, readCost } from '$lib/domain/cost';
+	import { readCost } from '$lib/domain/cost';
 	import { composeScore } from '$lib/domain/composition';
 	import { byType, pricedPremises, withoutPrice } from '$lib/domain/premises';
 	import Fineprint from '$lib/components/ui/Fineprint.svelte';
@@ -53,17 +53,9 @@
 	    Indonesian sentence. */
 	const ratio = $derived(cost?.price && cost.median ? cost.price / cost.median : null);
 
-	/**
-	 * How many priced units a cell needs before the join will read a median off them,
-	 * and how much data is behind the whole panel.
-	 *
-	 * Read from the grid file's own metadata rather than written into the sentence.
-	 * `scripts/join-property.mjs` decides the threshold and records it there, so raising
-	 * it moves the rule and the sentence explaining the rule together. A figure typed by
-	 * hand here would go stale in silence, which has happened in this repository before.
-	 */
+	/** How much data is behind the whole panel, for the line naming where it came from.
+	    Read from the grid file's own metadata, so rebuilding the data rewrites it. */
 	const prop = $derived(app.meta?.property ?? null);
-	const minPriced = $derived(prop?.minPriced ?? 0);
 
 	const listings = $derived(app.selectedListings);
 	const groups = $derived(byType(listings));
@@ -147,12 +139,12 @@
 			{#if comp}
 				<p class="effect">
 					{comp.costBites
-						? c.property.effect(comp.costPoints, comp.costFactor)
+						? c.property.effect(comp.costPoints)
 						: c.property.effectNone}
 				</p>
 			{/if}
 			<Fineprint>
-				<p>{c.property.floor(COST_FLOOR)}</p>
+				<p>{c.property.floor}</p>
 			</Fineprint>
 		{:else}
 			<!-- The silences, told apart. Only the first means nobody looked. -->
@@ -164,7 +156,7 @@
 				{:else if cost.absence === 'unpriced'}
 					{c.property.noneUnpriced(cost.units)}
 				{:else if cost.absence === 'thin'}
-					{c.property.noneThin(cost.priced, minPriced)}
+					{c.property.noneThin(cost.priced)}
 				{:else}
 					{c.property.noneUngraded}
 				{/if}

@@ -40,7 +40,7 @@
 	 * streets in general and not about this one.
 	 */
 	import { untrack } from 'svelte';
-	import StreetScene from '$lib/components/ui/StreetScene.svelte';
+	import CatchmentScene from '$lib/components/ui/CatchmentScene.svelte';
 	import { HOURS_IN_DAY, jakartaNow, openAt, readHours, weekProfile } from '$lib/domain/activity';
 	import { categoryNames } from '$lib/domain/narrate';
 	import { daylightAt } from '$lib/scene/daylight';
@@ -135,14 +135,23 @@
 	/** The rule, from the grid's own metadata rather than typed into a sentence. */
 	const minReadable = $derived(app.meta?.hours?.minReadable ?? 0);
 	const profile = $derived(weekProfile(app.selectedOpen));
-	/**
-	 * The tallest hour of the WEEK, as in `ActivityPanel`. One scale across all seven
-	 * days, so a quiet Sunday is drawn quiet instead of being stretched to its own peak.
-	 */
-	const tallest = $derived(Math.max(1, ...profile.flat()));
 	/** Today in Jakarta. There is no day picker here: the model is one street at one
 	    moment, and a reader comparing days has the chart on the card for that. */
 	const bars = $derived(profile[now.day] ?? []);
+	/**
+	 * TODAY's tallest hour, which is what the crowd is drawn against.
+	 *
+	 * `ActivityPanel` scales its chart to the tallest hour of the WEEK, and it is right
+	 * to: a reader flicking between Monday and Sunday there is comparing them, and
+	 * per-day scaling would draw every day equally busy at its own peak.
+	 *
+	 * Nothing is being compared here. This view is one street on one day with no day
+	 * picker, so the week's scale bought nothing and cost the model its top end: on a
+	 * day quieter than the week's best, the busiest hour drew a street that was still
+	 * visibly short of the crowd the card shows for the same place. Against today's own
+	 * peak the two agree again, which is what the note above promises they do.
+	 */
+	const tallest = $derived(Math.max(1, ...bars));
 
 	/** Nothing counted here at all: the catalogue has never read this cell's city. */
 	const blank = $derived(row ? !row.covered : false);
@@ -163,7 +172,7 @@
 		if (app.hoursLoading) return { counted: false, note: c.zoom.stillLoading };
 		if (app.openPlacesFailed) return { counted: false, note: c.zoom.stillFailed };
 		if (stat.p === 0) return { counted: false, note: c.zoom.stillNone };
-		if (stat.h < minReadable) return { counted: false, note: c.zoom.still(stat.h, minReadable) };
+		if (stat.h < minReadable) return { counted: false, note: c.zoom.still(stat.h) };
 		return { counted: true, note: null };
 	});
 
@@ -179,6 +188,26 @@
 	 * otherwise rebuild them on every frame for differences of a fraction of a person.
 	 */
 	const density = $derived(Math.round(busy * share * 48) / 48);
+
+	/** Doors open at the counted hour the slider is standing in. */
+	const openHere = $derived(bars[at] ?? 0);
+	/**
+	 * Where this hour sits in the day, as the reader is scrubbing through it.
+	 *
+	 * The line above already says how many doors are open. What it cannot say is whether
+	 * that is a lot for this street, which is the whole question somebody dragging the
+	 * slider is asking. Said against the street's own busiest hour rather than against
+	 * any other place, because the doors were counted here and nowhere else.
+	 *
+	 * Nothing at all at an hour with nothing open: the count beside it is already "0 of
+	 * 13", and a second sentence saying zero per cent of the peak is the same fact in a
+	 * worse form.
+	 */
+	const standing = $derived.by(() => {
+		if (!crowd.counted || openHere === 0) return null;
+		if (openHere >= tallest) return c.zoom.peakHour;
+		return c.zoom.share(Math.round((openHere / tallest) * 100));
+	});
 
 	/* ── words ─────────────────────────────────────────────────────────────── */
 
@@ -211,7 +240,7 @@
 		style:--ink={day.ink}
 		style:--ink-muted={day.inkMuted}
 	>
-		<StreetScene
+		<CatchmentScene
 			{hour}
 			{density}
 			category={app.categories[0]}
@@ -219,6 +248,7 @@
 			nodata={blank}
 			rivals={row.osm}
 			vacancies={row.units}
+			transit={cell?.transit}
 			label={c.zoom.sceneLabel(row.name, at, body)}
 		/>
 
@@ -252,7 +282,8 @@
 				{#if crowd.note}
 					{crowd.note}
 				{:else if stat}
-					{c.zoom.doors(c.activity.dayFull[now.day], at, bars[at] ?? 0, stat.h)}
+					{c.zoom.doors(c.activity.dayFull[now.day], at, openHere, stat.h)}
+					{#if standing}<span class="standing">{standing}</span>{/if}
 				{/if}
 			</p>
 
@@ -276,6 +307,30 @@
 				</button>
 
 				<div class="track">
+					<!-- The day the crowd is following, drawn over the control that moves
+					     through it.
+
+					     The crowd in the model answers this shape, and at the size a person
+					     is drawn at across a whole block that answer is easy to miss: a
+					     street can lose two thirds of its figures between four in the
+					     morning and ten and still look like the same picture at a glance.
+					     Here the same fact is a shape, and the lit column says where the
+					     reader is standing in it.
+
+					     Only where the doors were counted. There is no curve otherwise, and
+					     drawing a flat row of stubs would be a claim that every hour is
+					     alike rather than that nobody looked. -->
+					{#if crowd.counted}
+						<div class="curve" aria-hidden="true">
+							{#each bars as n, h (h)}
+								<span
+									class="bar"
+									class:on={h === at}
+									style:height={`${Math.max(2, Math.round((n / tallest) * 100))}%`}
+								></span>
+							{/each}
+						</div>
+					{/if}
 					<input
 						bind:this={slider}
 						type="range"
@@ -308,7 +363,7 @@
 
 			<p class="basis">
 				{#if crowd.counted}
-					{c.zoom.basis(radius)}
+					{c.zoom.basis()}
 				{:else}
 					{c.zoom.hint}
 				{/if}
@@ -513,6 +568,32 @@
 		font-size: 0.5625rem;
 		color: var(--ink-muted);
 		font-variant-numeric: tabular-nums;
+	}
+
+	/* The day, over the slider that runs through it. Drawn in the hour's own ink so it
+	   stays readable against a sky that goes from black to white behind the dock. */
+	.curve {
+		display: grid;
+		grid-template-columns: repeat(24, 1fr);
+		align-items: end;
+		gap: 1px;
+		height: 1.75rem;
+		margin-bottom: 0.1875rem;
+	}
+	.bar {
+		border-radius: 1.5px 1.5px 0 0;
+		background: color-mix(in srgb, var(--ink) 38%, transparent);
+	}
+	/* The hour the slider is standing in. Full strength against the rest, because this
+	   is the one column the model on screen is drawn from. */
+	.bar.on {
+		background: var(--ink);
+	}
+
+	/* The second half of the reading, in the quieter ink: the count comes first, and
+	   this is what the count means for this street. */
+	.standing {
+		color: var(--ink-muted);
 	}
 
 	@media (max-width: 720px) {
