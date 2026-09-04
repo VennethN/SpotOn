@@ -30,6 +30,31 @@ terhitung sebagai minimarket karena namanya memuat "MART". Pesaing palsu menekan
 skor petak yang sebenarnya kosong — persis kebalikan dari yang kita cari.
 Klasifikasi sekarang hanya membaca `TIPE_1/2/3`.
 
+### Prasyarat menjalankan skrip
+
+**Kunci.** `MAPID_API_KEY` dibaca dari variabel lingkungan lebih dulu, baru dari
+`.env` (lihat `.env.example`). Yang dari lingkungan menang, jadi kunci lain bisa
+diuji sekali jalan tanpa menyunting berkas:
+
+```bash
+MAPID_API_KEY=<kunci lain> node scripts/fetch-mapid.mjs
+```
+
+**Jaringan.** Skrip perlu akses keluar ke `geoserver.mapid.io`, dan
+`join-mapid.mjs` juga ke cermin Overpass (`overpass-api.de` dan kawan-kawan)
+untuk batas administrasi. Keduanya sering diblokir di lingkungan berpagar —
+kontainer CI, sesi remote, jaringan kantor dengan proksi.
+
+Perlu diwaspadai karena mudah salah baca: bila proksi menolak, yang muncul
+adalah `Gagal: get_layer_list: 403 Forbidden` — persis seperti kunci ditolak.
+Bedakan sebelum mengganti kunci; kalau host-nya sendiri yang diblokir, permintaan
+tidak pernah sampai ke MAPID:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' https://geoserver.mapid.io/
+# "CONNECT tunnel failed, response 403" = jaringan, bukan kunci.
+```
+
 ---
 
 ## 2. Cakupan sekarang
