@@ -114,7 +114,7 @@ src/lib/
   server/mongo.ts        the one place "is there a database" is answered
   server/accounts.ts     accounts, sessions and the meters, over Mongo or over memory
   i18n/                  id.ts defines the shape, en.ts fills it
-  scene/                 three.js diorama and daylight
+  scene/                 three.js models and daylight: the area, the landing block, the grid
   utils/                 format, geo, motion (springs)
 ```
 
@@ -1089,6 +1089,69 @@ exact position. `openAt` in `domain/activity` eases between the two hours either
 that dragging across a boundary is not forty people appearing between two frames, and
 that eased value reaches the model and nothing else.
 
+
+### The model is the map, cut to the walking range
+
+The area card's model, and the full-screen one `CatchmentZoom` opens, used to be a
+schematic block: one composed street with a cafe, a stop and three lots, standing for
+every cell, with only the counts varying. They are now a recreation of the place.
+`domain/basemap` reads the basemap's own vector tiles, the building footprints, streets,
+water and parks the map draws, and cuts them to a disc of the walking radius around the
+point the range is measured from. `scene/area` stands the result up, and the map's own
+marks stand on it where the map draws them: stops in their mode's colour, competitors as
+the red square, units on the market as the amber diamond, field records as the hollow
+ring, the point itself as a beacon in the accent.
+
+**Whichever basemap the map is on is the one that is read.** `readBasemapTiles` in
+`map/basemap` takes the tile source off the style MapLibre actually loaded, so a MAPID
+key changes the model along with the map and the open basemap models exactly what it
+draws. The tiles are fetched by `AppState.loadArea` the way the stops and the listings
+are fetched, decoded once, and kept per TILE rather than per area, because a tile is a
+little wider than a walking range and neighbouring cells share most of theirs. `area` is
+`$state.raw`, and it has to be: it holds tens of thousands of coordinates the scene walks
+in one pass, and a deep proxy over them made that pass many times slower for a
+reactivity nobody reads.
+
+Four rules hold it up, and they are the product's own rules applied to geometry:
+
+- **Nothing is invented.** A building stands at the height the tile carries, which is
+  OpenStreetMap's figure where one was tagged and the schema's own default where not:
+  the same figure the map's raised view would give it. A street the tile does not draw
+  is not drawn. There is no typical block any more, anywhere in the product.
+- **The hour lights doors, not people.** The schematic sculpted a crowd and scaled it by
+  the doors counted open. At the scale of a real 800 m disc a person is one pixel, and a
+  crowd drawn ten times life size would be a claim about where people stand that nobody
+  counted. So the doors themselves are drawn: one mark per business with readable hours,
+  at the position OpenStreetMap holds for it, lit when its timetable says it is open in
+  the hour on the slider and dark when it does not. It is the very count the activity
+  chart draws, shown where it was counted. Where the doors were not counted, none is
+  drawn and the view says which silence it is, exactly as before.
+- **Every shape is cut to the disc, and every tile to its own square first.** A tile
+  carries a margin of its neighbours so a line can be drawn across the seam, and read
+  whole that margin put a second copy of every building along the seam on top of the
+  first. The cut to the disc follows the ARC of the circle where a shape leaves it and
+  comes back. A chord was the first attempt, and on a river covering half the disc it
+  cut the river in half. Which way round the arc goes is read from the path itself, the
+  angle the shape swept around the centre while it was outside, and NOT from the ring's
+  own orientation: a house bulging over the edge can sweep either way whatever way its
+  ring turns, and taking the direction from the ring sent one the long way round, a
+  roof the size of the disc at five metres with the whole street network hidden under
+  it. `utils/geo` says so above the function.
+- **The mark on the model says where it came from.** Four states, one mark, in both
+  languages: built from the basemap, still reading it, the read failed, or a basemap
+  that carries no geometry at all. That last one is the raster fallback and nothing
+  else. A blank disc never has to be interpreted.
+
+The card's model runs on JAKARTA'S clock, not the reader's. It ran on the reader's own
+hour when all the hour lit was the sky, which was a fact about them. Now the lit doors on
+it are a claim about the place at this minute, the same claim the "open now" row under
+it makes, and a model lit by a reader's midnight in London would show a Jakarta lunch
+hour with the street dark around it.
+
+The marks follow the map's layer switches, for the reason the map's own marks do: a
+competitor the reader has switched off the map must not go on standing in the model of
+it. What does not follow anything is the geometry itself. The map is free, and a model of
+the map is the map looked at another way, so reading it is not metered.
 
 ## One earth, and why it took three goes to get there
 
