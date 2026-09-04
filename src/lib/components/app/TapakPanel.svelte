@@ -28,6 +28,14 @@
 
 	let draft = $state('');
 	let log = $state<HTMLDivElement | null>(null);
+	let field = $state<HTMLInputElement | null>(null);
+
+	/* A surface asked for the box: the area card, saying which place the next question
+	   is about. The field takes the focus, and the placeholder names the place until a
+	   question goes out. Watched as a counter so a second ask is a second focus. */
+	$effect(() => {
+		if (tapak.focusRequest > 0) field?.focus();
+	});
 
 	/**
 	 * The box is inviting a question: Tapak is not working on one, and nothing has
@@ -152,7 +160,8 @@
 			<AskGlow on={inviting} reach={0.42} />
 			<input
 				bind:value={draft}
-				placeholder={c.app.ask}
+				bind:this={field}
+				placeholder={tapak.subject ? c.tapak.askAboutPlaceholder(tapak.subject) : c.app.ask}
 				aria-label={c.app.askAria}
 				disabled={tapak.busy}
 			/>
