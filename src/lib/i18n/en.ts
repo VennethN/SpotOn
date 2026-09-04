@@ -959,6 +959,18 @@ export const en: Copy = {
 		   surface whose whole job is to say what this figure is. Height and colour read
 		   the same number, so the sentence points back at it. */
 		viewReliefNote: 'Height carries the same figure as the colour.',
+		/* ── drawn or modelled ─────────────────────────────────────────────────
+		   The same basemap, two ways of looking at it. The button is short and the
+		   consequence is spelled out in the hint it carries, like the flat-or-3D switch
+		   beside it. "Modelled" because that is what is drawn: white masses at the height
+		   the map records, streets at their real width, and none of the publisher's
+		   lettering. */
+		renderLabel: 'Basemap',
+		renderDrawn: 'Drawn',
+		renderModelled: 'Modelled',
+		renderDrawnHint: "The basemap as its publisher draws it, with its street and place names.",
+		renderModelledHint:
+			"The same basemap's buildings, streets, water and parks, modelled the way the area model is. Each building stands at the height the map records, and one without a recorded height stands at one uniform height.",
 		categoryLabel: 'Business type',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} cells · ${poi} competitors mapped`,

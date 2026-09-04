@@ -66,11 +66,11 @@ const MODEL_ZOOM = 15;
  * height: uniform, and therefore a decoration rather than a claim. A tagged tower
  * still stands at its own.
  */
-const DEFAULT_HEIGHT = 5;
+export const DEFAULT_HEIGHT = 5;
 
 /** The road classes drawn, by the name the schema gives them. Anything else, a
     raceway, a ferry, an aerialway, is left off the model as it is left off a street. */
-const ROAD_KINDS: Record<string, RoadKind> = {
+export const ROAD_KINDS: Record<string, RoadKind> = {
 	motorway: 'motorway',
 	trunk: 'trunk',
 	primary: 'primary',
@@ -86,9 +86,30 @@ const ROAD_KINDS: Record<string, RoadKind> = {
 	transit: 'transit'
 };
 
+/**
+ * How wide each class of street is drawn, in metres. The width of the road itself,
+ * since the footprints beside it are true to scale and a street drawn wider than it is
+ * would run through the buildings on it. One table for the area model and for the
+ * map's modelled rendition, so the two agree about every street.
+ */
+export const ROAD_WIDTH: Record<RoadKind, number> = {
+	motorway: 22,
+	trunk: 18,
+	primary: 15,
+	secondary: 11,
+	tertiary: 8.5,
+	minor: 6,
+	service: 3.5,
+	track: 2.5,
+	path: 1.8,
+	busway: 7,
+	rail: 3.4,
+	transit: 3.4
+};
+
 /** How wide a waterway is drawn, by class, in metres. A stream the width of a river
     would put a river where the map shows a ditch. */
-const WATERWAY_WIDTH: Record<string, number> = {
+export const WATERWAY_WIDTH: Record<string, number> = {
 	river: 14,
 	canal: 8,
 	stream: 4,
@@ -97,8 +118,8 @@ const WATERWAY_WIDTH: Record<string, number> = {
 };
 
 /** Which land cover and land use reads as green on the model. */
-const GREEN_COVER = new Set(['grass', 'wood', 'scrub', 'wetland', 'farmland']);
-const GREEN_USE = new Set([
+export const GREEN_COVER = new Set(['grass', 'wood', 'scrub', 'wetland', 'farmland']);
+export const GREEN_USE = new Set([
 	'cemetery',
 	'pitch',
 	'playground',

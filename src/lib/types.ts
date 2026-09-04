@@ -1107,6 +1107,8 @@ export interface BasemapTiles {
 
 /** One vector source of the basemap, with the layer names as its style spells them. */
 export interface BasemapSource {
+	/** The source's id in the style, so the map can draw more layers from it. */
+	id: string;
 	/** Tile URL templates carrying `{z}`, `{x}` and `{y}`. */
 	tiles: string[];
 	minzoom: number;
