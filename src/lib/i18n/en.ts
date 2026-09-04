@@ -1039,6 +1039,10 @@ export const en: Copy = {
 		avoidQ: (cat: string) => `Which areas are saturated for a ${cat}?`,
 		coverage: 'Which ones have no data?',
 		coverageQ: 'Which areas have no data yet?',
+		/* The follow-up people actually type, offered once so it is visible that the
+		   box below can be talked to. Only one: everything else is typed, and what
+		   reads it is the understanding layer rather than a list of phrasings here. */
+		why: (name: string) => `Why ${name}?`,
 		retry: 'Try again',
 		/* Said by Tapak inside the thread, separately from the notice over the map. The
 		   question was never sent, so the turn still has to answer something rather than
@@ -1075,6 +1079,57 @@ export const en: Copy = {
 		nowByUnit:
 			'I have switched the map to read by place, so each row is one premises rather than an area.',
 		nowByCell: 'I have switched the map back to reading by area, so each row is an area again.',
+		/* ── Why that one ──────────────────────────────────────────────────
+		   The follow-up people actually ask, and the one that used to come back as
+		   the identical list read out a second time. Built from clauses rather than
+		   one template because half of them are conditional: an area with nothing on
+		   the market must not say "0 units on the market, median ·".
+
+		   Every figure is computed by the scoring engine. Not one is written by the
+		   model. */
+		explainWhich:
+			'Which area? Name it and I will break its score down from the figures I have.',
+		explain: {
+			unscored: (name: string, cat: string, simpul: number, radius: number) =>
+				`${name} has not been surveyed for ${cat}, so I have not scored it at all. The only thing measured there is its access: ${num(simpul)} ${simpul === 1 ? 'transit node' : 'transit nodes'} within ${radius} m.`,
+			lead: (name: string, cat: string, nilai: string) =>
+				`${name} scores ${nilai} out of 100 for ${cat}, and here is what that is made of.`,
+			/* Every count here has to agree with the noun beside it, which is this
+			   language's job and not the engine's. Indonesian does not inflect and its
+			   version of these is one sentence each. A catchment with one rival in range
+			   is not rare, and "1 pharmacies already stand" is the kind of seam that makes
+			   a sentence read as generated rather than written. Where the singular would
+			   need the noun in a form this is not given, it drops the noun instead: the
+			   lead sentence above has already named the trade. */
+			crowd: (usaha: number, radius: number, nilai: string) =>
+				usaha === 1
+					? `There is one other business within ${radius} m, which puts the trade around it at ${nilai} out of 100.`
+					: `There are ${num(usaha)} other businesses within ${radius} m, which puts the trade around it at ${nilai} out of 100.`,
+			rivals: (n: number, cat: string, nilai: string) =>
+				n === 1
+					? `One is already in the same range, so competition reads ${nilai} out of 100.`
+					: `${num(n)} ${cat} already stand in the same range, so competition reads ${nilai} out of 100.`,
+			rivalsNone: (cat: string) =>
+				`There are no ${cat} in that range at all, so nothing is taken off for competition.`,
+			space: (n: number, harga: string) =>
+				n === 1
+					? `One commercial unit is on the market around it, asking ${harga}.`
+					: `${num(n)} commercial units are on the market around it, at a median of ${harga}.`,
+			spaceUnpriced: (n: number) =>
+				n === 1
+					? 'One commercial unit is on the market around it, and it does not list a price.'
+					: `${num(n)} commercial units are on the market around it, but not one of them lists a price.`,
+			spaceNone: 'Nothing commercial is on the market around it.',
+			/* A position on the price ladder, not a verdict. The same figure the score
+			   breakdown prints, because two places saying the same thing have to say it
+			   with the same number. */
+			costHeld: (peringkat: number) =>
+				`Space there is dearer than in ${peringkat}% of the grid, and that holds the score back.`,
+			transit: (n: number) =>
+				n === 1
+					? 'One transit node is within walking range.'
+					: `${num(n)} transit nodes are within walking range.`
+		},
 		remarkUncovered: (name: string, cat: string) =>
 			`${name} has not been surveyed yet, so the ${cat} around it have never been counted. I have no figure to give you for it.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
@@ -1188,6 +1243,9 @@ export const en: Copy = {
 		and: 'and',
 		saturated: 'already crowded',
 		coverage: 'with no data yet',
+		/* Read when the answer is one area rather than a ranking. Without it a reply to
+		   "why that one" looks exactly like a ranking that happened to come back short. */
+		explain: 'one area, broken down',
 		within: (r: number) => `within ${r === 800 ? 'an' : 'a'} ${r} m walk of a transit stop`,
 		hasSpace: 'has space for rent',
 		cheap: 'lower rent bracket',
