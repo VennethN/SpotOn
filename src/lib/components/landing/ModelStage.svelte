@@ -46,8 +46,8 @@
 	let { cell, radius }: Props = $props();
 	const c = $derived(copy());
 
-	/** Close enough for a house to be a house, far enough for a block to be a block. */
-	const CAMERA_T = 0.75;
+	/** The far end of the camera track: the whole disc, edge and base and all. */
+	const CAMERA_T = 0;
 	/** One turn every forty seconds: slow enough to be looked at, fast enough to be seen moving. */
 	const DRIFT = -(Math.PI * 2) / 40;
 
@@ -168,34 +168,30 @@
 		flex-direction: column;
 		gap: 1rem;
 	}
-	/* The same frame the grid stands in, and for the same reason: an object on a panel
-	   wants a recessed ground, not a second outline. */
+	/* No frame of its own, unlike the grid above it: the grid is a drawing and wants a
+	   recessed ground, and this is an object, which wants the panel it stands on and
+	   nothing drawn around it. The box only gives the model its room, squarer than the
+	   grid's because a disc is round. */
 	.frame {
 		position: relative;
-		aspect-ratio: 16 / 7;
-		border-radius: var(--r-md);
-		overflow: hidden;
-		background: var(--fill-1);
+		aspect-ratio: 3 / 2;
 	}
 	/* The same mark the model wears in the app: where it came from, or why it is not
-	   here yet. Light on a scrim, because the sky behind it runs from black to white
-	   with the hour. */
+	   here yet. In the panel's own quiet ink, because they stand on the panel and not on
+	   the model. */
 	.mark,
 	.hint {
 		position: absolute;
-		bottom: 0.625rem;
+		bottom: 0;
 		font-size: 0.625rem;
 		letter-spacing: 0.04em;
-		color: rgba(255, 255, 255, 0.85);
-		background: rgba(0, 0, 0, 0.42);
-		border-radius: 3px;
-		padding: 0.1rem 0.4rem;
+		color: var(--label-3);
 	}
 	.mark {
-		left: 0.75rem;
+		left: 0;
 	}
 	.hint {
-		right: 0.75rem;
+		right: 0;
 	}
 	figcaption {
 		font-size: 0.875rem;
@@ -207,7 +203,7 @@
 	}
 	@media (max-width: 720px) {
 		.frame {
-			aspect-ratio: 4 / 3;
+			aspect-ratio: 1;
 		}
 	}
 </style>

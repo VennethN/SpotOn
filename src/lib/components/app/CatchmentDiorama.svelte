@@ -66,7 +66,6 @@
 	import { readCost } from '$lib/domain/cost';
 	import { lastRecorded, totalRecorded } from '$lib/domain/field';
 	import { countStops, railTotal, stopTotal } from '$lib/domain/transit';
-	import { daylightAt } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { tick } from 'svelte';
 	import { categoryNames } from '$lib/domain/narrate';
@@ -175,7 +174,6 @@
 	const jakarta = $derived(jakartaNow(clock));
 	/** The same clock, with its minutes, for the light over the model. */
 	const hour = $derived(jakartaHour(clock));
-	const day = $derived(daylightAt(hour));
 
 	/* The basemap around the point, at this radius. Asked for here rather than in
 	   `select`, because it is keyed on things `select` does not decide: the radius,
@@ -483,11 +481,7 @@
 		     the fold. Letterboxed it is still the place, still tappable into, and no longer
 		     the whole panel. On a panel with the height to hold both it does not move at
 		     all: see `cramped`. -->
-		<div
-			class="stage"
-			class:reading={opened !== null && cramped}
-			style:--sky={day.skyHorizon}
-		>
+		<div class="stage" class:reading={opened !== null && cramped}>
 			<AreaScene
 				{hour}
 				day={jakarta.day}
@@ -609,12 +603,15 @@
 		gap: 0.75rem;
 	}
 
+	/* Closed in on the block, the model fills the stage to its corners, so the stage
+	   has no sky of its own to show: what it has is a ground for the mark and the way in
+	   while the basemap is still being read. */
 	.stage {
 		position: relative;
 		aspect-ratio: 4 / 3;
 		border-radius: var(--r-md);
 		overflow: hidden;
-		background: var(--sky);
+		background: var(--fill-1);
 		border: 1px solid var(--separator);
 	}
 	/* Not animated on purpose: the scene inside redraws on every resize, and running
@@ -635,9 +632,9 @@
 		padding: 0.1rem 0.35rem;
 	}
 
-	/* Light on a dark scrim, like the mark opposite it: the sky behind runs
-	   from black to white with the reader's own hour, and a token from the theme would
-	   be invisible at one end of it. */
+	/* Light on a dark scrim, like the mark opposite it: the model behind runs from
+	   dark to white with Jakarta's hour, and a token from the theme would be invisible
+	   at one end of it. */
 	.enter {
 		position: absolute;
 		/* The opposite corner from the mark. Side by side at the width of this card the
