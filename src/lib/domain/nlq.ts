@@ -157,10 +157,13 @@ const METRIC_WORDS: Array<[RegExp, MetricKey]> = [
 	],
 	[/pesaing|saingan|kompetitor|competitor|rival/i, 'pesaing'],
 	[/permintaan|demand/i, 'permintaan'],
-	[/penawaran|supply|jenuh|saturasi/i, 'penawaran'],
+	// `saturat` covers saturated and saturation. The English half was missing, and the
+	// chip that asks which areas to avoid came back as a ranking by score without a
+	// model, because every intent word in this file was Indonesian.
+	[/penawaran|supply|jenuh|saturasi|saturat/i, 'penawaran'],
 	[/simpul|halte|stasiun|mrt|krl|lrt|transjakarta|angkutan/i, 'simpul_transit'],
 	[/akses|transit|dekat/i, 'akses_transit'],
-	[/skor|score|peluang|opportunity|terbaik|bagus|cocok|rekomendasi/i, 'skor']
+	[/skor|score|peluang|opportunity|terbaik|bagus|cocok|rekomendasi|best/i, 'skor']
 ];
 
 /**
@@ -341,6 +344,39 @@ const RANKING_ASK =
 const COMPARE_ASK = /\b(banding\w*|compare|vs|versus|lebih (?:bagus|baik|murah|mahal|ramai)\b)/i;
 
 /**
+ * The words that make a question a COMPARE, which is a narrower set than the one above.
+ * "Kawasan mana yang lebih ramai dari Setiabudi Astra" is a ranking with a yardstick in
+ * it, not a comparison of two named places, so "lebih ramai" holds back an EXPLAIN and
+ * does not start a COMPARE.
+ */
+const COMPARE_WORDS = /banding|compare|\bvs\b|versus/i;
+
+/**
+ * Which places have not been surveyed. "Tempat kosong" is deliberately not here: that is
+ * a vacancy, and the measure list above claims it first.
+ *
+ * The English half is what the chip says. It was missing, so "which areas have no data
+ * yet" matched nothing and came back as a ranking by score whenever the model was away.
+ */
+const COVERAGE_ASK =
+	/belum terdata|belum ada data|tidak ada data|data\w*\s+kosong|cakupan data|cakupan|no data|without data|unsurveyed|not (?:been )?surveyed|coverage/i;
+
+/** Which places are crowded out already, and should be avoided. Same story for the English. */
+const SATURATED_ASK = /jenuh|saturasi|saturat|penuh|hindari|jangan|avoid|steer clear/i;
+
+/**
+ * Asking to open something, with nothing else said.
+ *
+ * "Mau buka usaha" names no type, no measure and no place, and is still a question this
+ * data answers: it is the opening question of the whole product, one word short. Read as a
+ * ranking by the opportunity score it comes back asking for that word, which is what the
+ * reader needs to hear. Without this line it would be refused as unreadable, and a guide
+ * whose first sentence is "what are you thinking of opening" cannot then fail to
+ * recognise the reply.
+ */
+const OPENING_ASK = /\b(buka|membuka|mendirikan|open|opening|start|starting)\b/i;
+
+/**
  * The catchment a question is about, read against what is on screen and on the grid.
  *
  * TWO WAYS IN, AND THE SECOND ONE WAS MISSING.
@@ -355,12 +391,28 @@ const COMPARE_ASK = /\b(banding\w*|compare|vs|versus|lebih (?:bagus|baik|murah|m
  * holding two places against each other. Those are the two shapes that name a place and
  * are not about it.
  */
-function explainTarget(q: string, said: readonly string[]): string | null {
-	if (!said.length) return null;
-	const named = bestName(q, said);
-	if (named && !RANKING_ASK.test(q) && !COMPARE_ASK.test(q)) return named;
+/**
+ * What a why-question is about. `null` when the sentence is not one, `{ name: null }` when
+ * it points at something and nothing has been said for it to point at.
+ *
+ * Two lists, and they are different on purpose. A NAME can be looked for in `names`, the
+ * whole grid, because a reader can name a catchment the conversation never mentioned:
+ * they clicked it on the map, or they simply know it. A POINTER can only ever mean
+ * something the conversation said, so it resolves against `said` alone. The two were one
+ * list once, with the grid's names handed in as though Tapak had said them, and "kenapa?"
+ * on a fresh thread explained whichever catchment came first in the file.
+ */
+function explainTarget(
+	q: string,
+	said: readonly string[],
+	names: readonly string[]
+): { name: string | null } | null {
+	// The conversation's places first, so a name the reader just heard wins a tie
+	// against a fuller one elsewhere on the grid.
+	const named = bestName(q, [...said, ...names]);
+	if (named && !RANKING_ASK.test(q) && !COMPARE_ASK.test(q)) return { name: named };
 	if (!WHY.test(q)) return null;
-	if (named) return named;
+	if (named) return { name: named };
 	const rest = q
 		.toLowerCase()
 		.replace(WHY, ' ')
@@ -369,8 +421,25 @@ function explainTarget(q: string, said: readonly string[]): string | null {
 		.trim()
 		.replace(/^[,.!?~-]+/, '')
 		.trim();
-	// "Kenapa?" on its own, or "kenapa yang itu": pointing at the last thing said.
-	return POINTING.test(rest) ? said[0] : null;
+	// "Kenapa?" on its own, or "kenapa yang itu": pointing at the last thing said, and
+	// pointing at nothing when nothing has been said yet.
+	return POINTING.test(rest) ? { name: said[0] ?? null } : null;
+}
+
+/** A question read by rule: the query it was read into, and whether it was read at all. */
+export interface Reading {
+	query: StructuredQuery;
+	/**
+	 * Whether anything in the sentence was actually read: a business type, a measure, a
+	 * shape of answer, a named or pointed-at place, a distance, a direction, a request for
+	 * a list, or an intent to open something.
+	 *
+	 * False means the query beside it is the DEFAULT and not a reading. It is still a
+	 * complete, runnable query, because the response shape is a contract and a consumer
+	 * reading `query.kategori` should not have to special-case this. Running it would
+	 * answer a question nobody asked.
+	 */
+	understood: boolean;
 }
 
 /**
@@ -380,8 +449,17 @@ function explainTarget(q: string, said: readonly string[]): string | null {
  * and the two produce the same object so everything downstream is identical either way.
  * Neither of them computes anything: they choose an operation, a measure and a
  * direction, and the scoring engine produces every number from the data.
+ *
+ * WHAT IT REFUSES TO DO IS GUESS. Every sentence used to be read into a query, and a
+ * sentence with nothing readable in it was read into the default one: a ranking by the
+ * opportunity score for whatever business was active. So "what", typed by somebody
+ * confused by the previous answer, came back as five catchments under "if it were up to
+ * me", and "explain what do those numbers mean" came back as the same five. A confident
+ * answer to a question nobody asked, which is exactly the failure `tidak_dimengerti`
+ * exists to prevent on the model path, and this path had no equivalent. `understood`
+ * is that equivalent, and `answer` reads it before running anything.
  */
-export function parseQuestion(
+export function readQuestion(
 	q: string,
 	w: Weights,
 	fallback: CategoryKey | readonly CategoryKey[],
@@ -393,12 +471,25 @@ export function parseQuestion(
 	 * on a first question, and on every caller that has no conversation to speak of, in
 	 * which case nothing here behaves differently from before it existed.
 	 */
-	said: readonly string[] = []
-): StructuredQuery {
+	said: readonly string[] = [],
+	/**
+	 * Every name a question may NAME outright, over and above the ones the conversation
+	 * said: the whole grid, from `answer`. A pointer never reaches these, see
+	 * `explainTarget`. Defaults to `said` so a caller with no grid to hand behaves exactly
+	 * as before.
+	 */
+	names: readonly string[] = said
+): Reading {
 	// Every type the question names, or the ones the reader already had if it names
 	// none. Never a hard-coded default: a question that said nothing about the business
 	// type is asking about the one on screen, not about coffee.
 	const named = categoriesIn(q);
+	/* Set the moment any pattern below reads something. Tracked beside the query rather
+	   than inferred from it afterwards, because the query is built on defaults and a
+	   default is indistinguishable from a reading once it is written down: RANK by the
+	   opportunity score is both what "di mana sebaiknya buka kedai kopi" means and what
+	   "hmm" falls into. */
+	let understood = named.length > 0;
 	const out: StructuredQuery = {
 		intent: 'RANK',
 		metrik: 'gap permintaan − penawaran',
@@ -415,12 +506,16 @@ export function parseQuestion(
 	// ranked is the one in the subject position.
 	if (UNIT_PIVOT.test(q)) out.pivot = 'unit';
 	else if (CELL_PIVOT.test(q)) out.pivot = 'cell';
+	if (out.pivot) understood = true;
 
 	// A distance named in the question wins over the one the reader had set, and the
 	// query is then RUN at it — see `runQuery`. Snapped, because the median asking price
 	// only exists at the stops `join-property` computed.
 	const askedRadius = q.match(RADIUS_WORDS);
-	if (askedRadius) out.radius_m = snapRadius(Number(askedRadius[1]));
+	if (askedRadius) {
+		out.radius_m = snapRadius(Number(askedRadius[1]));
+		understood = true;
+	}
 
 	// Which figure a list of UNITS is sorted by. Only read when the question is about
 	// units at all: on a catchment ranking it is a field nothing downstream looks at,
@@ -441,6 +536,7 @@ export function parseQuestion(
 	for (const [re, key] of METRIC_WORDS) {
 		if (re.test(q)) {
 			out.ukuran = key;
+			understood = true;
 			break;
 		}
 	}
@@ -450,8 +546,9 @@ export function parseQuestion(
 	   a request for the five most crowded catchments, it is a request for one place's
 	   reasons. It only fires when there is a name to point at, so a first question can
 	   never land here. */
-	const explains = explainTarget(q, said);
+	const explains = explainTarget(q, said, names);
 	if (explains) {
+		understood = true;
 		out.intent = 'EXPLAIN';
 		/* The measure read above is KEPT, and that is the whole difference between "why is
 		   it on the list" and "what is the rent there". Both name one place, and a shape
@@ -460,7 +557,10 @@ export function parseQuestion(
 			(out.ukuran ?? DEFAULT_METRIC) === DEFAULT_METRIC
 				? 'rincian skor satu catchment'
 				: `${out.ukuran} di satu catchment`;
-		out.target = [explains];
+		/* Empty when the question pointed and nothing had been said. The engine then asks
+		   which place was meant, which is the honest reply and a better one than "not
+		   understood": the shape of the question was read, only its subject is missing. */
+		out.target = explains.name ? [explains.name] : [];
 		out.limit = 1;
 		/* No filters on an explanation. One named place is not a pool to narrow, and a
 		   chip row saying "cheap space" under a reply about one catchment would claim a
@@ -468,7 +568,8 @@ export function parseQuestion(
 		   foot of this function, which are guarded on `out.filter` for exactly this. */
 		delete out.filter;
 		delete out.filters;
-	} else if (/belum terdata|belum ada data|tidak ada data|data\w*\s+kosong|cakupan data|cakupan/i.test(q)) {
+	} else if (COVERAGE_ASK.test(q)) {
+		understood = true;
 		out.intent = 'COVERAGE';
 		out.metrik = 'N titik data misi per catchment';
 		out.ukuran = DEFAULT_METRIC;
@@ -476,10 +577,12 @@ export function parseQuestion(
 		out.limit = 99;
 		delete out.filter;
 		delete out.filters;
-	} else if (/jenuh|saturasi|penuh|hindari|jangan/i.test(q)) {
+	} else if (SATURATED_ASK.test(q)) {
+		understood = true;
 		out.intent = 'FLAG_SATURATED';
 		out.metrik = 'penawaran efektif (pesaing × keramaian)';
-	} else if (/banding|compare|\bvs\b|versus/i.test(q)) {
+	} else if (COMPARE_WORDS.test(q)) {
+		understood = true;
 		out.intent = 'COMPARE';
 		out.metrik = 'profil lengkap 2 catchment';
 		out.limit = 2;
@@ -488,6 +591,12 @@ export function parseQuestion(
 	// The measure's own idea of "best" unless the question overrides it. Cheapest space
 	// and most footfall are both "best", and they sit at opposite ends.
 	const asked = MOST.test(q) ? 'desc' : LEAST.test(q) ? 'asc' : undefined;
+	// A direction, a request for a list, or an intent to open something is a question
+	// about the grid even when it names no measure: "mana yang paling bagus", "where
+	// should I open", "mau buka usaha" all rank by the score and ask for a type if none
+	// is in force. What they are NOT is "what", "hmm", or a question about what the
+	// figures mean, none of which carries one of these words.
+	if (asked || RANKING_ASK.test(q) || OPENING_ASK.test(q)) understood = true;
 	if (out.intent === 'RANK') {
 		out.urut = resolveOrder(out.ukuran ?? DEFAULT_METRIC, asked);
 		out.metrik = `peringkat menurut ${out.ukuran}`;
@@ -514,7 +623,22 @@ export function parseQuestion(
 			out.filters?.push({ ukuran: 'akses_transit', arah: 'tinggi' });
 		}
 	}
-	return out;
+	return { query: out, understood };
+}
+
+/**
+ * The query alone, for a caller that has no use for whether the sentence was read.
+ *
+ * `server/answer` uses it to fill `query` on a chat turn and on a refusal, where the
+ * field describes what WOULD have been asked and something else says it was not.
+ */
+export function parseQuestion(
+	q: string,
+	w: Weights,
+	fallback: CategoryKey | readonly CategoryKey[],
+	said: readonly string[] = []
+): StructuredQuery {
+	return readQuestion(q, w, fallback, said).query;
 }
 
 /**
@@ -600,15 +724,35 @@ export function answer(
 	/** The catchments the conversation just named — see `parseQuestion`. */
 	said: readonly string[] = []
 ): AiAnswer {
-	/* The conversation's places first, then every name on the grid.
-	   
+	/* Every name on the grid, handed in SEPARATELY from the conversation's places.
+
 	   A reader can name a catchment the conversation never mentioned: they clicked it on
 	   the map, or they simply know it. Read against the thread alone, "what is the rent at
 	   Pusdiklat BPS" names nothing this parser has heard of and is answered as a ranking.
-	   Order matters, because the first strongest hit wins and a place just discussed is
-	   the better reading of an ambiguous one. */
-	const known = [...said, ...catchments.map((c) => c.name).filter((n): n is string => Boolean(n))];
-	return runQuery(parseQuestion(question, w, fallback, known), question, catchments, w);
+	   But a pointer is another matter, and the two lists used to be one: with the grid's
+	   names passed off as things Tapak had said, "kenapa?" on a fresh thread explained
+	   whichever catchment came first in the file. */
+	const names = catchments.map((c) => c.name).filter((n): n is string => Boolean(n));
+	const { query, understood } = readQuestion(question, w, fallback, said, names);
+	/* Nothing in the sentence could be read, so nothing runs. The alternative is what this
+	   used to do: run the default query and hand back a confident ranking to "what". No
+	   items, no highlight, so the map does not move either. The interface says in its own
+	   words what can be asked instead, in the reader's language, which is why this is a
+	   flag rather than a sentence. */
+	if (!understood) {
+		return {
+			query,
+			notUnderstood: true,
+			headline:
+				'Kalimat itu tidak terbaca sebagai pertanyaan soal data: tidak ada jenis usaha, ukuran, nama kawasan, jarak, atau bentuk pertanyaan yang dikenali, jadi tidak ada operasi yang dijalankan.',
+			items: [],
+			highlight: [],
+			provenance: [
+				'Pengurai aturan tidak menebak. Kalimat yang tidak memuat satu pun kata yang dikenalinya dijawab "tidak paham", bukan diperingkat menurut skor peluang.'
+			]
+		};
+	}
+	return runQuery(query, question, catchments, w);
 }
 
 /**
