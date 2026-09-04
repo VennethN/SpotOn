@@ -60,6 +60,7 @@
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gridExtent } from './lib/geo.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, 'src/lib/data/mission.json');
@@ -406,28 +407,16 @@ export function normalizeNote(item) {
    Run
    ──────────────────────────────────────────────────────────────────────────── */
 
-/** The grid's own extent, padded by one walking radius, as a closed ring.
-    Read from the grid rather than typed in, so it follows the grid if that moves. */
+/**
+ * The grid's own extent, padded by one walking radius.
+ *
+ * The rule moved to `lib/geo.mjs` unchanged, because `fetch-hours.mjs` needs the very
+ * same box and two copies of a padding rule is two boxes the day one of them is
+ * tweaked. This wrapper is what reads the grid off disk.
+ */
 function gridBox() {
 	const file = JSON.parse(readFileSync(GRID, 'utf8'));
-	const cells = file.hexes ?? [];
-	if (!cells.length) throw new Error('hexes.json holds no cells');
-	const radius = file.meta?.walkRadius ?? 800;
-	// A degree of latitude is ~111 km everywhere; a degree of longitude shrinks with
-	// the cosine of it. Jakarta sits close enough to the equator that the difference is
-	// small, and it is applied anyway because getting it wrong is free to avoid.
-	const lats = cells.map((c) => c.lat);
-	const lons = cells.map((c) => c.lon);
-	const mid = (Math.min(...lats) + Math.max(...lats)) / 2;
-	const padLat = radius / 111_320;
-	const padLon = radius / (111_320 * Math.cos((mid * Math.PI) / 180));
-	const box = [
-		Math.min(...lons) - padLon,
-		Math.min(...lats) - padLat,
-		Math.max(...lons) + padLon,
-		Math.max(...lats) + padLat
-	];
-	return { box, radius, cells: cells.length };
+	return gridExtent(file);
 }
 
 async function run() {
@@ -619,5 +608,13 @@ function selftest() {
 	process.exit(failed ? 1 : 0);
 }
 
-if (process.argv.includes('--selftest')) selftest();
-else await run();
+// Only when run as a script. Imported, this must not touch the network or write
+// anything — importing it used to start a full fetch and rewrite `mission.json`, which
+// is a live feed, so a reader merely reaching for one exported helper got a data change
+// they never asked for. Every other fetch and build script in this directory guards the
+// same way.
+if (process.argv.includes('--selftest')) {
+	selftest();
+} else if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	await run();
+}

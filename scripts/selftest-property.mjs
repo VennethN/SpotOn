@@ -28,6 +28,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
+import { haversine as scriptHaversine } from './lib/geo.mjs';
 
 const ROOT = new URL('..', import.meta.url);
 
@@ -42,12 +43,31 @@ async function load() {
 	});
 	const cost = await server.ssrLoadModule('/src/lib/domain/cost.ts');
 	const weights = await server.ssrLoadModule('/src/lib/domain/weights.ts');
+	const premises = await server.ssrLoadModule('/src/lib/domain/premises.ts');
+	const geo = await server.ssrLoadModule('/src/lib/utils/geo.ts');
 	await server.close();
-	return { ...cost, RADII: weights.RADII };
+	return {
+		...cost,
+		RADII: weights.RADII,
+		capturedListings: premises.capturedListings,
+		parseListings: premises.parseListings,
+		appHaversine: geo.haversine
+	};
 }
 
 const cost = await load();
-const { COST_FLOOR, MIN_LADDER, RADII, costFactor, priceLadder, priceLevel, readCost } = cost;
+const {
+	COST_FLOOR,
+	MIN_LADDER,
+	RADII,
+	appHaversine,
+	capturedListings,
+	costFactor,
+	parseListings,
+	priceLadder,
+	priceLevel,
+	readCost
+} = cost;
 
 let failures = 0;
 const check = (label, ok, detail = '') => {
@@ -190,6 +210,50 @@ if (meta) {
 		`the catalogue still publishes no rent (${Object.keys(meta.tipe3 ?? {}).join(', ')})`,
 		rentRows.length === 0,
 		`found ${rentRows.map(([k, v]) => `${k}=${v}`).join(', ')} — the interface says there is none, and would now be wrong`
+	);
+
+	/* ── the join and the browser measure the same earth ────────────────────────
+	   `join-property.mjs` counts what is in range and writes `n`, `u` and `q`, and then
+	   `capturedListings` recounts the very same points in the browser to list them. Two
+	   passes, two files, one number printed above the other's list.
+
+	   They disagreed. The joins carried their own `const R = 6371008.8`, the mean earth
+	   radius, while `utils/geo` measures on the WGS84 equatorial one, 0.11% larger. At
+	   800 m that is 0.9 m of radius, and 21 cell-and-radius readings sat across the line
+	   — by as many as 7 listings at once, because the catalogue geocodes to the street
+	   and one coordinate on the boundary carries several units. There is one constant
+	   now, in `scripts/lib/geo.mjs`, and this is what holds it there. */
+	const listings = parseListings(
+		JSON.parse(readFileSync(new URL('static/data/property.json', ROOT), 'utf8'))
+	);
+	let mismatched = 0;
+	let firstGap = '';
+	for (const cell of cells) {
+		if (!cell.prop) continue;
+		for (const r of RADII) {
+			const stored = cell.prop.r?.[String(r)];
+			if (!stored) continue;
+			const found = capturedListings(cell, listings, r);
+			if (stored.n !== found.length) {
+				mismatched++;
+				if (!firstGap) firstGap = `${cell.id} at ${r} m: the join counted ${stored.n}, the app finds ${found.length}`;
+			}
+		}
+	}
+	check('the count on the panel is the listings the panel lists', mismatched === 0, firstGap);
+
+	// Not the constants, which are private to each module, but the answers. Two
+	// implementations that round differently would pass a constant check and still
+	// disagree on a point sitting exactly on the line.
+	const pairs = [
+		[-6.2, 106.8, -6.2072, 106.8],
+		[-6.42, 106.65, -6.05, 107.05],
+		[-6.1789, 106.79238, -6.17152, 106.78893]
+	];
+	check(
+		'the scripts and the app compute the same distance',
+		pairs.every(([a, b, c, d]) => scriptHaversine(a, b, c, d) === appHaversine(a, b, c, d)),
+		pairs.map(([a, b, c, d]) => `${scriptHaversine(a, b, c, d)} vs ${appHaversine(a, b, c, d)}`).join(' · ')
 	);
 }
 

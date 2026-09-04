@@ -14,6 +14,8 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { haversine } from './lib/geo.mjs';
+import { metres } from './lib/home-cell.mjs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,6 +38,23 @@ console.log('Field-survey self-test (no network)\n');
 
 check('the grid has been through the mission join', Boolean(meta));
 check('the client file holds records', records.length > 0);
+
+/* ── one earth, and no local copy of it ──────────────────────────────────── */
+
+/*
+ * `home-cell.mjs` decides which catchment a record belongs to, and it used to measure
+ * on `const R = 6_371_000` — a THIRD earth beside the 6371008.8 the joins carried and
+ * the 6378137 `src/lib/utils/geo.ts` measures with. Nothing on this layer drifted
+ * because of it, since a record's cell is decided once at build time and the browser
+ * never recounts. That is luck rather than design: the moment anything here starts
+ * measuring twice, three earths would put a record in one cell and its count in
+ * another. So the identity is asserted rather than the answers.
+ */
+check(
+	'the home-cell rule measures on the shared earth, not a copy of it',
+	metres === haversine,
+	'home-cell.mjs has its own distance function again'
+);
 
 /* ── the two files describe the same set ─────────────────────────────────── */
 

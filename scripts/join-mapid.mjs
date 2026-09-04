@@ -37,6 +37,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { haversine } from './lib/geo.mjs';
 import { overpass } from './lib/overpass.mjs';
 import { normCity } from './lib/mapid.mjs';
 
@@ -57,17 +58,6 @@ const CATEGORIES = [
 	'bengkel',
 	'apotek'
 ];
-
-const R = 6371008.8;
-const rad = (d) => (d * Math.PI) / 180;
-function haversine(aLat, aLon, bLat, bLon) {
-	const dLat = rad(bLat - aLat);
-	const dLon = rad(bLon - aLon);
-	const x =
-		Math.sin(dLat / 2) ** 2 +
-		Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLon / 2) ** 2;
-	return 2 * R * Math.asin(Math.sqrt(x));
-}
 
 /** Ray casting; the ring is a [lon, lat][]. */
 function inRing(lon, lat, ring) {

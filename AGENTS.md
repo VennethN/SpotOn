@@ -146,6 +146,9 @@ node scripts/build-pois.mjs      # → static/data/pois/<category>.json   local 
 node scripts/fetch-property.mjs  # → src/lib/data/mapid-property.json   needs MAPID_API_KEY
 node scripts/join-property.mjs   # → adds prop + propCovered to hexes.json   local only
 node scripts/build-property.mjs  # → static/data/property.json   local only
+node scripts/fetch-hours.mjs     # → src/lib/data/osm-hours.json   needs Overpass
+node scripts/join-hours.mjs      # → adds hours to hexes.json   local only
+node scripts/build-hours.mjs     # → static/data/hours.json   local only
 node scripts/build-stops.mjs     # → static/data/stops.json   needs Overpass
 node scripts/build-routes.mjs    # → static/data/routes.json  needs Overpass
 node scripts/fetch-missions.mjs  # → src/lib/data/mission.json   no key needed
@@ -186,13 +189,19 @@ number, in the place the number is already being read.
 
 There is no setting for this in the application.
 
+The three opening-hours steps run in that order and depend on nothing but the grid
+having cells. `join-hours.mjs` needs no city assignment, unlike the property join: one
+Overpass query covers the whole grid at once, so there is no city that might not have
+been read.
+
 `npm run selftest` covers the parts of this that a rebuild cannot: the score
 breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
-in it has a name, the cost-of-space layer against the grid on disk, which
-measure each kind of question is understood to be asking about, the field
-surveys against the two files they produced, and the markdown reader together
-with the fence around a reply arriving in pieces.
+in it has a name, the cost-of-space layer against the grid on disk, the
+opening-hours reader and every cell's activity count against the point file the
+curve is drawn from, which measure each kind of question is understood to be
+asking about, the field surveys against the two files they produced, and the
+markdown reader together with the fence around a reply arriving in pieces.
 
 ## The field surveys are evidence, and they never reach the score
 
@@ -444,3 +453,130 @@ Two rules follow from the same place as the rest of this file:
   against a grid carrying at least eight prices. The listings hold real errors, a ruko
   at Rp 9.6 billion per m² among them, and one of those alone in a catchment would cost
   it a quarter of its score on the strength of a typo.
+
+## When the doors are open, and the other word this product will not use
+
+The area panel draws a chart shaped exactly like Google's popular times. It is a
+different measurement, and that difference is the whole of why it can be shown here.
+
+Google counts phones. This counts DOORS: for each hour of each day, how many businesses
+within walking range say they are open, read from the `opening_hours` tag in
+OpenStreetMap. Nobody has counted a person in Jakarta for this product, so the section
+never says ramai, busy, popular or footfall, and it says what it counts on screen rather
+than only in this file.
+
+Struk Go and Mission Go are what would carry the other half, because a receipt is the
+demand side of the same hour. Neither exists yet, which `fetch-mission.mjs` re-checks on
+every run rather than letting the absence quietly become an assumption. When they arrive
+the two go side by side, and until then neither is renamed to sound like the other.
+
+Three rules hold it up. They are the property layer's rules with different nouns:
+
+- **A refused timetable is refused whole.** `opening_hours` is a small language and
+  `scripts/lib/hours.mjs` reads a deliberately narrow part of it: weekday selectors,
+  clock ranges, `off`, `24/7`, spans past midnight. A public holiday clause, an hour
+  that moves with the sunset, a rule that only holds in July, a comment where a time
+  should be: the value is rejected BY NAME, counted under that name, and never read down
+  to the half that fitted. Reading the readable half of `Mo-Fr 09:00-17:00; PH off` is
+  harmless, and the same leniency applied to a seasonal rule reports the winter
+  timetable all year. It costs 82 of Jakarta's 3,156 published timetables, 2.6%, and it
+  is what makes the other 97.4% worth drawing.
+- **A curve needs eight readable businesses.** Three shops are three timetables, not a
+  rhythm, and one 24-hour minimart among them draws a street that never sleeps. 202 of
+  the 562 cells clear it, 296 are too thin and 64 have nothing at all, and each of those
+  three says which it is. The distribution the threshold was picked against is written
+  into the grid's metadata (`hours.perCell`) so the number can be argued with from the
+  data rather than defended from memory.
+- **The denominator travels with the curve.** Only 3,156 of the 19,548 businesses
+  counted publish hours at all. A chart with no count beside it reads as the whole
+  street, so `join-hours.mjs` stores three figures per cell per radius — businesses
+  counted, businesses publishing, timetables readable — and the panel prints them under
+  every curve it draws.
+
+What counts as a business is a list of EXCLUSIONS, in `NOT_A_BUSINESS` in
+`fetch-hours.mjs`: every `shop`, `craft`, `office` and `amenity`, minus unattended
+fixtures, institutions and public offices. An inclusion list was the first attempt and
+it was the wrong shape, because a list of the amenity values somebody thought of
+silently discards the ones they did not. The cull is real either way: 410 of the 2,335
+Jakarta amenities publishing opening hours are cash machines, and a hole in the wall is
+not a competitor.
+
+The week itself is NOT in the grid. Seven days of 24 hours per cell per radius is
+470,000 figures on a grid file that is 674 KB carrying only the counts, so the
+timetables travel with the businesses in
+`static/data/hours.json` (88 KB, 474 distinct timetables between 3,074 businesses) and
+the browser adds up the ones a cell captures. That is the split `domain/premises` makes
+for the property listings, for the same reason.
+
+Two passes over two files, and the panel prints the first above a chart drawn from the
+second, so `selftest-hours.mjs` checks that they agree on every cell at every radius. It
+already earned that: the join used the mean earth radius while `utils/geo` uses the
+WGS84 equatorial one, 0.11% apart, which put one shop inside 400 m on one side of the
+comparison and outside it on the other. The join now measures with the same earth the
+browser does. **The other join scripts still use the mean radius**, which is harmless
+there only because nothing recounts their work in the browser.
+
+
+## One earth, and why it took three goes to get there
+
+Every script that measures a distance imports `haversine` from `scripts/lib/geo.mjs`,
+and that file holds the only earth radius in the repository. It is `6378137`, the WGS84
+equatorial radius, because that is what `src/lib/utils/geo.ts` measures with and the
+browser is the side a reader actually sees.
+
+It was not always one. The joins each carried their own copy opening
+`const R = 6371008.8`, the mean radius, and `lib/home-cell.mjs` arrived later with a
+third, `6_371_000`. The three differ by about a tenth of a percent, which is 0.9 m at an
+800 m radius and invisible right up until two of them measure the same thing:
+
+- **21 property readings** disagreed with what the browser recounts, by as many as 7
+  listings at once, because the catalogue geocodes to the street and one coordinate on
+  the line carries several units.
+- **93 cells** were wrong on their MAPID competitor count, by as many as 3.
+- **The opening-hours layer** disagreed on one cell, which is how the whole thing was
+  found: `selftest-hours.mjs` compares the two passes on every cell at every radius.
+- **The field records** were untouched, because a record's home cell is decided once at
+  build time and the browser never recounts it. That is luck rather than design, and
+  `selftest-field.mjs` now asserts `home-cell.mjs` uses the shared function rather than
+  a copy, so the luck is not needed twice.
+
+Two tests hold it: `selftest-property.mjs` checks the scripts and the app return the
+same DISTANCE rather than merely declaring the same constant, and `selftest-field.mjs`
+checks the home-cell rule has not grown its own again. `build-hexes.mjs` was switched
+over but not re-run, since nothing recounts its output and its transit counts were
+measured identical under both radii.
+
+## The fetch box is the grid plus one radius, and the pad is checked
+
+Every fetch that answers "what stands within reach of a cell" is bounded by the grid's
+own extent PADDED by one walking radius, from `gridExtent` in `scripts/lib/geo.mjs`.
+Read from the grid rather than typed in, so it follows the grid if that moves, and
+shared so two fetches cannot pad differently and then disagree about which records
+exist.
+
+The pad is not decoration. A cell's catchment reaches a full radius past its own centre,
+and three cells sit closer to the edge than that — all three at Soekarno-Hatta, the
+nearest 32 m from it — so an unpadded fetch left up to 768 m of their catchment unread.
+`fetch-missions.mjs` had the rule first and it was right; `fetch-hours.mjs` did not and
+was refetched over the padded box.
+
+Then the pad itself was five metres short, because it divided by 111,320 m per degree of
+latitude when the shortest a degree gets is 110,574. A pad short by any amount is not a
+guarantee, so it now uses the shorter figure with 1% on top and `selftest-hours.mjs`
+asserts the result: no catchment may reach past the box that was fetched. It currently
+clears it by 8 m at Jatimulya, which is the tightest cell on the grid.
+
+What the padding bought in data was almost nothing — one business, in one cell in Depok.
+The ground past the western edge is airport apron and water. That is the honest outcome
+and it is not the reason to keep the rule: the reason is that the next time the grid
+moves, nobody has to rediscover which cells sit on the edge.
+
+`build-hexes.mjs` pads its COMPETITOR queries the same way, through `POI_BBOX`, while
+its transit query keeps the raw `BBOX` — that one decides where cells exist at all, and
+padding it would invent cells nobody asked for. It has not been re-run, so its counts
+move on the next rebuild rather than now.
+
+Two scripts learned a related lesson the hard way while this was being done.
+`fetch-missions.mjs` and `build-hexes.mjs` both ran their whole job on IMPORT, so
+reaching for one exported helper started a network fetch and rewrote committed data.
+Both now carry the same run guard every other script in that directory has.
