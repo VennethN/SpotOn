@@ -511,10 +511,17 @@ export const id = {
 			'Harga di petak ini terbaca, tapi belum cukup banyak petak lain yang harganya terbaca untuk dibandingkan. Jadi belum bisa dibilang mahal atau murah, dan skornya tidak dipotong.',
 
 		/* ── Yang sedang dipasarkan ─────────────────────────────────────────── */
+		/* Harga di atas punya petaknya, daftar di bawah punya tempatnya. Kalimat ini yang
+		   menahan satu kata "di sini" dipakai untuk dua titik ukur yang berbeda. */
+		medianIsCell: (r: number) =>
+			`Harga di atas median petaknya, diukur dari pusat petak dalam radius ${r} m. Daftar di bawah yang dipasarkan dalam radius ${r} m dari tempat ini.`,
 		marketTitle: 'Yang sedang dipasarkan di sini',
+		marketTitlePlace: 'Yang sedang dipasarkan di sekitar tempat ini',
 		marketCount: (n: number, r: number) => `${n} unit komersial dalam radius ${r} m`,
 		marketPremises: (n: number) => `${n} di antaranya bisa ditempati usaha kecil`,
 		marketNone: 'Tidak ada unit komersial yang sedang dipasarkan di sini.',
+		marketNonePlace:
+			'Tidak ada unit komersial lain yang dipasarkan dalam jarak jalan kaki dari tempat ini.',
 		marketLoading: 'Memuat daftar unitnya…',
 		marketFailed:
 			'Daftar unitnya tidak bisa dimuat. Harga dan cacahnya di atas tetap berlaku, keduanya dibaca dari kisi, bukan dari berkas itu.',
@@ -650,6 +657,9 @@ export const id = {
 	   sekali, cuma tanggal. Jadi keduanya tidak bisa disatukan jadi satu kurva. */
 	activity: {
 		title: 'Jam buka di sekitar sini',
+		/* Waktu jangkauannya diukur dari satu tempat, bukan dari pusat petak. Yang
+		   terhitung memang usaha yang lain, jadi judulnya menyebut diukur dari mana. */
+		titlePlace: 'Jam buka di sekitar tempat ini',
 		dayPicker: 'Pilih hari',
 		days: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
 		dayFull: ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
@@ -669,6 +679,22 @@ export const id = {
 			`Baru ${terbaca} dari ${usaha} tempat usaha di radius ${r} m yang mencantumkan jam buka. Terlalu sedikit untuk menggambarkan harinya.`,
 		none: (usaha: number, r: number) =>
 			`Dari ${usaha} tempat usaha di radius ${r} m, tidak ada satu pun yang memasang jam buka.`,
+
+		/* ── Diam yang sama, diukur dari satu tempat ───────────────────────
+		   Tanpa penyebut, dan itu memang jujurnya. `join-hours.mjs` menghitung berapa
+		   tempat usaha yang berdiri di sekitar SATU PUSAT PETAK dan berapa yang memasang
+		   jam buka. Tidak ada yang pernah menghitung itu dari satu pintu, jadi yang
+		   disebut cuma yang benar-benar terhitung di sini: berapa jam buka yang terbaca
+		   di dalam radiusnya. Meminjam penyebut punya petaknya berarti menulis pecahan
+		   yang pembilang dan penyebutnya diukur dari dua titik berbeda. */
+		thinPlace: (terbaca: number, r: number) =>
+			`Baru ${terbaca} usaha dalam radius ${r} m dari tempat ini yang jam bukanya bisa dibaca. Terlalu sedikit untuk menggambarkan harinya.`,
+		nonePlace: (r: number) =>
+			`Tidak ada usaha dalam radius ${r} m dari tempat ini yang jam bukanya bisa dibaca.`,
+		basisPlace: (terbaca: number, r: number) =>
+			`${terbaca} usaha dalam radius ${r} m dari tempat ini memasang jam buka yang bisa dibaca.`,
+		failedPlace:
+			'Jam bukanya tidak bisa dimuat, jadi grafiknya tidak digambar. Angka lain di kartu ini tidak terpengaruh.',
 
 		/* Cacahnya menyebut OpenStreetMap dengan sengaja. Kalimat di atas panel ini
 		   menghitung tiga belas jenis usaha yang diskor SpotOn, dari OSM dan MAPID
@@ -722,6 +748,11 @@ export const id = {
 			`Cuma cahayanya yang berjalan. Baru ${terbaca} usaha di sini yang mencantumkan jam buka, terlalu sedikit untuk menggambarkan harinya.`,
 		stillNone:
 			'Cuma cahayanya yang berjalan. Tidak ada usaha di sini yang memasang jam buka.',
+		/* Diam yang mirip, tapi bukan klaim yang sama. Yang terhitung dari satu tempat
+		   cuma jam buka yang BISA DIBACA, jadi yang boleh dibilang cuma itu. Bilang
+		   "tidak ada yang memasang" berarti mengaku tahu sesuatu yang tidak dihitung. */
+		stillPlaceNone:
+			'Cuma cahayanya yang berjalan. Tidak ada usaha dalam jarak jalan kaki dari tempat ini yang jam bukanya bisa dibaca.',
 		stillLoading: 'Cuma cahayanya yang berjalan sampai jam bukanya selesai dimuat.',
 		stillFailed:
 			'Cuma cahayanya yang berjalan. Jam bukanya gagal dimuat.',
@@ -764,6 +795,10 @@ export const id = {
 		   dibantah; "akses 0,82" tidak bisa apa-apa. Angkanya tetap ada, di
 		   belakang namanya. */
 		transit: 'Yang dijangkau dari sini',
+		/* Judul yang sama waktu jangkauannya diukur dari satu tempat, bukan dari pusat
+		   petak. Yang dihitung memang beda, jadi judulnya juga beda: pembaca berhak tahu
+		   angka di bawahnya diukur dari mana sebelum membacanya. */
+		transitPlace: 'Yang dijangkau dari tempat ini',
 		/* Angkanya dipimpin, bukan diselipkan. Ini "edisi angkutan massal": berapa
 		   simpul yang terjangkau dari satu petak itu pertanyaan pertamanya, jadi
 		   jawabannya ditulis besar sebelum apa pun yang lain. */
@@ -774,12 +809,29 @@ export const id = {
 			return `${halte} halte TransJakarta`;
 		},
 		transitNone: 'Tidak ada simpul transit dalam jarak jalan kaki dari petak ini.',
+		transitNonePlace: 'Tidak ada simpul transit dalam jarak jalan kaki dari tempat ini.',
+		/* Berkas simpulnya gagal dimuat. Cuma kejadian kalau jangkauannya diukur dari satu
+		   tempat: kalau diukur dari petak, cacahnya ada di kisi dan yang hilang cuma
+		   namanya. Daftar kosong di sini permintaan yang gagal, bukan jalan yang sepi. */
+		transitFailedPlace:
+			'Simpul transitnya tidak bisa dimuat, jadi belum ada yang bisa dihitung dari tempat ini.',
 		transitLoading: 'Memeriksa simpul transit di sekitarnya…',
 		transitBand: {
 			strongest: 'Akses transitnya termasuk yang terkuat di Jakarta.',
 			strong: 'Akses transitnya kuat.',
 			fair: 'Akses transitnya sedang.',
 			thin: 'Akses transitnya terbatas.'
+		},
+		/* Kalimat yang sama, tapi menyebut petaknya. Indeks aksesnya dihitung waktu kisi
+		   dibangun, dari pusat petak, dan tidak ada versinya yang diukur dari satu pintu.
+		   Jadi kalau cacah di atasnya diukur dari satu tempat, kalimat ini wajib bilang
+		   angka ini punya siapa. Dua ukuran beda yang ditulis berdempetan tanpa keterangan
+		   terbaca seperti dua bagian dari satu hitungan. */
+		transitBandCell: {
+			strongest: 'Akses transit petaknya termasuk yang terkuat di Jakarta.',
+			strong: 'Akses transit petaknya kuat.',
+			fair: 'Akses transit petaknya sedang.',
+			thin: 'Akses transit petaknya terbatas.'
 		},
 		transitModes: {
 			mrt: 'MRT',
@@ -806,6 +858,7 @@ export const id = {
 		transitWhyBus:
 			'Halte TransJakarta menyebar, jadi keramaiannya terbagi ke banyak titik. Bagus untuk jangkauan, bukan untuk satu titik ramai.',
 		transitRadius: (m: number) => `Dihitung dari pusat petak, radius ${m} m`,
+		transitRadiusPlace: (m: number) => `Dihitung dari tempat ini, radius ${m} m`,
 		transitShow: 'Tampilkan di peta',
 		transitHide: 'Sembunyikan dari peta',
 		/* Pesaing, digambar di tempatnya yang sebenarnya. Kata kerjanya sama dengan
@@ -1036,11 +1089,19 @@ export const id = {
 		mapStops: (n: number) => `${n} simpul transit`,
 		mapStopsAria: (n: number, r: number) =>
 			`${n} simpul transit dalam ${r} m jalan kaki dari petak ini`,
+		/* Versi yang dipakai waktu lingkaran jangkauannya digambar mengelilingi satu
+		   tempat, bukan pusat petak. Kalimat yang menyebut petak di atas jangkauan yang
+		   diukur dari pintu depan adalah satu-satunya bacaan di peta ini yang tidak bisa
+		   dicek pembacanya sendiri. */
+		mapStopsAriaPlace: (n: number, r: number) =>
+			`${n} simpul transit dalam ${r} m jalan kaki dari tempat yang dipilih`,
 		/* Cacah titik pesaing yang benar-benar tergambar, bukan angka panel. Lencana
 		   dan peta yang ditempelinya tidak boleh berselisih. */
 		mapRivals: (n: number) => `${n} pesaing`,
 		mapRivalsAria: (n: number, r: number) =>
 			`${n} pesaing sejenis dalam ${r} m jalan kaki dari petak ini`,
+		mapRivalsAriaPlace: (n: number, r: number) =>
+			`${n} pesaing sejenis dalam ${r} m jalan kaki dari tempat yang dipilih`,
 		mapReach: (r: number) => `jangkauan ${r} m`,
 		tipNodata: 'Kotanya belum disurvei · kandidat prioritas survei',
 		tipScore: (cat: string) => `skor ${cat}`,
@@ -1249,7 +1310,13 @@ export const id = {
 		cardIn: (petak: string) => `di petak ${petak}`,
 		cardWalk: (m: number) => `${num(m)} m dari pusat petak`,
 		cardAbout: 'Tentang tempatnya',
-		cardArea: 'Tentang kawasannya',
+		/* Dulu "Tentang kawasannya", dan itu benar waktu semua yang di bawahnya diukur
+		   dari pusat petak. Sekarang jangkauannya diukur dari pintu depan tempat ini,
+		   jadi judulnya menyebut titik ukurnya, dan baris di bawahnya menyebut mana yang
+		   tetap punya petaknya. */
+		cardArea: 'Sekitar tempat ini',
+		cardAreaNote:
+			'Jangkauan jalan kakinya diukur dari tempat ini. Skor peluang, keramaian, cacah pesaing yang dipakai skornya, indeks akses dan harga medianya tetap punya petaknya, dihitung dari pusat petak waktu kisinya dibangun.',
 		cardFigures: 'Lihat kolom lengkap listingnya',
 		cardNoScore:
 			'Petak ini belum tercakup data pesaing untuk jenis usaha yang dipilih, jadi belum ada skornya. Keterangan tempatnya di atas tetap berlaku.',

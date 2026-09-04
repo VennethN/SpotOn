@@ -20,6 +20,21 @@
 	 * That works because opening a unit selects its home cell (`selectUnit`), so every
 	 * panel underneath reads the catchment this unit actually stands in.
 	 *
+	 * WHAT THOSE PANELS ARE MEASURED FROM, WHICH IS TWO THINGS
+	 *
+	 * Opening a unit also moves `app.reach` onto its doorway, so the walking range those
+	 * panels report — the stations, the competitors, the units on the market, the doors
+	 * open at each hour — is measured from this front door rather than from the middle
+	 * of the hexagon around it. That is the whole point of the pivot: nobody walks from
+	 * the centre of a catchment.
+	 *
+	 * What the grid measured at build time cannot follow, because it was measured from
+	 * the cell centre and there is no reading of it taken from here. The score, how busy
+	 * the area is, the competitor count behind that score, the access index and the
+	 * median asking price stay the catchment's. `cardAreaNote` under the heading is what
+	 * says which of the two a figure below it belongs to, and it is not optional: the
+	 * two are a few lines apart and would otherwise read as one measurement.
+	 *
 	 * Which leaves the two cards nearly identical in shape, which is the point and also
 	 * the risk — hence `PivotMark` in the header. One badge is a hexagon and the other is
 	 * a shopfront, and that is what tells 800 m of city apart from one front door at a
@@ -134,6 +149,11 @@
 		{/if}
 
 		<SectionHead icon="market">{c.units.cardArea}</SectionHead>
+		<!-- Which point each half of what follows was measured from. The panels below
+		     read the walking range from this doorway now, and the figures the grid baked
+		     at build time still belong to the catchment. Both are true, and a reader
+		     taking one for the other is the whole reason this line exists. -->
+		<p class="basis">{c.units.cardAreaNote}</p>
 		{#if row && row.score !== null}
 			<p class="score">
 				<span class="dot" style:background={`var(--ramp-${rampIndex(row.score)})`}></span>
@@ -220,6 +240,14 @@
 		color: var(--label-2);
 		border-left: 2px solid var(--warn);
 		padding-left: 0.5rem;
+	}
+	/* Apparatus, in the shape the rest of the card uses for apparatus: small, quiet,
+	   and skippable by anybody who does not need it. Not a warning, so no rule down
+	   the side of it. */
+	.basis {
+		font-size: 0.625rem;
+		line-height: 1.45;
+		color: var(--label-3);
 	}
 	.traits {
 		font-size: 0.75rem;

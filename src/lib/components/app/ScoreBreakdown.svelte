@@ -50,7 +50,12 @@
 	   therefore have no score to take apart. */
 	const access = $derived(cell?.access ?? 0);
 	const shares = $derived(transit ? modeShares(transit) : []);
-	const groups = $derived(transit ? stopsByMode(transit, app.selectedStops) : []);
+	/* The CELL's stops, never the range's. This section takes the access index apart,
+	   and that index was computed from the counts the grid holds, which were counted
+	   from the cell centre. Named from a list captured anywhere else the names would
+	   not be the names of what those counts counted, and `unnamed` would go negative
+	   the first time a doorway reached a station the cell does not. */
+	const groups = $derived(transit ? stopsByMode(transit, app.cellStops) : []);
 	/** The stop list is fetched on first selection; until it lands, only counts exist.
 	    A fetch that FAILED is not waiting — that branch falls back instead. */
 	const waiting = $derived(app.stops === null && !app.stopsFailed);

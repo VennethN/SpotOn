@@ -1,6 +1,19 @@
 <script lang="ts">
 	/**
-	 * What space costs in the selected area, and what is actually on the market in it.
+	 * What space costs in the selected area, and what is on the market within reach.
+	 *
+	 * THE TWO HALVES ARE MEASURED FROM DIFFERENT POINTS ONCE A PLACE IS OPEN
+	 *
+	 * The price is the grid's: a median per m² over the units the join found around the
+	 * CELL CENTRE, ranked against every other cell's median, and the multiplier it put
+	 * on the score. There is no doorway version of any of that to read, and deriving one
+	 * would put a figure on screen that moved a ranking nobody computed it for.
+	 *
+	 * The list underneath is whatever is on the market within walking range of the point
+	 * the reader actually picked, which is the doorway in place mode. It counts itself,
+	 * so it cannot disagree with its own heading, and the fine print says which of the
+	 * two points each half was measured from rather than letting one "here" stand for
+	 * both.
 	 *
 	 * THE ONE THING THIS PANEL MUST NOT BLUR
 	 *
@@ -40,6 +53,9 @@
 	   for. A panel that can say nothing about the opportunity can still say what space
 	   is going for. */
 	const cell = $derived(app.selectedCell);
+	/** The range is measured from a place, so the units listed are that place's while
+	    every figure above them stays the catchment's. */
+	const fromPlace = $derived(app.reachIsPlace);
 
 	const cost = $derived(cell ? readCost(cell, app.priceLadder, app.weights.radius) : null);
 	const comp = $derived(row ? composeScore(row, app.weights) : null);
@@ -145,6 +161,12 @@
 			{/if}
 			<Fineprint>
 				<p>{c.property.floor}</p>
+				<!-- Only where the two halves were measured from different points. In area
+				     mode there is one "here" and a line saying so would be apparatus about
+				     nothing. -->
+				{#if fromPlace}
+					<p>{c.property.medianIsCell(app.weights.radius)}</p>
+				{/if}
 			</Fineprint>
 		{:else}
 			<!-- The silences, told apart. Only the first means nobody looked. -->
@@ -172,7 +194,9 @@
 			     market is the evidence the median above was read from, and drawn with the
 			     same weight as the heading above it the card reads as three unrelated
 			     sections where it has one with two parts. -->
-			<SectionHead icon="market" level="sub">{c.property.marketTitle}</SectionHead>
+			<SectionHead icon="market" level="sub">
+				{fromPlace ? c.property.marketTitlePlace : c.property.marketTitle}
+			</SectionHead>
 			{#if app.listingsFailed}
 				<!-- The units are gone, the arithmetic is not: everything above this line
 				     came from the grid, and says so. -->
@@ -180,7 +204,7 @@
 			{:else if app.listingsLoading}
 				<p class="note">{c.property.marketLoading}</p>
 			{:else if listings.length === 0}
-				<p class="note">{c.property.marketNone}</p>
+				<p class="note">{fromPlace ? c.property.marketNonePlace : c.property.marketNone}</p>
 			{:else}
 				<p class="count">
 					{c.property.marketCount(listings.length, app.weights.radius)}
