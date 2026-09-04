@@ -181,7 +181,7 @@ export const en: Copy = {
 	},
 
 	stats: {
-		hexes: { label: 'cells scored', sub: (r: number) => `H3 hexagons, ${r} m walk` },
+		hexes: { label: 'cells scored', sub: (r: number) => `hexagonal cells, ${r} m walk` },
 		stops: { label: 'transit stops mapped', sub: 'MRT, KRL, LRT, TransJakarta' },
 		pois: { label: 'businesses mapped', sub: 'within walking range' },
 		cats: {
@@ -284,7 +284,10 @@ export const en: Copy = {
 		thinking: 'One moment, let me check my notes',
 		stage: {
 			reading: 'One moment, I am reading your question',
-			retrying: 'No answer from that one, trying another',
+			/* One model dropping out and the next taking over, said without the chain in
+			   it: "that one" only means something to somebody who knows there are several,
+			   and the reader was never told. */
+			retrying: 'Still no answer, trying another way',
 			choosing: 'I have it, working out what to look up',
 			computing: 'Now counting it up from my notes',
 			/* The figures exist by the time this line shows. What is left is the
@@ -358,8 +361,11 @@ export const en: Copy = {
 		team: 'Valent Nathanael · Farhan Aulianda · Anthony Gilles Rudolfo',
 		campus: 'Bina Nusantara University',
 		dataLabel: 'Data',
+		/* Attribution and nothing else. This used to carry two notes to the team, that the
+		   field surveys were still samples and which basemap the finished product had to
+		   draw on, and neither is something a reader can act on. */
 		dataNote:
-			'Geometry and POIs © OpenStreetMap contributors (ODbL). MAPID mission attributes are still samples. Required basemap for the final product: MAPID MAPS.'
+			'Transit and business data © OpenStreetMap contributors (ODbL). Business points, property listings and field notes from MAPID.'
 	},
 
 	meta: {
@@ -537,7 +543,7 @@ export const en: Copy = {
 			'No other commercial unit is on the market within walking range of this place.',
 		marketLoading: 'Loading the units…',
 		marketFailed:
-			'The list of units could not be loaded. The price and the counts above still hold, both are read from the grid, not from that file.',
+			'The list of units could not be loaded. The price and the counts above still hold.',
 		/* Type names. The keys come from the data (TIPE_2 in the catalogue) rather
 		   than from a translation, so both languages have to carry all of them. */
 		types: {
@@ -1117,7 +1123,7 @@ export const en: Copy = {
 			ready: 'buildings and streets from the basemap',
 			reading: 'reading the basemap…',
 			failed: 'the basemap could not be read',
-			none: 'this basemap has no geometry to model'
+			none: 'this basemap cannot be modelled'
 		},
 		fullNumbers: 'See the full figures',
 		/* The map's own badge, pinned to the selected cell. Deliberately the count and
@@ -1139,7 +1145,7 @@ export const en: Copy = {
 		mapRivalsAriaPlace: (n: number, r: number) =>
 			`${n} similar ${n === 1 ? 'business' : 'businesses'} within a ${r} m walk of the selected place`,
 		mapReach: (r: number) => `${r} m reach`,
-		tipNodata: 'City not surveyed yet · survey priority candidate',
+		tipNodata: 'City not surveyed yet',
 		tipScore: (cat: string) => `${cat} score`,
 		tipBusy: (n: number) => `${n} businesses nearby`,
 		tipRivals: (n: number) => `${n} competitors`,
@@ -1501,7 +1507,7 @@ export const en: Copy = {
 		demoHead: 'Demo mode',
 		demoEnter: 'Continue on the demo account',
 		demoWhy:
-			'No database is configured, so SpotOn runs on a single example account. Quotas, plans and purchases all behave exactly as they really do, they are just held in the server memory and go when the server stops.',
+			'SpotOn is running on a single example account. Quotas, plans and purchases all behave exactly as they really do, but nothing on it is kept: what is on the account goes when the server stops.',
 		demoBadge: 'Demo account',
 		demoNote: 'This account is not stored anywhere. What is on it goes when the server stops.',
 
@@ -1509,7 +1515,7 @@ export const en: Copy = {
 			credentials: 'That email and password do not match.',
 			taken: 'That address already belongs to an account.',
 			invalid: 'Something is missing, or the password is too short.',
-			unavailable: 'The database could not be reached. Try again shortly.',
+			unavailable: 'Something on our side did not answer. Try again shortly.',
 			signedout: 'Your session has ended. Sign in again.'
 		},
 
@@ -1566,7 +1572,7 @@ export const en: Copy = {
 			analysis: 'Areas and places'
 		},
 		meterNote: {
-			ai: 'One each time you ask, answered or not. What is paid for is the call out to the language model, and that call happens whether or not anything useful comes back.',
+			ai: 'One each time you ask, answered or not. What costs something is reading the question, and that happens whether or not anything useful comes back.',
 			analysis:
 				'One each time you open an area or a unit yourself. Closing the card costs nothing, reopening what is already open costs nothing, and an area Tapak opens for you is not charged at all.'
 		},
