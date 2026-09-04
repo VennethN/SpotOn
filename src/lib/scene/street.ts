@@ -1066,7 +1066,10 @@ export class StreetWorld {
 		// "Zoom" pada kamera ortografis adalah lebar frustum, bukan jarak.
 		// Dibuka jauh: seluruh pelat maket muat di layar lebar, tepinya kelihatan, dan
 		// mata langsung membaca "benda di atas meja". Baru kemudian merapat ke kafe.
-		this.#viewWidth = 118 - e * 68;
+		// Rapat, tapi tidak sampai kehilangan konteksnya: pada bingkai paling dekat
+		// kafe dan halte tetap harus ikut terlihat di sebelah petak kosongnya —
+		// perbandingan ketiganya itulah isi panel terakhir.
+		this.#viewWidth = 118 - e * 58;
 		this.#applyFrustum();
 
 		// Bus merapat ke halte seiring gulir — satu-satunya benda yang benar-benar
@@ -1131,6 +1134,10 @@ export class StreetWorld {
 			return;
 		}
 		this.#running = true;
+		// Satu bingkai langsung, tanpa menunggu rAF: kanvas yang lama di luar layar
+		// bisa dikosongkan kompositor, dan adegan yang keadaannya tidak berubah
+		// tidak akan pernah menggambar ulang untuk mengisinya.
+		this.renderOnce();
 		const loop = () => {
 			this.#raf = requestAnimationFrame(loop);
 			if (this.#dirty) this.renderOnce();

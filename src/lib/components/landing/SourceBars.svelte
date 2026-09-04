@@ -59,7 +59,8 @@
 		display: block;
 		height: 100%;
 		border-radius: 999px;
-		background: color-mix(in srgb, var(--accent) 55%, transparent);
+		background-color: color-mix(in srgb, var(--accent) 55%, transparent);
+		background-image: var(--lift-bar);
 	}
 	.v {
 		text-align: right;

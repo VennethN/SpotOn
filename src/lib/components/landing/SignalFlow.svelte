@@ -99,12 +99,13 @@
 		display: block;
 		height: 100%;
 		border-radius: 999px;
+		background-image: var(--lift-bar);
 	}
 	.demand .fill {
-		background: var(--accent);
+		background-color: var(--accent);
 	}
 	.supply .fill {
-		background: var(--warn);
+		background-color: var(--warn);
 	}
 
 	p {
