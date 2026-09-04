@@ -12,7 +12,9 @@
 	 * reset and the map-selection remark live with the instance, on the page.
 	 */
 	import AskGlow from '$lib/components/ui/AskGlow.svelte';
+	import Dots from '$lib/components/ui/Dots.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
+	import Typed from '$lib/components/ui/Typed.svelte';
 	import { metricValue } from '$lib/domain/narrate';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -35,10 +37,26 @@
 	 */
 	const inviting = $derived(!tapak.busy && !draft.trim());
 
+	/**
+	 * The turn being said right now, which is the only one that gets read out.
+	 *
+	 * Everything above it is already said and shows whole. Without this the whole thread
+	 * replays every time this component mounts, and it mounts mid-conversation: the
+	 * question box in the middle of the screen hands over to this panel on the first
+	 * question, so the greeting the reader finished reading a minute ago would start
+	 * typing itself out again underneath their answer.
+	 */
+	const saying = $derived(tapak.turns[tapak.turns.length - 1]?.id);
+
 	// The scroll follows the newest turn rather than jumping: the user has to see
 	// the new message arrive, not suddenly find themselves at the bottom.
+	//
+	// It follows the newest turn's TEXT as well as the count of turns, because a reply
+	// now grows after it appears: a bubble that started one line tall and ended four
+	// used to push its own last line out of sight.
 	$effect(() => {
 		void tapak.turns.length;
+		void tapak.turns[tapak.turns.length - 1]?.text;
 		if (!log) return;
 		queueMicrotask(() => log?.scrollTo({ top: log.scrollHeight, behavior: 'smooth' }));
 	});
@@ -57,7 +75,23 @@
 				<div class="row">
 					<span class="avatar"><TapakFigure size={26} pacing={turn.pending} /></span>
 					<div class="bubble">
-						<p class:thinking={turn.pending}>{turn.text}</p>
+						{#if turn.pending}
+							<!-- Which half of the engine is running, and three dots saying it
+							     is still running. The wait can reach a minute and a half when
+							     the free models are busy, and one motionless line for that
+							     long is indistinguishable from a broken one. -->
+							<p class="thinking">
+								{turn.stage ? c.ai.stage[turn.stage] : c.ai.thinking}<Dots />
+							</p>
+						{:else}
+							<!-- Said rather than printed, and read as markdown on the way.
+							     The casual reply really is arriving a word at a time here;
+							     every other sentence was composed from figures that already
+							     exist and is only being read out at the pace somebody would
+							     say it. Same component either way, on purpose: see
+							     `ui/Typed`. -->
+							<Typed text={turn.text} reveal={turn.id === saying} />
+						{/if}
 
 						{#if turn.answer && turn.answer.items.length}
 							<ul class="places">
@@ -173,22 +207,15 @@
 		background: var(--accent);
 		color: var(--accent-ink);
 	}
-	/* Waiting reads on two things at once: the figure beside the bubble is pacing, and
-	   the line itself breathes. Slow and shallow on purpose. It has to be legible as
-	   "still going" out of the corner of an eye, without pulling the eye off the
-	   answer above it. */
+	/* Waiting reads on two things: the figure beside the bubble paces, and the line
+	   ends in three dots taking their turn.
+
+	   The line used to breathe as well, its whole opacity rising and falling. With the
+	   dots moving inside it that was a third motion in one bubble, and three things
+	   moving at different rates in the same square inch is not "still going", it is
+	   fidgeting. The line holds still now and steps back in colour instead. */
 	.thinking {
 		color: var(--label-3);
-		animation: breathe-text 1.9s ease-in-out infinite;
-	}
-	@keyframes breathe-text {
-		0%,
-		100% {
-			opacity: 0.58;
-		}
-		50% {
-			opacity: 1;
-		}
 	}
 
 	.places {
@@ -335,13 +362,5 @@
 	}
 	form button:disabled:hover {
 		filter: none;
-	}
-
-	/* Reduced motion keeps the signal and drops the movement: the line still says
-	   Tapak is working, it just says it by holding still. */
-	@media (prefers-reduced-motion: reduce) {
-		.thinking {
-			animation: none;
-		}
 	}
 </style>

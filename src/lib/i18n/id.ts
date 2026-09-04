@@ -206,7 +206,26 @@ export const id = {
 			`Peta 562 petak kawasan transit Jakarta, diwarnai menurut skor peluang untuk ${jenis}.`,
 		mapCaption: (jenis: string) => `Skor peluang ${jenis}, 562 petak, dihitung saat ini juga.`,
 		caught: 'Yang ditangkap peta',
-		thinking: 'Sebentar, saya cek catatan saya…',
+		/* Tanpa titik-titik di ujungnya. Titik-titiknya sekarang bergerak sendiri,
+		   digambar `ui/Dots`, karena elipsis yang diketik cuma bilang kalimatnya
+		   menggantung, bukan bahwa masih ada yang sedang dikerjakan. */
+		thinking: 'Sebentar, saya cek catatan saya',
+		/* Menunggunya ada dua bagian, dan lamanya jauh berbeda. Membaca pertanyaan
+		   berarti menunggu model yang dipakai ramai-ramai, dan di situlah hampir
+		   semua waktunya habis. Menghitungnya cepat. Menyebut yang mana yang sedang
+		   jalan itu versi jujurnya bilah kemajuan: tidak ada persen yang dikarang. */
+		stage: {
+			reading: 'Sebentar, saya baca dulu pertanyaannya',
+			/* Jujur untuk semua sebabnya, bukan cuma yang paling sering. Modelnya bisa
+			   penuh, bisa lambat, bisa balas ngawur. Yang pasti cuma satu: yang tadi
+			   belum menjawab. */
+			retrying: 'Belum ada jawaban dari yang tadi, saya coba yang lain',
+			/* Bukan "sedang mengambil data", karena belum ada data yang diambil. Yang
+			   sedang terjadi persis ini: pertanyaannya sudah ditangkap, dan pencarian
+			   yang mau dijalankan sedang disusun. */
+			choosing: 'Sudah saya tangkap, sedang saya susun pencariannya',
+			computing: 'Sekarang saya hitung dari catatan saya'
+		},
 		more: (n: number) => `+${n} lagi di dalam aplikasi`,
 		play: 'Jalankan percakapan',
 		pause: 'Jeda percakapan'
@@ -939,8 +958,11 @@ export const id = {
 	   sedang dilarang. */
 	chat: {
 		sapaan: 'Halo. Saya cuma bisa cerita soal kawasan transit Jakarta, tapi soal itu saya lumayan tahu. Mau mulai dari jenis usaha apa?',
+		/* Namanya disebut, karena "kamu siapa" mendarat di sini. Tanpa kunci model
+		   inilah satu-satunya jawaban yang keluar, dan kalimat yang tidak menyebut
+		   nama sama sekali bukan jawaban buat pertanyaan itu. */
 		tentang:
-			'Saya membaca keramaian, jumlah pesaing, dan tempat usaha yang dipasarkan di tiap petak sekitar stasiun, lalu menjawab dari angkanya. Kalau datanya tidak ada, saya bilang tidak ada.',
+			'Saya Tapak, pemandu di SpotOn. Saya membaca keramaian, jumlah pesaing, dan tempat usaha yang dipasarkan di tiap petak sekitar stasiun, lalu menjawab dari angkanya. Kalau datanya tidak ada, saya bilang tidak ada.',
 		usaha:
 			'Biasanya yang menentukan itu siapa yang lewat, siapa yang sudah jualan di situ, dan tempatnya bisa ditempati atau tidak. Tiga hal itu yang bisa saya tunjukkan angkanya per kawasan.'
 	},

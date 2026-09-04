@@ -208,7 +208,13 @@ export const en: Copy = {
 			`Map of 562 catchments around Jakarta transit, coloured by opportunity score for ${kind}.`,
 		mapCaption: (kind: string) => `Opportunity score for ${kind}, 562 catchments, computed just now.`,
 		caught: 'What the map understood',
-		thinking: 'One moment, let me check my notes…',
+		thinking: 'One moment, let me check my notes',
+		stage: {
+			reading: 'One moment, I am reading your question',
+			retrying: 'No answer from that one, trying another',
+			choosing: 'I have it, working out what to look up',
+			computing: 'Now counting it up from my notes'
+		},
 		more: (n: number) => `+${n} more in the app`,
 		play: 'Play conversation',
 		pause: 'Pause conversation'
@@ -938,7 +944,7 @@ export const en: Copy = {
 		sapaan:
 			"Hello. Transit areas in Jakarta are all I know about, but I know them fairly well. What kind of business are you thinking of?",
 		tentang:
-			'I read footfall, how many rivals are already there, and what space is on the market in each cell around a station, then answer from those figures. Where there is no data, I say so.',
+			'I am Tapak, your guide in SpotOn. I read footfall, how many rivals are already there, and what space is on the market in each cell around a station, then answer from those figures. Where there is no data, I say so.',
 		usaha:
 			'What usually decides it is who walks past, who is already selling there, and whether there is space you can actually take. Those three are the ones I can put numbers to, area by area.'
 	},

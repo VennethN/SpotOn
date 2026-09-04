@@ -105,9 +105,10 @@ src/lib/
   components/app/        surfaces that only exist inside the app
   components/landing/    surfaces that only exist on the landing page
   components/ui/         shared between both
-  domain/                scoring, natural-language query, categories, narration
+  domain/                scoring, natural-language query, categories, narration, markdown
   state/                 app, tapak, lang, theme
   server/source.ts       the one place the data source is decided
+  server/answer.ts       one question answered, in one place, for both reply shapes
   i18n/                  id.ts defines the shape, en.ts fills it
   scene/                 three.js diorama and daylight
   utils/                 format, geo, motion (springs)
@@ -199,7 +200,8 @@ absent-name rules, which the real data no longer exercises now that every point
 in it has a name, the cost-of-space layer against the grid on disk, the
 opening-hours reader and every cell's activity count against the point file the
 curve is drawn from, which measure each kind of question is understood to be
-asking about, and the field surveys against the two files they produced.
+asking about, the field surveys against the two files they produced, and the
+markdown reader together with the fence around a reply arriving in pieces.
 
 ## The field surveys are evidence, and they never reach the score
 
@@ -273,6 +275,8 @@ map/            what the map is given to draw. Depends on domain + state, not on
 state/          the runes. Owns what the reader has chosen and what has been fetched.
 components/     the pixels.
 server/         the data source and the model layer. Never imported by the client.
+                `answer.ts` is the one place a question is answered; `llm.ts` understands
+                it; `stream.ts` reads a tool call while the model is still writing it.
 i18n/           every user-visible string, in both languages.
 ```
 
@@ -342,6 +346,83 @@ that are traceable to a source. So `domain/chat` enforces what the prompt asks f
 Without a model key only greetings are reachable, by rule, and a greeting counts only
 when it is the whole message: "oke berapa harga tempat di sini" is a question with a
 courtesy in front of it, and answering it with hello throws away what was asked.
+
+**The tools are offered, not forced.** `tool_choice: 'required'` used to be set on the
+request, and it cost more than it bought: free models vary in how well they honour it,
+several answer a plain "halo" with a malformed call or with prose anyway, and prose was
+read as a failure. So somebody saying hello fell through the whole chain to the rule
+parser, which recognises greetings and nothing else.
+
+A completion with no tool call is now read as what it plainly is, a casual reply, and it
+goes through the SAME `cleanChatReply` fence as `ngobrol`'s own. That fence is what makes
+this safe rather than merely lenient: a model that skips the tools and answers a data
+question in fluent invented prose writes a digit while doing it, the reply is thrown away
+rather than shown, and the turn moves on to a model that will call `jalankan_query`, or
+to the rule parser, which computes the figures from data. Prose that fails the fence is
+NOT a chat turn with a canned line, it is not an answer at all, because a model that
+answered a data question in prose has not chatted, it has guessed.
+
+The topic on such a turn is read off the QUESTION, never off the reply. It only decides
+which canned line stands in when there is no sentence, and there is one here, so a wrong
+guess costs nothing and a guess read off the model's own words would be the model
+labelling itself.
+
+The fence runs on every PREFIX of that reply, not only on the finished one. It has to,
+because the reply is now streamed onto the reader's screen as the model writes it, and a
+check that only ran at the end would put "warteg biasanya balik modal dalam 8 bulan" in
+front of them for two seconds before taking it away. By then it has been read, which is
+the whole harm. `withinFence` in `domain/chat` is that one rule, applied in both places.
+
+## The answer streams, and what is in the stream
+
+`POST /api/ai/query` replies either as one JSON object, the way it always has, or as a
+stream of NDJSON events ending in an `answer` event carrying that very same object. Ask
+for the stream with `stream: true` or an `application/x-ndjson` Accept header. Both run
+`server/answer.ts`, so the two shapes cannot come to disagree about what the answer is.
+
+**No figure is ever streamed.** Not one. The scoring engine runs on the grid in one go
+and either has an answer or does not, so the whole answer arrives at once and the map
+repaints from it in one move. A number arriving a digit at a time is a number the reader
+watches being wrong, and the changes an answer makes to the map invalidate each other:
+a highlight belongs to a category set, a unit list belongs to a radius.
+
+What does stream is the wait itself, and it is worth streaming because it is long.
+Understanding the question means a call out to a shared free model, up to ninety seconds
+before the chain gives up and the rule parser takes over, and one motionless line for
+that long is indistinguishable from a broken interface. So two things travel:
+
+- **Which stage is running.** Reported from where the work actually is, never on a
+  timer, and never as a percentage, because nothing here could honestly be one.
+  `reading` is the question going out. `retrying` is one model dropping out and the
+  next taking over, which is where the longest silences live. `choosing` is the model
+  naming its operation and writing the arguments, which is the first proof it woke up.
+  `computing` is the scoring engine on the grid.
+- **The casual reply, as it is written.** The one sentence in the product the model
+  writes for itself. It is a preview: the sentence in the finished answer is the
+  authoritative one, and a `reset` event says the preview is void and must come down.
+
+Nothing is ever shown from a tool call's ARGUMENTS as they arrive. Half an enum value is
+not half an answer, and a category that appeared and then changed would be the interface
+reporting a decision the model had not made yet. Only the fact that an operation was
+named travels, which is all the reader needs to know the wait is moving.
+
+A model that narrates a sentence before calling a tool is handled rather than trusted:
+the preamble streams like any other reply, and the moment a tool other than `ngobrol` is
+named it comes back down. Throat clearing must not be left sitting beside figures it
+knows nothing about.
+
+In the interface, `ui/Typed` reads a sentence out at the pace somebody would say it, and
+every Tapak bubble goes through it whether the words were streamed or composed here from
+figures that already existed. That is deliberate. A reader must not be able to tell from
+the animation which sentences the model wrote, because the animation is not what tells
+them: `parsedBy` and the provenance list are.
+
+`domain/markdown` parses the bold, italic, code and lists a model emits whether or not
+anybody asked it to, and it parses to a tree of plain objects rather than to HTML. There
+is no `{@html}` on that path and therefore nothing to sanitise: a tag the model writes
+arrives as text and leaves as text. Links are not supported on purpose, because a link
+is the one markdown construct carrying a destination, and the destination would be a URL
+a remote model chose.
 
 ## What space costs, and the word this product will not use
 
