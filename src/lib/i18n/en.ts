@@ -763,6 +763,10 @@ export const en: Copy = {
 		rivalsNoNames:
 			'None of them carry a name in the data yet, so they are drawn as marks only.',
 		rivalsNone: 'No competitors of this type inside the walking range.',
+		/* The nearest few, not all of them, and the heading says so. The count above is
+		   taken over every competitor captured, named or not. */
+		rivalsNearest: 'The nearest ones',
+		rivalsMore: (n: number) => `+${n} more that carry a name`,
 		/* Only MAPID carries positions. Saying which source would have them is the
 		   difference between a dead end and a fix the reader can act on. */
 		rivalsNoPositions:
