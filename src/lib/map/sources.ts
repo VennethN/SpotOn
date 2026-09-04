@@ -44,6 +44,27 @@ const LABEL_CHARS = 30;
 export const labelText = (n: string): string =>
 	n.length <= LABEL_CHARS ? n : `${n.slice(0, LABEL_CHARS - 1).trimEnd()}…`;
 
+/**
+ * How tall a catchment stands in the raised view, in metres.
+ *
+ * Metres because that is the unit `fill-extrusion` takes, and the number only means
+ * anything against the cell it is drawn on: at H3 resolution 8 a catchment is about
+ * 900 m across, so a full reading stands a little over one cell-width tall. Enough
+ * that the ranking is a skyline at the zoom the whole grid fits in, and not so much
+ * that the front row buries the city behind it.
+ *
+ * The floor is what keeps a measured nothing apart from an absence. A cell that scored
+ * zero was measured, so it gets a slab. A cell nobody surveyed gets no height at all
+ * and stays flat on the ground under its hatch, which is the same rule the colour
+ * already follows.
+ */
+const RELIEF_FLOOR = 120;
+const RELIEF_TOP = 1400;
+
+/** The metres one reading stands, or nothing at all where there is no reading. */
+const reliefHeight = (v: number | null): number =>
+	v === null ? 0 : RELIEF_FLOOR + v * (RELIEF_TOP - RELIEF_FLOOR);
+
 export function catchmentFC(ctx: MapCtx): FeatureCollection {
 	// In unit mode the cells stop being the reading and go back to being structure.
 	//
@@ -98,6 +119,11 @@ export function catchmentFC(ctx: MapCtx): FeatureCollection {
 						// Carries a reading right now, so the fill means something. An idle cell
 						// is drawn as structure instead: faint fill, crisper edge.
 						scored: v !== null,
+						/* The SAME number the colour is, in the other channel. Height and
+						   colour are two readings of one figure rather than two figures, so
+						   they cannot come to disagree, and the raised view says nothing the
+						   flat one was not already saying. */
+						height: reliefHeight(v),
 						saturated: row?.typology === 'saturated',
 						selected: h.id === selectedId
 					}

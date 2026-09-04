@@ -23,6 +23,7 @@
 		stopTotal,
 		type Mode
 	} from '$lib/domain/transit';
+	import Fineprint from '$lib/components/ui/Fineprint.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -124,8 +125,10 @@
 				<p class="bus"><span class="dot" style:--dot="var(--route-brt)"></span>{c.mood.transitBus(busCount)}</p>
 			{/if}
 
-			<p class="why">{hasRail ? c.mood.transitWhyRail : c.mood.transitWhyBus}</p>
-			<p class="prov">{c.mood.transitRadius(app.weights.radius)} · OSM</p>
+			<Fineprint>
+				<p>{hasRail ? c.mood.transitWhyRail : c.mood.transitWhyBus}</p>
+				<p class="prov">{c.mood.transitRadius(app.weights.radius)} · OSM</p>
+			</Fineprint>
 		{/if}
 	</section>
 {/if}
@@ -283,14 +286,17 @@
 		color: var(--label-2);
 	}
 
-	.why,
 	.none {
 		font-size: 0.6875rem;
 		line-height: 1.5;
 		color: var(--label-3);
 	}
+	/* It used to be set a step below the note above it, on the reasoning that where the
+	   figures came from is the last thing anyone needs. In the fine print that is one
+	   demotion too many: at 22% of white on the dark ground the line is not quiet, it is
+	   gone. The block it now sits in already says "skip me", so the line inside it can
+	   be legible to whoever does not. */
 	.prov {
 		font-size: 0.625rem;
-		color: var(--label-4, var(--label-3));
 	}
 </style>

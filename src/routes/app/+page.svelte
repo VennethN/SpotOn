@@ -209,16 +209,18 @@
 		</aside>
 
 		{#if app.pivot === 'unit'}
-			<aside class="spot material" aria-label={c.units.title} transition:materialize>
-				{#if app.selectedUnitId}
-					<UnitCard />
-				{:else}
-					<UnitList />
-				{/if}
+			<aside class="spot material" aria-label={c.units.title} transition:materialize data-panel-host>
+				<div class="spot-scroll">
+					{#if app.selectedUnitId}
+						<UnitCard />
+					{:else}
+						<UnitList />
+					{/if}
+				</div>
 			</aside>
 		{:else if app.selectedId}
-			<aside class="spot material" aria-label={c.app.mood} transition:materialize>
-				<SpotCard />
+			<aside class="spot material" aria-label={c.app.mood} transition:materialize data-panel-host>
+				<div class="spot-scroll"><SpotCard /></div>
 			</aside>
 		{:else}
 			<MapLegend />
@@ -290,6 +292,10 @@
 	   They are shown one at a time rather than stacked: the legend explains the
 	   colours, and once a cell is picked the card is the more specific answer to the
 	   same question. */
+	/* The box, which does not scroll. Its one job besides holding the card is to be
+	   the thing a detail view can cover: `data-panel-host` marks it, and anything
+	   portalled here sits against the panel rather than against the scrolled
+	   content, which slides out from under an absolutely positioned child. */
 	.spot {
 		position: fixed;
 		left: 0.75rem;
@@ -297,17 +303,27 @@
 		z-index: 6;
 		width: 21rem;
 		max-height: calc(100vh - 6rem);
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		border-radius: var(--r-xl);
+		background: var(--mat-thick);
+		-webkit-backdrop-filter: var(--blur-thick);
+		backdrop-filter: var(--blur-thick);
+		will-change: transform, opacity;
+	}
+	/* The scroller, holding what used to be the panel's own padding and gap. Kept a
+	   separate element so its scroll position survives a detail view opening over
+	   the top of it and closing again. */
+	.spot-scroll {
+		flex: 1;
+		min-height: 0;
 		overflow: auto;
 		overscroll-behavior: contain;
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
 		padding: 0.875rem;
-		border-radius: var(--r-xl);
-		background: var(--mat-thick);
-		-webkit-backdrop-filter: var(--blur-thick);
-		backdrop-filter: var(--blur-thick);
-		will-change: transform, opacity;
 	}
 
 	.spot-inline {

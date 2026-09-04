@@ -90,12 +90,15 @@
 
 <svelte:window bind:innerHeight={viewportH} />
 
+<!-- `data-panel-host`: the sheet is already the box-plus-inner-scroller shape a
+     detail view needs to cover, so it only has to say so. See `utils/portal`. -->
 <section
 	class="sheet material"
 	bind:this={sheet}
 	style:transform={`translate3d(0, ${y.current}px, 0)`}
 	style:height={`${viewportH}px`}
 	aria-label={copy().app.sheet}
+	data-panel-host
 >
 	<!-- The whole grab area accepts a drag; the button inside stays focusable and
 	     cycles the panel height for keyboard users. -->

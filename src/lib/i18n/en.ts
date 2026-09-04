@@ -561,6 +561,17 @@ export const en: Copy = {
 			menu: 'Place to eat',
 			properti: 'Property',
 			catatan: 'Community note'
+		},
+
+		/* The detail view: one record, full size, opened by clicking it. Everything
+		   here is a fact the compact card already had room to drop, not a new
+		   question asked of the data. */
+		detail: {
+			close: 'Close',
+			paid: (metode: string) => `Paid by ${metode}.`,
+			cashlessYes: 'Counted as a cashless payment.',
+			cashlessNo: 'Counted as a cash payment.',
+			team: (nama: string) => `Recorded by the ${nama} team.`
 		}
 	},
 
@@ -618,9 +629,14 @@ export const en: Copy = {
 			'This cell sits in a city the catalogue has not been read for, so the street is deliberately left empty. That does not mean it is actually deserted.',
 		reading: (n: number, kata: string) =>
 			`There are ${n} businesses within walking range here, so it is ${kata}.`,
-		rivals: (n: number, cat: string) => `${n} of them are ${cat}`,
-		listings: (n: number) => `and ${n} units are on the market.`,
-		noListings: 'and nothing is on the market.',
+		/* Labels for the three figures under the model. Deliberately short: these are
+		   column names rather than sentences, and in a 21 rem panel each tile gets
+		   about 105 px. The long forms are still in `rows` below, for the full list. */
+		tiles: {
+			around: 'Businesses nearby',
+			rivals: 'Rivals of this kind',
+			space: 'Units on the market'
+		},
 		rows: {
 			score: 'Opportunity score',
 			demand: 'Busyness',
@@ -722,6 +738,21 @@ export const en: Copy = {
 		radiusAria: 'The walking range being scored',
 		radiusHint:
 			'How far from the centre counts, for areas and for places alike. Each range has its own price, measured rather than interpolated from another.',
+		/* ── flat or standing up ────────────────────────────────────────────────
+		   The button is short, the consequence is spelled out in the hint it carries,
+		   and the key repeats it once the mode is on. The button does not say "score",
+		   because what is coloured is not always a score: with no business type named
+		   yet, what this map reads is how busy a place is. */
+		viewLabel: 'Map view',
+		viewFlat: 'Flat',
+		viewRelief: '3D',
+		viewFlatHint: 'The map flat, seen straight down.',
+		viewReliefHint:
+			'The map tips over and every cell stands as tall as the figure its colour shows. Taller means a higher figure. A cell whose city has not been surveyed stays flat, with no height given to it at all.',
+		/* Printed in the key rather than on the button, because the key is the one
+		   surface whose whole job is to say what this figure is. Height and colour read
+		   the same number, so the sentence points back at it. */
+		viewReliefNote: 'Height carries the same figure as the colour.',
 		categoryLabel: 'Business type',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} cells · ${poi} competitors mapped`,
