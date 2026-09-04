@@ -120,10 +120,27 @@ const METRIC_WORDS: Array<[RegExp, MetricKey]> = [
 	 * disewakan, dikontrakkan, for rent — because the field survey now records those and
 	 * nothing else in the product can answer them.
 	 */
-	[/disewakan|dikontrakkan|dikontrakan|for rent|to let|sewaan/i, 'sewa_ditawarkan'],
+	/* The English here has to name the OFFER and only the offer. A bare "for rent" does
+	   not: "why did it score 1 for rent" means "on the rent measure" and is a question
+	   about the price, and it landed here instead and was answered with a count of
+	   rental listings. The Indonesian words carry no such second reading and stay as
+	   they are. */
+	[
+		/disewakan|dikontrakkan|dikontrakan|sewaan|to let|(?:space|premises|unit|shop|place|units|shops)\s+(?:for rent|to rent|available)|available to rent|up for rent/i,
+		'sewa_ditawarkan'
+	],
 	// Price of space, before anything else: "harga" on its own most often means this,
 	// and it is the only measure with a currency attached.
-	[/harga|sewa|biaya|mahal|murah|terjangkau|modal kecil|rp\b|rupiah/i, 'harga_tempat'],
+	/* The English half was missing outright, and the unit list two functions down had
+	   carried `cheap|price` all along, so the two registries disagreed about the same
+	   question in the same language. Every English question about money fell past this
+	   line to the opportunity score, and "what is the rent at Pusdiklat BPS" came back a
+	   grid-wide ranking. `for rent` and `to let` still reach the survey of offers above,
+	   because that pattern is tried first: a bare "rent" is a question about the price. */
+	[
+		/harga|sewa|biaya|mahal|murah|terjangkau|modal kecil|rp\b|rupiah|rent|rental|price|pricing|cost|expensive|cheap|afford|budget/i,
+		'harga_tempat'
+	],
 	// "tempat kosong" is a vacancy, not a gap in the data. The coverage intent below
 	// used to take the word `kosong` on its own and answer "here is what we have not
 	// surveyed" to a question about empty shopfronts.
@@ -240,15 +257,69 @@ function nameHit(name: string, ql: string): number {
 		.reduce((acc, wd) => acc + (ql.includes(wd) ? wd.length : 0), 0);
 }
 
-/** The one name in `names` a sentence names most strongly, or null if it names none. */
+/**
+ * The one name in `names` a sentence names most strongly, or null if it names none.
+ *
+ * Whole words only, and only names distinctive enough to be worth looking for. This is
+ * asked of the WHOLE GRID now, not just of the handful the conversation named, so the
+ * bar earns its place: eighty-seven catchments are a single word and Damai, Duri, Karet,
+ * Depok and Tebet are ordinary ones. Without it, "kawasannya damai" is a question about a
+ * catchment in South Jakarta and the reader is answered about a place they never named.
+ * The same test `domain/grounded` applies to a written reply, for the same reason.
+ */
+function distinctive(name: string): boolean {
+	return name.includes(' ') || name.length >= 6;
+}
+
+/**
+ * How much of a name a sentence actually contains, 0 to 1.
+ *
+ * A SHARE rather than a count, and that is what stops one word of a long name from
+ * standing in for the whole thing. "Harga karet berapa sekarang" contains the first word
+ * of "Karet Sudirman 3" and none of the rest, and read as a hit it turns a question about
+ * the price of rubber into a question about a catchment in Setiabudi.
+ *
+ * Whole words only, so "duri" is not found inside "berduri" and "karet" not inside
+ * "karetnya".
+ */
+function nameShare(name: string, ql: string): number {
+	const words = name
+		.toLowerCase()
+		.split(/\s+/)
+		.filter((wd) => wd.length > 2);
+	if (!words.length) return 0;
+	const total = words.reduce((acc, wd) => acc + wd.length, 0);
+	const found = words.reduce(
+		(acc, wd) =>
+			acc +
+			(new RegExp(`\\b${wd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(ql) ? wd.length : 0),
+		0
+	);
+	return found / total;
+}
+
+/**
+ * Most of a name, not a corner of one.
+ *
+ * Three fifths lets somebody shorten a catchment the way people do, saying Setiabudi for
+ * Setiabudi Astra or Bendungan for Bendungan Hilir, while refusing a single common word
+ * that happens to open a longer name.
+ */
+const NAME_SHARE = 0.6;
+
 function bestName(q: string, names: readonly string[]): string | null {
-	const ql = q.toLowerCase();
+	const ql = ` ${q.toLowerCase()} `;
 	let best: string | null = null;
 	let hit = 0;
 	for (const name of names) {
-		const h = nameHit(name, ql);
-		if (h > hit) {
-			hit = h;
+		if (!distinctive(name)) continue;
+		const share = nameShare(name, ql);
+		if (share < NAME_SHARE) continue;
+		// Longer names win ties, since a sentence containing all of "Blok M BCA" contains
+		// all of "Blok M" too and the fuller reading is the one that was meant.
+		const weight = share * name.length;
+		if (weight > hit) {
+			hit = weight;
 			best = name;
 		}
 	}
@@ -256,15 +327,39 @@ function bestName(q: string, names: readonly string[]): string | null {
 }
 
 /**
- * The catchment a why-question is about, read against what the conversation just said.
+ * Phrases that ask for a LIST rather than for one place.
  *
- * Null unless there is a name to point at. That is the whole safety of this: without a
- * previous answer there is nothing a follow-up could be about, so the question is read
- * the way every question was read before this existed.
+ * The line between "tell me about Tosari" and "where should I open near Tosari" is not
+ * the presence of a name, because both carry one. It is whether the question is asking
+ * the grid to be sorted. So a question that names a place is about that place UNLESS it
+ * asks for a ranking, and this is what asking for a ranking looks like.
+ */
+const RANKING_ASK =
+	/\b(di ?mana|mana yang|mana saja|kawasan mana|petak mana|tempat mana|urutkan|peringkat|daftar|rekomendasi|where|which|top \d|list|rank|recommend)\b/i;
+
+/** Two named places held against each other, which is a comparison and not an explanation. */
+const COMPARE_ASK = /\b(banding\w*|compare|vs|versus|lebih (?:bagus|baik|murah|mahal|ramai)\b)/i;
+
+/**
+ * The catchment a question is about, read against what is on screen and on the grid.
+ *
+ * TWO WAYS IN, AND THE SECOND ONE WAS MISSING.
+ *
+ * A follow-up can POINT ("kenapa yang itu"), which needs a why-word because there is
+ * nothing else in the sentence to go on. Or it can NAME ("what is the rent at Pusdiklat
+ * BPS"), which needs no why-word at all and used to get none of this: with no "kenapa" in
+ * it the question fell through to a ranking, and a question about one place's price came
+ * back as the grid's five best catchments by opportunity score.
+ *
+ * Naming a place is enough on its own, then, unless the question is asking for a list or
+ * holding two places against each other. Those are the two shapes that name a place and
+ * are not about it.
  */
 function explainTarget(q: string, said: readonly string[]): string | null {
-	if (!said.length || !WHY.test(q)) return null;
+	if (!said.length) return null;
 	const named = bestName(q, said);
+	if (named && !RANKING_ASK.test(q) && !COMPARE_ASK.test(q)) return named;
+	if (!WHY.test(q)) return null;
 	if (named) return named;
 	const rest = q
 		.toLowerCase()
@@ -358,7 +453,13 @@ export function parseQuestion(
 	const explains = explainTarget(q, said);
 	if (explains) {
 		out.intent = 'EXPLAIN';
-		out.metrik = 'rincian skor satu catchment';
+		/* The measure read above is KEPT, and that is the whole difference between "why is
+		   it on the list" and "what is the rent there". Both name one place, and a shape
+		   that always explained the score answered the second with the first. */
+		out.metrik =
+			(out.ukuran ?? DEFAULT_METRIC) === DEFAULT_METRIC
+				? 'rincian skor satu catchment'
+				: `${out.ukuran} di satu catchment`;
 		out.target = [explains];
 		out.limit = 1;
 		/* No filters on an explanation. One named place is not a pool to narrow, and a
@@ -499,7 +600,15 @@ export function answer(
 	/** The catchments the conversation just named — see `parseQuestion`. */
 	said: readonly string[] = []
 ): AiAnswer {
-	return runQuery(parseQuestion(question, w, fallback, said), question, catchments, w);
+	/* The conversation's places first, then every name on the grid.
+	   
+	   A reader can name a catchment the conversation never mentioned: they clicked it on
+	   the map, or they simply know it. Read against the thread alone, "what is the rent at
+	   Pusdiklat BPS" names nothing this parser has heard of and is answered as a ranking.
+	   Order matters, because the first strongest hit wins and a place just discussed is
+	   the better reading of an ambiguous one. */
+	const known = [...said, ...catchments.map((c) => c.name).filter((n): n is string => Boolean(n))];
+	return runQuery(parseQuestion(question, w, fallback, known), question, catchments, w);
 }
 
 /**
@@ -650,6 +759,11 @@ export function runQuery(
 	   score back. */
 	if (query.intent === 'EXPLAIN') {
 		const row = namedRows(query, question, rows, 1)[0] ?? null;
+		/* WHAT the question was about, which is chosen separately from the fact that it
+		   was about one place. Read here rather than assumed, because this shape used to
+		   assume the opportunity score and therefore answered "what is the rent at
+		   Pusdiklat BPS" with a score breakdown. */
+		const asked = query.ukuran ?? DEFAULT_METRIC;
 		// Named, so the reader can see which place was read, and so a client repeating
 		// the query gets the same answer rather than a fresh guess at the sentence.
 		query.target = row ? [row.name] : [];
@@ -663,9 +777,20 @@ export function runQuery(
 				provenance
 			};
 		}
+		/* Null on a question that really was about the score, where leading with it would
+		   print one number twice, and null-VALUED where this catchment has no reading for
+		   the measure at all. The second is said out loud rather than shown as a zero:
+		   371 of these are streets nobody has walked. */
+		const read = asked === DEFAULT_METRIC ? null : (METRIC_MAP[asked] ?? METRIC_MAP[DEFAULT_METRIC]).read(row);
+		const measure =
+			asked === DEFAULT_METRIC
+				? null
+				: { ukuran: asked, value: read, text: read === null ? 'belum terukur' : metricText(asked, read) };
+
 		const explain: Explanation = {
 			id: row.id,
 			name: row.name,
+			measure,
 			radius: w.radius,
 			// An unsurveyed cell is explained as unsurveyed. Every figure that depends on
 			// counting competitors is null there, and reading a street nobody has read as
@@ -688,13 +813,19 @@ export function runQuery(
 			explain,
 			headline: row.covered === false
 				? `${row.name} belum disurvei ${sourceLabel(w.source)} untuk ${def.name}, jadi tidak diberi nilai. Yang terukur di sana: ${stopTotal(row.transit)} simpul transit dan ${row.units} unit komersial dipasarkan dalam radius ${w.radius} m.`
-				: `Rincian skor ${row.name} untuk ${def.name}: keramaian ${pct(row.demand)}%, penawaran ${pct(row.supply)}%, skor ${pct(row.score)}.`,
+				: measure
+					? `${asked} di ${row.name}: ${measure.text}. Skor peluangnya sendiri ${pct(row.score)} dari 100 untuk ${def.name}.`
+					: `Rincian skor ${row.name} untuk ${def.name}: keramaian ${pct(row.demand)}%, penawaran ${pct(row.supply)}%, skor ${pct(row.score)}.`,
 			items: [
 				{
 					id: row.id,
 					name: row.name,
 					value: row.score,
-					why: whyLine(row, 'skor', row.score ?? 0, def, w),
+					// The figure the question asked about travels beside the score, exactly
+					// as it does on a ranking row, so a list of one is read the same way a
+					// list of five is.
+					measure: measure && measure.value !== null ? { ...measure, value: measure.value } : null,
+					why: whyLine(row, asked, read ?? row.score ?? 0, def, w),
 					evidence: evidence(row)
 				}
 			],
