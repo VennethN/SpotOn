@@ -7,10 +7,16 @@
 	 * one more area, so what it prints is how many of each are left. The plan name would
 	 * be a third thing to read for a decision nobody makes from the map.
 	 *
+	 * The marks come from `ui/MeterMark` rather than being drawn here, so the chip and
+	 * the account page label the same two meters with the same two shapes. Drawn twice
+	 * they would drift, and a reader who learned the hexagon on one surface would have to
+	 * learn it again on the other.
+	 *
 	 * It is a link to the account page rather than a menu. There is one thing to do from
-	 * here and hiding it behind a disclosure would be a click spent on finding a click.
+	 * here, and hiding it behind a disclosure would be a click spent on finding a click.
 	 */
 	import { base } from '$app/paths';
+	import MeterMark from '$lib/components/ui/MeterMark.svelte';
 	import { getAccountState } from '$lib/state/account.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 
@@ -29,30 +35,11 @@
 		title={c.account.chipLeft(ai, analysis)}
 	>
 		<span class="pair" class:empty={ai === 0}>
-			<!-- A speech mark for the question, a pin for the place. Both are drawn rather
-			     than set as text: a glyph from the font would change size with it and sit
-			     on a baseline these numbers do not share. -->
-			<svg viewBox="0 0 12 12" aria-hidden="true">
-				<path
-					d="M2 2.6h8v5.2H6.4L4 10.2V7.8H2z"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.2"
-					stroke-linejoin="round"
-				/>
-			</svg>
+			<MeterMark meter="ai" size={11} />
 			{ai}
 		</span>
 		<span class="pair" class:empty={analysis === 0}>
-			<svg viewBox="0 0 12 12" aria-hidden="true">
-				<path
-					d="M6 1.4 10.2 4v4.4L6 10.9 1.8 8.4V4z"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.2"
-					stroke-linejoin="round"
-				/>
-			</svg>
+			<MeterMark meter="analysis" size={11} />
 			{analysis}
 		</span>
 	</a>
@@ -84,16 +71,12 @@
 		font-weight: 650;
 		line-height: 1;
 	}
+	.pair :global(svg) {
+		opacity: 0.75;
+	}
 	/* Nothing left reads as a warning rather than as a figure, because it is the one
 	   value of this number that stops something from working. */
 	.pair.empty {
 		color: var(--warn);
-	}
-
-	svg {
-		width: 11px;
-		height: 11px;
-		flex: none;
-		opacity: 0.75;
 	}
 </style>
