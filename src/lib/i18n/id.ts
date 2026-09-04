@@ -1345,6 +1345,14 @@ export const id = {
 		passwordHint: (min: number) => `Paling pendek ${min} huruf.`,
 		working: 'Sebentar…',
 
+		/* ── dua halaman yang memang lama ──────────────────────────────────────────
+		   Peta harus mengambil kisinya dulu sebelum satu petak pun bisa diwarnai, dan
+		   halaman akun membaca kisi yang sama di server lalu memetakan 562 kawasan.
+		   Cuma dua ini yang cukup lama untuk digambar rangkanya lebih dulu, dan cuma
+		   dua ini yang disebut namanya di sini. */
+		openingMap: 'Menyiapkan peta',
+		openingAccount: 'Menyiapkan halaman akun',
+
 		demoHead: 'Mode demo',
 		demoEnter: 'Masuk sebagai akun demo',
 		demoWhy:
