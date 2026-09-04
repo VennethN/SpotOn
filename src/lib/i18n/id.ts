@@ -1430,6 +1430,23 @@ export const id = {
 		passwordHint: (min: number) => `Paling pendek ${min} huruf.`,
 		working: 'Sebentar…',
 
+		/* ── dua halaman yang memang lama ──────────────────────────────────────────
+		   Peta harus mengambil kisinya dulu sebelum satu petak pun bisa diwarnai, dan
+		   halaman akun membaca kisi yang sama di server lalu memetakan 562 kawasan.
+		   Cuma dua ini yang cukup lama untuk digambar rangkanya lebih dulu, dan cuma
+		   dua ini yang disebut namanya di sini. */
+		openingMap: 'Menyiapkan peta',
+		openingAccount: 'Menyiapkan halaman akun',
+
+		/* ── dua penantian, bukan satu ─────────────────────────────────────────────
+		   Masuk itu dua tahap dan cuma yang pertama yang cepat: email dan kata sandi
+		   pergi lalu balik, sesudah itu halaman tujuannya yang dimuat, dan bagian kedua
+		   inilah yang lama. Masing-masing dibacakan dari tempat kerjanya benar-benar
+		   berjalan, bukan dari hitungan mundur, dan tidak satu pun berupa persentase,
+		   aturan yang sama dengan aliran jawaban Tapak. */
+		checking: 'Mencocokkan akun Anda',
+		making: 'Menyiapkan akun baru Anda',
+
 		demoHead: 'Mode demo',
 		demoEnter: 'Masuk sebagai akun demo',
 		demoWhy:
@@ -1555,6 +1572,16 @@ export const id = {
 			analysis:
 				'Petak dan unit belum bisa dibuka lagi sampai kuotanya terisi atau paketnya dinaikkan.'
 		},
+		/* ── keluar ────────────────────────────────────────────────────────────────
+		   Tombolnya dulu berdiri sendirian di kaki halaman tanpa satu kalimat pun soal
+		   apa yang hilang kalau ditekan. Yang hilang cuma sesinya, dan itu perlu
+		   dikatakan, karena satu-satunya tombol di halaman ini yang mengakhiri sesuatu
+		   pantas menyebut apa yang diakhirinya. */
+		sessionTitle: 'Sesi',
+		signOutNote:
+			'Keluar cuma menutup sesi di peramban ini. Akun, paket, dan sisa kuotanya tetap seperti sekarang.',
+		signingOut: 'Menutup sesi Anda',
+
 		signedOut: 'Sesi Anda sudah berakhir',
 		signedOutNote: 'Masuk lagi untuk melanjutkan. Yang sudah ada di layar tetap bisa dibaca.',
 		seePlans: 'Lihat paket',

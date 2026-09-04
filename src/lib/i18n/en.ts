@@ -1439,6 +1439,23 @@ export const en: Copy = {
 		passwordHint: (min: number) => `At least ${min} characters.`,
 		working: 'One moment…',
 
+		/* ── the two pages that are genuinely slow ─────────────────────────────────
+		   The map fetches its grid before it can colour a single cell, and the account
+		   page reads that same grid on the server and projects all 562 catchments. Only
+		   those two are slow enough to be worth drawing the outline of first, and only
+		   those two are named here. */
+		openingMap: 'Getting the map ready',
+		openingAccount: 'Getting your account page ready',
+
+		/* ── two waits, not one ────────────────────────────────────────────────────
+		   Signing in is two stages and only the first is quick: the address and the
+		   password go out and come back, and then the destination loads, which is the
+		   long half. Each is said from where the work actually is rather than off a
+		   countdown, and neither is a percentage, which is the rule Tapak's own answer
+		   stream already follows. */
+		checking: 'Checking your account',
+		making: 'Setting your account up',
+
 		demoHead: 'Demo mode',
 		demoEnter: 'Continue on the demo account',
 		demoWhy:
@@ -1556,6 +1573,15 @@ export const en: Copy = {
 			ai: 'Tapak cannot answer again until the quota refills or the plan goes up.',
 			analysis: 'Areas and units cannot be opened again until the quota refills or the plan goes up.'
 		},
+		/* ── leaving ───────────────────────────────────────────────────────────────
+		   The button used to stand alone at the foot of the page with nothing saying
+		   what pressing it would cost. What it costs is the session and nothing else,
+		   and the one control here that ends something should name what it ends. */
+		sessionTitle: 'Session',
+		signOutNote:
+			'Signing out only closes the session in this browser. The account, the plan and what is left on it all stay as they are.',
+		signingOut: 'Closing your session',
+
 		signedOut: 'Your session has ended',
 		signedOutNote: 'Sign in again to carry on. What is already on the screen stays readable.',
 		seePlans: 'See the plans',
