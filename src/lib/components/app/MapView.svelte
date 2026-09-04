@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import type { GeoJSONSource, Map as MapLibreMap, Marker, StyleSpecification } from 'maplibre-gl';
 	import 'maplibre-gl/dist/maplibre-gl.css';
-	// Worker di-bundle terpisah oleh Vite; kalau dibiarkan dimuat sendiri oleh
-	// maplibre, berkasnya disentuh dev server dan worker mati tanpa suara.
+	// The worker is bundled separately by Vite; left for maplibre to load on its own,
+	// the dev server touches the file and the worker dies without a sound.
 	import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import { env } from '$env/dynamic/public';
 	import { boundsOf, emptyFC, scatterPoints } from '$lib/utils/geo';
@@ -25,8 +25,8 @@
 	let markers = new Map<string, { marker: Marker; el: HTMLButtonElement; rank: number }>();
 	let labelFrame = 0;
 
-	/** Jalur angkutan, digambar dari yang paling padat ke paling jarang supaya
-	    rel yang sedikit tidak tertimbun koridor bus yang rapat. */
+	/** Transit lines, drawn densest to sparsest so the few rail lines are not buried
+	    under the tightly packed bus corridors. */
 	const ROUTE_MODES = [
 		{ key: 'brt', varName: '--route-brt', thin: 0.8, thick: 2.4, opacity: 0.5 },
 		{ key: 'krl', varName: '--route-krl', thin: 1.3, thick: 3.4, opacity: 0.8 },
@@ -35,7 +35,7 @@
 	] as const;
 	let appliedTheme: 'light' | 'dark' | null = null;
 
-	/** Tooltip mengikuti pointer; posisinya ditulis langsung ke DOM agar tidak ada frame tertinggal. */
+	/** The tooltip follows the pointer; its position is written straight to the DOM so no frame lags. */
 	let tipEl: HTMLDivElement;
 	let hovered = $state<ScoredHex | null>(null);
 
@@ -43,8 +43,8 @@
 		getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 	function basemapStyle(theme: 'light' | 'dark'): string | StyleSpecification {
-		// MAPID MAPS adalah basemap wajib pada produk final; selama kunci gaya belum
-		// tersedia, dipakai raster terbuka dengan atribusi yang sama-sama sah.
+		// MAPID MAPS is the mandatory basemap for the finished product; until the style
+		// key is available, an open raster with equally valid attribution is used.
 		if (env.PUBLIC_MAPID_STYLE_URL) return env.PUBLIC_MAPID_STYLE_URL;
 		const variant = theme === 'dark' ? 'dark_all' : 'light_all';
 		return {
@@ -66,7 +66,7 @@
 		} satisfies StyleSpecification;
 	}
 
-	/** Arsir untuk catchment belum terdata — tanpa data tidak boleh terlihat seperti skor rendah. */
+	/** Hatching for catchments with no data — absent data must never look like a low score. */
 	function hatchImage(): ImageData {
 		const size = 10;
 		const c = document.createElement('canvas');
@@ -93,30 +93,30 @@
 				.filter((r) => !r.nodata || app.layers.nodata)
 				.map((r, i) => ({
 					type: 'Feature' as const,
-					// feature-state MapLibre butuh id numerik; indeks baris dipakai karena
-					// id H3 berupa string heksadesimal yang tidak bisa dijadikan angka.
+					// MapLibre's feature-state needs a numeric id; the row index is used because an
+					// H3 id is a hexadecimal string that cannot be turned into a number.
 					id: i,
 					geometry: {
 						type: 'Polygon' as const,
-						// Batas petak dihitung sekali saat build, jadi klien tidak perlu
-						// memuat pustaka H3 sama sekali.
+						// Cell boundaries are computed once at build time, so the client never
+						// has to load the H3 library at all.
 						coordinates: [[...r.boundary, r.boundary[0]]]
 					},
 					properties: {
 						id: r.id,
 						name: r.name,
 						nodata: r.nodata,
-						// Petak nyata yang tidak dinilai karena sumber aktif belum
-						// mencakup kotanya. Dibedakan dari `nodata` supaya tidak
-						// tampak seperti petak kosong — dan tidak diwarnai sama
-						// sekali, karena warna apa pun akan terbaca sebagai skor.
+						// A real cell left unscored because the active source does not
+						// cover its city. Kept distinct from `nodata` so it does not look
+						// like an empty cell — and given no colour at all, because any
+						// colour would read as a score.
 						uncovered: !r.nodata && r.score === null,
 						color: r.nodata
 							? cssVar('--nodata')
 							: app.layers.score
 								? cssVar(`--ramp-${rampIndex(r.score ?? 0)}`)
 								: cssVar('--fill-2'),
-						jenuh: r.typology === 'Jenuh',
+						saturated: r.typology === 'saturated',
 						selected: r.id === app.selectedId
 					}
 				}))
@@ -138,9 +138,9 @@
 
 		m.addSource('catchments', { type: 'geojson', data: catchmentFC(app.rows) });
 		m.addSource('poi', { type: 'geojson', data: poiFC(app.rows) });
-		// Diambil lewat URL, bukan di-import: MapLibre mengambil GeoJSON sendiri,
-		// jadi 441 KB geometri jalur tidak ikut membengkakkan bundel JS dan bisa
-		// di-cache browser seperti aset biasa.
+		// Fetched by URL rather than imported: MapLibre fetches the GeoJSON itself, so
+		// 441 KB of line geometry does not swell the JS bundle and can be cached by the
+		// browser like any other asset.
 		m.addSource('routes', { type: 'geojson', data: `${base}/data/routes.json` });
 
 		m.addLayer({
@@ -160,9 +160,9 @@
 			filter: ['get', 'nodata'],
 			paint: { 'fill-pattern': 'hatch', 'fill-opacity': 0.85 }
 		});
-		// Belum tercakup: hanya garis putus-putus, tanpa isi. Sengaja berbeda dari
-		// arsiran `nodata` — keduanya sama-sama tak bernilai, tapi alasannya lain
-		// dan tindakan penggunanya pun lain (impor dataset vs tidak ada apa-apa).
+		// Not covered: a dashed outline only, no fill. Deliberately different from the
+		// `nodata` hatching — both are valueless, but for different reasons and calling
+		// for different user action (import a dataset vs there is nothing there).
 		m.addLayer({
 			id: 'catchment-uncovered',
 			type: 'line',
@@ -184,11 +184,11 @@
 					'case',
 					['get', 'selected'],
 					cssVar('--label-1'),
-					['get', 'jenuh'],
+					['get', 'saturated'],
 					cssVar('--critical'),
 					cssVar('--separator-strong')
 				],
-				'line-width': ['case', ['get', 'selected'], 2.4, ['get', 'jenuh'], 1.8, 1]
+				'line-width': ['case', ['get', 'selected'], 2.4, ['get', 'saturated'], 1.8, 1]
 			}
 		});
 		m.addLayer({
@@ -201,8 +201,8 @@
 				'circle-opacity': 0.85
 			}
 		});
-		// Satu layer per moda. Urutannya menentukan siapa di atas: TransJakarta
-		// paling padat, jadi digambar lebih dulu supaya rel tidak tertimbun.
+		// One layer per mode. The order decides what sits on top: TransJakarta is the
+		// densest, so it is drawn first to keep the rail lines from being buried.
 		for (const mode of ROUTE_MODES) {
 			m.addLayer({
 				id: `route-${mode.key}`,
@@ -254,12 +254,12 @@
 		tipEl.style.transform = `translate3d(${Math.max(12, left)}px, ${y - 14}px, 0)`;
 	}
 
-	/** Berapa banyak petak yang diberi penanda. Kisi punya 558 petak — memberi
-	    penanda pada semuanya menghasilkan tumpukan label yang tak terbaca sekaligus
-	    ratusan simpul DOM. Yang ditandai hanya yang sedang berarti bagi pengguna. */
+	/** How many cells get a marker. The grid has 558 cells — marking all of them
+	    produces an unreadable pile of labels and hundreds of DOM nodes at once. Only
+	    the ones that currently mean something to the user are marked. */
 	const MAX_MARKERS = 14;
 
-	/** Urutan penting: yang lebih depan menang saat dua label berebut tempat. */
+	/** Order matters: whichever comes first wins when two labels compete for space. */
 	function markerSet(rows: ScoredHex[]): Set<string> {
 		const keep = new Set<string>();
 		if (app.selectedId) keep.add(app.selectedId);
@@ -275,14 +275,14 @@
 		return keep;
 	}
 
-	/** Penanda petak sebagai elemen HTML: tipografi & material yang sama dengan panel. */
+	/** Cell markers as HTML elements: the same typography & material as the panels. */
 	function syncMarkers(rows: ScoredHex[]) {
 		if (!map || !gl) return;
 
 		const keep = markerSet(rows);
 
-		// Penanda yang tak lagi relevan dibuang, bukan disembunyikan — kalau hanya
-		// di-display:none, simpulnya tetap menumpuk seiring pengguna berpindah pilihan.
+		// Markers that are no longer relevant are removed, not hidden — with display:none
+		// alone the nodes keep piling up as the user moves between selections.
 		for (const [id, entry] of markers) {
 			if (!keep.has(id)) {
 				entry.marker.remove();
@@ -325,12 +325,12 @@
 	}
 
 	/**
-	 * Label yang bertabrakan disembunyikan, bukan digambar bertindih.
+	 * Colliding labels are hidden rather than drawn on top of each other.
 	 *
-	 * Empat belas petak teratas kerap berkerumun di satu koridor, dan nama-namanya
-	 * lantas saling menimpa sampai tidak satu pun terbaca. Yang lebih penting —
-	 * petak terpilih, lalu hasil berperingkat — mendapat tempat lebih dulu; sisanya
-	 * mundur jadi titik saja. Titiknya tetap ada, jadi tidak ada petak yang hilang.
+	 * The top fourteen cells often cluster along one corridor, and their names then
+	 * overlap until not one of them reads. The more important ones — the selected
+	 * cell, then the ranked results — get their space first; the rest fall back to a
+	 * dot. The dot is still there, so no cell disappears.
 	 */
 	function layoutLabels() {
 		if (!map) return;
@@ -358,7 +358,7 @@
 		}
 	}
 
-	/** Digeser/di-zoom → tata ulang, sekali per bingkai. */
+	/** Panned/zoomed → re-lay out, once per frame. */
 	function scheduleLabels() {
 		if (labelFrame) return;
 		labelFrame = requestAnimationFrame(() => {
@@ -395,7 +395,7 @@
 				bounds: boundsOf(app.rows),
 				fitBoundsOptions: { padding: { top: 90, bottom: 120, left: 60, right: 60 } },
 				attributionControl: false,
-				// Gestur harus terasa langsung; rotasi tidak menambah makna pada peta ini.
+				// Gestures must feel direct; rotation adds no meaning to this map.
 				dragRotate: false,
 				pitchWithRotate: false,
 				touchZoomRotate: true
@@ -403,12 +403,12 @@
 			m.addControl(new gl.AttributionControl({ compact: true }), 'bottom-right');
 			m.addControl(new gl.ScaleControl({ maxWidth: 96, unit: 'metric' }), 'bottom-left');
 			m.touchZoomRotate.disableRotation();
-			// `load` menunggu bingkai pertama benar-benar tergambar — termasuk ubin
-			// basemap. Kalau basemapnya lambat, diblokir, atau mati, peristiwa itu
-			// tidak pernah datang dan seluruh lapisan rekomendasi ikut tidak pernah
-			// dipasang, padahal geometri dan skornya lokal dan tidak butuh jaringan.
-			// `styledata` datang begitu spesifikasi gayanya terbaca, jadi hasil
-			// hitungan tetap tampil walau petanya sendiri kosong.
+			// `load` waits for the first frame to be genuinely drawn — basemap tiles
+			// included. If the basemap is slow, blocked, or down, that event never
+			// arrives and none of the recommendation layers ever get mounted — even
+			// though their geometry and scores are local and need no network at all.
+			// `styledata` fires as soon as the style spec is parsed, so the computed
+			// results still show even when the map itself is blank.
 			m.once('styledata', () => {
 				addLayers(m);
 				ready = true;
@@ -426,9 +426,9 @@
 		};
 	});
 
-	// Tema berganti → basemap dan seluruh warna layer ikut berganti. Tema yang sedang
-	// terpasang disimpan di luar rune: kalau tidak, `ready` yang berubah di dalam efek
-	// akan memicu efeknya sendiri dan gaya peta dimuat ulang tanpa henti.
+	// Theme changes → the basemap and every layer colour change with it. The currently
+	// applied theme is kept outside a rune: otherwise `ready` changing inside the effect
+	// would retrigger the effect itself and reload the map style without end.
 	$effect(() => {
 		const theme = app.resolvedTheme;
 		const m = map;
@@ -442,7 +442,7 @@
 		});
 	});
 
-	// Sumber & warna disegarkan setiap kali skor, layer, atau pilihan berubah.
+	// Sources & colours are refreshed whenever the scores, layers, or selection change.
 	$effect(() => {
 		const rows = app.rows;
 		const m = map;
@@ -450,20 +450,20 @@
 		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC(rows));
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC(rows));
 		for (const mode of ROUTE_MODES) {
-			m.setLayoutProperty(`route-${mode.key}`, 'visibility', app.layers.rute ? 'visible' : 'none');
+			m.setLayoutProperty(`route-${mode.key}`, 'visibility', app.layers.routes ? 'visible' : 'none');
 		}
 		m.setPaintProperty('catchment-line', 'line-color', [
 			'case',
 			['get', 'selected'],
 			cssVar('--label-1'),
-			['get', 'jenuh'],
+			['get', 'saturated'],
 			cssVar('--critical'),
 			cssVar('--separator-strong')
 		]);
 		syncMarkers(rows);
 	});
 
-	// Memilih catchment menggeser peta ke sana — hubungan spasial antara panel dan peta harus terjaga.
+	// Selecting a catchment pans the map to it — the spatial link between panel and map has to hold.
 	$effect(() => {
 		const sel = app.selected;
 		const m = map;
@@ -600,7 +600,7 @@
 		color: var(--label-2);
 	}
 
-	/* penanda stasiun (elemen dibuat imperatif oleh syncMarkers) */
+	/* station markers (elements created imperatively by syncMarkers) */
 	:global(.stn) {
 		position: relative;
 		display: block;
@@ -673,7 +673,7 @@
 		box-shadow: var(--shadow-chip);
 	}
 
-	/* kontrol bawaan MapLibre dibuat mengikuti material panel */
+	/* MapLibre's built-in controls are restyled to match the panel material */
 	:global(.maplibregl-ctrl-attrib),
 	:global(.maplibregl-ctrl-scale) {
 		background: var(--mat-thin) !important;

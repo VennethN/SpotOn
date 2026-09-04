@@ -1,32 +1,32 @@
 <script lang="ts">
 	/**
-	 * Satu heksagon untuk satu petak H3 — 558 buah, urut seperti pada kisi.
+	 * One hexagon per H3 cell — 558 of them, in the same order as the grid.
 	 *
-	 * Digambar isometrik dan bertebal, bukan rata, karena maket di panggung atas
-	 * sudah menetapkan bahasanya: benda putih dilihat dari atas-samping, dengan
-	 * sisinya yang tampak. Kisi rata pada halaman yang sama akan terbaca sebagai
-	 * gambar yang datang dari produk lain.
+	 * Drawn isometric and with thickness rather than flat, because the model on the
+	 * stage above has already set the language: white objects seen from above and to
+	 * the side, with their sides visible. A flat grid on the same page would read as
+	 * an image borrowed from a different product.
 	 *
-	 * Petak yang belum ada datanya digambar sebagai lubang — tepi saja, tanpa
-	 * badan dan tanpa sisi. Bukan diberi warna paling pucat: warna paling pucat
-	 * tetap terbaca sebagai "nilainya kecil", dan itu bukan yang terjadi. Yang
-	 * terjadi adalah tidak tahu.
+	 * Cells with no data yet are drawn as holes — edges only, no body and no sides.
+	 * Not given the palest colour: the palest colour still reads as "a small value",
+	 * and that is not what is happening here. What is happening is that we do not
+	 * know.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
 
 	interface Props {
-		/** Satu karakter per petak, '1' = belum terdata. */
+		/** One character per cell, '1' = no data yet. */
 		mask: string;
-		terdata: number;
+		withData: number;
 		nodata: number;
 	}
-	let { mask, terdata, nodata }: Props = $props();
+	let { mask, withData, nodata }: Props = $props();
 
 	const c = $derived(copy());
 
 	const COLS = 31;
-	/* Denah heksagon runcing-atas, dipipihkan ke proyeksi isometrik lalu diberi
-	   tebal. Empat angka inilah sudut pandangnya. */
+	/* A pointy-top hexagon plan, squashed into an isometric projection and then given
+	   thickness. These four numbers are the viewing angle. */
 	const W = 15;
 	const H_PLAN = W * 1.1547;
 	const SQUASH = 0.54;
@@ -35,11 +35,11 @@
 	const PITCH_X = W + 1.2;
 	const PITCH_Y = H_PLAN * 0.75 * SQUASH + 1.1;
 
-	/** Muka atas: heksagon yang sudah dipipihkan. */
+	/** The top face: the squashed hexagon. */
 	const FACE = `M ${W / 2} 0 L ${W} ${H * 0.25} L ${W} ${H * 0.75} L ${W / 2} ${H} L 0 ${
 		H * 0.75
 	} L 0 ${H * 0.25} Z`;
-	/** Sisi: tiga tepi bawah heksagon, diturunkan setebal DEPTH. */
+	/** The sides: the hexagon's three lower edges, dropped by DEPTH. */
 	const SIDE = `M 0 ${H * 0.75} L ${W / 2} ${H} L ${W} ${H * 0.75} L ${W} ${H * 0.75 + DEPTH} L ${
 		W / 2
 	} ${H + DEPTH} L 0 ${H * 0.75 + DEPTH} Z`;
@@ -52,7 +52,7 @@
 			return {
 				x: q * PITCH_X + (r % 2 ? PITCH_X / 2 : 0),
 				y: r * PITCH_Y,
-				kosong: c === '1'
+				empty: c === '1'
 			};
 		})
 	);
@@ -65,11 +65,11 @@
 	<svg
 		viewBox={`-1 -1 ${w + 2} ${h + 2}`}
 		role="img"
-		aria-label={c.data.gridLabel(mask.length, terdata, nodata)}
+		aria-label={c.data.gridLabel(mask.length, withData, nodata)}
 	>
 		<defs>
-			<!-- Satu gradasi untuk seluruh bidang, bukan satu per petak: cahaya
-			     jatuh pada maketnya, bukan pada tiap ubin sendiri-sendiri. -->
+			<!-- One gradient across the whole field, not one per cell: the light
+			     falls on the model, not on each tile individually. -->
 			<linearGradient id="cov-lift" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={h}>
 				<stop offset="0" class="g-top" />
 				<stop offset="1" class="g-bot" />
@@ -78,10 +78,10 @@
 			<path id="cov-side" d={SIDE} />
 		</defs>
 
-		<!-- Baris demi baris dari belakang ke depan: sisi petak di baris depan
-		     harus menutupi petak di belakangnya, bukan sebaliknya. -->
+		<!-- Row by row from back to front: the sides of a front-row cell have to
+		     cover the cell behind it, not the other way round. -->
 		{#each cells as c, i (i)}
-			{#if c.kosong}
+			{#if c.empty}
 				<use href="#cov-face" x={c.x} y={c.y} class="hole" />
 			{:else}
 				<use href="#cov-side" x={c.x} y={c.y} class="side" />
@@ -93,11 +93,11 @@
 	<figcaption>
 		<span class="key">
 			<span class="sw ada" aria-hidden="true"></span>
-			<b>{terdata}</b> {c.data.gridAda}
+			<b>{withData}</b> {c.data.gridWithData}
 		</span>
 		<span class="key">
-			<span class="sw kosong" aria-hidden="true"></span>
-			<b>{nodata}</b> {c.data.gridKosong}
+			<span class="sw empty" aria-hidden="true"></span>
+			<b>{nodata}</b> {c.data.gridEmpty}
 		</span>
 	</figcaption>
 </figure>
@@ -108,7 +108,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
-		/* Ini diagram, bukan mural: dibiarkan selebar halaman, ia menelan bagiannya. */
+		/* This is a diagram, not a mural: left page-wide it would swallow its own section. */
 		max-width: 34rem;
 	}
 	svg {
@@ -117,11 +117,11 @@
 		height: auto;
 	}
 
-	/* Ubinnya benda putih yang disinari, bukan petak berwarna: rona birunya cuma
-	   semburat pada permukaan terang, dan yang membedakan muka dari sisi adalah
-	   terang-gelapnya. Dicat biru penuh, kisi ini jadi bidang paling berteriak di
-	   halaman yang seluruhnya garis rambut. Alasnya `--bg-elevated`, yang pada
-	   kedua tema selalu lebih terang daripada kertasnya. */
+	/* The tiles are lit white objects, not coloured cells: the blue is only a tint on
+	   a bright surface, and what separates a face from a side is light and shade.
+	   Painted fully blue, this grid becomes the loudest field on a page made entirely
+	   of hairlines. Its base is `--bg-elevated`, which in both themes is always
+	   lighter than the paper. */
 	.g-top {
 		stop-color: color-mix(in srgb, var(--accent) 30%, var(--bg-elevated));
 	}
@@ -135,11 +135,11 @@
 		fill: color-mix(in srgb, var(--accent) 34%, #05070c);
 		fill-opacity: 0.5;
 	}
-	/* Lubang harus terbaca sebagai ceruk, bukan sebagai ubin berwarna lain. Tanpa
-	   isian, kertas yang hangat muncul di antara ubin biru pucat dan matanya bisa
-	   membalik gambar: lubangnya yang tampak menonjol. Bayangan tipis di dalamnya
-	   mengunci bacaan itu, dan tintanya dipatok gelap supaya arahnya tetap sama
-	   pada tema terang maupun gelap. */
+	/* A hole has to read as a recess, not as a differently coloured tile. Without a
+	   fill, the warm paper shows between pale blue tiles and the eye can invert the
+	   image: the holes appear to stand proud. A thin shadow inside locks that reading
+	   in place, and its ink is pinned dark so the direction stays the same in both
+	   the light and the dark theme. */
 	.hole {
 		fill: #05070c;
 		fill-opacity: 0.09;
@@ -169,13 +169,13 @@
 		width: 0.6875rem;
 		height: 0.5rem;
 		flex: none;
-		/* Heksagon pipih yang sama dengan yang di kisi, seukuran huruf. */
+		/* The same squashed hexagon as in the grid, at letter size. */
 		clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
 		background: color-mix(in srgb, var(--accent) 26%, var(--bg-elevated));
 	}
-	/* Kotak berlubang, bukan heksagon berlubang: pada ukuran sekecil ini garis
-	   heksagonnya saling menempel dan bentuknya tidak terbaca lagi. */
-	.sw.kosong {
+	/* An outlined box, not an outlined hexagon: at this size the hexagon's lines
+	   touch each other and the shape stops reading. */
+	.sw.empty {
 		clip-path: none;
 		border-radius: 1px;
 		background: transparent;

@@ -1,15 +1,16 @@
 /**
- * Kontrak yang dipenuhi tiap adegan tiga dimensi di SpotOn.
+ * The contract every 3D scene in SpotOn fulfils.
  *
- * Ada dua adegan sekarang — maket jalan dan kisi heksagon — dan keduanya butuh
- * urusan yang sama persis: dimuat dinamis, berhenti saat di luar layar, ikut
- * ukuran wadahnya, dan dibersihkan saat pergi. Kontrak ini yang membuat urusan
- * itu bisa ditulis sekali di `ui/SceneCanvas`, bukan disalin per adegan.
+ * There are two scenes today — the street diorama and the hexagon grid — and both
+ * need exactly the same handling: loaded dynamically, paused when off screen,
+ * following their container's size, and cleaned up on the way out. This contract is
+ * what lets that handling be written once in `ui/SceneCanvas` instead of copied per
+ * scene.
  */
 export interface SceneWorld {
-	/** Menerapkan sebagian keadaan; adegan sendiri yang tahu apa artinya. */
+	/** Applies a partial state; the scene itself knows what it means. */
 	applyState(partial: Record<string, unknown>): void;
-	/** Mulai menggambar. Adegan beku boleh hanya menggambar saat ada perubahan. */
+	/** Start drawing. A static scene may draw only when something changes. */
 	start(): void;
 	stop(): void;
 	resize(): void;

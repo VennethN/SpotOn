@@ -1,15 +1,15 @@
 <script lang="ts">
 	/**
-	 * Pemilih bahasa: dua kata, bukan bendera.
+	 * Language picker: two words, not flags.
 	 *
-	 * Bendera menandai negara, bukan bahasa, dan bahasa Indonesia maupun Inggris
-	 * sama-sama dipakai di banyak negara. Dua singkatan yang bisa dibaca lebih
-	 * jujur dan lebih kecil.
+	 * A flag marks a country, not a language, and both Indonesian and English
+	 * are spoken in many countries. Two readable abbreviations are more
+	 * honest, and smaller.
 	 */
 	import { DICT, LANGS, type Lang } from '$lib/i18n';
 	import { lang, setLang } from '$lib/state/lang.svelte';
 
-	/** Gaya bilah landing: mengikuti tinta langit di belakangnya. */
+	/** Landing-bar styling: follows the ink of the sky behind it. */
 	let { ghost = false }: { ghost?: boolean } = $props();
 
 	const now = $derived(lang());

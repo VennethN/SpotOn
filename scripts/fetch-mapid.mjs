@@ -1,26 +1,26 @@
 /**
- * Mengambil POI premium MAPID dari proyek GEO MAPID, lalu menyimpannya sebagai
- * satu berkas titik yang siap di-join ke kisi heksagon.
+ * Fetches MAPID premium POIs from a GEO MAPID project and stores them as a single
+ * point file, ready to be joined onto the hexagon grid.
  *
  *   node scripts/fetch-mapid.mjs
  *
- * Keluaran: `src/lib/data/mapid-poi.json`
+ * Output: `src/lib/data/mapid-poi.json`
  *
- * KENAPA LEWAT PROYEK, BUKAN KATALOG
+ * WHY VIA A PROJECT, NOT THE CATALOGUE
  *
- * Katalog data premium bisa dibaca tanpa login, tapi endpoint daftarnya
- * mengabaikan `page`, `limit`, dan segala bentuk parameter pencarian — ia selalu
- * mengembalikan 20 entri yang sama. Jadi menemukan dataset Jakarta di antara
- * ~20.000 entri tidak mungkin dilakukan dari skrip.
+ * The premium data catalogue can be read without logging in, but its listing
+ * endpoint ignores `page`, `limit`, and every form of search parameter — it always
+ * returns the same 20 entries. Finding the Jakarta datasets among ~20,000 entries
+ * is therefore impossible from a script.
  *
- * Yang bisa: membaca layer mana pun kalau id-nya sudah diketahui. Maka pembagian
- * kerjanya begini — dataset dicari dan di-Impor sekali lewat antarmuka GEO MAPID
- * (kotak pencariannya bekerja), dan skrip ini menemukan sendiri seluruh layer di
- * proyek itu beserta isinya. Tidak ada id yang perlu disalin tangan.
+ * What does work: reading any layer once its id is known. So the work splits like
+ * this — the datasets are searched for and Imported once through the GEO MAPID
+ * interface (its search box does work), and this script discovers every layer in
+ * that project on its own, contents included. No id has to be copied by hand.
  *
- * Kunci `MAPID_API_KEY` hanya bisa membaca. Mengimpor adalah operasi tulis pada
- * akun MAPID dan memerlukan sesi login pengguna — itu sebabnya langkah impor
- * memang tinggal di antarmuka, bukan di sini.
+ * The `MAPID_API_KEY` key is read-only. Importing is a write operation on a MAPID
+ * account and needs a logged-in user session — which is why the import step stays
+ * in the interface rather than living here.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -31,30 +31,30 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const GEOSERVER = 'https://geoserver.mapid.io';
 
 /**
- * `get_layer` memotong di 200 fitur tanpa memberi tahu — tidak ada penanda
- * "masih ada lagi" pada responsnya. Layer RESTORAN Jakarta Pusat sebenarnya
- * berisi 1.160 titik, jadi tanpa `limit` yang eksplisit 83% datanya hilang
- * diam-diam dan cacah pesaing jadi terlalu kecil. Nilai ini jauh di atas
- * layer terbesar yang ada; naikkan bila suatu saat ada yang menyentuhnya.
+ * `get_layer` truncates at 200 features without saying so — there is no
+ * "there is more" marker anywhere in the response. The RESTORAN Jakarta Pusat
+ * layer actually holds 1,160 points, so without an explicit `limit` 83% of the
+ * data silently disappears and the competitor counts come out too low. This value
+ * sits far above the largest layer there is; raise it if one ever reaches it.
  */
 const FEATURE_LIMIT = 100000;
 
-/** Proyek GEO MAPID tempat dataset diimpor. Dari URL editor: /editor/<id>. */
+/** The GEO MAPID project the datasets were imported into. From the editor URL: /editor/<id>. */
 const PROJECT_ID = process.env.MAPID_PROJECT_ID || '6a7c1672fb8d434002151fa7';
 
 function apiKey() {
 	const raw = readFileSync(resolve(ROOT, '.env'), 'utf8');
 	const m = raw.match(/^MAPID_API_KEY=(.*)$/m);
 	const key = (m?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
-	if (!key) throw new Error('MAPID_API_KEY belum diisi di .env');
+	if (!key) throw new Error('MAPID_API_KEY is not set in .env');
 	return key;
 }
 
 /**
- * Taksonomi MAPID (TIPE_1 → TIPE_2 → TIPE_3) dipetakan ke lima kategori SpotOn.
- * Dicocokkan dari yang paling spesifik ke paling umum: sebuah gerai bisa
- * bertipe "MAKANAN DAN MINUMAN / MINUMAN / COFFEESHOP", dan yang menentukan
- * kategorinya adalah TIPE_3, bukan TIPE_1.
+ * The MAPID taxonomy (TIPE_1 → TIPE_2 → TIPE_3) mapped onto SpotOn's five
+ * categories. Matched from most specific to most general: an outlet can be typed
+ * "MAKANAN DAN MINUMAN / MINUMAN / COFFEESHOP", and what decides its category is
+ * TIPE_3, not TIPE_1.
  */
 const RULES = [
 	{ cat: 'kopi', re: /COFFEE|KOPI|KEDAI KOPI|CAFE|KAFE/i },
@@ -65,11 +65,11 @@ const RULES = [
 ];
 
 function classify(props = {}) {
-	// Sengaja HANYA membaca kolom TIPE, tidak pernah NAMA. Menebak dari nama
-	// pernah membuat satu halte TransJakarta terhitung sebagai minimarket
-	// hanya karena namanya memuat "MART" — dan pesaing palsu menekan skor
-	// petak yang sebenarnya kosong. Layer non-usaha (halte) tidak punya kolom
-	// TIPE sama sekali, jadi aturan ini sekaligus menyaringnya keluar.
+	// Deliberately reads ONLY the TIPE columns, never NAMA. Guessing from the name
+	// once counted a TransJakarta stop as a minimarket purely because its name
+	// contained "MART" — and a phantom competitor drags down the score of a cell
+	// that is in fact empty. Non-business layers (stops) carry no TIPE column at
+	// all, so this rule filters them out at the same time.
 	for (const src of [props.TIPE_3, props.TIPE_2, props.TIPE_1]) {
 		const s = String(src ?? '').trim();
 		if (!s || s === '-') continue;
@@ -93,17 +93,17 @@ async function get(url, label) {
 
 async function main() {
 	const key = apiKey();
-	console.log(`Proyek ${PROJECT_ID}\n`);
+	console.log(`Project ${PROJECT_ID}\n`);
 
-	console.log('[1/2] Membaca daftar layer…');
+	console.log('[1/2] Reading the layer list…');
 	const listed = await get(
 		`${GEOSERVER}/layers_new/get_layer_list?api_key=${key}&project_id=${PROJECT_ID}`,
 		'get_layer_list'
 	);
 	const layers = Object.values(listed).filter((l) => l && typeof l === 'object' && l._id);
-	console.log(`      ${layers.length} layer\n`);
+	console.log(`      ${layers.length} layers\n`);
 
-	console.log('[2/2] Mengambil isi tiap layer…');
+	console.log('[2/2] Fetching the contents of each layer…');
 	const points = [];
 	const perLayer = [];
 	const unmatched = new Map();
@@ -129,19 +129,20 @@ async function main() {
 				lat: Math.round(c[1] * 1e5) / 1e5,
 				lon: Math.round(c[0] * 1e5) / 1e5,
 				cat,
-				kabkot: f.properties?.KABKOT ?? null
+				// from MAPID's KABKOT column (kabupaten/kota = regency/city)
+				city: f.properties?.KABKOT ?? null
 			});
 			kept++;
 		}
 
 		perLayer.push({ name: l.name, features: feats.length, kept });
 		console.log(
-			`  [${String(i + 1).padStart(2)}/${layers.length}] ${String(feats.length).padStart(5)} fitur → ${String(kept).padStart(5)} terpakai · ${l.name.slice(0, 52)}`
+			`  [${String(i + 1).padStart(2)}/${layers.length}] ${String(feats.length).padStart(5)} features → ${String(kept).padStart(5)} kept · ${l.name.slice(0, 52)}`
 		);
 	}
 
-	// Dedup: satu gerai bisa muncul di dua layer (mis. COFFEE SHOP dan MAKANAN
-	// DAN MINUMAN untuk kota yang sama). Tanpa ini pesaing terhitung dobel.
+	// Dedup: one outlet can show up in two layers (e.g. COFFEE SHOP and MAKANAN
+	// DAN MINUMAN for the same city). Without this, competitors get double-counted.
 	const seen = new Set();
 	const unique = points.filter((p) => {
 		const k = `${p.cat}|${p.lat}|${p.lon}`;
@@ -151,7 +152,7 @@ async function main() {
 	});
 
 	const byCat = unique.reduce((a, p) => ((a[p.cat] = (a[p.cat] ?? 0) + 1), a), {});
-	const byKab = unique.reduce((a, p) => ((a[p.kabkot ?? '?'] = (a[p.kabkot ?? '?'] ?? 0) + 1), a), {});
+	const byCity = unique.reduce((a, p) => ((a[p.city ?? '?'] = (a[p.city ?? '?'] ?? 0) + 1), a), {});
 
 	const out = {
 		meta: {
@@ -161,8 +162,8 @@ async function main() {
 			total: unique.length,
 			duplicatesDropped: points.length - unique.length,
 			byCategory: byCat,
-			byKabkot: byKab,
-			note: 'Cakupan mengikuti dataset yang sudah diimpor ke proyek. Kota yang belum diimpor TIDAK berarti tidak punya pesaing — join ke kisi wajib memperlakukannya sebagai "belum tercakup", bukan nol.',
+			byCity,
+			note: 'Coverage follows whichever datasets have been imported into the project. A city that has not been imported does NOT mean it has no competitors — the join onto the grid must treat it as "not yet covered", not as zero.',
 			regenerate: 'node scripts/fetch-mapid.mjs'
 		},
 		points: unique
@@ -172,17 +173,17 @@ async function main() {
 	mkdirSync(dirname(dest), { recursive: true });
 	writeFileSync(dest, JSON.stringify(out));
 
-	console.log(`\n${unique.length} titik unik (${points.length - unique.length} duplikat dibuang)`);
-	console.log('per kategori:', byCat);
-	console.log('per kota    :', byKab);
+	console.log(`\n${unique.length} unique points (${points.length - unique.length} duplicates dropped)`);
+	console.log('by category:', byCat);
+	console.log('by city    :', byCity);
 	if (unmatched.size) {
 		const top = [...unmatched.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
-		console.log('tipe tak terpetakan:', Object.fromEntries(top));
+		console.log('unmapped types:', Object.fromEntries(top));
 	}
 	console.log(`→ ${dest}`);
 }
 
 main().catch((err) => {
-	console.error('Gagal:', err.message);
+	console.error('Failed:', err.message);
 	process.exit(1);
 });

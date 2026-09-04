@@ -4,7 +4,7 @@
 
 	let { children } = $props();
 
-	// Bahasa dipulihkan sekali, sebelum apa pun digambar ulang.
+	// The language is restored once, before anything is redrawn.
 	$effect(() => initLang());
 </script>
 

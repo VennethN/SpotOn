@@ -1,22 +1,22 @@
 <script lang="ts">
 	/**
-	 * Profil 24 jam kawasan transit — bagannya sendiri dipakai bersama panel
-	 * detail aplikasi (`ui/HourBars`); yang khas halaman depan cuma keterangan
-	 * sumbernya dan tabel angka yang dilipat di bawahnya, supaya bacaan ini tidak
-	 * pernah jadi satu-satunya jalan ke datanya.
+	 * The 24-hour profile of a transit area — the chart itself is shared with the app's
+	 * detail panel (`ui/HourBars`); all that is specific to the landing page is the
+	 * source note and the collapsible table of figures below it, so this reading is
+	 * never the only route to the data.
 	 */
 	import HourBars from '$lib/components/ui/HourBars.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { formatHour, num } from '$lib/utils/format';
 
-	let { jam, caption }: { jam: number[]; caption?: string } = $props();
+	let { hourly, caption }: { hourly: number[]; caption?: string } = $props();
 
 	const c = $derived(copy());
 </script>
 
 <div class="prof">
 	<figure>
-		<HourBars {jam} unit={c.hourChart.unit} />
+		<HourBars {hourly} unit={c.hourChart.unit} />
 		<figcaption>
 			{caption ?? c.hourChart.caption}
 			<span class="tag mock">MOCK</span>
@@ -31,7 +31,7 @@
 				<tr><th scope="col">{c.hourChart.colHour}</th><th scope="col">{c.hourChart.colValue}</th></tr>
 			</thead>
 			<tbody>
-				{#each jam as v, h (h)}
+				{#each hourly as v, h (h)}
 					<tr><th scope="row">{formatHour(h)}</th><td>{num(v)}</td></tr>
 				{/each}
 			</tbody>

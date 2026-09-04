@@ -1,14 +1,13 @@
 /**
- * Naskah bahasa Indonesia — sumber bentuk untuk seluruh kamus.
+ * The Indonesian copy — the source of shape for every dictionary.
  *
- * Suaranya: orang yang paham daerahnya, menjelaskan dengan biasa saja. Kalimat
- * pendek. Kata sehari-hari. Tidak ada tanda pisah yang bertubi-tubi, tidak ada
- * kalimat yang ditutup pepatah, dan tidak ada kata sifat yang menjual. Kalau
- * satu kalimat terdengar seperti brosur, tulis ulang sampai terdengar seperti
- * orang yang sedang menjawab pertanyaan.
+ * Its voice: someone who knows the area, explaining it plainly. Short sentences.
+ * Everyday words. No pile-ups of dashes, no sentence closed with a proverb, and no
+ * selling adjectives. If a sentence sounds like a brochure, rewrite it until it
+ * sounds like a person answering a question.
  *
- * Yang tidak boleh hilang: angka selalu menyebut dari mana asalnya, dan yang
- * belum diketahui disebut belum diketahui.
+ * What must never be lost: a figure always says where it came from, and what is
+ * not known is called not known.
  */
 export const id = {
 	lang: { code: 'id', label: 'Bahasa Indonesia', short: 'ID', switchTo: 'Ganti ke Bahasa Inggris' },
@@ -20,9 +19,9 @@ export const id = {
 		open: 'Buka SpotOn'
 	},
 
-	/* `many` dipakai saat namanya didahului angka. Bahasa Indonesia tidak
-	   mengubah bentuk kata bendanya; bahasa Inggris mengubah, dan tanpa kolom ini
-	   akan tertulis "3 coffee shop". */
+	/* `many` is used when the name is preceded by a number. Indonesian does not
+	   inflect the noun; English does, and without this field it would read
+	   "3 coffee shop". */
 	category: {
 		kopi: { name: 'Kedai Kopi', short: 'Kopi', many: 'kedai kopi' },
 		warung: { name: 'Warung Makan', short: 'Warung', many: 'warung makan' },
@@ -63,12 +62,12 @@ export const id = {
 	},
 
 	phase: {
-		malam: 'malam',
-		subuh: 'subuh',
-		pagi: 'pagi',
-		siang: 'siang',
-		sore: 'sore',
-		senja: 'senja'
+		night: 'malam',
+		dawn: 'subuh',
+		morning: 'pagi',
+		midday: 'siang',
+		afternoon: 'sore',
+		dusk: 'senja'
 	},
 
 	stats: {
@@ -185,8 +184,8 @@ export const id = {
 		mark: 'Data',
 		title: 'Kawasan yang datanya belum ada kami tampilkan apa adanya.',
 		body: 'Kalau di satu kawasan datanya belum ada, kami tidak mengarang angka penggantinya. Kawasannya ditandai kosong dan masuk antrean untuk disurvei duluan. Setiap angka juga menyebut berapa banyak data di baliknya, biar Anda bisa menilai sendiri seberapa kuat dasarnya.',
-		gridAda: 'petak sudah ada datanya',
-		gridKosong: 'belum terdata, tidak dinilai, masuk antrean survei',
+		gridWithData: 'petak sudah ada datanya',
+		gridEmpty: 'belum terdata, tidak dinilai, masuk antrean survei',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
 			`Kisi ${total} petak: ${terdata} sudah ada datanya, ${nodata} belum.`,
 		realTitle: 'Yang nyata',
@@ -255,12 +254,12 @@ export const id = {
 	},
 
 	typology: {
-		Underserved: 'Masih kurang dilayani',
-		Kompetitif: 'Bersaing ketat',
-		Jenuh: 'Sudah jenuh',
-		'Ramai, ruang terbatas': 'Ramai, tempat terbatas',
-		'Belum terdata': 'Belum terdata',
-		'Belum tercakup': 'Belum tercakup'
+		underserved: 'Masih kurang dilayani',
+		competitive: 'Bersaing ketat',
+		saturated: 'Sudah jenuh',
+		'busy-limited-space': 'Ramai, tempat terbatas',
+		'no-data': 'Belum terdata',
+		'not-covered': 'Belum tercakup'
 	},
 
 	supply: {
@@ -323,7 +322,7 @@ export const id = {
 		layers: 'Layer',
 		layerNames: {
 			score: 'Skor peluang',
-			rute: 'Jalur angkutan',
+			routes: 'Jalur angkutan',
 			poi: 'Sebaran pesaing',
 			nodata: 'Petak belum terdata',
 			label: 'Nama titik transit'
@@ -378,7 +377,7 @@ export const id = {
 			`Sekitar ${n} transaksi pada jam ini, ${osm} ${cat} pesaing, dan ${listing} tempat yang sedang disewakan.`
 	},
 
-	/* ── aplikasi ─────────────────────────────────────────────────────────── */
+	/* ── app ──────────────────────────────────────────────────────────────── */
 
 	app: {
 		categoryLabel: 'Jenis usaha',
@@ -396,7 +395,7 @@ export const id = {
 		tableHide: 'Sembunyikan tabel atribut',
 		tableHint: '— klik judul kolom untuk mengurutkan',
 		panel: 'Panel',
-		tabs: { rekomendasi: 'Tapak', detail: 'Kawasan', tabel: 'Tabel', kontrol: 'Lanjutan' },
+		tabs: { recommendations: 'Tapak', detail: 'Kawasan', table: 'Tabel', controls: 'Lanjutan' },
 		loadingMap: 'Memuat peta…',
 		zoomIn: 'Perbesar',
 		zoomOut: 'Perkecil',

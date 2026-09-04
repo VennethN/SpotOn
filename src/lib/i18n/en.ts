@@ -62,12 +62,12 @@ export const en: Copy = {
 	},
 
 	phase: {
-		malam: 'night',
-		subuh: 'before dawn',
-		pagi: 'morning',
-		siang: 'midday',
-		sore: 'afternoon',
-		senja: 'dusk'
+		night: 'night',
+		dawn: 'before dawn',
+		morning: 'morning',
+		midday: 'midday',
+		afternoon: 'afternoon',
+		dusk: 'dusk'
 	},
 
 	stats: {
@@ -180,8 +180,8 @@ export const en: Copy = {
 		mark: 'Data',
 		title: 'Areas we have no data for are shown as exactly that.',
 		body: "When an area has no data, we don't invent a number to stand in for it. It is marked empty and goes into the queue to be surveyed first. Every figure also says how many data points sit behind it, so you can judge for yourself how solid the ground is.",
-		gridAda: 'cells have data',
-		gridKosong: 'no data yet, not scored, queued for survey',
+		gridWithData: 'cells have data',
+		gridEmpty: 'no data yet, not scored, queued for survey',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
 			`A grid of ${total} cells: ${terdata} have data, ${nodata} do not.`,
 		realTitle: 'What is real',
@@ -250,12 +250,12 @@ export const en: Copy = {
 	},
 
 	typology: {
-		Underserved: 'Underserved',
-		Kompetitif: 'Competitive',
-		Jenuh: 'Saturated',
-		'Ramai, ruang terbatas': 'Busy, little space',
-		'Belum terdata': 'No data yet',
-		'Belum tercakup': 'Not yet surveyed'
+		underserved: 'Underserved',
+		competitive: 'Competitive',
+		saturated: 'Saturated',
+		'busy-limited-space': 'Busy, little space',
+		'no-data': 'No data yet',
+		'not-covered': 'Not yet surveyed'
 	},
 
 	supply: {
@@ -318,7 +318,7 @@ export const en: Copy = {
 		layers: 'Layers',
 		layerNames: {
 			score: 'Opportunity score',
-			rute: 'Transit lines',
+			routes: 'Transit lines',
 			poi: 'Competitor scatter',
 			nodata: 'Cells with no data',
 			label: 'Stop names'
@@ -390,7 +390,7 @@ export const en: Copy = {
 		tableHide: 'Hide attribute table',
 		tableHint: '— click a column heading to sort',
 		panel: 'Panel',
-		tabs: { rekomendasi: 'Tapak', detail: 'Area', tabel: 'Table', kontrol: 'Advanced' },
+		tabs: { recommendations: 'Tapak', detail: 'Area', table: 'Table', controls: 'Advanced' },
 		loadingMap: 'Loading map…',
 		zoomIn: 'Zoom in',
 		zoomOut: 'Zoom out',

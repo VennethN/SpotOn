@@ -14,9 +14,9 @@
 		if (!browser) return;
 		theme = storedTheme();
 
-		// Bilah baru memadat setelah panggung maket benar-benar lewat. Dipatok pada
-		// "scrollY > 8" saja, ia berubah jadi material buram di gulir pertama dan
-		// menutupi adegan yang justru sedang jadi pokoknya.
+		// The bar only condenses once the diorama stage has genuinely passed. Pinned to
+		// "scrollY > 8" alone, it turns into opaque material on the very first scroll and
+		// covers the scene that is the whole point at that moment.
 		const onScroll = () => {
 			const stage = document.querySelector('section.stage');
 			const overStage = stage ? stage.getBoundingClientRect().bottom > 56 : false;
@@ -37,8 +37,8 @@
 	}
 </script>
 
-<!-- Chrome mengambang: konten mengalir di bawahnya, dan pemisahnya baru muncul
-     ketika benar-benar ada yang lewat di baliknya. -->
+<!-- Floating chrome: content flows beneath it, and the separator only appears once
+     something is genuinely passing behind it. -->
 <header class="nav" class:scrolled>
 	<a class="brand" href="#top">
 		<span class="mark" aria-hidden="true"></span>
@@ -95,7 +95,7 @@
 	.nav.scrolled .brand {
 		color: var(--label-1);
 	}
-	/* Tanda: satu petak dengan sudut yang dipangkas — bentuk petak sewa di maket. */
+	/* The mark: a single lot with a clipped corner — the shape of a rental lot in the model. */
 	.mark {
 		width: 0.8125rem;
 		height: 0.8125rem;
@@ -130,8 +130,8 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
-	/* Tombol temanya komponen bersama; yang khas bilah ini cuma bagaimana ia
-	   berubah saat bilahnya memadat di atas kertas. */
+	/* The theme button is a shared component; all that is specific to this bar is how
+	   it changes once the bar condenses over paper. */
 	.nav.scrolled :global(.ghost) {
 		color: var(--label-2);
 		border-color: var(--separator);
