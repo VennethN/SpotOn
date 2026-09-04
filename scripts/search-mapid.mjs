@@ -1,7 +1,7 @@
 /**
  * Menelusuri katalog data premium MAPID.
  *
- *   node scripts/search-mapid.mjs                 # sembilan kategori SpotOn
+ *   node scripts/search-mapid.mjs                 # tiga belas kategori SpotOn
  *   node scripts/search-mapid.mjs APOTEK ATM      # istilah bebas
  *   node scripts/search-mapid.mjs --kota "BANDUNG,SURABAYA" PASAR
  *

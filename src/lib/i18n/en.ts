@@ -26,7 +26,11 @@ export const en: Copy = {
 		kopi: { name: 'Coffee shop', short: 'Coffee', many: 'coffee shops' },
 		minuman: { name: 'Drinks & dessert', short: 'Drinks', many: 'drink shops' },
 		roti: { name: 'Bakery', short: 'Bakery', many: 'bakeries' },
-		warung: { name: 'Food stall', short: 'Food', many: 'food stalls' },
+		warteg: { name: 'Warung & rice shop', short: 'Warteg', many: 'warungs' },
+		cepatsaji: { name: 'Fast food outlet', short: 'Fast food', many: 'fast food outlets' },
+		mie: { name: 'Noodles & meatballs', short: 'Noodles', many: 'noodle shops' },
+		seafood: { name: 'Seafood restaurant', short: 'Seafood', many: 'seafood restaurants' },
+		restoasing: { name: 'Foreign cuisine restaurant', short: 'Foreign', many: 'foreign restaurants' },
 		minimarket: { name: 'Minimarket', short: 'Minimarket', many: 'minimarkets' },
 		kelontong: { name: 'Grocery store', short: 'Grocery', many: 'grocery stores' },
 		laundry: { name: 'Laundry', short: 'Laundry', many: 'laundries' },
@@ -80,7 +84,7 @@ export const en: Copy = {
 		pois: { label: 'competitors mapped', sub: 'OpenStreetMap (ODbL)' },
 		cats: {
 			label: 'business types scored',
-			sub: 'coffee, drinks, bakery, food, minimarket, grocery, laundry, repair, pharmacy'
+			sub: 'coffee, drinks, bakery, warteg, fast food, noodles, seafood, foreign, minimarket, grocery, laundry, repair, pharmacy'
 		},
 		coverNote: (terdata: string, total: string, nodata: string) =>
 			`${terdata} of ${total} cells have data. The other ${nodata} are marked as not surveyed yet: we don't guess them, and we don't score them.`
@@ -220,7 +224,7 @@ export const en: Copy = {
 
 	audience: {
 		mark: 'Who it is for',
-		title: 'One map, nine kinds of decision.',
+		title: 'One map, thirteen kinds of decision.',
 		rows: [
 			{ t: 'Retail & F&B investors', d: 'Pick the next branch from data instead of instinct.' },
 			{ t: 'Small businesses on a tight budget', d: 'Find a good location where the rent still makes sense.' },
@@ -447,7 +451,7 @@ export const en: Copy = {
 
 	narrate: {
 		notUnderstood: (why: string) =>
-			`${why} All I know is the areas around Jakarta transit, for nine kinds of business. Want me to look at one of those?`,
+			`${why} All I know is the areas around Jakarta transit, for thirteen kinds of business. Want me to look at one of those?`,
 		coverageNone: 'Every area has data.',
 		coverageSome: (n: number) =>
 			`There are ${n} areas I have no data for at all. I'm not scoring them; rather than make something up, I'd rather say I don't know.`,

@@ -33,7 +33,14 @@ const KEYWORDS: Array<[RegExp, CategoryKey]> = [
 	[/bengkel|servis motor|service motor|montir|repair/i, 'bengkel'],
 	[/kelontong|toko sembako|sembako|grocery/i, 'kelontong'],
 	[/minimarket|swalayan|indomaret|alfamart|convenience/i, 'minimarket'],
-	[/warung|makan|nasi|soto|resto|food/i, 'warung']
+	[/cepat saji|fast ?food|kfc|mcd|mcdonald|burger/i, 'cepatsaji'],
+	[/\bmie\b|bakso|ramen|noodle|bakmi/i, 'mie'],
+	[/seafood|ikan bakar|kepiting|udang/i, 'seafood'],
+	[/jepang|japanese|korea|korean|sushi|thai|cina|chinese|western|asing|italia|pizza|steak/i, 'restoasing'],
+	// Paling akhir dan paling longgar: apa pun yang menyebut makan tapi tidak
+	// menyebut jenisnya jatuh ke sini, karena warung nasi memang bawaan yang
+	// paling masuk akal untuk pertanyaan "mau buka tempat makan".
+	[/warteg|warung|rumah makan|nasi|padang|soto|resto|makan|food/i, 'warteg']
 ];
 
 /**

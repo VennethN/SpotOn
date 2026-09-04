@@ -52,7 +52,11 @@ const CATEGORIES = [
 	'kopi',
 	'minuman',
 	'roti',
-	'warung',
+	'warteg',
+	'cepatsaji',
+	'mie',
+	'seafood',
+	'restoasing',
 	'minimarket',
 	'kelontong',
 	'laundry',
@@ -96,8 +100,11 @@ const MANIFEST = [
 	{ term: 'BRAND COFFEE SHOP', covers: ['kopi'], force: 'kopi' },
 	{ term: 'MINUMAN', covers: ['kopi', 'minuman'] },
 	{ term: 'ROTI DAN KUE', covers: ['roti'] },
-	{ term: 'RESTORAN', covers: ['warung'] },
-	{ term: 'MAKANAN DAN MINUMAN', covers: ['kopi', 'minuman', 'roti', 'warung'] },
+	{ term: 'RESTORAN', covers: ['warteg', 'cepatsaji', 'mie', 'seafood', 'restoasing'] },
+	{
+		term: 'MAKANAN DAN MINUMAN',
+		covers: ['kopi', 'minuman', 'roti', 'warteg', 'cepatsaji', 'mie', 'seafood', 'restoasing']
+	},
 	{ term: 'MINIMARKET', covers: ['minimarket'] },
 	{ term: 'TOKO KELONTONG', covers: ['kelontong'] },
 	{ term: 'LAYANAN ATAU JASA', covers: ['laundry', 'bengkel'] },
@@ -106,7 +113,7 @@ const MANIFEST = [
 ];
 
 /**
- * Taksonomi MAPID (TIPE_1 → TIPE_2 → TIPE_3) dipetakan ke sembilan kategori SpotOn.
+ * Taksonomi MAPID (TIPE_1 → TIPE_2 → TIPE_3) dipetakan ke tiga belas kategori SpotOn.
  * Dicocokkan dari yang paling spesifik ke paling umum: sebuah gerai bisa
  * bertipe "MAKANAN DAN MINUMAN / MINUMAN / COFFEESHOP", dan yang menentukan
  * kategorinya adalah TIPE_3, bukan TIPE_1.
@@ -129,7 +136,23 @@ const RULES = [
 	{ cat: 'kelontong', re: /KELONTONG|SEMBAKO/i },
 	// `KELONTONG` sudah dipindah ke kategorinya sendiri di atas.
 	{ cat: 'minimarket', re: /MINIMARKET|MART|SWALAYAN|SUPERMARKET|INDOMARET|ALFAMART/i },
-	{ cat: 'warung', re: /RESTORAN|RESTAURANT|WARUNG|RUMAH MAKAN|MAKANAN|FAST ?FOOD|KULINER/i }
+
+	// ── pecahan `warung` ──────────────────────────────────────────────────
+	// Dicocokkan ke TIPE_3, yang di dataset RESTORAN memang berisi jenisnya.
+	// Urutannya dari yang paling spesifik: `RESTORAN PADANG` harus tertangkap
+	// warteg sebelum aturan umum `RESTORAN` menyapunya.
+	{ cat: 'cepatsaji', re: /CEPAT SAJI|FAST ?FOOD/i },
+	{ cat: 'mie', re: /\bMIE\b|BAKSO|RAMEN|BAKMI/i },
+	{ cat: 'seafood', re: /SEAFOOD|IKAN BAKAR/i },
+	{
+		cat: 'restoasing',
+		re: /KOREA|JEPANG|JAPAN|SUSHI|THAI|VIETNAM|CINA|CHINA|TIONGHOA|EROPA|MEKSIKO|AFRIKA|TIMUR TENGAH|PIZZA|STEAK|BBQ|BARAT|WESTERN|ITALIA/i
+	},
+	{ cat: 'warteg', re: /WARUNG TEGAL|WARTEG|NASI GORENG|PADANG|MELAYU|NUSANTARA|JAJANAN|AYAM|WARUNG|RUMAH MAKAN/i },
+	// Penampung terakhir. Gerai yang TIPE_3-nya kosong hanya diketahui sebagai
+	// "rumah makan" dan tidak lebih — warteg adalah tebakan paling masuk akal
+	// untuk itu di Jakarta, dan satu-satunya alternatif adalah membuangnya.
+	{ cat: 'warteg', re: /RESTORAN|RESTAURANT|MAKANAN|KULINER/i }
 ];
 
 function classify(props = {}) {
