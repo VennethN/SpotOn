@@ -156,7 +156,11 @@ function poiCategory(tags = {}) {
  * diundang lagi.
  */
 const POI_GROUPS = [
-	{ key: 'amenity', values: 'cafe|restaurant|fast_food|pharmacy|ice_cream' },
+	// `restaurant` sengaja TIDAK diminta. `poiCategory` memang tidak
+	// memetakannya ke mana pun sejak warung dipecah, jadi memintanya berarti
+	// mengangkut dan membuang sekitar 2.400 elemen tiap kali jalan — justru
+	// memberatkan kueri yang pemecahan kelompok ini dibuat untuk meringankannya.
+	{ key: 'amenity', values: 'cafe|fast_food|pharmacy|ice_cream' },
 	{ key: 'shop', values: 'convenience|supermarket|grocery|general|kiosk' },
 	{ key: 'shop', values: 'bakery|pastry|beverages|bubble_tea' },
 	{ key: 'shop', values: 'laundry|dry_cleaning|car_repair|motorcycle_repair' }

@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { CATEGORY_KEYS } from '$lib/domain/categories';
+import { CATEGORIES, CATEGORY_KEYS } from '$lib/domain/categories';
 import type { CategoryKey, StructuredQuery, Weights } from '$lib/types';
 
 /**
@@ -100,8 +100,8 @@ const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta rekomendasi lokasi usa
 Tugasmu HANYA menerjemahkan pertanyaan pengguna menjadi satu pemanggilan alat. Kamu tidak menghitung apa pun dan tidak menulis jawaban — mesin skor yang melakukannya dari data asli.
 
 Data yang tersedia, dan hanya ini:
-- 558 petak heksagon H3 yang menutupi kawasan berjalan kaki (800 m) di sekitar simpul transit Jakarta — MRT, KRL, LRT, dan koridor TransJakarta. 89 di antaranya belum ada datanya.
-- 9 jenis usaha: kopi (kedai kopi/kafe), minuman (boba, jus, es krim), roti (toko roti & kue), warung (warung makan/restoran), minimarket (gerai berjaringan), kelontong (toko kelontong warga), laundry, bengkel (motor/mobil), apotek.
+- 562 petak heksagon H3 yang menutupi kawasan berjalan kaki (800 m) di sekitar simpul transit Jakarta — MRT, KRL, LRT, dan koridor TransJakarta. 90 di antaranya belum ada datanya.
+- ${CATEGORIES.length} jenis usaha: ${CATEGORIES.map((c) => `${c.key} (${c.name.toLowerCase()})`).join(', ')}.
 - Per petak: perkiraan permintaan, jumlah pesaing sejenis, seberapa ramai pesaingnya, dan jumlah ruang usaha yang sedang disewakan.
 
 Pilih niat yang tepat:

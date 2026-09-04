@@ -415,11 +415,16 @@ export const id = {
 		legendUnit: 'skor peluang',
 		sourceLabel: 'Sumber data pesaing',
 		sourceOsm: 'OpenStreetMap — merata, dikumpulkan sukarela',
-		sourceMapid: 'MAPID — tersurvei, baru sebagian kota',
-		legendUncovered: (n: number, cat: string) =>
-			`${n} petak belum tercakup data MAPID untuk ${cat} — tidak dinilai, bukan berarti tanpa pesaing`,
-		legendUncoveredAll: (cat: string) =>
-			`Data MAPID untuk ${cat} belum diimpor sama sekali, jadi tidak ada petak yang bisa dinilai. Impor datasetnya, atau kembali ke OSM.`,
+		sourceMapid: 'MAPID — tersurvei, lengkap 5 kota DKI',
+		/* Menyebut sumbernya, bukan menulis "MAPID" mati. Sejak empat kategori
+		   makanan dinyatakan tidak punya sumber OSM, keadaan "tidak ada yang bisa
+		   dinilai" justru paling sering terjadi pada OSM — dan kalimat lamanya
+		   menyuruh pengguna mengimpor dataset, langkah yang sudah tidak ada, lalu
+		   menyarankan kembali ke OSM yang justru sedang jadi masalahnya. */
+		legendUncovered: (n: number, cat: string, src: string) =>
+			`${n} petak belum tercakup data ${src} untuk ${cat} — tidak dinilai, bukan berarti tanpa pesaing`,
+		legendUncoveredAll: (cat: string, src: string, other: string) =>
+			`${src} tidak punya data pesaing untuk ${cat}, jadi tidak ada petak yang bisa dinilai. Coba sumber ${other}.`,
 		legendNodata: (n: number) => `${n} petak belum terdata, tidak dinilai`,
 		ask: 'Atau tanya sendiri…',
 		askAria: 'Tanya Tapak',
