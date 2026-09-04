@@ -12,6 +12,16 @@
 
 import { formatHour, moneyScale, num } from '$lib/utils/format';
 
+/**
+ * Zona tempat batas minggunya berdiri.
+ *
+ * Jatah kuota berganti jam 00.00 Senin waktu Jakarta, dan itu satu titik waktu, bukan
+ * satu tanggal. Ditulis pakai jam si pembaca, titik yang sama bisa jatuh di hari Minggu
+ * buat orang di Eropa, dan kalimat kuotanya bakal menyebut hari Minggu padahal aturannya
+ * hari Senin. Aturannya ada di `domain/plans`, ini penulisannya.
+ */
+const JAKARTA = 'Asia/Jakarta';
+
 /** Indonesian decimals: 0.45 → "0,45". Kept in the locale, where notation belongs —
     the components hand over numbers, never pre-formatted strings. */
 const dec = (v: number, digits = 2): string => v.toFixed(digits).replace('.', ',');
@@ -1030,6 +1040,10 @@ export const id = {
 		coverage: 'Mana yang belum ada datanya?',
 		coverageQ: 'Kawasan mana yang belum terdata?',
 		retry: 'Coba lagi',
+		/* Diucapkan Tapak sendiri di dalam percakapannya, terpisah dari pemberitahuan yang
+		   muncul di atas peta. Pertanyaannya memang tidak pernah dikirim, jadi giliran itu
+		   harus tetap menjawab sesuatu, bukan berhenti di "sebentar" selamanya. */
+		outOfQuota: 'Kuota pertanyaan minggu ini sudah habis, jadi ini belum bisa saya jawab.',
 		failed: (err: string) => `Maaf, catatan saya tidak kebuka barusan. ${err} Coba tanya lagi?`,
 		nothing: 'Saya belum menemukan apa-apa untuk itu.'
 	},
@@ -1214,6 +1228,129 @@ export const id = {
 				: `${ukuran} sepertiga ${arah === 'rendah' ? 'terbawah' : 'teratas'}`,
 		perM2: (v: number) => `${rp(v)}/m²`,
 		count: (v: number) => num(Math.round(v))
+	},
+
+	/* ── akun, paket, dan kuota ────────────────────────────────────────────────
+	   Dua hal yang dihitung di produk ini: satu pertanyaan ke Tapak, dan satu
+	   kawasan atau satu tempat yang dibuka sendiri oleh pembacanya. Tidak ada satu
+	   pun angkanya ditulis di sini. Semua kalimat di bawah menerima angkanya
+	   sebagai argumen, dan sumbernya cuma satu, yaitu `domain/plans`, jadi
+	   menaikkan jatah sebuah paket cukup diubah sekali di sana dan halaman paket,
+	   kartu akun, dan kalimat waktu kuotanya habis ikut berubah bersamaan. */
+	account: {
+		title: 'Akun',
+		sub: 'Paket yang sedang dipakai, sisa kuota, dan cara menambahnya.',
+		pageTitle: 'SpotOn · Akun dan paket',
+		signinTitle: 'SpotOn · Masuk',
+		chip: 'Akun dan sisa kuota',
+		chipLeft: (ai: number, kawasan: number) =>
+			`${num(ai)} pertanyaan dan ${num(kawasan)} kawasan tersisa`,
+		back: 'Kembali ke peta',
+
+		signIn: 'Masuk',
+		signOut: 'Keluar',
+		signUp: 'Buat akun',
+		signInHead: 'Masuk ke SpotOn',
+		signInSub: 'Satu akun memegang kuota pertanyaan dan kuota kawasan Anda.',
+		signUpHead: 'Buat akun SpotOn',
+		signUpSub: 'Mulai dari paket Gratis. Nomor kartu tidak diminta.',
+		toSignUp: 'Belum punya akun? Buat satu.',
+		toSignIn: 'Sudah punya akun? Masuk.',
+		email: 'Alamat email',
+		password: 'Kata sandi',
+		name: 'Nama panggilan',
+		nameOptional: 'boleh dikosongkan',
+		passwordHint: (min: number) => `Paling pendek ${min} huruf.`,
+		working: 'Sebentar…',
+
+		demoHead: 'Mode demo',
+		demoEnter: 'Masuk sebagai akun demo',
+		demoWhy:
+			'Tidak ada basis data yang dipasang, jadi SpotOn jalan dengan satu akun contoh. Kuota, paket, dan pembelian semuanya tetap berjalan seperti aslinya, cuma disimpan di memori server dan hilang begitu servernya berhenti.',
+		demoBadge: 'Akun demo',
+		demoNote: 'Akun ini tidak disimpan di mana pun. Isinya hilang begitu server berhenti.',
+
+		errors: {
+			credentials: 'Email atau kata sandinya tidak cocok.',
+			taken: 'Alamat itu sudah dipakai akun lain.',
+			invalid: 'Isiannya belum lengkap, atau kata sandinya terlalu pendek.',
+			unavailable: 'Basis datanya tidak bisa dihubungi. Coba sebentar lagi.',
+			signedout: 'Sesi Anda sudah berakhir. Masuk lagi ya.'
+		},
+
+		plans: 'Paket',
+		plan: {
+			free: {
+				name: 'Gratis',
+				blurb:
+					'Cukup untuk mencoba. Tanya dua tiga hal, lalu buka tempat-tempat yang disebut jawabannya.'
+			},
+			personal: {
+				name: 'Personal',
+				blurb:
+					'Untuk satu orang yang sedang menyusun daftar pendek, dengan ruang untuk membuka semua yang muncul.'
+			},
+			premier: {
+				name: 'Premier',
+				blurb: 'Untuk tim, atau untuk satu orang yang mau menyisir seluruh kisi dalam sepekan.'
+			}
+		},
+		priceFree: 'Tanpa biaya',
+		/* Ditulis penuh, bukan disingkat jadi "Rp 79 rb". `rp` itu buat harga properti
+		   yang panjangnya dua belas digit dan memang tidak dibaca sebagai angka lagi. Ini
+		   harga yang mau ditagih ke orangnya, dan angka yang mau ditagih ditulis apa
+		   adanya. */
+		priceMonth: (v: number) => `Rp ${num(v)} per bulan`,
+		grantAi: (n: number) => `${num(n)} pertanyaan per minggu`,
+		grantAnalysis: (n: number) => `${num(n)} kawasan atau tempat per minggu`,
+		currentPlan: 'Paket sekarang',
+		choosePlan: 'Pindah ke paket ini',
+		planNote:
+			'Pindah paket berlaku saat itu juga dan minggunya dihitung ulang dari nol. Sisa minggu yang sedang berjalan tidak ikut pindah, sedangkan kuota yang dibeli lepas tetap utuh.',
+
+		balance: 'Sisa kuota',
+		meter: {
+			ai: 'Pertanyaan ke Tapak',
+			analysis: 'Kawasan dan tempat'
+		},
+		meterNote: {
+			ai: 'Satu potong tiap kali Anda bertanya, terjawab atau tidak. Yang dibayar adalah panggilan ke model bahasanya, dan panggilan itu tetap terjadi walaupun jawabannya kosong.',
+			analysis:
+				'Satu potong tiap kali Anda membuka satu petak atau satu unit sendiri. Menutup kartunya tidak dihitung, membuka lagi yang sedang terbuka juga tidak, dan petak yang dibuka Tapak sendiri tidak menagih apa pun.'
+		},
+		weekLeft: (sisa: number, jatah: number) => `${num(sisa)} dari ${num(jatah)} sisa minggu ini`,
+		extraLeft: (n: number) => `${num(n)} beli lepas, tidak hangus`,
+		/* Ditulis menurut waktu Jakarta, bukan waktu jam si pembaca. Batas minggunya
+		   memang jam 00.00 Senin di Jakarta, jadi dibaca dari zona lain tanggal yang sama
+		   jatuh di hari Minggu, dan kalimat ini akan menyebut hari Minggu padahal seluruh
+		   produk menyebut Senin. */
+		refillOn: (at: number) =>
+			`Terisi lagi ${new Date(at).toLocaleDateString('id-ID', { timeZone: JAKARTA, weekday: 'long', day: 'numeric', month: 'long' })}.`,
+
+		packs: 'Tambahan sekali beli',
+		packsNote:
+			'Untuk minggu yang butuh lebih banyak daripada jatah paketnya. Yang dibeli di sini tidak ikut hangus tiap Senin.',
+		pack: {
+			ai_pack: (n: number) => `${num(n)} pertanyaan`,
+			analysis_pack: (n: number) => `${num(n)} kawasan atau tempat`
+		},
+		buy: (v: number) => `Beli Rp ${num(v)}`,
+		noPayment:
+			'Belum ada pembayaran di balik tombol-tombol ini. Yang berjalan cuma bagian sesudah bayarnya, jadi paketnya benar-benar pindah dan kuotanya benar-benar bertambah.',
+
+		outOf: {
+			ai: 'Kuota pertanyaan minggu ini habis',
+			analysis: 'Kuota kawasan minggu ini habis'
+		},
+		outOfNote: {
+			ai: 'Tapak belum bisa menjawab lagi sampai kuotanya terisi atau paketnya dinaikkan.',
+			analysis:
+				'Petak dan unit belum bisa dibuka lagi sampai kuotanya terisi atau paketnya dinaikkan.'
+		},
+		signedOut: 'Sesi Anda sudah berakhir',
+		signedOutNote: 'Masuk lagi untuk melanjutkan. Yang sudah ada di layar tetap bisa dibaca.',
+		seePlans: 'Lihat paket',
+		dismiss: 'Tutup'
 	},
 
 	/* Pertanyaan contoh di halaman utama, ditulis utuh seperti orang yang sudah tahu
