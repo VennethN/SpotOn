@@ -336,7 +336,8 @@ export const id = {
 			routes: 'Jalur angkutan',
 			poi: 'Sebaran pesaing',
 			nodata: 'Petak belum terdata',
-			label: 'Nama titik transit'
+			label: 'Nama titik transit',
+			stops: 'Simpul transit petak terpilih'
 		},
 		legend: 'Legenda',
 		legendLow: 'Rendah',
@@ -381,6 +382,47 @@ export const id = {
 			space: 'Tempat disewakan',
 			points: 'Titik data'
 		},
+		/* ── Akses transit ──────────────────────────────────────────────────
+		   Bagian ini ditulis untuk pembaca yang tidak membaca angka indeks. Yang
+		   dipimpin adalah nama stasiunnya — "Blok M" bisa dibayangkan, dicek, dan
+		   dibantah; "akses 0,82" tidak bisa apa-apa. Angkanya tetap ada, di
+		   belakang namanya. */
+		transit: 'Yang dijangkau dari sini',
+		transitNone: 'Tidak ada simpul transit dalam jarak jalan kaki dari petak ini.',
+		transitLoading: 'Memeriksa simpul transit di sekitarnya…',
+		transitBand: {
+			strongest: 'Akses transitnya termasuk yang terkuat di Jakarta.',
+			strong: 'Akses transitnya kuat.',
+			fair: 'Akses transitnya sedang.',
+			thin: 'Akses transitnya terbatas.'
+		},
+		transitModes: {
+			mrt: 'MRT',
+			krl: 'KRL',
+			lrt: 'LRT',
+			brt: 'TransJakarta'
+		},
+		transitModeLong: {
+			mrt: 'stasiun MRT',
+			krl: 'stasiun KRL',
+			lrt: 'stasiun LRT',
+			brt: 'halte TransJakarta'
+		},
+		/* Rel dan bus dipisah karena bedanya nyata buat yang mau buka usaha: satu
+		   stasiun rel itu satu pintu tetap yang ramai sepanjang hari, sedangkan
+		   halte bus banyak dan menyebar, jadi keramaiannya terbagi. */
+		transitRail: 'Stasiun rel yang terjangkau',
+		transitBus: (n: number) => `${n} halte TransJakarta dalam jarak jalan kaki`,
+		transitWalk: (m: number) => `${m} m`,
+		transitUplift: (persen: number) =>
+			`Akses ini menaikkan skor peluang petak ini sekitar ${persen}% dibanding petak tanpa transit sama sekali.`,
+		transitWhyRail:
+			'Stasiun rel mengalirkan orang yang sama tiap hari kerja pada jam yang sama — arus yang bisa direncanakan, bukan lalu-lalang acak.',
+		transitWhyBus:
+			'Halte TransJakarta menyebar, jadi keramaiannya terbagi ke banyak titik. Bagus untuk jangkauan, bukan untuk satu titik ramai.',
+		transitRadius: (m: number) => `Dihitung dari pusat petak, radius ${m} m`,
+		transitShow: 'Tampilkan di peta',
+		transitHide: 'Sembunyikan dari peta',
 		prov: 'Transaksi & tempat usaha: data contoh MAPID. Pesaing & titik transit: OSM.',
 		sceneLabel: (nama: string, jam: string, isi: string) => `Skema kawasan ${nama} pukul ${jam}. ${isi}`,
 		sceneNodata: 'Belum ada data untuk kawasan ini, jadi jalannya ditampilkan kosong.',
@@ -394,6 +436,10 @@ export const id = {
 		categoryLabel: 'Jenis usaha',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} petak · ${poi} pesaing terdata`,
+		/* Cacah pesaing baru ada setelah kolom satu kategori dimuat. Sebelum itu
+		   kalimatnya berhenti di petak — menulis "0 pesaing terdata" berarti mengaku
+		   sudah menghitung dan tidak menemukan siapa pun, padahal belum menghitung. */
+		coverageCells: (terdata: number, total: number) => `${terdata}/${total} petak`,
 		coverageTitle:
 			'Petak yang sudah ada datanya, dan jumlah pesaing sejenis yang tercatat di OpenStreetMap',
 		advanced: 'Pengaturan lanjutan',
@@ -425,6 +471,18 @@ export const id = {
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} tidak punya data pesaing untuk ${cat}, jadi tidak ada petak yang bisa dinilai. Coba sumber ${other}.`,
 		legendNodata: (n: number) => `${n} petak belum terdata, tidak dinilai`,
+		/* Peta panas menyatakan pendapat: petak mana yang bagus untuk satu jenis usaha.
+		   Ia baru muncul kalau memang diminta — lewat tombol ini, atau lewat Tapak yang
+		   menjawab pertanyaan. */
+		heatmapShow: 'Tampilkan peta panas',
+		heatmapHide: 'Sembunyikan peta panas',
+		heatmapLoading: 'Memuat data kategori…',
+		heatmapHint: (cat: string) => `Warnai petak menurut skor peluang ${cat}`,
+		heatmapAria: 'Peta panas skor peluang',
+		/* Tooltip peta sebelum ada kategori yang dimuat: petaknya dinamai, tidak ada
+		   angka yang diklaim. */
+		tipNoCategory: 'Nyalakan peta panas untuk melihat skornya',
+		needCategory: 'Belum ada kategori yang dimuat. Nyalakan peta panas atau tanya Tapak.',
 		ask: 'Atau tanya sendiri…',
 		askAria: 'Tanya Tapak',
 		askSend: 'Tanya',

@@ -1,5 +1,18 @@
 import { CATEGORY_KEYS, CATEGORY_MAP } from './categories';
-import type { Hex, CategoryKey, PoiSource, ScoredHex, Typology, Weights } from '$lib/types';
+import type { Hex, HexBase, CategoryKey, PoiSource, ScoredHex, Typology, Weights } from '$lib/types';
+
+/**
+ * A cell's display name.
+ *
+ * Every cell currently has a named transit node within range, but that is a property
+ * of today's OSM data — not a guarantee. A cell marker is used if one day there is
+ * none, so the interface never has to handle a null.
+ *
+ * Exported because the map labels cells before any category has been scored, and a
+ * cell must not be called one thing on the map and another in the panel.
+ */
+export const cellName = (c: Pick<HexBase, 'id' | 'name'>): string =>
+	c.name ?? `Petak ${c.id.slice(-6)}`;
 
 /**
  * The Opportunity Score engine — arithmetic only.
@@ -93,10 +106,7 @@ export function scoreOne(
 ): ScoredHex {
 	const base = {
 		id: c.id,
-		// Every cell currently has a named transit node within range, but that is a
-		// property of today's OSM data — not a guarantee. A cell marker is used if
-		// one day there is none, so the interface never has to handle a null.
-		name: c.name ?? `Petak ${c.id.slice(-6)}`,
+		name: cellName(c),
 		lat: c.lat,
 		lon: c.lon,
 		boundary: c.boundary,
@@ -193,15 +203,28 @@ export function scoreAll(all: Hex[], cat: CategoryKey, w: Weights): ScoredHex[] 
 	return all.map((c) => scoreOne(c, cat, w, scale));
 }
 
-/** Score one catchment across every category — for the "opportunity per business type" panel. */
+/**
+ * Score one catchment across every category — for the "opportunity per business type"
+ * panel.
+ *
+ * `keys` exists because the client loads categories one at a time: a category whose
+ * columns have not arrived is left OUT of the comparison rather than scored from
+ * nothing. Scored anyway it would come back "not covered", which claims the source
+ * has not surveyed here — a statement about the data, made on the strength of a
+ * request that simply has not finished.
+ */
 export function scoreAcrossCategories(
 	all: Hex[],
 	id: string,
-	w: Weights
+	w: Weights,
+	keys: readonly CategoryKey[] = CATEGORY_KEYS
 ): Array<{ key: CategoryKey; score: number | null }> {
 	const target = all.find((c) => c.id === id);
 	if (!target) return [];
-	return CATEGORY_KEYS.map((key) => ({
+	// The display order is `categories.ts`'s, not the order the columns happened to
+	// arrive in — otherwise the list reshuffles itself as each request lands.
+	const wanted = new Set(keys);
+	return CATEGORY_KEYS.filter((key) => wanted.has(key)).map((key) => ({
 		key,
 		score: scoreOne(target, key, w, maxPoi(all, key, w.source, w.radius)).score
 	}));
