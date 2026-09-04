@@ -419,7 +419,7 @@ export const id = {
 		/* Dipimpin, bukan diselipkan di catatan kaki. Pembaca datang mencari sewa,
 		   dan yang ada di katalog bukan itu. */
 		saleNote:
-			'Ini harga JUAL yang diminta penjual, bukan sewa. Di katalog MAPID tidak ada satu pun listing sewa untuk Jakarta, jadi tidak ada sewa bulanan yang bisa ditampilkan tanpa mengarang asumsinya.',
+			'Ini harga JUAL yang diminta penjual, bukan sewa. Di katalog MAPID tidak ada satu pun listing sewa untuk Jakarta, jadi tidak ada sewa bulanan yang bisa ditampilkan.',
 		perM2: 'per m² tanah',
 		medianOf: (n: number, r: number) =>
 			`median dari ${n} unit yang dipasarkan dalam radius ${r} m`,
@@ -440,16 +440,16 @@ export const id = {
 			`Harga segini memotong ${poin} poin dari skor petak ini, pengalinya ×${dec(pengali)}.`,
 		effectNone: 'Harga tempat tidak memotong skor petak ini.',
 		floor: (pengali: number) =>
-			`Paling banyak harga tempat bisa memotong sampai ×${dec(pengali)}. Ia menggeser urutan, bukan menentukannya: harga yang diminta penjual masih bisa ditawar, dan itu harga beli, bukan harga menempati.`,
+			`Paling banyak harga tempat bisa memotong sampai ×${dec(pengali)}, jadi ia menggeser urutan tanpa menentukannya. Harga yang diminta penjual masih bisa ditawar, dan itu harga untuk membeli tempatnya.`,
 
 		/* ── Empat macam diam, dibedakan ────────────────────────────────────
 		   Cuma yang pertama berarti belum ada yang melihat. */
 		noneUncovered:
-			'Katalog properti untuk kota ini belum dibaca, jadi belum ada yang bisa dikatakan soal harga tempat di sini. Ini bukan berarti tidak ada yang dijual.',
+			'Katalog properti untuk kota ini belum dibaca, jadi belum ada harga yang bisa diberikan di sini.',
 		noneEmpty: (r: number) =>
-			`Tidak ada unit komersial yang sedang dipasarkan dalam radius ${r} m. Sudah dicek, memang tidak ada.`,
+			`Tidak ada unit komersial yang dipasarkan dalam radius ${r} m. Katalognya mencakup kota ini dan tidak mencatat satu pun di sini.`,
 		noneUnpriced: (n: number) =>
-			`Ada ${n} unit yang dipasarkan di sekitarnya, tapi tidak satu pun memasang harga. Jadi harganya tidak diisi, bukan ditaksir.`,
+			`Ada ${n} unit yang dipasarkan di sekitarnya, tapi tidak satu pun memasang harga.`,
 		noneThin: (n: number, min: number) =>
 			`Baru ${n} unit di sekitarnya yang memasang harga. Median butuh sedikitnya ${min}, karena satu salah ketik koma saja sudah cukup untuk memindahkan seluruh petak ini ke ujung mahal.`,
 		noneUngraded:
@@ -511,7 +511,7 @@ export const id = {
 	field: {
 		title: 'Catatan lapangan',
 		notCensus:
-			'Ini catatan orang yang datang ke tempatnya, bukan sensus. Petak tanpa catatan belum tentu sepi, bisa jadi memang belum ada yang ke sana.',
+			'Ini catatan orang yang datang ke tempatnya, bukan sensus. Petak tanpa catatan berarti belum ada yang ke sana.',
 		none: 'Belum ada yang mencatat apa pun di petak ini.',
 		loading: 'Memuat catatannya…',
 		failed: 'Catatannya gagal dimuat. Angka di atas tetap utuh, yang hilang cuma daftarnya.',
@@ -613,7 +613,7 @@ export const id = {
 		thin: (terbaca: number, min: number, usaha: number, r: number) =>
 			`Baru ${terbaca} tempat usaha di radius ${r} m yang jam bukanya terbaca, dari ${usaha} yang tercatat. Kurva butuh sedikitnya ${min}, karena satu minimarket 24 jam saja sudah cukup untuk membuat jalan ini terlihat tidak pernah tidur.`,
 		none: (usaha: number, r: number) =>
-			`Dari ${usaha} tempat usaha di radius ${r} m, tidak ada satu pun yang memasang jam buka. Jadi jamnya dikosongkan, bukan ditaksir.`,
+			`Dari ${usaha} tempat usaha di radius ${r} m, tidak ada satu pun yang memasang jam buka.`,
 
 		/* Cacahnya menyebut OpenStreetMap dengan sengaja. Kalimat di atas panel ini
 		   menghitung tiga belas jenis usaha yang diskor SpotOn, dari OSM dan MAPID
@@ -622,12 +622,12 @@ export const id = {
 		basis: (terbaca: number, usaha: number, r: number) =>
 			`${terbaca} dari ${usaha} tempat usaha yang tercatat OpenStreetMap di radius ${r} m memasang jam buka yang bisa dibaca.`,
 		refused: (n: number) =>
-			`${n} lagi memasangnya dalam bentuk yang tidak dibaca di sini, misalnya aturan hari libur atau "sunset". Itu tidak ditebak.`,
+			`${n} lagi memasangnya dalam bentuk yang tidak terbaca di sini, misalnya aturan hari libur atau "sunset".`,
 		notFootfall:
 			'Yang dihitung pintu yang buka, bukan orang yang lewat. Struk yang dicatat surveyor ada di bawah, terpisah, karena catatannya cuma bertanggal dan tidak berjam.',
 		loading: 'Memuat jam bukanya…',
 		failed: (n: number) =>
-			`Jam bukanya tidak bisa dimuat, jadi kurvanya tidak digambar. Cacah ${n} usaha di bawah tetap berlaku, itu dibaca dari kisi, bukan dari berkas itu.`
+			`Jam bukanya tidak bisa dimuat, jadi kurvanya tidak digambar. Cacah ${n} usaha di bawah dibaca dari kisi, jadi tetap berlaku.`
 	},
 
 	/* ── Masuk ke dalam modelnya ──────────────────────────────────────────────
@@ -664,14 +664,14 @@ export const id = {
 		/* Empat macam diam, dan bedanya disebut. Tidak satu pun diselesaikan dengan
 		   menggerakkan orang-orangnya supaya layarnya kelihatan hidup. */
 		still: (terbaca: number, min: number) =>
-			`Cuma cahayanya yang berjalan. Baru ${terbaca} usaha di sini yang jam bukanya terbaca, kurang dari ${min} yang dibutuhkan sebuah kurva, jadi ramainya dibiarkan tetap alih-alih dikarang.`,
+			`Cuma cahayanya yang berjalan. Baru ${terbaca} usaha di sini yang jam bukanya terbaca, dan butuh ${min} untuk menggambar harinya.`,
 		stillNone:
-			'Cuma cahayanya yang berjalan. Tidak ada usaha di sini yang memasang jam buka, jadi ramainya dibiarkan tetap alih-alih dikarang.',
+			'Cuma cahayanya yang berjalan. Tidak ada usaha di sini yang memasang jam buka.',
 		stillLoading: 'Cuma cahayanya yang berjalan sampai jam bukanya selesai dimuat.',
 		stillFailed:
-			'Cuma cahayanya yang berjalan. Jam bukanya gagal dimuat, jadi ramainya dibiarkan tetap.',
+			'Cuma cahayanya yang berjalan. Jam bukanya gagal dimuat.',
 		stillNodata:
-			'Cuma cahayanya yang berjalan. Kota petak ini belum ada di katalog, jadi jalannya sengaja dibiarkan kosong.',
+			'Cuma cahayanya yang berjalan. Kota petak ini belum ada di katalog, jadi belum ada isinya yang bisa digambar.',
 		sceneLabel: (nama: string, h: number, isi: string) =>
 			`Model kawasan ${nama} pada jam ${jam(h)}. ${isi}`
 	},
@@ -684,7 +684,7 @@ export const id = {
 		quiet: 'agak sepi',
 		empty: 'sepi',
 		nodata:
-			'Kota petak ini belum ada di katalog, jadi jalannya sengaja dibiarkan kosong. Bukan berarti benar-benar sepi.',
+			'Kota petak ini belum ada di katalog. Belum ada yang terhitung di sekitarnya.',
 		reading: (n: number, kata: string) => `Ada ${n} usaha di radius jalan kaki sini, jadi ${kata}.`,
 		/* Label tiga angka di bawah maketnya. Sengaja pendek: ini nama kolom, bukan
 		   kalimat, dan di panel selebar 21 rem tiap kotak cuma dapat sekitar 105 px.
@@ -833,7 +833,7 @@ export const id = {
 		radiusValue: (m: number) => `${m} m`,
 		radiusAria: 'Jangkauan jalan kaki yang dinilai',
 		radiusHint:
-			'Sejauh apa dari titik tengah yang dihitung, untuk petak maupun tempat. Harga tiap jangkauan dihitung sendiri, bukan ditaksir dari jangkauan lain.',
+			'Sejauh apa dari titik tengah yang dihitung, untuk petak maupun tempat. Harga tiap jangkauan dihitung sendiri.',
 		/* ── datar atau berdiri ─────────────────────────────────────────────────
 		   Sebutan pendek di tombolnya, akibatnya ditulis lengkap di keterangan yang
 		   muncul saat disentuh, dan diulang lagi di keterangan warna begitu modenya
@@ -895,7 +895,7 @@ export const id = {
 		   menyuruh pengguna mengimpor dataset, langkah yang sudah tidak ada, lalu
 		   menyarankan kembali ke OSM yang justru sedang jadi masalahnya. */
 		legendUncovered: (n: number, cat: string, src: string) =>
-			`${n} petak belum tercakup data ${src} untuk ${cat}, jadi tidak dinilai. Itu bukan berarti tanpa pesaing`,
+			`${n} petak belum tercakup data ${src} untuk ${cat}, jadi tidak dinilai. Pesaing di sana belum ada yang menghitung`,
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} tidak punya data pesaing untuk ${cat}, jadi tidak ada petak yang bisa dinilai. Coba sumber ${other}.`,
 		legendNodata: (n: number) => `${n} petak kotanya belum disurvei, tidak dinilai`,
@@ -1053,7 +1053,7 @@ export const id = {
 			'Petanya saya ganti ke per tempat, jadi yang jadi barisnya tempat usahanya sendiri, bukan kawasannya.',
 		nowByCell: 'Petanya saya balikkan ke per petak, jadi barisnya kawasan lagi.',
 		remarkUncovered: (name: string, cat: string) =>
-			`Kota ${name} belum ada di katalog, jadi ${cat} di sekitarnya belum pernah dihitung dan saya tidak berani menilai. Bukan berarti tidak ada pesaingnya.`,
+			`Kota ${name} belum ada di katalog, jadi ${cat} di sekitarnya belum pernah dihitung. Belum ada angka yang bisa saya berikan untuk petak ini.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
 			`${name} ${verdict} untuk ${cat}, nilainya ${nilai}. Ada ${osm} pesaing sejenis, dan ${listing}.`,
 		verdictGood: 'termasuk bagus',
