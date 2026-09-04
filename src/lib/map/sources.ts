@@ -168,17 +168,20 @@ export function stopsFC(ctx: MapCtx): FeatureCollection {
 }
 
 /**
- * A line from the selected cell's centre to every node it captures.
+ * A line from the point the range is measured from to every node it captures.
  *
  * The dots alone say "there are stations here". The fan says "these belong to the
- * cell you picked" — and because every line starts at the same point, the number of
+ * thing you picked" — and because every line starts at the same point, the number of
  * them is legible at a glance instead of having to be counted off the basemap. It
- * is also literally the measurement the grid made: centre to node, under the
- * walking range.
+ * is also literally the measurement: centre to node, under the walking range.
+ *
+ * That centre is `app.reach` rather than the cell, so the fan starts where the ring
+ * around it is drawn. Read off the cell it would have kept radiating from a hexagon
+ * centre while the ring sat on the doorway, with half the lines crossing it.
  */
 export function stopLinksFC(ctx: MapCtx): FeatureCollection {
-	const cell = ctx.app.selectedCell;
-	if (!ctx.app.layers.stops || !cell) return emptyFC();
+	const from = ctx.app.reach;
+	if (!ctx.app.layers.stops || !from) return emptyFC();
 	return {
 		type: 'FeatureCollection',
 		features: ctx.app.selectedStops.map((s) => ({
@@ -186,7 +189,7 @@ export function stopLinksFC(ctx: MapCtx): FeatureCollection {
 			geometry: {
 				type: 'LineString' as const,
 				coordinates: [
-					[cell.lon, cell.lat],
+					[from.lon, from.lat],
 					[s.lon, s.lat]
 				]
 			},
@@ -202,10 +205,17 @@ export function stopLinksFC(ctx: MapCtx): FeatureCollection {
  * competitors are captured by the same test at the same radius from the same
  * centre. So it is drawn whenever either of them is on screen, and drawing it
  * twice would only put two identical circles on top of each other.
+ *
+ * AROUND WHAT the reader picked, which is the cell centre in area mode and the
+ * doorway in place mode. It used to be the cell centre in both, and in place mode
+ * that drew a circle around a hexagon a couple of hundred metres up the road from
+ * the shopfront whose card was open beside it: the range a tenant walks starts at
+ * their own front door. `app.reach` is where that is decided, once, for the ring and
+ * for everything captured inside it.
  */
 export function reachFC(ctx: MapCtx): FeatureCollection {
-	const cell = ctx.app.selectedCell;
-	if (!cell) return emptyFC();
+	const from = ctx.app.reach;
+	if (!from) return emptyFC();
 	if (!ctx.app.layers.stops && !ctx.app.layers.poi) return emptyFC();
 	return {
 		type: 'FeatureCollection',
@@ -214,7 +224,7 @@ export function reachFC(ctx: MapCtx): FeatureCollection {
 				type: 'Feature' as const,
 				geometry: {
 					type: 'LineString' as const,
-					coordinates: ringCoords(cell.lon, cell.lat, ctx.app.weights.radius)
+					coordinates: ringCoords(from.lon, from.lat, ctx.app.weights.radius)
 				},
 				properties: {}
 			}
@@ -402,16 +412,17 @@ export function poiFC(ctx: MapCtx): FeatureCollection {
  * A line from the selected cell's centre to every competitor it captures.
  *
  * The same device as the transit fan, doing the same job: the dots say "there are
- * rivals here", the fan says "these are the ones counted against this cell". It is
- * also literally the measurement — centre to point, under the walking radius.
+ * rivals here", the fan says "these are the ones inside the range". It is also
+ * literally the measurement: centre to point, under the walking radius, from
+ * whichever centre `app.reach` names.
  *
  * Fainter and thinner than even the bus links, because a cell can capture thirty
  * competitors where it captures twenty-odd stops, and at equal weight the fan
  * stops being a fan and becomes a smear.
  */
 export function poiLinksFC(ctx: MapCtx): FeatureCollection {
-	const cell = ctx.app.selectedCell;
-	if (!ctx.app.layers.poi || !cell) return emptyFC();
+	const from = ctx.app.reach;
+	if (!ctx.app.layers.poi || !from) return emptyFC();
 	return {
 		type: 'FeatureCollection',
 		features: ctx.app.selectedPois.map((p) => ({
@@ -419,7 +430,7 @@ export function poiLinksFC(ctx: MapCtx): FeatureCollection {
 			geometry: {
 				type: 'LineString' as const,
 				coordinates: [
-					[cell.lon, cell.lat],
+					[from.lon, from.lat],
 					[p.lon, p.lat]
 				]
 			},
