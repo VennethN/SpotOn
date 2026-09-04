@@ -1,5 +1,6 @@
 import type { Copy } from './id';
 import { moneyScale } from '$lib/utils/format';
+import type { DayPart, Greetings } from '$lib/types';
 
 /**
  * English copy — written, not translated.
@@ -67,6 +68,36 @@ const clockHour = (h: number): string => {
 	return `${whole % 12 === 0 ? 12 : whole % 12}.${String(mins).padStart(2, '0')}${half}`;
 };
 
+/**
+ * The opening salutation, following the clock on the reader's own device.
+ *
+ * Used in two places: alone above the question on the opening card, and as Tapak's
+ * first sentence in the panel. So each wording has to stand as a sentence on its own
+ * AND still read well with "I'm Tapak." following it.
+ *
+ * The clock is all that is known here. Nothing in this product knows whether the
+ * street outside is busy, what the weather is doing, or whether the reader has had a
+ * long day. The rule that keeps invented figures off the screen is the same rule with
+ * the number taken out, and a greeting saying the shops are just opening is exactly
+ * that invention.
+ *
+ * The bands are the Indonesian ones, which is why there are five rather than the
+ * three or four English would reach for. `sore` is a real part of a Jakarta day and
+ * English has no single word for it, so it is worded as the late afternoon it is
+ * rather than folded into the evening.
+ *
+ * Three wordings per part, rotated by the day in `domain/daypart` rather than drawn
+ * at random: somebody who reloads to check something reads the same sentence instead
+ * of watching the page change its mind.
+ */
+const SALUTE: Record<DayPart, Greetings> = {
+	dini_hari: ['Past midnight.', 'Still up at this hour.', 'The small hours.'],
+	pagi: ['Good morning.', 'Morning. The day is still long.', 'Up early, looking at places.'],
+	siang: ['Good afternoon.', 'Midday. Time for a break.', 'The middle of the day.'],
+	sore: ['Late afternoon.', 'Getting on for evening.', 'Good afternoon.'],
+	malam: ['Good evening.', 'Evening. A quiet hour to weigh things up.', 'Evening already.']
+};
+
 export const en: Copy = {
 	lang: { code: 'en', label: 'English', short: 'EN', switchTo: 'Switch to Indonesian' },
 
@@ -76,6 +107,10 @@ export const en: Copy = {
 		appTagline: 'Site selection around Jakarta transit',
 		open: 'Open SpotOn'
 	},
+
+	/* The salutation, by the reader's own clock. The opening card says it alone and
+	   Tapak opens with it, so both greet with the same words in one visit. */
+	greeting: SALUTE,
 
 	category: {
 		kopi: { name: 'Coffee shop', short: 'Coffee', many: 'coffee shops' },
@@ -1023,8 +1058,12 @@ export const en: Copy = {
 		/* This used to quote two numbers: how many cells, then how many of them have
 		   data. Since both surveys are read together the two are the same number, and
 		   the sentence read "562 cells, and 562 of them have data". */
-		greet: (total: number) =>
-			`Hello, I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors. What are you thinking of opening?`,
+		/* The salutation follows the reader's clock, the figure still comes from the
+		   grid. The part of the day and the choice of wording arrive as positions
+		   rather than as a finished phrase, so switching language changes the words
+		   and not which greeting is being said. */
+		greet: (total: number, part: DayPart, wording: number) =>
+			`${SALUTE[part][wording]} I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors. What are you thinking of opening?`,
 		/* This used to ask "How is the budget looking?" and offer "Tight" or
 		   "Reasonably open" — two words that say nothing about what will change. The
 		   only thing actually chosen here is whether the results are narrowed to

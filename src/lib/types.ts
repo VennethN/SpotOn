@@ -61,6 +61,26 @@ export interface ChatTurn {
 	places?: string[];
 }
 
+/**
+ * The parts a day is greeted in — see `domain/daypart`.
+ *
+ * Kept in Indonesian for the same reason `CategoryKey` is: these are the bands the
+ * language the product is written in actually divides a day into, and there is no
+ * English set of five that lines up with them. English copy words each band its own
+ * way rather than renaming the band.
+ */
+export type DayPart = 'dini_hari' | 'pagi' | 'siang' | 'sore' | 'malam';
+
+/**
+ * One greeting, worded three ways.
+ *
+ * A tuple rather than an array so the two dictionaries cannot come to hold different
+ * numbers of wordings: `domain/daypart` picks a position inside this, and a position
+ * that exists in one language and not the other is a sentence that vanishes for half
+ * the readers. `WORDINGS` there counts what this holds.
+ */
+export type Greetings = [string, string, string];
+
 /** The commercial property families the catalogue publishes — see `domain/premises`. */
 export type PropertyType =
 	| 'ruko'
