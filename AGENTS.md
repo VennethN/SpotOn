@@ -863,6 +863,21 @@ a conversation:
   catchments and cannot know which of them were on screen a moment ago, and that is the
   only thing about the conversation it needs.
 
+### The area card can put a place into the thread
+
+A reader looking at one place wants to ask about that place, in their own words, and the
+card offers exactly that: one button, "Ask Tapak about this area". It asks nothing itself.
+It files one short line into the thread, "Pondok Jati, then, what do you want to know
+about it", carrying the name as that turn's `places`, and hands the box the focus with an
+empty field. Whatever is typed next is then read about that place, by the same mechanism
+that reads "kenapa yang itu" after a ranking: the name is in the thread, and a follow-up
+resolves against the thread.
+
+It is deliberately not a menu of questions. A list would be wrong the first time somebody
+wanted to ask something not on it, and it would sit beside a box that already takes
+anything. The placeholder names the place until the question goes out, and pressing the
+button twice for the same place files nothing twice.
+
 ### EXPLAIN, the one shape that was missing
 
 `domain/metrics` already separates the SHAPE of a question from the MEASURE it is about,
@@ -1072,6 +1087,25 @@ is no `{@html}` on that path and therefore nothing to sanitise: a tag the model 
 arrives as text and leaves as text. Links are not supported on purpose, because a link
 is the one markdown construct carrying a destination, and the destination would be a URL
 a remote model chose.
+
+## An index is set against the grid, a count is not
+
+Seven rows sit under the opportunity score on the area card, and they are two kinds of
+figure. Three are counts: other businesses nearby, competitors of this kind, units on the
+market. Four are indices out of 100: the score, busyness, how crowded the trade is,
+transit access. A count is its own comparator, since 207 businesses is a number anybody
+can picture. An index is not. "Busyness 65" is out of 100, and whether 65 is a lot
+depends entirely on what the rest of the grid reads, which the row did not say.
+
+So each index says where it sits among every area that has one: "higher than 78% of
+areas", floored rather than rounded so the claim is always true, with the two exact ends
+and the bottom hundredth said in words. The counts say nothing extra. It is
+the comparator the price row already carried ("dearer than 16% of the grid"), and the
+arithmetic is now the one function for both, `levelOn` in `domain/rank`, so the two
+cannot come to rank differently. The ladders are cut from the same scored rows the map
+is painted from, for the business type and walking range in force, and a cell nobody
+scored has no standing rather than the lowest one. Below `MIN_BAND` readings there is no
+standing at all, for the reason the bands stop there.
 
 ## What space costs, and the word this product will not use
 
