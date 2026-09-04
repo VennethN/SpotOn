@@ -394,6 +394,10 @@ export const id = {
 		categoryLabel: 'Jenis usaha',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} petak · ${poi} pesaing terdata`,
+		/* Cacah pesaing baru ada setelah kolom satu kategori dimuat. Sebelum itu
+		   kalimatnya berhenti di petak — menulis "0 pesaing terdata" berarti mengaku
+		   sudah menghitung dan tidak menemukan siapa pun, padahal belum menghitung. */
+		coverageCells: (terdata: number, total: number) => `${terdata}/${total} petak`,
 		coverageTitle:
 			'Petak yang sudah ada datanya, dan jumlah pesaing sejenis yang tercatat di OpenStreetMap',
 		advanced: 'Pengaturan lanjutan',

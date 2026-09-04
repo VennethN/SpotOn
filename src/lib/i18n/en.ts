@@ -390,6 +390,10 @@ export const en: Copy = {
 		categoryLabel: 'Business type',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} cells · ${poi} competitors mapped`,
+		/* The competitor count only exists once a category's columns are loaded. Until
+		   then the sentence stops at the cells — writing "0 competitors mapped" claims
+		   to have counted and found nobody, when nothing has been counted at all. */
+		coverageCells: (terdata: number, total: number) => `${terdata}/${total} cells`,
 		coverageTitle: 'Cells that have data, and the number of similar businesses recorded in OpenStreetMap',
 		advanced: 'Advanced settings',
 		advancedClose: 'Close settings',
