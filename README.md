@@ -70,8 +70,8 @@ docs/            ketentuan kompetisi, proposal, dan status implementasi
 
 ## Data
 
-**Nyata (OSM).** 1.110 simpul transit empat moda (MRT 20, KRL 64, LRT 33, TransJakarta 993),
-geometri jalur keempatnya, dan 7.577 POI pesaing lima kategori — dari OpenStreetMap via
+**Nyata (OSM).** 1.105 simpul transit empat moda (MRT 20, KRL 76, LRT 33, TransJakarta 976),
+geometri jalur keempatnya, dan 8.158 POI pesaing sembilan kategori — dari OpenStreetMap via
 Overpass API (ODbL). Akses transit tiap petak dihitung dari data ini.
 
 Satuan spasialnya **heksagon H3 resolusi 8** (sisi ±531 m), bukan catchment per halte:
@@ -87,9 +87,9 @@ node scripts/build-hexes.mjs    # kisi + akses transit + pesaing  → src/lib/da
 node scripts/build-routes.mjs   # geometri jalur 4 moda           → static/data/routes.json
 ```
 
-**Nyata (MAPID).** 15.835 POI pesaing dari 25 dataset katalog data premium MAPID —
-kopi, warung, minimarket, dan apotek, lengkap untuk kelima kota administrasi DKI.
-Dibaca langsung dari katalog, tanpa langkah impor manual:
+**Nyata (MAPID).** 24.614 POI pesaing dari 55 dataset katalog data premium MAPID —
+kesembilan kategori, lengkap untuk kelima kota administrasi DKI. Dibaca langsung dari
+katalog, tanpa langkah impor manual:
 
 ```bash
 node scripts/fetch-mapid.mjs    # cari + baca dari katalog  → src/lib/data/mapid-poi.json
@@ -97,10 +97,11 @@ node scripts/join-mapid.mjs     # gabungkan ke kisi         → src/lib/data/hex
 ```
 
 Saklar **OSM | MAPID** di bilah atas memilih sumber mana yang menilai; keduanya lepas
-dan tidak pernah dicampur dalam satu skor. `laundry` tidak ada di katalog premium, jadi
-pada sumber MAPID ia tetap **belum tercakup** — bukan nol pesaing. Daftar dataset yang
-dibaca ada di [`docs/mapid-layers.md`](docs/mapid-layers.md); rinciannya di
-[`docs/04-data-mapid.md`](docs/04-data-mapid.md).
+dan tidak pernah dicampur dalam satu skor. Kepadatannya jauh berbeda — OSM mencatat 65
+kedai minuman di seluruh Jakarta, MAPID 858 — jadi angka pesaing tidak boleh
+dibandingkan lintas sumber. Perbandingan lengkapnya ada di
+[`docs/04-data-mapid.md`](docs/04-data-mapid.md), daftar datasetnya di
+[`docs/mapid-layers.md`](docs/mapid-layers.md).
 
 **Contoh (mock).** Atribut khas dataset misi MAPID (Struk Go, Menu Go, Properti Go) karena
 datasetnya baru dibuka untuk 50 tim terkurasi. Strukturnya mengikuti kolom asli, dan seluruh

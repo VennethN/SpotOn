@@ -205,12 +205,13 @@ memuat kedai kopi **dan** rumah makan, jadi keberadaannya menutup `kopi` dan
 
 ### Hasil penggabungan (`node scripts/join-mapid.mjs`)
 
-- 537 dari 558 petak berhasil ditentukan kotanya (21 sisanya di luar 14 wilayah
+- 542 dari 562 petak berhasil ditentukan kotanya (20 sisanya di luar 14 wilayah
   yang diambil — Bodetabek terluar).
-- **1.828** pasangan petak×kategori tercakup, 962 belum — sebelumnya 515 dan
-  2.275.
-- Pesaing MAPID terhitung: kopi 1.768, warung 16.114, minimarket 5.143,
-  apotek 5.720 pengamatan.
+- **4.158** pasangan petak×kategori tercakup, 900 belum. Sebelum sesi ini: 515
+  tercakup dari lima kategori.
+- Pesaing MAPID terhitung: warung 11.240, laundry 6.278, apotek 5.751,
+  minimarket 5.157, kopi 4.753, kelontong 4.597, roti 3.530, bengkel 1.397,
+  minuman 1.412 pengamatan.
 
 Pesaing dihitung dalam radius jalan kaki 800 m dari titik pusat petak. Total
 pengamatan lebih besar daripada jumlah titik karena satu gerai bisa berada dalam
@@ -240,21 +241,42 @@ putus-putus tanpa isi.
 
 ### Efek saklar sumber pada penilaian
 
-Dari 558 petak, 89 **belum terdata** dan tidak pernah dinilai sumber mana pun.
+Dari 562 petak, 90 **belum terdata** dan tidak pernah dinilai sumber mana pun.
+Sisanya 472 dinilai OSM dan 385 dinilai MAPID, **sama untuk kesembilan
+kategori** — selisih 87 petak adalah Bodetabek, yang tidak punya dataset MAPID
+karena katalog memberi satu dataset per kota administrasi DKI. Itu cakupan yang
+tercermin apa adanya, bukan kerusakan.
 
-| Kategori | Dinilai (OSM) | Dinilai (MAPID) | Belum tercakup |
+Sebelum sesi ini kolom MAPID berbunyi kopi 382, warung 46, sisanya 0.
+
+### Kepadatan kedua sumber tidak sebanding, dan itu perlu diketahui
+
+Jumlah POI yang sama-sama mencakup Jakarta:
+
+| Kategori | OSM | MAPID | Rasio |
 |---|--:|--:|--:|
-| kopi | 469 | 382 | 87 |
-| warung | 469 | 382 | 87 |
-| minimarket | 469 | 382 | 87 |
-| apotek | 469 | 382 | 87 |
-| laundry | 469 | 0 | 469 |
+| warung | 3.206 | 6.094 | 1,9× |
+| minimarket | 2.337 | 2.928 | 1,3× |
+| kopi | 1.170 | 2.351 | 2,0× |
+| apotek | 393 | 3.199 | 8,1× |
+| roti | 295 | 1.869 | 6,3× |
+| kelontong | 274 | 2.698 | 9,8× |
+| laundry | 231 | 3.714 | 16,1× |
+| bengkel | 187 | 903 | 4,8× |
+| **minuman** | **65** | **858** | **13,2×** |
 
-Selisih 87 petak adalah Bodetabek: katalog MAPID memberi dataset per kota
-administrasi DKI, sedangkan kisi SpotOn membentang sedikit lebih luas. Itu
-cakupan yang tercermin apa adanya, bukan kerusakan.
+OSM masuk akal untuk warung dan minimarket. Untuk sisanya ia bukan sekadar
+lebih sedikit — 65 kedai minuman di seluruh Jakarta jelas bukan keadaan
+sebenarnya, melainkan lubang penandaan. Ini berbeda sifatnya dari "belum
+tercakup", dan lebih berbahaya: petak yang datanya tidak ada diberi nilai null
+dan tidak diperingkat, sedangkan petak yang datanya kurang **tetap diberi skor**
+— dengan persaingan yang terlalu rendah, sehingga terlihat lebih lapang
+daripada kenyataannya.
 
-Sebelumnya kolom MAPID berbunyi kopi 382, warung 46, sisanya 0.
+Skor dinormalisasi terhadap petak terpadat dalam sumber yang sama, jadi
+peringkat antar-petak masih terbaca. Yang tidak boleh dilakukan adalah
+membandingkan angka pesaing lintas sumber, atau memperlakukan angka OSM untuk
+kategori bertanda rasio besar sebagai cacah yang mendekati lengkap.
 
 ### Belum tersambung ke skor
 
