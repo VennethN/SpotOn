@@ -7,12 +7,19 @@
 	 * competing outlets there are, and how many units are genuinely on the market. An
 	 * area whose city has not been surveyed shows empty, not filled in.
 	 *
-	 * THE CLOCK IS GONE. It used to be the centre of this panel: a slider from midnight
-	 * to midnight, a crowd that thickened towards noon, a sentence reading "at 20.06 it
-	 * is fairly busy here, busiest around 12.00". Every one of those figures came out of
-	 * a random number generator seeded with the cell id. Nobody has counted an hour of
-	 * anything in Jakarta, so there is no hour on screen. The daylight is the reader's
-	 * own clock, which is a fact about them rather than a claim about the place.
+	 * THE CLOCK IS NOT ON THIS PANEL. It used to be the centre of it: a slider from
+	 * midnight to midnight, a crowd that thickened towards noon, a sentence reading "at
+	 * 20.06 it is fairly busy here, busiest around 12.00". Every one of those figures
+	 * came out of a random number generator seeded with the cell id. So the hour came
+	 * off, and what is left here is the reader's own clock lighting the model, which is
+	 * a fact about them rather than a claim about the place.
+	 *
+	 * The hour is now a room of its own, one tap away, and it is a different thing from
+	 * the one that was removed: `CatchmentZoom` scrubs the day over a crowd driven by
+	 * the opening hours counted from OpenStreetMap, and holds the crowd still, saying
+	 * so, wherever those were not counted. It is behind a button rather than in this
+	 * card because a panel this size cannot hold a slider, a clock and a reading and
+	 * still be the thumbnail the rest of the card reads against.
 	 *
 	 * The wording is deliberately plain: "how busy", not "demand index". The full
 	 * figures are still there, one click below.
@@ -122,6 +129,22 @@
 				)}
 			/>
 			<span class="mark">{c.app.schema}</span>
+
+			<!-- Over the model rather than under it, because the model IS the thing it
+			     opens: the same block, the whole screen, and the hour on a slider. -->
+			<button type="button" class="enter" onclick={() => (app.zoomed = true)}>
+				<svg viewBox="0 0 14 14" width="11" height="11" aria-hidden="true">
+					<path
+						d="M1.6 5.2V1.6h3.6M12.4 8.8v3.6H8.8M8.8 1.6h3.6v3.6M5.2 12.4H1.6V8.8"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
+				</svg>
+				<span>{c.zoom.open}</span>
+			</button>
 		</div>
 
 		{#if blank}
@@ -245,6 +268,41 @@
 		background: rgba(0, 0, 0, 0.42);
 		border-radius: 3px;
 		padding: 0.1rem 0.35rem;
+	}
+
+	/* Light on a dark scrim, like the schematic mark opposite it: the sky behind runs
+	   from black to white with the reader's own hour, and a token from the theme would
+	   be invisible at one end of it. */
+	.enter {
+		position: absolute;
+		/* The opposite corner from the schematic mark. Side by side at the width of this
+		   card the two overlap, and the one that loses is the mark saying this is not a
+		   real site plan. */
+		right: 0.5rem;
+		top: 0.5rem;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3125rem;
+		padding: 0.25rem 0.5rem;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.42);
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
+		color: rgba(255, 255, 255, 0.92);
+		font: inherit;
+		font-size: 0.6875rem;
+		font-weight: 550;
+		cursor: pointer;
+		transition:
+			transform 100ms ease-out,
+			background-color 140ms ease-out;
+	}
+	.enter:hover {
+		background: rgba(0, 0, 0, 0.62);
+	}
+	.enter:active {
+		transform: scale(0.96);
 	}
 
 	.read {
