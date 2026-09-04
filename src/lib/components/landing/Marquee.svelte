@@ -83,8 +83,8 @@
 		   the middle of a word reads as a layout that broke. Wide rather than narrow: a
 		   short fade leaves the pill under the edge almost fully opaque when the row runs
 		   out, which is the same cut with a gradient on it. */
-		mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
 		-webkit-mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
+		mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
 	}
 	.track {
 		display: flex;
