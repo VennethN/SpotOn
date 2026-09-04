@@ -76,16 +76,20 @@
 					<span class="avatar"><TapakFigure size={26} pacing={turn.pending} /></span>
 					<div class="bubble">
 						{#if turn.pending}
-							<!-- Three dots taking their turn for as long as the wait does. The
-							     line used to end in a typed ellipsis, which is a full stop
-							     with two friends: it says the sentence trailed off, not that
-							     anything is still happening. -->
-							<p class="thinking">{turn.text}<Dots /></p>
+							<!-- Which half of the engine is running, and three dots saying it
+							     is still running. The wait can reach a minute and a half when
+							     the free models are busy, and one motionless line for that
+							     long is indistinguishable from a broken one. -->
+							<p class="thinking">
+								{turn.stage ? c.ai.stage[turn.stage] : c.ai.thinking}<Dots />
+							</p>
 						{:else}
-							<!-- Said rather than printed, and read as markdown on the way. The
-							     model writes bold and italics whether or not anybody asked it
-							     to, and the reader was seeing the asterisks. See
-							     `domain/markdown` for why none of this goes near `{@html}`. -->
+							<!-- Said rather than printed, and read as markdown on the way.
+							     The casual reply really is arriving a word at a time here;
+							     every other sentence was composed from figures that already
+							     exist and is only being read out at the pace somebody would
+							     say it. Same component either way, on purpose: see
+							     `ui/Typed`. -->
 							<Typed text={turn.text} reveal={turn.id === saying} />
 						{/if}
 

@@ -108,6 +108,7 @@ src/lib/
   domain/                scoring, natural-language query, categories, narration, markdown
   state/                 app, tapak, lang, theme
   server/source.ts       the one place the data source is decided
+  server/answer.ts       one question answered, in one place, for both reply shapes
   i18n/                  id.ts defines the shape, en.ts fills it
   scene/                 three.js diorama and daylight
   utils/                 format, geo, motion (springs)
@@ -184,9 +185,9 @@ There is no setting for this in the application.
 `npm run selftest` covers the parts of this that a rebuild cannot: the score
 breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
-in it has a name, the cost-of-space layer against the grid on disk, and which
+in it has a name, the cost-of-space layer against the grid on disk, which
 measure each kind of question is understood to be asking about, and the markdown
-reader.
+reader together with the fence around a reply arriving in pieces.
 
 ## Questions are a shape and a measure, chosen separately
 
@@ -219,6 +220,8 @@ map/            what the map is given to draw. Depends on domain + state, not on
 state/          the runes. Owns what the reader has chosen and what has been fetched.
 components/     the pixels.
 server/         the data source and the model layer. Never imported by the client.
+                `answer.ts` is the one place a question is answered; `llm.ts` understands
+                it; `stream.ts` reads a tool call while the model is still writing it.
 i18n/           every user-visible string, in both languages.
 ```
 
@@ -289,19 +292,48 @@ Without a model key only greetings are reachable, by rule, and a greeting counts
 when it is the whole message: "oke berapa harga tempat di sini" is a question with a
 courtesy in front of it, and answering it with hello throws away what was asked.
 
-That reply, and the "I did not understand" sentence beside it, are the only two strings
-in the product the model writes, and they arrive as markdown whether or not anybody
-asked for it. `domain/markdown` reads the bold, italics, code and lists, and it parses
-to a tree of plain objects rather than to HTML. There is no `{@html}` on that path and
-therefore nothing to sanitise: a tag the model writes arrives as text and leaves as
-text. Links are not supported on purpose, because a link is the one markdown construct
-carrying a destination, and the destination would be a URL a remote model chose.
+The fence runs on every PREFIX of that reply, not only on the finished one. It has to,
+because the reply is now streamed onto the reader's screen as the model writes it, and a
+check that only ran at the end would put "warteg biasanya balik modal dalam 8 bulan" in
+front of them for two seconds before taking it away. By then it has been read, which is
+the whole harm. `withinFence` in `domain/chat` is that one rule, applied in both places.
 
-`ui/Typed` reads a bubble out at the pace somebody would say it, and every Tapak bubble
-goes through it whether the words came from the model or were composed here from figures
-that already existed. That is deliberate. A reader must not be able to tell from the
-animation which sentences the model wrote, because the animation is not what tells them:
-`parsedBy` and the provenance list are.
+## The answer streams, and what is in the stream
+
+`POST /api/ai/query` replies either as one JSON object, the way it always has, or as a
+stream of NDJSON events ending in an `answer` event carrying that very same object. Ask
+for the stream with `stream: true` or an `application/x-ndjson` Accept header. Both run
+`server/answer.ts`, so the two shapes cannot come to disagree about what the answer is.
+
+**No figure is ever streamed.** Not one. The scoring engine runs on the grid in one go
+and either has an answer or does not, so the whole answer arrives at once and the map
+repaints from it in one move. A number arriving a digit at a time is a number the reader
+watches being wrong, and the changes an answer makes to the map invalidate each other:
+a highlight belongs to a category set, a unit list belongs to a radius.
+
+What does stream is the wait itself, and it is worth streaming because it is long.
+Understanding the question means a call out to a shared free model, up to ninety seconds
+before the chain gives up and the rule parser takes over, and one motionless line for
+that long is indistinguishable from a broken interface. So two things travel:
+
+- **Which stage is running**, `reading` or `computing`. It is not a percentage of
+  anything, because nothing here could honestly be one.
+- **The casual reply, as it is written.** The one sentence in the product the model
+  writes for itself. It is a preview: the sentence in the finished answer is the
+  authoritative one, and a `reset` event says the preview is void and must come down.
+
+In the interface, `ui/Typed` reads a sentence out at the pace somebody would say it, and
+every Tapak bubble goes through it whether the words were streamed or composed here from
+figures that already existed. That is deliberate. A reader must not be able to tell from
+the animation which sentences the model wrote, because the animation is not what tells
+them: `parsedBy` and the provenance list are.
+
+`domain/markdown` parses the bold, italic, code and lists a model emits whether or not
+anybody asked it to, and it parses to a tree of plain objects rather than to HTML. There
+is no `{@html}` on that path and therefore nothing to sanitise: a tag the model writes
+arrives as text and leaves as text. Links are not supported on purpose, because a link
+is the one markdown construct carrying a destination, and the destination would be a URL
+a remote model chose.
 
 ## What space costs, and the word this product will not use
 
