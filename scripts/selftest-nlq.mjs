@@ -251,6 +251,138 @@ check('coverage still reachable', nlq.parseQuestion('mana yang belum ada datanya
 check('saturation still reachable', nlq.parseQuestion('mana yang sudah jenuh', W, ['kopi']).intent === 'FLAG_SATURATED');
 check('compare still reachable', nlq.parseQuestion('bandingkan Blok M dan Dukuh Atas', W, ['kopi']).intent === 'COMPARE');
 
+/* ── a follow-up is read against what was just said ──────────────────────── */
+
+/* This is the whole of what "chat" means here, and the failure it replaced was total
+   and silent: "kenapa Setiabudi Astra" was parsed as a brand new ranking, so the reply
+   was the previous answer's five names all over again, under the same sentence. Nothing
+   on screen said the question had not been read.
+
+   The rule parser is only the narrow half of this — the model gets the whole thread and
+   decides for itself whether a turn needs data. What is pinned here is the half that
+   runs with no key at all, and the two properties that make it safe: it never fires
+   without a place to point at, and it never swallows a question carrying its own
+   subject. */
+{
+	const SAID = ['Setiabudi Astra', 'Tosari', 'Bendungan Hilir'];
+
+	// A name from the conversation, however it is pointed at.
+	for (const [q, want] of [
+		['kenapa Setiabudi Astra', 'Setiabudi Astra'],
+		['kenapa yang itu', 'Setiabudi Astra'],
+		['kenapa?', 'Setiabudi Astra'],
+		['kenapa sih', 'Setiabudi Astra'],
+		['jelaskan Tosari dong', 'Tosari'],
+		['why Bendungan Hilir', 'Bendungan Hilir'],
+		['mengapa yang pertama', 'Setiabudi Astra']
+	]) {
+		const got = nlq.parseQuestion(q, W, ['kopi'], SAID);
+		check(
+			`"${q}" → EXPLAIN ${want}`,
+			got.intent === 'EXPLAIN' && got.target?.[0] === want,
+			`got ${got.intent} target=${(got.target ?? []).join(', ')}`
+		);
+	}
+
+	// The first question of a session has nothing behind it, so nothing can be pointed
+	// at and the sentence is read exactly as it always was.
+	check(
+		'a why-question with no conversation behind it is not an explanation',
+		nlq.parseQuestion('kenapa Setiabudi Astra', W, ['kopi']).intent === 'RANK'
+	);
+
+	/* And the one that would be invisible: a general question that happens to carry a
+	   why-word must not be answered with one catchment's arithmetic. This is the same
+	   rule the greeting parser follows — a courtesy at the head of a real question does
+	   not make it a courtesy. */
+	for (const q of [
+		'kenapa lokasi penting untuk usaha',
+		'kenapa kedai kopi banyak yang tutup',
+		'di mana sebaiknya buka apotek',
+		'mana yang paling ramai'
+	]) {
+		check(
+			`"${q}" is NOT swallowed as a follow-up`,
+			nlq.parseQuestion(q, W, ['kopi'], SAID).intent !== 'EXPLAIN',
+			`got ${nlq.parseQuestion(q, W, ['kopi'], SAID).intent}`
+		);
+	}
+
+	// And it answers from the data rather than by ranking the grid again.
+	const named = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']).items[0].name;
+	const why = nlq.answer('kenapa yang itu', cells, W, ['kopi'], [named]);
+	check(
+		`"kenapa yang itu" comes back about ${named} alone`,
+		why.explain?.name === named && why.items.length === 1 && why.highlight.length === 1,
+		`explain=${why.explain?.name} items=${why.items.length}`
+	);
+	check(
+		'the explanation is the row\'s own figures, not a second opinion',
+		(() => {
+			const row = scoring.scoreAll(cells, ['kopi'], W).find((r) => r.id === why.explain?.id);
+			const e = why.explain;
+			return Boolean(
+				row &&
+					e &&
+					e.score === row.score &&
+					e.demand === row.demand &&
+					e.supply === row.supply &&
+					e.rivals === row.osm &&
+					e.density === row.density &&
+					e.units === row.units &&
+					e.price === row.price &&
+					e.radius === W.radius
+			);
+		})()
+	);
+	// Explaining a score means explaining a score FOR something. Without a business type
+	// there is no score to take apart, and asking which one is the honest move.
+	check(
+		'an explanation with no business type asks which business first',
+		nlq.answer('kenapa yang itu', cells, W, [], [named]).needsCategory === true
+	);
+	// Nothing is narrowed for an answer about one named place, so no filter may be
+	// carried into it and shown as a chip claiming the map was cut down.
+	check(
+		'an explanation carries no band filters',
+		(() => {
+			const q = nlq.parseQuestion(`kenapa ${named} murah dan dekat MRT`, W, ['kopi'], [named]);
+			return q.intent === 'EXPLAIN' && !q.filters?.length && !q.filter;
+		})(),
+		JSON.stringify(nlq.parseQuestion(`kenapa ${named} murah dan dekat MRT`, W, ['kopi'], [named]).filters)
+	);
+
+	/* The long tail of ways to say "why" is deliberately NOT pinned here, and the
+	   omission is the design rather than a gap in the table. This parser is the half
+	   that runs with no model key at all, and it is narrow on purpose — the same way
+	   `ruleChatTopic` recognises greetings and refuses to guess at anything else. The
+	   model gets the whole thread and decides for itself, per turn, whether a turn needs
+	   data. Growing a phrasebook here would only make the two halves disagree about what
+	   was asked. */
+}
+
+/* ── two places pointed at rather than typed out ─────────────────────────── */
+
+/* The same gap as the one above, in the intent that already existed. COMPARE read the
+   names out of the sentence alone, so it could only ever be used by somebody who typed
+   both of them into the very message asking for the comparison. A reader who has just
+   been shown a ranking does not do that, they point at it. */
+{
+	const rank = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']);
+	const two = rank.items.slice(0, 2).map((i) => i.name);
+	const cmp = nlq.runQuery(
+		{ ...nlq.parseQuestion('bandingkan keduanya', W, ['kopi']), intent: 'COMPARE', limit: 2, target: two },
+		'bandingkan keduanya',
+		cells,
+		W
+	);
+	check(
+		`"bandingkan keduanya" compares ${two.join(' and ')}`,
+		cmp.items.length === 2 && two.every((n) => cmp.items.some((i) => i.name === n)),
+		`got ${cmp.items.map((i) => i.name).join(', ') || 'nothing'}`
+	);
+}
+
 /* ── the answers actually come back measured ─────────────────────────────── */
 
 for (const [q, ukuran] of CASES) {

@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { resolveQuestion, type AskInput } from '$lib/server/answer';
 import { spendMeter } from '$lib/server/accounts';
-import type { AiEvent } from '$lib/types';
+import type { AiEvent, ChatTurn } from '$lib/types';
 import type { RequestHandler } from './$types';
 
 /** The media type one answer-per-line is served as. */
@@ -34,6 +34,48 @@ const NDJSON = 'application/x-ndjson';
 interface Body extends Partial<AskInput> {
 	/** Reply as a stream of events instead of as one object. */
 	stream?: boolean;
+}
+
+/**
+ * How much of the conversation is carried, and how much of each turn.
+ *
+ * A thread has no natural end, and the whole of one goes out to a shared free model on
+ * every question: left uncapped, a long afternoon of asking becomes a request that is
+ * slower and more likely to be refused with every turn, for context nobody is still
+ * pointing at. Twelve turns is roughly the last six exchanges, which is further back
+ * than "that one" ever reaches.
+ */
+const HISTORY_TURNS = 12;
+const HISTORY_CHARS = 500;
+const HISTORY_PLACES = 8;
+
+/**
+ * The thread, read the way any other body field is read: as something a caller sent,
+ * not as something this server said.
+ *
+ * It LOOKS like our own output coming back, which is exactly why it is checked. Anything
+ * can post to this endpoint, so every turn is trimmed to the same length one question is
+ * allowed, the roles are read as a closed pair, and anything that is not a string is
+ * dropped. Nothing here is trusted for being familiar.
+ */
+function readHistory(raw: unknown): ChatTurn[] {
+	if (!Array.isArray(raw)) return [];
+	const out: ChatTurn[] = [];
+	for (const item of raw.slice(-HISTORY_TURNS)) {
+		const turn = item as Partial<ChatTurn>;
+		const who = turn?.who === 'user' ? 'user' : turn?.who === 'tapak' ? 'tapak' : null;
+		if (!who) continue;
+		const text = typeof turn.text === 'string' ? turn.text.trim().slice(0, HISTORY_CHARS) : '';
+		const places = Array.isArray(turn.places)
+			? turn.places
+					.filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+					.map((p) => p.trim().slice(0, 80))
+					.slice(0, HISTORY_PLACES)
+			: [];
+		if (!text && !places.length) continue;
+		out.push(places.length ? { who, text, places } : { who, text });
+	}
+	return out;
 }
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -72,7 +114,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		question,
 		kategori: body.kategori,
 		weights: body.weights,
-		lang: body.lang
+		lang: body.lang,
+		history: readHistory(body.history)
 	};
 
 	if (body.stream !== true && !(request.headers.get('accept') ?? '').includes(NDJSON)) {
