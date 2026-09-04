@@ -235,6 +235,21 @@ export const id = {
 			'Maket kisi heksagon. Tinggi dan warnanya adalah skor peluang sungguhan, diambil merata dari seluruh kisi, pada skala yang sama dengan peta. Yang letaknya saja yang skema: yang tertinggi ditaruh di tengah. Petak yang kotanya belum disurvei dibiarkan cekung tanpa warna.'
 	},
 
+	/* ── kawasannya sendiri, sebagai maket ─────────────────────────────────
+	   Beberapa petak sungguhan di halaman depan, dibangun dari peta dasar seperti di
+	   dalam aplikasi, berputar pelan selama dilihat, dan diganti dengan panah. Tidak
+	   ada kalimat di atasnya selain nama petaknya: `prev` dan `next` hanya untuk
+	   pembaca layar. */
+	model: {
+		mark: 'Lihat kawasannya',
+		title: 'Setiap kawasan bisa dilihat sebagai maket.',
+		lead: 'Bangunan, jalan, dan haltenya diambil dari peta dasar yang sama, dipotong seradius jalan kaki, dan bisa diputar. Tiap bangunan berdiri setinggi yang tercatat di petanya.',
+		prev: 'Kawasan sebelumnya',
+		next: 'Kawasan berikutnya',
+		label: (nama: string) =>
+			`Maket kawasan ${nama}, dibangun dari peta dasar, berputar perlahan.`
+	},
+
 	ai: {
 		mark: 'Tanya petanya',
 		title: 'Tanya pakai bahasa sehari-hari, petanya yang berubah.',
@@ -725,11 +740,16 @@ export const id = {
 		hourValue: (h: number) => `Jam ${jam(h)}`,
 		/* Jamnya sendiri, tanpa kata apa pun, untuk angka besar di sudut layar. */
 		clock: (h: number) => jam(h),
-		hint: 'Geser untuk melihat jam lain',
+		hint: 'Geser untuk melihat jam lain, tarik maketnya untuk memutar',
 		play: 'Jalankan harinya',
 		pause: 'Hentikan',
 		now: 'Sekarang',
 		nowAria: 'Kembali ke jam Jakarta sekarang',
+		/* Maketnya dibuka dekat, di blok sekitar titiknya, dan bisa dijauhkan sampai
+		   seluruh jangkauan. Dua langkah, bukan skala bebas: yang ada cuma dekat dan
+		   seluruhnya, dan di antaranya. */
+		closer: 'Mendekat',
+		farther: 'Menjauh',
 		/* Yang dicetak selalu jam bulat yang dihitung, bukan posisi persis slidernya.
 		   Slider di 07.30 tetap bercerita tentang jam 07.00, jam yang dihitung dan
 		   sedang dilewati pembaca. */
@@ -741,7 +761,7 @@ export const id = {
 		peakHour: 'Ini jam paling banyak pintu buka di sini.',
 		share: (persen: number) => `Sekitar ${persen}% dari jam paling banyak bukanya.`,
 		basis: () =>
-			'Ramainya naik turun mengikuti pintu yang buka di jam itu. Orangnya gambaran, pintunya hitungan.',
+			'Tanda yang menyala adalah pintu yang terhitung buka pada jam itu, di tempatnya masing-masing. Bangunan dan jalannya dari peta dasar.',
 		/* Empat macam diam, dan bedanya disebut. Tidak satu pun diselesaikan dengan
 		   menggerakkan orang-orangnya supaya layarnya kelihatan hidup. */
 		still: (terbaca: number) =>
@@ -757,7 +777,7 @@ export const id = {
 		stillFailed:
 			'Cuma cahayanya yang berjalan. Jam bukanya gagal dimuat.',
 		stillNodata:
-			'Cuma cahayanya yang berjalan. Kawasan ini belum didata, jadi belum ada isinya yang bisa digambar.',
+			'Cuma cahayanya yang berjalan. Kota kawasan ini belum disurvei, jadi tidak ada pesaing atau unit yang ditandai di atasnya.',
 		sceneLabel: (nama: string, h: number, isi: string) =>
 			`Model kawasan ${nama} pada jam ${jam(h)}. ${isi}`
 	},
@@ -886,8 +906,9 @@ export const id = {
 			'OSM memberi cacah pesaing, bukan titiknya, jadi tidak ada yang bisa digambar. Ganti sumber ke MAPID di keterangan peta untuk melihat posisinya.',
 		rivalsFailed: 'Posisi pesaing gagal dimuat. Cacah di sebelahnya tidak terpengaruh.',
 		prov: 'Titik usaha & properti: katalog MAPID. Pesaing & simpul transit: OSM.',
-		sceneLabel: (nama: string, isi: string) => `Skema kawasan ${nama}. ${isi}`,
-		sceneNodata: 'Kota kawasan ini belum disurvei, jadi jalannya ditampilkan kosong.',
+		sceneLabel: (nama: string, isi: string) =>
+			`Model kawasan ${nama}, dibangun dari peta dasar. ${isi}`,
+		sceneNodata: 'Kota kawasan ini belum disurvei, jadi tidak ada pesaing atau unit yang ditandai.',
 		sceneBody: (n: number, osm: number, cat: string, unit: number) =>
 			`Ada ${n} usaha dalam radius jalan kaki, ${osm} di antaranya ${cat} pesaing, dan ${unit} unit sedang dipasarkan.`,
 		/* Belum ada jenis usaha yang disebut. Cacahnya tetap disebut karena memang
@@ -957,6 +978,17 @@ export const id = {
 		   satu-satunya yang tugasnya menjelaskan angka ini. Tinggi dan warna membaca
 		   angka yang sama, jadi kalimatnya menunjuk balik ke sana. */
 		viewReliefNote: 'Tingginya ikut angka yang sama dengan warnanya.',
+		/* ── digambar atau dimodelkan ─────────────────────────────────────────
+		   Peta dasar yang sama, dua cara memandangnya. Tombolnya pendek dan akibatnya
+		   dijelaskan di petunjuk yang dibawanya, seperti saklar datar atau 3D di
+		   sebelahnya. "Maket" karena itulah yang digambar: massa putih setinggi yang
+		   tercatat di petanya, jalan selebar aslinya, tanpa tulisan penerbitnya. */
+		renderLabel: 'Peta dasar',
+		renderDrawn: 'Gambar',
+		renderModelled: 'Maket',
+		renderDrawnHint: 'Peta dasar seperti digambar penerbitnya, lengkap dengan nama jalan dan tempatnya.',
+		renderModelledHint:
+			'Bangunan, jalan, air, dan taman dari peta dasar yang sama, dimodelkan seperti maket kawasan. Tiap bangunan berdiri setinggi yang tercatat di petanya, dan yang tidak tercatat berdiri setinggi satu ukuran yang sama.',
 		categoryLabel: 'Jenis usaha',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} petak disurvei · ${poi} pesaing terdata`,
@@ -1082,7 +1114,14 @@ export const id = {
 		home: 'Kembali ke beranda SpotOn',
 		emptyMood: 'Belum ada kawasan yang dipilih. Tekan salah satu petak di peta untuk melihat suasananya.',
 		pickBest: (cat: string) => `Pilihkan yang terbaik untuk ${cat}`,
-		schema: 'skema, bukan denah sebenarnya',
+		/* Tanda di maket: dibangun dari apa, atau kenapa belum ada. Empat keadaan, satu
+		   tanda, supaya tidak perlu ditebak dari piringan yang kosong. */
+		model: {
+			ready: 'bangunan dan jalan dari peta dasar',
+			reading: 'membaca peta dasar…',
+			failed: 'peta dasarnya gagal dibaca',
+			none: 'peta dasar ini tanpa geometri untuk dimodelkan'
+		},
 		fullNumbers: 'Lihat angka lengkapnya',
 		/* Tanda di peta, menempel pada petak yang dipilih. Sengaja cuma cacahnya:
 		   rinciannya ada di panel, yang dibutuhkan di peta cuma "berapa banyak". */

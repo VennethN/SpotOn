@@ -252,6 +252,20 @@ export const en: Copy = {
 			'A model of the hexagonal grid. Height and colour are real opportunity scores, sampled evenly across the whole grid, on the same scale as the map. Only the arrangement is schematic: the tallest are placed in the middle. Cells whose city has not been surveyed are left sunken and colourless.'
 	},
 
+	/* ── the place itself, as a model ──────────────────────────────────────
+	   A few real catchments on the front page, built from the basemap the way it is
+	   inside the app, turning slowly while looked at, with arrows to the next. No
+	   sentence stands on it but the place's name: `prev` and `next` are for screen
+	   readers only. */
+	model: {
+		mark: 'See the place',
+		title: 'Any area can be seen as a model.',
+		lead: 'Its buildings, streets and stops are read off the same basemap, cut to the walking range, and can be turned by hand. Each building stands at the height the map records.',
+		prev: 'Previous area',
+		next: 'Next area',
+		label: (name: string) => `A model of ${name}, built from the basemap, turning slowly.`
+	},
+
 	ai: {
 		mark: 'Ask the map',
 		title: 'Ask in plain language, and the map changes.',
@@ -724,11 +738,16 @@ export const en: Copy = {
 		hourValue: (h: number) => clockHour(h),
 		/* The hour on its own, no words around it, for the numerals in the corner. */
 		clock: (h: number) => clockHour(h),
-		hint: 'Drag to move through the day',
+		hint: 'Drag to move through the day, or drag the model to turn it',
 		play: 'Run the day',
 		pause: 'Stop',
 		now: 'Now',
 		nowAria: 'Back to the hour it is in Jakarta',
+		/* The model opens close, on the block around the point, and steps out to the
+		   whole range. Two steps rather than a free scale: there is close, there is the
+		   whole, and there is between. */
+		closer: 'Closer',
+		farther: 'Further out',
 		/* What is printed is always the counted whole hour, never the slider's exact
 		   position. Parked at 7.30 it still reports 7am, the counted hour the reader is
 		   standing inside. */
@@ -740,7 +759,7 @@ export const en: Copy = {
 		peakHour: 'This is the hour with the most doors open here.',
 		share: (persen: number) => `About ${persen}% of its busiest hour for open doors.`,
 		basis: () =>
-			'The crowd rises and falls with the doors open at that hour. The people are drawn, the doors are counted.',
+			"The lit marks are the doors counted open at this hour, each where it stands. The buildings and streets are the basemap's own.",
 		/* Four kinds of silence, kept apart. Not one of them is settled by moving the
 		   figures around so the screen looks alive. */
 		still: (readable: number) =>
@@ -756,7 +775,7 @@ export const en: Copy = {
 		stillFailed:
 			'Only the light moves. The opening hours could not be loaded.',
 		stillNodata:
-			'Only the light moves. This area has not been surveyed yet, so there is nothing here to draw.',
+			"Only the light moves. This area's city has not been surveyed, so no competitor or unit is marked on it.",
 		sceneLabel: (name: string, h: number, body: string) =>
 			`A model of ${name} at ${clockHour(h)}. ${body}`
 	},
@@ -888,8 +907,9 @@ export const en: Copy = {
 			'OSM gives competitor counts but not their positions, so there is nothing to draw. Switch the source to MAPID in the legend to see where they are.',
 		rivalsFailed: 'Could not load the competitor positions. The counts beside them are unaffected.',
 		prov: 'Business points & property: MAPID catalogue. Competitors & transit nodes: OSM.',
-		sceneLabel: (nama: string, isi: string) => `Schematic of ${nama}. ${isi}`,
-		sceneNodata: "This area's city has not been surveyed, so the street is shown empty.",
+		sceneLabel: (nama: string, isi: string) =>
+			`A model of ${nama}, built from the basemap. ${isi}`,
+		sceneNodata: "This area's city has not been surveyed, so no competitor or unit is marked.",
 		sceneBody: (n: number, osm: number, cat: string, unit: number) =>
 			`${n} businesses within walking range, ${osm} of them competing ${cat}, and ${unit} units on the market.`,
 		/* No business type has been named. The counts are still given because they were
@@ -958,6 +978,18 @@ export const en: Copy = {
 		   surface whose whole job is to say what this figure is. Height and colour read
 		   the same number, so the sentence points back at it. */
 		viewReliefNote: 'Height carries the same figure as the colour.',
+		/* ── drawn or modelled ─────────────────────────────────────────────────
+		   The same basemap, two ways of looking at it. The button is short and the
+		   consequence is spelled out in the hint it carries, like the flat-or-3D switch
+		   beside it. "Modelled" because that is what is drawn: white masses at the height
+		   the map records, streets at their real width, and none of the publisher's
+		   lettering. */
+		renderLabel: 'Basemap',
+		renderDrawn: 'Drawn',
+		renderModelled: 'Modelled',
+		renderDrawnHint: "The basemap as its publisher draws it, with its street and place names.",
+		renderModelledHint:
+			"The same basemap's buildings, streets, water and parks, modelled the way the area model is. Each building stands at the height the map records, and one without a recorded height stands at one uniform height.",
 		categoryLabel: 'Business type',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} cells · ${poi} competitors mapped`,
@@ -1079,7 +1111,14 @@ export const en: Copy = {
 		home: 'Back to the SpotOn home page',
 		emptyMood: 'No area selected yet. Tap a cell on the map to see what it feels like.',
 		pickBest: (cat: string) => `Pick the best one for a ${cat}`,
-		schema: 'schematic, not an actual site plan',
+		/* The mark on the model: what it is built from, or why it is not here yet. Four
+		   states, one mark, so none of them has to be guessed from an empty disc. */
+		model: {
+			ready: 'buildings and streets from the basemap',
+			reading: 'reading the basemap…',
+			failed: 'the basemap could not be read',
+			none: 'this basemap has no geometry to model'
+		},
 		fullNumbers: 'See the full figures',
 		/* The map's own badge, pinned to the selected cell. Deliberately the count and
 		   nothing else: the breakdown is in the panel, what the map has to carry is
