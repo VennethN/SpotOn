@@ -737,3 +737,87 @@ export type AiEvent =
 	| { kind: 'reset' }
 	| { kind: 'answer'; answer: AiAnswer }
 	| { kind: 'error'; message: string };
+
+/**
+ * What a plan is called, and what an account is metered on.
+ *
+ * Here for the reason every other key union is here: this file is the leaf, and the
+ * tables that give these keys meaning live in `domain/plans` as `Record<Key, …>`, so a
+ * tier added on one side and not the other is a compile error rather than a silent gap.
+ *
+ * Three tiers, in the order they are offered. `free` is not a trial: it is a plan, it
+ * never expires, and it refills every week like the other two.
+ */
+export type PlanKey = 'free' | 'personal' | 'premier';
+
+/**
+ * The two things an account is charged for.
+ *
+ * `ai` is one question put to the understanding layer. `analysis` is one area or one
+ * unit opened by hand, which is the moment its competitors, its stations, its listings
+ * and its opening hours are all read and put on the screen.
+ *
+ * Closing a card costs nothing, and reopening what is already open costs nothing
+ * either. Two clicks on the same hexagon are one reading of it.
+ */
+export type MeterKey = 'ai' | 'analysis';
+
+/** A one-off top-up, bought outright rather than subscribed to. See `domain/plans`. */
+export type PackKey = 'ai_pack' | 'analysis_pack';
+
+/**
+ * What is left on one meter.
+ *
+ * Two pots, kept apart because they expire differently. `weekLeft` is this week's
+ * allowance and whatever is unspent goes when the week turns. `extra` was bought
+ * outright and stays until it is used.
+ *
+ * The weekly pot is spent first, and that order is the whole reason the two are stored
+ * separately: spending the bought credits first would quietly throw away the ones the
+ * subscription was about to replace anyway.
+ */
+export interface Balance {
+	/** What the plan grants each week. Restated here so a reader is never shown a
+	    remainder without the whole it is a remainder of. */
+	week: number;
+	/** Unspent from this week's allowance. */
+	weekLeft: number;
+	/** Bought outright, and it does not expire. */
+	extra: number;
+}
+
+/**
+ * One account's standing with the meters, at a moment.
+ *
+ * `weekStart` is the Monday the current allowance belongs to, as an epoch. Stored
+ * rather than derived from a timestamp of the last spend, because an account that was
+ * quiet for three weeks has to come back to one week's allowance, not to three.
+ */
+export interface Allowance {
+	plan: PlanKey;
+	/** Epoch of 00:00 on the Monday this allowance was granted, Jakarta time. */
+	weekStart: number;
+	meters: Record<MeterKey, Balance>;
+}
+
+/**
+ * An account as the browser is allowed to see it.
+ *
+ * Deliberately not the stored record: no password hash, no session tokens, no Mongo
+ * `_id`. What crosses to the client is who this is, what they are paying for, and what
+ * is left.
+ */
+export interface AccountView {
+	id: string;
+	email: string;
+	name: string;
+	allowance: Allowance;
+	/**
+	 * There is no database behind this account.
+	 *
+	 * Said out loud rather than inferred, because the interface has to be able to tell
+	 * the reader that nothing they do here is being kept. A demo account is real while
+	 * the process lives and gone when it restarts, and a purchase on it moves no money.
+	 */
+	demo: boolean;
+}

@@ -18,14 +18,24 @@ npm install
 npm run dev
 ```
 
+No database is needed to run it. With `MONGODB_URI` left empty the app runs in **demo
+mode**: signing in is one button, everything else behaves exactly as it does with a
+cluster behind it. See [Accounts, plans and quotas](#accounts-plans-and-quotas).
+
 | Route | Contents |
 |---|---|
 | `/` | Landing page |
-| `/app` | The WebGIS: map, control panel, AI recommendations, attribute table |
+| `/app` | The WebGIS: map, control panel, AI recommendations, attribute table. Needs an account. |
+| `/signin` | Sign in, or create an account. One button in demo mode. |
+| `/account` | The plan, what is left of both quotas, and the way to add more |
 | `/api/catchments` | Raw indicators per catchment |
 | `/api/scores?kategori=kopi&wd=0.5&ws=0.5&gate=1&radius=800` | Computed Opportunity Score |
 | `/api/meta` | Business categories, data coverage, provenance, and the language model currently active |
-| `/api/ai/query` | `POST { question, kategori, weights }` → ranked recommendations |
+| `/api/ai/query` | `POST { question, kategori, weights }` → ranked recommendations. Costs one AI query credit, so it needs a session. |
+| `/api/account` | `GET` → who is signed in and what is left. `{ account: null }` when nobody is. |
+| `/api/analysis` | `POST` → spends one area/spot analysis credit. `402` when there are none left. |
+| `/api/billing` | `POST { plan }` or `POST { pack }` → change tier, or buy a top-up |
+| `/api/auth/login`, `/api/auth/register`, `/api/auth/logout` | Sessions |
 
 ## Structure
 
@@ -44,15 +54,22 @@ src/lib/
     nlq.ts         question → structured query → answer
     narrate.ts     scoring-engine output → human sentences
     categories.ts  thirteen business categories, their OSM tags and MAPID datasets
+    plans.ts       the three tiers, the top-up packs, and the week's arithmetic
+    account.ts     what counts as a usable address and password, for both sides at once
   server/        server-only (enforced by SvelteKit)
     source.ts      the one place the data source is decided  ← swap here when the MAPID API is ready
+    gridmap.ts     where each cell sits on a drawn page, shared by every page that draws one
     llm.ts         the language-understanding layer (OpenRouter)
     params.ts      query string → scoring-engine arguments
+    mongo.ts       the one place "is there a database" is answered
+    accounts.ts    accounts, sessions and the meters, over Mongo or over memory
+    session.ts     the session cookie, written in one place
   state/         runes that live for the length of a session
-    app.svelte.ts    interface state, distributed via context
-    tapak.svelte.ts  the guide's conversation
-    theme.svelte.ts  light/dark/follow-system
-    lang.svelte.ts   Bahasa Indonesia / English
+    app.svelte.ts     interface state, distributed via context
+    tapak.svelte.ts   the guide's conversation
+    account.svelte.ts who is signed in and what is left of their quotas
+    theme.svelte.ts   light/dark/follow-system
+    lang.svelte.ts    Bahasa Indonesia / English
   i18n/          the bilingual script: id.ts defines the shape, en.ts fills it
   utils/         pure helpers: format.ts (numbers, hours, scale colours), geo.ts, motion.svelte.ts
   scene/         the isometric maquette: street.ts (street block) + grid.ts (hexagon grid)
@@ -60,11 +77,16 @@ src/lib/
   components/
     app/           the WebGIS surface — components that read AppState
     landing/       the landing page's own composition
-    ui/            stateless components, used by both surfaces
+    account/       the account page: quota meters, the week strip, plan crests,
+                   the catchment field and the grid model
+    ui/            stateless components, shared between the surfaces
+src/hooks.server.ts  reads the session cookie into `locals.account`, once per request
 src/routes/
   +page.svelte     landing
   +page.server.ts  the landing page's figures and sample conversation, computed by the scoring engine
-  app/             WebGIS
+  app/             WebGIS. Its layout is what requires an account.
+  signin/          sign in or create an account
+  account/         the plan, the balances, and the way to add more
   api/             endpoints
 scripts/         data builders (Overpass + MAPID); their helpers live in scripts/lib/
 docs/            competition rules, the proposal, and implementation status
@@ -156,6 +178,38 @@ Copy `.env.example` to `.env`, then fill it in.
 | `PUBLIC_MAPID_STYLE_URL` | Optional — a full style **URL**, for a style the app does not know about. Wins over the key, and pins one style regardless of theme. A bare key left in here is read as a key. |
 | `MAPID_API_KEY` | The MAPID API key (read-only) — used by the **data scripts**, not by the application. It may also be supplied as an environment variable, and the environment wins over `.env`. Different from the Map Service key in `PUBLIC_MAPID_MAP_KEY`. See [`docs/04-data-mapid.md`](docs/04-data-mapid.md). |
 | `MAPID_PROJECT_ID` | Optional — the GEO MAPID project the scripts read. Empty → the default project. |
+| `MONGODB_URI` | Where accounts, sessions and quotas are stored. **May be left empty** — empty is demo mode, which is a supported way to run this rather than a broken one. |
+| `MONGODB_DB` | Optional — the database inside that cluster. Empty → `spoton`. |
+
+### Accounts, plans and quotas
+
+Two things are metered, because two things actually cost something to produce: **one
+question to Tapak**, which is a call out to a shared language model, and **one area or
+unit opened by hand**, which is the moment a place's competitors, stations, listings and
+opening hours are all read and drawn. Panning the map, colouring it, changing business
+type or moving the radius are all free and always will be — they are computed in the
+browser from a grid it already has.
+
+Three tiers — **Free**, **Personal** and **Premier** — each granting a weekly allowance
+of both. They refill every Monday at midnight Jakarta time, and an account that has been
+quiet for a month comes back to one week, not to the four it slept through. Two one-off
+top-up packs cover a week that needs more than the tier grants, and what they add does
+not expire.
+
+What each tier costs and grants is **not written here on purpose.** Those figures live in
+[`src/lib/domain/plans.ts`](src/lib/domain/plans.ts) and nowhere else, and the account
+page reads them from there, for the same reason no cell count is typed into the landing
+page: a number copied into prose goes stale in silence. Open that file to see the ladder,
+or the `/account` page to see it rendered.
+
+**Demo mode.** With `MONGODB_URI` empty there is one account, signing in needs no
+password, and the records live in the server's memory until it restarts. Everything else
+is identical: same tiers, same allowances, same meters, same session tokens. The
+interface says which mode it is in on the sign-in page and again on the account page.
+
+There is no payment processor behind the buy buttons, and the account page says so. What
+runs is everything that *follows* a payment, so wiring one in means calling
+`changePlan` / `buyPack` from its webhook and changing nothing below that line.
 
 ### The division of labour between model and scoring engine
 

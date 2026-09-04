@@ -25,8 +25,10 @@
 	import UnitCard from '$lib/components/app/UnitCard.svelte';
 	import UnitList from '$lib/components/app/UnitList.svelte';
 	import Sheet from '$lib/components/ui/Sheet.svelte';
+	import QuotaNotice from '$lib/components/app/QuotaNotice.svelte';
 	import TapakPanel from '$lib/components/app/TapakPanel.svelte';
 	import TapakToast from '$lib/components/app/TapakToast.svelte';
+	import { getAccountState } from '$lib/state/account.svelte';
 	import { setAppState } from '$lib/state/app.svelte';
 	import { copy, lang } from '$lib/state/lang.svelte';
 	import { Tapak } from '$lib/state/tapak.svelte';
@@ -35,10 +37,15 @@
 
 	let { data }: { data: PageData } = $props();
 
+	// Set by the layout above, which is also what guarantees there IS one: the layout's
+	// server load sends anybody without an account to the sign-in page before this runs.
+	const account = getAccountState();
+
 	// The initial data is deliberately fetched once; all state after that lives in AppState.
 	const app = setAppState(
 		untrack(() => data.catchments),
-		untrack(() => data.meta)
+		untrack(() => data.meta),
+		account
 	);
 	// Tapak is held by the page: the centre question box and the right-hand panel are
 	// two forms of one conversation, not two conversations.
@@ -242,6 +249,12 @@
 	{#if started}
 		<TapakToast {tapak} />
 	{/if}
+
+	<!-- Outside them too, and for a stronger version of the same reason: a refused
+	     question comes from the launcher, a refused area comes from the map, and an
+	     expired session can arrive during either. One notice for all of it, because to
+	     the reader they are one event: the thing they just did has not happened. -->
+	<QuotaNotice />
 
 	<!-- The model of the selected area, given the whole screen and an hour to run
 	     through. Rendered here rather than inside the card that opens it: it covers
