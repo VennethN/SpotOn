@@ -16,7 +16,7 @@ Key: ✅ done · 🟡 partial · ⬜ not started
 | Data filtering | ✅ | Business category, demand/competition weights, commercial-space gate |
 | Location table & attribute table | ✅ | [`AttributeTable.svelte`](../src/lib/components/app/AttributeTable.svelte), sortable by column |
 | Layer control | ✅ | [`ControlPanel.svelte`](../src/lib/components/app/ControlPanel.svelte); the score legend is always visible via [`MapLegend.svelte`](../src/lib/components/app/MapLegend.svelte) |
-| Data visualisation (graphs/charts) | ✅ | 24-hour transaction profile + cross-category opportunity bars in [`DetailPanel.svelte`](../src/lib/components/app/DetailPanel.svelte) |
+| Data visualisation (graphs/charts) | ✅ | 24-hour transaction profile, cross-category opportunity bars, and a step-by-step score composition in [`DetailPanel.svelte`](../src/lib/components/app/DetailPanel.svelte) / [`ScoreBreakdown.svelte`](../src/lib/components/app/ScoreBreakdown.svelte) |
 | **AI inside the interface** | ✅ | [`TapakPanel.svelte`](../src/lib/components/app/TapakPanel.svelte) → `POST /api/ai/query`; a sample conversation also plays on the landing page, driven by the same scoring engine |
 | Public access (Vercel) | 🟡 | The Vercel adapter is installed; not deployed yet |
 
@@ -30,7 +30,7 @@ Key: ✅ done · 🟡 partial · ⬜ not started
 | AI interaction inside the interface | ✅ | The Tapak panel |
 | AI Insight (summary, comparison, recommendation) | ✅ | The `RANK`, `COMPARE`, `FLAG_SATURATED`, and `COVERAGE` intents in [`nlq.ts`](../src/lib/domain/nlq.ts) |
 | Survey Activities | ⬜ | So far only a priority list of "not yet surveyed" catchments; there is no dedicated page |
-| Methodology and Data Sources | 🟡 | Summarised in the provenance panel and on the landing page; there is no full methodology page |
+| Methodology and Data Sources | 🟡 | Summarised in the provenance panel and on the landing page, and every selected cell can show its own score taken apart term by term — including how many transit nodes it reaches and what they are worth to it; there is no full methodology page |
 | Recommendations | ✅ | Ranked list + a "Why here?" justification |
 
 ## C. The role of AI

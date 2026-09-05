@@ -1,4 +1,5 @@
 import { CATEGORY_KEYS, CATEGORY_MAP } from './categories';
+import { ACCESS_FLOOR, ACCESS_SPAN } from './transit';
 import type { Hex, HexBase, CategoryKey, PoiSource, ScoredHex, Typology, Weights } from '$lib/types';
 
 /**
@@ -28,6 +29,24 @@ export const cellName = (c: Pick<HexBase, 'id' | 'name'>): string =>
  * counts are scaled in proportion to area, not to the radius.
  */
 const areaFactor = (radius: number) => Math.pow(radius / 800, 2);
+
+/**
+ * Where a cell sits before a single figure has been read: dead level, demand and
+ * competition cancelling out. The gap is a deviation FROM this, in both directions.
+ */
+export const BALANCE_POINT = 0.5;
+
+/**
+ * What is left of a score when the space gate is on and nothing is up for rent.
+ *
+ * Not zero: the demand is real and the shop next door may come free next month, so
+ * the cell is pushed to the bottom of the ranking rather than struck off it.
+ *
+ * Exported because `domain/composition` prints this step back to the reader, and a
+ * breakdown quoting a multiplier the engine no longer applies would be worse than
+ * showing no breakdown at all.
+ */
+export const GATE_BLOCKED = 0.15;
 
 /**
  * Competitor count according to the active source. `null` means NOT YET COVERED —
@@ -166,15 +185,20 @@ export function scoreOne(
 	const busy = c.busy?.[cat] ?? 0;
 	const supply = Math.min(1, (count / scale) * (0.55 + 0.9 * busy));
 	const listings = Math.round((c.listing?.[cat] ?? 0) * areaFactor(w.radius));
-	const gate = w.gate ? (listings > 0 ? 1 : 0.15) : 1;
+	const gate = w.gate ? (listings > 0 ? 1 : GATE_BLOCKED) : 1;
 	// Transit access is REAL data (OSM), unlike the mission indicators which are
 	// still samples — so it enters as a multiplier of its own rather than being
 	// folded into demand. That way a cell served by both the MRT and TransJakarta
 	// really is worth more, and its contribution can be traced separately from the
 	// figures that are still samples.
-	const accessFactor = 0.6 + 0.4 * c.access;
+	//
+	// The floor and the span come from `domain/transit`, which is also where the
+	// panel reads them to say what that access was worth. Written out here as well
+	// they were two constants kept in step by hand — and the panel's job is to
+	// explain THIS multiplication, not one that resembles it.
+	const accessFactor = ACCESS_FLOOR + ACCESS_SPAN * c.access;
 	const gap = (w.wd * demand - w.ws * supply) / Math.max(0.0001, w.wd + w.ws);
-	const score = Math.max(0, Math.min(1, gap + 0.5)) * gate * accessFactor;
+	const score = Math.max(0, Math.min(1, gap + BALANCE_POINT)) * gate * accessFactor;
 	const hourly = c.hourly ?? [];
 	const peak = hourly.length ? hourly.indexOf(Math.max(...hourly)) : -1;
 
