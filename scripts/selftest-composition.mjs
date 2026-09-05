@@ -7,7 +7,7 @@
  * made it. Its whole worth is that those steps land on the number — a breakdown that
  * disagrees with the score printed above it discredits the score, not just itself.
  * That is a property, not an example, so it is checked as one: every combination of
- * weights, demand, competition, access and listings below is scored by the engine and
+ * weights, busyness, competition, access and premises below is scored by the engine and
  * then taken apart, and the two are held against each other.
  *
  * Rounding is the reason this is worth running. Each step is rounded against the
@@ -43,15 +43,20 @@ async function load() {
 /**
  * A cell the engine can score, carrying exactly the figures asked for.
  *
- * `busy` is fixed at 0.5 because that is the value at which the engine's busyness
- * factor `0.55 + 0.9 × busy` is exactly 1 — so with `scale` at 100 the competitor
- * count passes through as the supply, and a case can be read as what it says it is.
+ * Both sides of the gap are counts now, so the fixture writes counts and lets the
+ * engine do the dividing. With `SCALE` and `TRADE` both 100, a competitor count of 22
+ * IS a supply of 0.22 and 89 businesses of any other kind IS a busyness of 0.89, so a
+ * case can still be read as what it says it is. The `busy` column that used to sit here
+ * at a fixed 0.5, chosen so the old busyness factor came out at exactly 1, is gone with
+ * the column itself.
  *
- * `price` is optional and defaults to absent, which is the state most of the sweep
- * wants: no asking price known, so the cost of space multiplies by 1 and every other
- * step reads as it did before that step existed.
+ * `units` is premises on the market, and it drives the gate. `price` is optional and
+ * defaults to absent, which is the state most of the grid is in: no asking price known,
+ * so the cost of space multiplies by 1 and every other step reads as it did before that
+ * step existed. The property block is written either way, because a surveyed city with
+ * nothing listed and an unsurveyed city are different things.
  */
-const cell = (demand, supply, access, listings, price = null) => ({
+const cell = (demand, supply, access, units, price = null) => ({
 	id: 'selftest',
 	name: null,
 	lat: -6.2,
@@ -59,31 +64,30 @@ const cell = (demand, supply, access, listings, price = null) => ({
 	boundary: [],
 	transit: { mrt: 0, krl: 0, lrt: 0, brt: 3 },
 	access,
-	nStruk: 1,
-	nMenu: 1,
-	nProp: 1,
 	osm: { kopi: Math.round(supply * 100) },
 	mapid: { kopi: Math.round(supply * 100) },
 	covered: { kopi: true },
-	busy: { kopi: 0.5 },
-	listing: { kopi: listings },
-	d: { kopi: demand },
-	propCovered: price !== null,
+	// Every business in range: this category's rivals plus the trade the demand side
+	// reads, since the engine subtracts the rivals back out.
+	dens: { osm: Math.round(supply * 100 + demand * 100), mapid: Math.round(supply * 100 + demand * 100) },
+	propCovered: true,
 	// One entry per radius, keyed by it — the shape `join-property.mjs` writes. Every
 	// stop carries the same figures here, because this fixture is about the cost
 	// multiplier rather than about how a catchment changes with the radius.
-	prop:
-		price === null
-			? undefined
-			: {
-					r: Object.fromEntries(
-						[400, 500, 600, 700, 800].map((m) => [m, { n: 4, u: 4, p: price, q: 4 }])
-					),
-					by: { ruko: 4 }
-				}
+	prop: {
+		r: Object.fromEntries(
+			[400, 500, 600, 700, 800].map((m) => [
+				m,
+				{ n: units, u: units, p: price, q: price === null ? 0 : 4 }
+			])
+		),
+		by: { ruko: units }
+	}
 });
 
 const SCALE = 100;
+/** The busiest cell on the grid, in businesses. Paired with `SCALE` above. */
+const TRADE = 100;
 const CAT = 'kopi';
 
 /**
@@ -108,7 +112,7 @@ function selftest({ composeScore, scoreOne }) {
 	const demands = [0, 0.22, 0.5, 0.89, 1];
 	const supplies = [0, 0.3, 0.55, 1];
 	const accesses = [0, 0.35, 0.81, 1];
-	const listingCounts = [0, 5];
+	const unitCounts = [0, 5];
 	// null is "no asking price known", which has to stay in the sweep: it is the state
 	// most of the grid is in, and the one where the cost step must multiply by exactly 1.
 	const prices = [null, 10, 45, 80];
@@ -131,16 +135,17 @@ function selftest({ composeScore, scoreOne }) {
 	for (const demand of demands)
 		for (const supply of supplies)
 			for (const access of accesses)
-				for (const listings of listingCounts)
+				for (const units of unitCounts)
 					for (const price of prices)
 						for (const set of weightSets) {
 							const weights = { ...set, radius: 800, source: 'mapid' };
 							const row = scoreOne(
-								cell(demand, supply, access, listings, price),
+								cell(demand, supply, access, units, price),
 								CAT,
 								weights,
 								SCALE,
-								LADDER
+								LADDER,
+								TRADE
 							);
 							const comp = composeScore(row, weights);
 							cases++;
@@ -198,7 +203,7 @@ function selftest({ composeScore, scoreOne }) {
 	// demand 0.89, supply 0.22, even weights: 0.5 + 0.445 − 0.11 = 0.835, no gate, full
 	// access. The deltas are differences between rounded totals, which is why the
 	// column reads 50 +45 −11 and not 50 +44.5 −11: 0.945 rounds up to 95 first.
-	const strong = composeScore(scoreOne(cell(0.89, 0.22, 1, 5), CAT, even, SCALE, LADDER), even);
+	const strong = composeScore(scoreOne(cell(0.89, 0.22, 1, 5), CAT, even, SCALE, LADDER, TRADE), even);
 	check(
 		'well-served cell: 50 → +45 → −11 → gate 0 → transit 0 → cost 0 = 84',
 		strong.score === 84 && strong.steps.map((s) => s.delta).join(',') === '50,45,-11,0,0,0',
@@ -210,14 +215,14 @@ function selftest({ composeScore, scoreOne }) {
 		`got ${strong.withoutTransit} + ${strong.transitPoints}`
 	);
 
-	const noTransit = composeScore(scoreOne(cell(0.89, 0.22, 0, 5), CAT, even, SCALE, LADDER), even);
+	const noTransit = composeScore(scoreOne(cell(0.89, 0.22, 0, 5), CAT, even, SCALE, LADDER, TRADE), even);
 	check(
 		'same cell with no transit at all scores the floor',
 		noTransit.score === strong.withoutTransit && noTransit.transitPoints === 0,
 		`got ${noTransit.score}, expected ${strong.withoutTransit}`
 	);
 
-	const blocked = composeScore(scoreOne(cell(0.89, 0.22, 1, 0), CAT, even, SCALE, LADDER), even);
+	const blocked = composeScore(scoreOne(cell(0.89, 0.22, 1, 0), CAT, even, SCALE, LADDER, TRADE), even);
 	const gateStep = blocked.steps.find((s) => s.key === 'gate');
 	check(
 		'nothing to rent: the gate step carries ×0.15 and the whole fall',
@@ -228,11 +233,11 @@ function selftest({ composeScore, scoreOne }) {
 	const gateOff = { ...even, gate: false };
 	check(
 		'gate switched off: the same cell keeps its balance',
-		composeScore(scoreOne(cell(0.89, 0.22, 1, 0), CAT, gateOff, SCALE, LADDER), gateOff).score === 84
+		composeScore(scoreOne(cell(0.89, 0.22, 1, 0), CAT, gateOff, SCALE, LADDER, TRADE), gateOff).score === 84
 	);
 
 	const overflow = { wd: 1, ws: 0, gate: true, radius: 800, source: 'mapid' };
-	const clampCase = composeScore(scoreOne(cell(1, 0, 1, 5), CAT, overflow, SCALE, LADDER), overflow);
+	const clampCase = composeScore(scoreOne(cell(1, 0, 1, 5), CAT, overflow, SCALE, LADDER, TRADE), overflow);
 	check(
 		'demand alone can overshoot 100, and the clamp row says so',
 		clampCase.steps.some((s) => s.key === 'clamp') && clampCase.score === 100,
@@ -245,14 +250,21 @@ function selftest({ composeScore, scoreOne }) {
 
 	/* ── nothing computed, nothing explained ─────────────────────────────── */
 
-	const nodata = scoreOne({ ...cell(0.5, 0.5, 0.5, 1), nodata: true }, CAT, even, SCALE);
-	check('a cell with no mission data has no breakdown', composeScore(nodata, even) === null);
-
+	/* One blank left, not two. The other was a cell flagged `nodata`, a flag rolled by a
+	   random number generator at build time, and it is gone along with every column it
+	   used to hide. What remains is the blank that is a fact about the survey. */
 	const uncovered = scoreOne(
-		{ ...cell(0.5, 0.5, 0.5, 1), covered: { kopi: false }, mapid: { kopi: null } },
+		{
+			...cell(0.5, 0.5, 0.5, 1),
+			covered: { kopi: false },
+			mapid: { kopi: null },
+			dens: { osm: 100, mapid: null }
+		},
 		CAT,
 		even,
-		SCALE
+		SCALE,
+		LADDER,
+		TRADE
 	);
 	check('a cell the source has not surveyed has no breakdown', composeScore(uncovered, even) === null);
 

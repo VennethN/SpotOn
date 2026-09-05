@@ -59,7 +59,6 @@ export const GATE_BLOCKED = 0.15;
  * opportunities — the exact opposite of what the user is looking for.
  */
 function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
-	if (c.nodata) return 0;
 	if (source === 'mapid') {
 		if (!c.covered?.[cat]) return null;
 		return Math.round((c.mapid?.[cat] ?? 0) * areaFactor(radius));
@@ -89,21 +88,52 @@ function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): 
     that are not yet covered must not get a say in setting the scale. */
 function maxPoi(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number): number {
 	const counts = all
-		.filter((c) => !c.nodata)
 		.map((c) => poiCount(c, cat, source, radius))
 		.filter((n): n is number => n !== null);
 	return Math.max(1, ...counts);
 }
 
-function typologyOf(
-	demand: number,
-	supply: number,
-	busy: number,
-	listings: number
-): Typology {
-	if (supply > 0.6 && busy < 0.45) return 'saturated';
+/**
+ * The trade around a cell that is NOT the category being asked about, at this radius.
+ *
+ * The subtraction is the point. Density is every counted business in range, so for a
+ * category as common as minimarkets it is largely a count of minimarkets — and left
+ * whole it would tell a would-be minimarket owner that the fuller a street is of
+ * minimarkets the more demand there is for another. Taking the category out leaves
+ * the footfall its rivals are living off, which is what the demand side is meant to
+ * be reading.
+ *
+ * Null means the source has not surveyed here, and the same rule as `poiCount`
+ * applies: a zero would call an unread city empty of trade.
+ */
+function otherTrade(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
+	const total = source === 'mapid' ? c.dens?.mapid : c.dens?.osm;
+	if (total === null || total === undefined) return null;
+	const own = poiCount(c, cat, source, radius) ?? 0;
+	return Math.max(0, Math.round(total * areaFactor(radius)) - own);
+}
+
+/** Normalisation scale for demand, set the same way `maxPoi` sets supply's. */
+function maxTrade(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number): number {
+	const counts = all
+		.map((c) => otherTrade(c, cat, source, radius))
+		.filter((n): n is number => n !== null);
+	return Math.max(1, ...counts);
+}
+
+/**
+ * The shape of a cell, read off the two figures the score is made of plus what is on
+ * the market.
+ *
+ * `units` is premises genuinely listed in the MAPID catalogue, not a per-category
+ * count of rentals: there are no rentals to count. So "busy, no space" now means the
+ * catalogue holds nothing a small business could take here, which is a claim the data
+ * can actually carry.
+ */
+function typologyOf(demand: number, supply: number, units: number): Typology {
+	if (supply > 0.6) return 'saturated';
 	if (demand > 0.55 && supply < 0.32) return 'underserved';
-	if (demand > 0.55 && listings === 0) return 'busy-limited-space';
+	if (demand > 0.55 && units === 0) return 'busy-limited-space';
 	return 'competitive';
 }
 
@@ -113,10 +143,12 @@ function typologyOf(
  *   Gap   = (wd·demand − ws·supply) / (wd + ws)
  *   Score = clamp(Gap + 0.5) × space_gate × transit_access × cost_of_space
  *
- * Supply is not merely a competitor count: density is weighted by how busy those
- * competitors are, so busy competitors push the opportunity down harder than quiet
- * ones. The availability of commercial space is treated as a gate — with no space
- * the opportunity cannot be acted on at all, it is not just more expensive.
+ * EVERY TERM IS COUNTED, NONE IS GENERATED. Demand is the trade around the cell other
+ * than this category, supply is this category's own rivals, access is transit nodes,
+ * the gate is premises actually on the market, and the cost is the median asking price
+ * per m². Supply used to be weighted by how busy the rivals were, and the space gate
+ * used to read a per-category rental count: both of those columns were invented and
+ * both are gone, so what is left is thinner and true.
  *
  * WHAT THE SPACE COSTS IS THE ONE THAT IS ONLY EXPENSIVE
  *
@@ -133,7 +165,8 @@ export function scoreOne(
 	cat: CategoryKey,
 	w: Weights,
 	scale: number,
-	ladder: number[] = []
+	ladder: number[] = [],
+	tradeScale = 1
 ): ScoredHex {
 	const base = {
 		id: c.id,
@@ -142,19 +175,17 @@ export function scoreOne(
 		lon: c.lon,
 		boundary: c.boundary,
 		transit: c.transit,
-		access: c.access,
-		nStruk: c.nStruk,
-		nMenu: c.nMenu,
-		nProp: c.nProp
+		access: c.access
 	};
 
 	const count = poiCount(c, cat, w.source, w.radius);
+	const trade = otherTrade(c, cat, w.source, w.radius);
 
 	// What is on the market here, and what that costs. Read for every branch below,
-	// including the ones with no score: the listings are real MAPID data and stay true
-	// whether or not the mission attributes for this cell exist, exactly as the transit
-	// counts do. A panel that can say nothing about the opportunity can still say what
-	// space is going for.
+	// including the one with no score: the property catalogue is a separate survey with
+	// its own coverage, so a cell whose competitors nobody has counted can still have a
+	// price somebody published. A panel that can say nothing about the opportunity can
+	// still say what space is going for.
 	const price = priceOf(c, w.radius);
 	const level = priceLevel(price, ladder);
 	const cost = costFactor(level);
@@ -162,61 +193,33 @@ export function scoreOne(
 	const propCovered = c.propCovered ?? false;
 	const space = { price, priceLevel: level, costFactor: cost, units, propCovered };
 
-	if (c.nodata) {
-		return {
-			...base,
-			...space,
-			osm: 0,
-			source: w.source,
-			covered: false,
-			nodata: true,
-			score: null,
-			demand: null,
-			supply: null,
-			busy: 0,
-			listings: 0,
-			nTot: 0,
-			cashless: 0,
-			hourly: [],
-			peakHour: -1,
-			typology: 'no-data'
-		};
-	}
-
 	// Not yet covered: this cell is real and inhabited, the active source simply has
 	// not surveyed its city. Refusing to give it a score is the correct answer — any
 	// number here would invent competition nobody has ever looked at.
-	if (count === null) {
+	if (count === null || trade === null) {
 		return {
 			...base,
 			...space,
 			osm: 0,
 			source: w.source,
 			covered: false,
-			nodata: false,
 			score: null,
-			demand: c.d?.[cat] ?? 0,
+			demand: null,
 			supply: null,
-			busy: c.busy?.[cat] ?? 0,
-			listings: 0,
-			nTot: c.nStruk + c.nMenu + c.nProp,
-			cashless: c.cashless ?? 0,
-			hourly: c.hourly ?? [],
-			peakHour: -1,
+			density: trade ?? 0,
 			typology: 'not-covered'
 		};
 	}
 
-	const demand = c.d?.[cat] ?? 0;
-	const busy = c.busy?.[cat] ?? 0;
-	const supply = Math.min(1, (count / scale) * (0.55 + 0.9 * busy));
-	const listings = Math.round((c.listing?.[cat] ?? 0) * areaFactor(w.radius));
-	const gate = w.gate ? (listings > 0 ? 1 : GATE_BLOCKED) : 1;
-	// Transit access is REAL data (OSM), unlike the mission indicators which are
-	// still samples — so it enters as a multiplier of its own rather than being
-	// folded into demand. That way a cell served by both the MRT and TransJakarta
-	// really is worth more, and its contribution can be traced separately from the
-	// figures that are still samples.
+	const demand = Math.min(1, trade / tradeScale);
+	const supply = Math.min(1, count / scale);
+	// The gate is premises on the market, from the property catalogue. It used to be a
+	// per-category count of rentals, which was invented twice over: the figure was
+	// generated, and the catalogue holds no rentals for Jakarta to generate it from.
+	const gate = w.gate ? (units > 0 ? 1 : GATE_BLOCKED) : 1;
+	// Transit access enters as a multiplier of its own rather than being folded into
+	// demand, so that a cell served by both the MRT and TransJakarta really is worth
+	// more and its contribution can be traced on its own.
 	//
 	// The floor and the span come from `domain/transit`, which is also where the
 	// panel reads them to say what that access was worth. Written out here as well
@@ -225,8 +228,6 @@ export function scoreOne(
 	const accessFactor = ACCESS_FLOOR + ACCESS_SPAN * c.access;
 	const gap = (w.wd * demand - w.ws * supply) / Math.max(0.0001, w.wd + w.ws);
 	const score = Math.max(0, Math.min(1, gap + BALANCE_POINT)) * gate * accessFactor * cost;
-	const hourly = c.hourly ?? [];
-	const peak = hourly.length ? hourly.indexOf(Math.max(...hourly)) : -1;
 
 	return {
 		...base,
@@ -234,30 +235,21 @@ export function scoreOne(
 		osm: count,
 		source: w.source,
 		covered: true,
-		nodata: false,
 		score,
 		demand,
 		supply,
-		busy,
-		listings,
-		nTot: c.nStruk + c.nMenu + c.nProp,
-		cashless: c.cashless ?? 0,
-		hourly,
-		peakHour: peak,
-		typology: typologyOf(demand, supply, busy, listings)
+		density: trade,
+		typology: typologyOf(demand, supply, units)
 	};
 }
 
 /** Score every catchment for one category. */
 export function scoreAll(all: Hex[], cat: CategoryKey, w: Weights): ScoredHex[] {
 	const scale = maxPoi(all, cat, w.source, w.radius);
-	// The price scale, built once for the whole run exactly as `scale` is. Not filtered
-	// to the cells with mission data: what a shopfront is being asked for is real MAPID
-	// data and does not stop being true because the sample attributes for that cell were
-	// never generated. Leaving those cells out would shorten the ladder every catchment
-	// is ranked against, and move prices nobody disputes.
+	const tradeScale = maxTrade(all, cat, w.source, w.radius);
+	// The price scale, built once for the whole run exactly as the other two are.
 	const ladder = priceLadder(all, w.radius);
-	return all.map((c) => scoreOne(c, cat, w, scale, ladder));
+	return all.map((c) => scoreOne(c, cat, w, scale, ladder, tradeScale));
 }
 
 /**
@@ -288,6 +280,13 @@ export function scoreAcrossCategories(
 	const wanted = new Set(keys);
 	return CATEGORY_KEYS.filter((key) => wanted.has(key)).map((key) => ({
 		key,
-		score: scoreOne(target, key, w, maxPoi(all, key, w.source, w.radius), ladder).score
+		score: scoreOne(
+			target,
+			key,
+			w,
+			maxPoi(all, key, w.source, w.radius),
+			ladder,
+			maxTrade(all, key, w.source, w.radius)
+		).score
 	}));
 }

@@ -36,7 +36,7 @@ import type { MetricKey, ScoredHex } from '$lib/types';
  */
 
 /** How a value is written out. The words belong to the locale files; this is the shape. */
-export type MetricKind = 'pct' | 'count' | 'hour' | 'rupiah';
+export type MetricKind = 'pct' | 'count' | 'rupiah';
 
 export interface MetricDef extends Measure<ScoredHex> {
 	kind: MetricKind;
@@ -66,17 +66,16 @@ export const METRIC_MAP: Record<MetricKey, MetricDef> = {
 		best: 'asc',
 		sourced: 'mapid'
 	},
-	keramaian: { read: (r) => (r.nodata ? null : r.busy), kind: 'pct', best: 'desc' },
-	kunjungan: { read: (r) => (r.nodata ? null : r.nStruk), kind: 'count', best: 'desc' },
-	jam_puncak: {
-		// -1 is the engine's "no hourly profile", and an hour is not a quantity to be
-		// ranked by size anyway — it is reported, and sorted only so the list is stable.
-		read: (r) => (r.peakHour >= 0 ? r.peakHour : null),
-		kind: 'hour',
-		best: 'asc'
+	// The same trade the demand side is scaled from, left as the count it is. Kept as
+	// its own measure because "where is it busiest around here" is a question people
+	// actually ask, and this is the one figure on the row that can answer it without
+	// anybody inventing a footfall.
+	keramaian: {
+		read: (r) => (r.covered ? r.density : null),
+		kind: 'count',
+		best: 'desc',
+		sourced: 'mapid'
 	},
-	nontunai: { read: (r) => (r.nodata ? null : r.cashless), kind: 'pct', best: 'desc' },
-	listing: { read: (r) => (r.nodata ? null : r.listings), kind: 'count', best: 'desc' },
 	harga_tempat: {
 		read: (r) => r.price,
 		kind: 'rupiah',
@@ -113,19 +112,14 @@ export const DEFAULT_METRIC: MetricKey = 'skor';
 /**
  * Which direction a ranking actually runs, given what the question asked for.
  *
- * One place, so the rule parser and the model reader cannot disagree about it. Two
- * rules, and the second is the interesting one:
+ * One place, so the rule parser and the model reader cannot disagree about it.
  *
- * 1. No direction asked for → the measure's own idea of "best".
- * 2. An HOUR ignores the direction asked for entirely. "Jam berapa paling ramai" — what
- *    hour is busiest — contains the words "paling ramai", which read as "most" and
- *    would sort the catchments by latest peak hour. The superlative in that sentence
- *    describes the busyness, not the clock, and an hour is not a quantity to have more
- *    of. It is reported, and sorted only so the list comes back in a stable order.
+ * One rule: no direction asked for → the measure's own idea of "best". A second used to
+ * stand here for hours of the day, which were reported and never ranked. The hourly
+ * profile it read was generated, so both it and the rule are gone.
  */
 export function resolveOrder(key: MetricKey, asked?: 'asc' | 'desc'): 'asc' | 'desc' {
 	const def = METRIC_MAP[key] ?? METRIC_MAP[DEFAULT_METRIC];
-	if (def.kind === 'hour') return def.best;
 	return asked ?? def.best;
 }
 
