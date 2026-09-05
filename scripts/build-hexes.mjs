@@ -79,26 +79,6 @@ function makeIndex(points) {
 	};
 }
 
-/* ── deterministic ────────────────────────────────────────────────────────── */
-
-function hashSeed(str) {
-	let h = 2166136261;
-	for (let i = 0; i < str.length; i++) {
-		h ^= str.charCodeAt(i);
-		h = Math.imul(h, 16777619);
-	}
-	return h >>> 0;
-}
-function mulberry32(seed) {
-	return function () {
-		seed |= 0;
-		seed = (seed + 0x6d2b79f5) | 0;
-		let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-	};
-}
-
 /* ── classification ───────────────────────────────────────────────────────── */
 
 /* `transitMode` and the transit query now live in `lib/transit.mjs`: the app draws
@@ -157,33 +137,6 @@ const POI_GROUPS = [
 
 /** Mode weights: carrying capacity differs, so their contribution to access differs. */
 const MODE_WEIGHT = { mrt: 1.0, krl: 0.9, lrt: 0.6, brt: 0.45 };
-
-/**
- * THIS ORDER IS DELIBERATELY NOT THE DISPLAY ORDER in `src/lib/domain/categories.ts`.
- *
- * This list is only used to generate the sample attributes (`busy`, `listing`, `d`),
- * and each category draws three numbers from a PRNG seeded with the cell id. As long
- * as the five original categories stay at the front and new ones are appended at the
- * back, the sample figures for those five do not change at all when the grid is
- * rebuilt — only the additions at the end do. Inserting a new category in the middle
- * would shift the entire draw order and change thousands of sample figures for no
- * real reason whatsoever.
- */
-const CATEGORIES = [
-	'kopi',
-	'warteg',
-	'minimarket',
-	'laundry',
-	'apotek',
-	'minuman',
-	'roti',
-	'kelontong',
-	'bengkel',
-	'cepatsaji',
-	'mie',
-	'seafood',
-	'restoasing'
-];
 
 /**
  * The categories that genuinely have a source in OSM. ONLY these may appear as keys
@@ -264,7 +217,6 @@ way["${g.key}"~"^(${g.values})$"](${BBOX});
 	// 4) per-cell attributes
 	console.log('[4/4] Computing attributes…');
 	const hexes = [];
-	let nodataCount = 0;
 
 	for (const id of cells) {
 		const [lat, lon] = h3.cellToLatLng(id);
@@ -299,52 +251,6 @@ way["${g.key}"~"^(${g.values})$"](${BBOX});
 			}
 		}
 
-		const rnd = mulberry32(hashSeed(id));
-
-		// ── MAPID mission attributes: SAMPLE DATA ───────────────────────────
-		// Not public yet, so these are generated — but not blindly random: their
-		// shape follows the REAL transit access and business density, so the
-		// pattern makes spatial sense. They must still be flagged as samples in
-		// the interface.
-		const nodata = rnd() < 0.18;
-		if (nodata) nodataCount++;
-
-		const activity = access * 0.65 + Math.min(1, nearPois.length / 60) * 0.35;
-
-		let hourly = null;
-		let nStruk = 0;
-		let nMenu = 0;
-		let nProp = 0;
-		let cashless = 0;
-		let busy = null;
-		let listing = null;
-		let d = null;
-
-		if (!nodata) {
-			const peakHour = rnd() < 0.5 ? 12 : 19;
-			const scale = 8 + activity * 46;
-			hourly = Array.from({ length: 24 }, (_, h) => {
-				const morning = Math.exp(-((h - 7.5) ** 2) / 5) * 0.55;
-				const noon = Math.exp(-((h - 12) ** 2) / 6) * (peakHour === 12 ? 1 : 0.7);
-				const evening = Math.exp(-((h - 19) ** 2) / 7) * (peakHour === 19 ? 1 : 0.72);
-				const night = h >= 1 && h <= 4 ? 0 : 0.05;
-				return Math.round((morning + noon + evening + night) * scale * (0.85 + rnd() * 0.3));
-			});
-			nStruk = hourly.reduce((a, v) => a + v, 0);
-			nMenu = Math.round(nearPois.length * (0.3 + rnd() * 0.5));
-			nProp = Math.round(4 + activity * 26 * (0.5 + rnd()));
-			cashless = Math.round((0.28 + access * 0.5 + rnd() * 0.12) * 100) / 100;
-
-			busy = {};
-			listing = {};
-			d = {};
-			for (const c of CATEGORIES) {
-				busy[c] = Math.round((0.2 + rnd() * 0.6) * 100) / 100;
-				listing[c] = Math.round(rnd() * (nProp / 4));
-				d[c] = Math.round(Math.min(1, activity * (0.55 + rnd() * 0.7)) * 100) / 100;
-			}
-		}
-
 		hexes.push({
 			id,
 			lat: Math.round(lat * 1e5) / 1e5,
@@ -356,15 +262,12 @@ way["${g.key}"~"^(${g.values})$"](${BBOX});
 			transit,
 			access: Math.round(access * 1000) / 1000,
 			osm,
-			nodata: nodata || undefined,
-			hourly: hourly ?? undefined,
-			nStruk,
-			nMenu,
-			nProp,
-			cashless: nodata ? undefined : cashless,
-			busy: busy ?? undefined,
-			listing: listing ?? undefined,
-			d: d ?? undefined
+			// Business density: every counted POI in range, whatever its category. The
+			// demand side of the score is read from this minus the category being asked
+			// about, so it says how much OTHER trade a place already carries. Written per
+			// cell rather than per category because it is one figure for all thirteen, and
+			// the MAPID half is filled in later by `join-mapid.mjs` from its own points.
+			dens: { osm: nearPois.length, mapid: null }
 		});
 	}
 
@@ -374,13 +277,13 @@ way["${g.key}"~"^(${g.values})$"](${BBOX});
 		resolution: RES,
 		walkRadius: WALK_M,
 		hexes: hexes.length,
-		nodata: nodataCount,
 		stops: stops.length,
 		stopsByMode: byMode,
 		pois: pois.length,
 		poisByCategory: byCat,
 		real: 'Transit nodes (MRT, KRL, LRT, TransJakarta) and competitor POIs: OpenStreetMap via Overpass API (ODbL).',
-		mock: 'MAPID mission attributes (hourly profile, receipts, menus, properties, cashless share) are generated to follow real transit access and business density — still SAMPLE DATA until the MAPID API is available.',
+		density:
+			'Business density per cell: the same counted POIs, totalled across every category, per source. Demand is read from it minus the category being asked about.',
 		regenerate: 'node scripts/build-hexes.mjs'
 	};
 
@@ -388,7 +291,7 @@ way["${g.key}"~"^(${g.values})$"](${BBOX});
 	mkdirSync(dirname(dest), { recursive: true });
 	writeFileSync(dest, JSON.stringify({ meta, hexes }));
 
-	console.log(`\n${hexes.length} cells written (${nodataCount} with no data)`);
+	console.log(`\n${hexes.length} cells written`);
 	console.log(`→ ${dest}`);
 }
 
