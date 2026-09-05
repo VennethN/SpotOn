@@ -375,6 +375,8 @@ export const id = {
 
 		stationsTitle: 'Simpul yang terjangkau, satu per satu',
 		stationsLoading: 'Memuat daftar simpulnya…',
+		stationsFailed:
+			'Daftar nama simpulnya tidak bisa dimuat. Cacah dan indeks aksesnya di atas tetap berlaku — keduanya dibaca dari kisi, bukan dari berkas itu.',
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} simpul`,
 		unnamed: (n: number) =>
 			`+${n} simpul lagi tanpa nama sendiri — peron stasiun yang sama, atau halte yang belum dinamai di OSM`,

@@ -367,6 +367,8 @@ export const en: Copy = {
 
 		stationsTitle: 'The nodes in range, one by one',
 		stationsLoading: 'Loading the list of nodes…',
+		stationsFailed:
+			'The list of node names could not be loaded. The counts and the access index above still hold — both are read from the grid, not from that file.',
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} ${n === 1 ? 'node' : 'nodes'}`,
 		unnamed: (n: number) =>
 			`+${n} more with no name of their own — platforms of the same station, or stops OSM has not named`,

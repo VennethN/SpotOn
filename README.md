@@ -204,6 +204,12 @@ The application's Environment Variables (`PUBLIC_MAPID_STYLE_URL`, `OPENROUTER_A
 
 ```bash
 npm run check    # typecheck + a11y
+npm run selftest # the score breakdown against the scoring engine, no network
 npm run build    # production build
 npm run preview  # run the build
 ```
+
+`selftest` scores 640 combinations of weights, demand, competition, transit access and
+listings with the engine, takes each one apart with `domain/composition`, and holds the
+two against each other: the steps have to add up to the score the engine printed, and
+the transit share plus the rest has to equal it. It runs in CI alongside the typecheck.
