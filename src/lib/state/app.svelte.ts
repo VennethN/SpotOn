@@ -38,7 +38,7 @@ import type {
 /** What the map is a list OF: catchments, or the units standing in them. */
 export type Pivot = 'cell' | 'unit';
 
-export type LayerKey = 'score' | 'routes' | 'poi' | 'nodata' | 'label' | 'stops' | 'property';
+export type LayerKey = 'score' | 'routes' | 'poi' | 'label' | 'stops' | 'property';
 export type { Theme };
 
 const KEY = Symbol('spoton');
@@ -105,7 +105,6 @@ export class AppState {
 		 * does it is answering the question the reader just asked by picking it.
 		 */
 		poi: true,
-		nodata: true,
 		label: true,
 		/**
 		 * The transit nodes the SELECTED cell captures — never the whole city's 1,105.
@@ -267,9 +266,6 @@ export class AppState {
 			const osm: Record<string, number> = {};
 			const mapid: Record<string, number | null> = {};
 			const covered: Record<string, boolean> = {};
-			const busy: Record<string, number> = {};
-			const listing: Record<string, number> = {};
-			const d: Record<string, number> = {};
 
 			for (const k of keys) {
 				const s = slices[k]!;
@@ -280,11 +276,8 @@ export class AppState {
 				if (s.osm[i] !== null) osm[k] = s.osm[i] as number;
 				mapid[k] = s.mapid[i];
 				covered[k] = s.covered[i];
-				busy[k] = s.busy[i];
-				listing[k] = s.listing[i];
-				d[k] = s.d[i];
 			}
-			return { ...h, osm, mapid, covered, busy, listing, d } as Hex;
+			return { ...h, osm, mapid, covered } as unknown as Hex;
 		});
 	});
 
@@ -332,21 +325,24 @@ export class AppState {
 		return scoreAcrossCategories(this.catchments, this.selectedId, this.weights, this.loaded);
 	}
 
+	/* Coverage is a fact about the survey now, not about a flag rolled at build time. A
+	   cell counts as covered when the ACTIVE source has read its city for the active
+	   category, which is the same condition the engine refuses to score without. */
 	coverage = $derived.by(() => {
 		const rows = this.rows;
-		const withData = this.base.filter((c) => !c.nodata);
+		const mapid = this.weights.source === 'mapid';
 		return {
-			// Cell counts come from the base, so the coverage pill and Tapak's greeting
-			// are right from the first frame rather than reading zero until a category
-			// has been picked.
 			total: this.base.length,
-			withData: withData.length,
-			withoutData: this.base.length - withData.length,
-			missionPoints: withData.reduce((a, c) => a + c.nStruk + c.nMenu + c.nProp, 0),
+			/* Cells the source in use has actually read, counted off the density column
+			   because that is null exactly where a city was never surveyed. Read from the
+			   base, so the greeting is right on the first frame rather than waiting for a
+			   category. OSM covers the whole grid: it is one worldwide dataset, and what it
+			   cannot do is per CATEGORY, which `covered` on the scored row says instead. */
+			surveyed: mapid ? this.base.filter((c) => c.dens?.mapid !== null).length : this.base.length,
 			/** Competitor total — needs the active category, so it is 0 until one is loaded. */
 			poi: rows.reduce((a, r) => a + r.osm, 0),
-			/** Real cells left unscored because the active source does not cover them. */
-			notCovered: rows.filter((r) => !r.nodata && r.score === null).length,
+			/** Cells left unscored because the active source does not cover them. */
+			notCovered: rows.filter((r) => r.score === null).length,
 			scored: rows.filter((r) => r.score !== null).length
 		};
 	});
@@ -528,7 +524,7 @@ export class AppState {
 	 */
 	selectedPois = $derived.by(() => {
 		const cell = this.selectedCell;
-		if (!cell || cell.nodata || this.weights.source !== 'mapid') return [];
+		if (!cell || this.weights.source !== 'mapid') return [];
 		const points = this.pois[this.category];
 		if (!points) return [];
 		return capturedCompetitors(cell, points, this.weights.radius);
@@ -538,7 +534,7 @@ export class AppState {
 	    active source has no coordinates at all (OSM), or this category's file failed
 	    to load. Both leave the count intact and only the positions missing. */
 	poisUnavailable = $derived.by(() => {
-		if (!this.selectedCell || this.selectedCell.nodata) return null;
+		if (!this.selectedCell) return null;
 		if (this.weights.source !== 'mapid') return 'source' as const;
 		if (this.poisFailed.includes(this.category)) return 'failed' as const;
 		return null;
