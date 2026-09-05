@@ -634,6 +634,7 @@ export const id = {
 			cats: 'jenis usaha'
 		},
 		closeArea: 'Tutup kawasan',
+		dismissRemark: 'Tutup catatan Tapak',
 		home: 'Kembali ke beranda SpotOn',
 		emptyMood: 'Belum ada kawasan yang dipilih. Tekan salah satu petak di peta untuk melihat suasananya.',
 		pickBest: (cat: string) => `Pilihkan yang terbaik untuk ${cat}`,

@@ -621,6 +621,7 @@ export const en: Copy = {
 		/* The chips are framed as examples, not a menu. Without this label a row of
 		   business-type buttons reads as "these are the only things you may ask". */
 		closeArea: 'Close area',
+		dismissRemark: "Dismiss Tapak's note",
 		home: 'Back to the SpotOn home page',
 		emptyMood: 'No area selected yet. Tap a cell on the map to see what it feels like.',
 		pickBest: (cat: string) => `Pick the best one for a ${cat}`,
