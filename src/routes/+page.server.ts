@@ -1,7 +1,8 @@
 import { CATEGORIES } from '$lib/domain/categories';
 import { describeQuery, narrate } from '$lib/domain/narrate';
 import { runQuery } from '$lib/domain/nlq';
-import { DEFAULT_WEIGHTS } from '$lib/domain/weights';
+import { scoreAll } from '$lib/domain/scoring';
+import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
 import { DICT, LANGS, type Copy, type Lang } from '$lib/i18n';
 import { grid, loadHexes } from '$lib/server/source';
 import type { CategoryKey, StructuredQuery } from '$lib/types';
@@ -21,8 +22,10 @@ import type { PageServerLoad } from './$types';
  *    an invented transcript. What the landing page promises is exactly what the
  *    user will find inside the app.
  *
- * The mission attributes themselves are still SAMPLES, and that marker reaches the
- * screen too.
+ * There is no third reason any more. This file used to add that the mission attributes
+ * were samples and that the marker reached the screen too. Those attributes are gone:
+ * every figure this page prints is now counted from OpenStreetMap or from the MAPID
+ * catalogue, so there is nothing left to disclaim.
  */
 
 /**
@@ -101,7 +104,7 @@ const SCRIPTS: Script[] = [
 		}),
 		query: {
 			intent: 'FLAG_SATURATED',
-			metrik: 'penawaran efektif (pesaing × keramaian)',
+			metrik: 'pesaing sejenis dibanding usaha lain di sekitarnya',
 			kategori: 'minimarket',
 			radius_m: W.radius,
 			urut: 'desc',
@@ -122,7 +125,7 @@ const SCRIPTS: Script[] = [
 		}),
 		query: {
 			intent: 'COVERAGE',
-			metrik: 'N titik data misi per catchment',
+			metrik: 'petak yang kotanya belum disurvei sumber aktif',
 			kategori: 'kopi',
 			radius_m: W.radius,
 			urut: 'asc',
@@ -140,13 +143,29 @@ export const prerender = true;
 
 export const load: PageServerLoad = () => {
 	const hexes = loadHexes();
-	const withData = hexes.filter((h) => !h.nodata);
+	const surveyed = hexes.filter((h) => h.dens.mapid !== null);
 
-	// The 24-hour profile across the whole area: receipts per hour, summed over the
-	// cells that do have data. Its shape is real for this dataset — not a decorative curve.
-	const hourly = Array.from({ length: 24 }, (_, h) =>
-		withData.reduce((a, r) => a + (r.hourly?.[h] ?? 0), 0)
+	/* How the trade the demand side reads is spread across the grid: cells bucketed by
+	   how many businesses stand in walking range of them. It replaces a 24-hour profile
+	   of receipts that were generated hour by hour, and unlike that curve every column
+	   here is a count of cells that exist. */
+	const spread = densitySpread(surveyed.map((h) => h.dens.mapid as number));
+
+	/* The 3D field on the way down the page, scored by the very engine the app runs on.
+	   91 cells because that is what the scene's five rings hold, sampled evenly across
+	   the ranking so the sample keeps the shape of the whole grid rather than showing
+	   its best 91 cells. */
+	const scored = scoreAll(hexes, DEFAULT_CATEGORY, W);
+	const field = sampleScores(
+		scored.map((r) => r.score),
+		91
 	);
+
+	/* The cell on the stage at the top of the page. The busiest surveyed one, because
+	   the scene it drives is a busy street, and every figure beside it is that cell's
+	   own count rather than a number chosen to look good in a screenshot. */
+	const busiest = scored.reduce((a, r) => (r.density > (a?.density ?? -1) ? r : a), scored[0]);
+	const topDensity = Math.max(1, ...scored.map((r) => r.density));
 
 	// One computation per script, two scripts' worth of copy. The figures are identical
 	// across languages because they come from the very same `runQuery`.
@@ -174,8 +193,8 @@ export const load: PageServerLoad = () => {
 	return {
 		grid: {
 			hexes: grid.hexes,
-			nodata: grid.nodata,
-			withData: grid.hexes - grid.nodata,
+			surveyed: surveyed.length,
+			unsurveyed: grid.hexes - surveyed.length,
 			resolution: grid.resolution,
 			walkRadius: grid.walkRadius,
 			stops: grid.stops,
@@ -183,12 +202,49 @@ export const load: PageServerLoad = () => {
 			pois: grid.pois,
 			poisByCategory: grid.poisByCategory,
 			categories: CATEGORIES.length,
-			missionPoints: withData.reduce((a, r) => a + r.nStruk + r.nMenu + r.nProp, 0)
+			mapidPoints: grid.mapid?.points ?? 0,
+			listings: grid.property?.listings ?? 0
 		},
-		// One character per cell, in grid order: 1 = no data yet. Sent as text so 558
-		// booleans do not become 558 lines of JSON.
-		coverageMask: hexes.map((h) => (h.nodata ? '1' : '0')).join(''),
-		hourly,
+		// One character per cell, in grid order: 1 = its city has not been surveyed. Sent
+		// as text so 562 booleans do not become 562 lines of JSON.
+		coverageMask: hexes.map((h) => (h.dens.mapid === null ? '1' : '0')).join(''),
+		spread,
+		field,
+		stage: {
+			name: busiest.name,
+			businesses: busiest.density,
+			rivals: busiest.osm,
+			units: busiest.units,
+			share: Math.min(1, busiest.density / topDensity)
+		},
 		conversation
 	};
 };
+
+/**
+ * The density column chart: how many cells sit in each band of business count.
+ *
+ * Bands rather than raw values because 562 cells will not fit across a chart, and
+ * evenly spaced because the reader is meant to see the shape of the distribution — most
+ * cells quiet, a long tail of dense ones — rather than a ranking.
+ */
+/**
+ * `n` values taken evenly across a ranking, best first.
+ *
+ * Evenly rather than the top `n`: the point of the field is the SPREAD of the grid, and
+ * a sample of its best cells would show a plateau and call it Jakarta.
+ */
+function sampleScores(scores: Array<number | null>, n: number): Array<number | null> {
+	const sorted = [...scores].sort((a, b) => (b ?? -1) - (a ?? -1));
+	if (sorted.length <= n) return sorted;
+	return Array.from({ length: n }, (_, i) => sorted[Math.round((i * (sorted.length - 1)) / (n - 1))]);
+}
+
+function densitySpread(counts: number[]): Array<{ upTo: number; cells: number }> {
+	const top = Math.max(1, ...counts);
+	const bands = 12;
+	const width = Math.ceil(top / bands);
+	const out = Array.from({ length: bands }, (_, i) => ({ upTo: width * (i + 1), cells: 0 }));
+	for (const n of counts) out[Math.min(bands - 1, Math.floor(n / width))].cells++;
+	return out;
+}

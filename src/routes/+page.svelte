@@ -1,7 +1,7 @@
 <script lang="ts">
 	import CoverageGrid from '$lib/components/landing/CoverageGrid.svelte';
 	import GridStage from '$lib/components/landing/GridStage.svelte';
-	import HourProfile from '$lib/components/landing/HourProfile.svelte';
+	import DensityProfile from '$lib/components/landing/DensityProfile.svelte';
 	import LandingNav from '$lib/components/landing/LandingNav.svelte';
 	import SectionMark from '$lib/components/landing/SectionMark.svelte';
 	import SignalFlow from '$lib/components/landing/SignalFlow.svelte';
@@ -52,7 +52,7 @@
 
 <LandingNav />
 
-<StreetStage />
+<StreetStage cell={data.stage} />
 
 <!-- The page below the stage speaks the same language as the model: a drawing
      sheet. Hairlines, labels hanging in the left column, large thin numerals —
@@ -69,7 +69,7 @@
 				</li>
 			{/each}
 		</ul>
-		<p class="cover-note">{c.stats.coverNote(n(k.withData), n(k.hexes), n(k.nodata))}</p>
+		<p class="cover-note">{c.stats.coverNote(n(k.surveyed), n(k.hexes), n(k.unsurveyed))}</p>
 	</Reveal>
 
 	<!-- ── the problem ──────────────────────────────────────────────────── -->
@@ -98,7 +98,7 @@
 					<h3 class="lede">{c.problem.chartTitle}</h3>
 					<p class="body">{c.problem.chartBody}</p>
 				</div>
-				<HourProfile hourly={data.hourly} />
+				<DensityProfile bands={data.spread} />
 			</div>
 		</Reveal>
 	</section>
@@ -111,7 +111,7 @@
 		<!-- The grid is the formal decision hardest to explain in a sentence, so it is
 		     shown instead: a second model, scroll-driven like the street model above
 		     it, with the measuring marks a working drawing uses. -->
-		<Reveal><GridStage /></Reveal>
+		<Reveal><GridStage field={data.field} /></Reveal>
 
 		<Reveal><SignalFlow /></Reveal>
 
@@ -165,7 +165,7 @@
 			<Reveal delay={100}>
 				<TapakDemo
 					sets={data.conversation[lang()]}
-					greeting={c.tapak.greet(k.hexes, k.withData)}
+					greeting={c.tapak.greet(k.hexes, k.surveyed)}
 				/>
 			</Reveal>
 		</div>
@@ -180,7 +180,7 @@
 		</Reveal>
 
 		<Reveal delay={80}>
-			<CoverageGrid mask={data.coverageMask} withData={k.withData} nodata={k.nodata} />
+			<CoverageGrid mask={data.coverageMask} surveyed={k.surveyed} unsurveyed={k.unsurveyed} />
 		</Reveal>
 
 		<div class="split">
@@ -199,8 +199,11 @@
 		</div>
 
 		<Reveal delay={80}>
-			<div class="plate mock-plate">
-				<h3><span class="tag mock">MOCK</span> {c.data.mockTitle}</h3>
+			<!-- The MOCK badge is gone from this plate because there is nothing left to
+			     badge. What the plate says now is what the product deliberately does NOT
+			     show, which is the more useful half of the same honesty. -->
+			<div class="plate">
+				<h3>{c.data.mockTitle}</h3>
 				<p class="note">{c.data.mockNote}</p>
 			</div>
 		</Reveal>
@@ -490,12 +493,6 @@
 		color: var(--label-3);
 		margin-bottom: 0.5rem;
 	}
-	.mock-plate h3 {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
 	.split {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
