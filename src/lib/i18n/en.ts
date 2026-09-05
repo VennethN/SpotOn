@@ -511,6 +511,14 @@ export const en: Copy = {
 		unitFloors: (n: number) => `${n} ${n === 1 ? 'floor' : 'floors'}`,
 		unitPerM2: (v: number) => `${rp(v)}/m²`,
 		unitsMore: (n: number) => `+${n} more`,
+		/* Map label. The price can be absent when the listing published none, and the
+		   sentence has to stand up without it. */
+		mapUnitAria: (jenis: string, harga: string, m: number) =>
+			harga
+				? `${jenis} for sale at ${harga}, ${m} m from the cell centre`
+				: `${jenis} for sale with no price published, ${m} m from the cell centre`,
+		mapShow: 'Show on map',
+		mapHide: 'Hide from map',
 		provenance: (n: number, kota: number) =>
 			`${num(n)} commercial property listings from the MAPID Data Premium catalogue, across ${kota} administrative ${kota === 1 ? 'city' : 'cities'}. Every one of them is for sale.`
 	},

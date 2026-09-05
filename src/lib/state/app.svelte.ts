@@ -25,7 +25,7 @@ import type {
 	Weights
 } from '$lib/types';
 
-export type LayerKey = 'score' | 'routes' | 'poi' | 'nodata' | 'label' | 'stops';
+export type LayerKey = 'score' | 'routes' | 'poi' | 'nodata' | 'label' | 'stops' | 'property';
 export type { Theme };
 
 const KEY = Symbol('spoton');
@@ -99,7 +99,17 @@ export class AppState {
 		 * On by default because it only ever draws once a cell is picked, and when it
 		 * does it is answering the question the reader just asked by picking it.
 		 */
-		stops: true
+		stops: true,
+		/**
+		 * The units on the market in the SELECTED cell, at their real addresses.
+		 *
+		 * On by default for the same reason the competitors are: it draws nothing until a
+		 * cell is picked. And the moment one is, "which of these could I actually take,
+		 * and what is it asking" is the question the panel's median is an average of —
+		 * the median tells the reader what a square metre costs around here, the marks
+		 * tell them which doorways that came from.
+		 */
+		property: true
 	});
 	selectedId = $state<string | null>(null);
 	highlight = $state<string[]>([]);

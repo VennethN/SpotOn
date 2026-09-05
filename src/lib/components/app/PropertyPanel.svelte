@@ -22,6 +22,7 @@
 	import { COST_FLOOR, readCost, type PropertyType } from '$lib/domain/cost';
 	import { composeScore } from '$lib/domain/composition';
 	import { byType, pricedPremises, withoutPrice } from '$lib/domain/premises';
+	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 
@@ -66,7 +67,9 @@
 	const groups = $derived(byType(listings));
 	const priced = $derived(pricedPremises(listings));
 	const unpriced = $derived(withoutPrice(listings));
-	const premises = $derived(listings.filter((l) => l.premises).length);
+	/* The units a business could actually take, which is also exactly the set the map
+	   draws. The map switch appears only when there is something for it to switch on. */
+	const premises = $derived(listings.filter((l) => l.premises));
 
 	const typeName = (t: PropertyType) => c.property.types[t] ?? t;
 
@@ -85,7 +88,25 @@
 
 {#if cell && cost}
 	<section class="prop">
-		<h3 class="eyebrow">{c.property.title}</h3>
+		<SectionHead icon="price">
+			{c.property.title}
+			{#snippet action()}
+				{#if premises.length > 0}
+					<!-- Same control as the competitor and transit switches, because it is
+					     the same job on the same map: the panel lists the units, and this
+					     puts them where they actually stand. -->
+					<button
+						type="button"
+						class="on-map"
+						class:on={app.layers.property}
+						onclick={() => (app.layers.property = !app.layers.property)}
+						aria-pressed={app.layers.property}
+					>
+						{app.layers.property ? c.property.mapHide : c.property.mapShow}
+					</button>
+				{/if}
+			{/snippet}
+		</SectionHead>
 
 		<!-- ── The price, and what kind of price it is ─────────────────────── -->
 		{#if cost.price !== null}
@@ -151,7 +172,7 @@
 
 		<!-- ── What is on the market ───────────────────────────────────────── -->
 		{#if cost.covered}
-			<h4 class="eyebrow sub">{c.property.marketTitle}</h4>
+			<SectionHead icon="market">{c.property.marketTitle}</SectionHead>
 			{#if app.listingsFailed}
 				<!-- The units are gone, the arithmetic is not: everything above this line
 				     came from the grid, and says so. -->
@@ -163,7 +184,7 @@
 			{:else}
 				<p class="count">
 					{c.property.marketCount(listings.length, app.weights.radius)}
-					<span class="sub">{c.property.marketPremises(premises)}</span>
+					<span class="sub">{c.property.marketPremises(premises.length)}</span>
 				</p>
 
 				<ul class="chips">
@@ -176,7 +197,7 @@
 				</ul>
 
 				{#if priced.length}
-					<h4 class="eyebrow sub">{c.property.unitsTitle}</h4>
+					<SectionHead icon="units">{c.property.unitsTitle}</SectionHead>
 					<ul class="units">
 						<!--
 							Keyed by position, which is the honest answer here: these listings
@@ -231,6 +252,31 @@
 	.sub {
 		color: var(--label-3);
 		margin-top: 0.25rem;
+	}
+	/* The same control as the competitor and transit switches, because it is the same
+	   job on the same map. Its "on" state carries the units' amber rather than the
+	   accent, so the button wears the colour of what it puts on screen. */
+	.on-map {
+		border: 1px solid var(--separator);
+		background: transparent;
+		color: var(--label-2);
+		border-radius: 999px;
+		padding: 0.125rem 0.5rem;
+		font-size: 0.625rem;
+		cursor: pointer;
+		white-space: nowrap;
+		transition:
+			background-color 140ms ease-out,
+			color 140ms ease-out;
+	}
+	.on-map:hover {
+		background: var(--fill-1);
+		color: var(--label-1);
+	}
+	.on-map.on {
+		background: var(--warn);
+		border-color: var(--warn);
+		color: #fff;
 	}
 
 	/* ── the price ───────────────────────────────────────────────────────── */

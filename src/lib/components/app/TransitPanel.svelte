@@ -23,6 +23,7 @@
 		stopTotal,
 		type Mode
 	} from '$lib/domain/transit';
+	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 
@@ -55,18 +56,20 @@
 
 {#if cell}
 	<section class="transit">
-		<header>
-			<h3 class="eyebrow">{c.mood.transit}</h3>
-			<button
-				type="button"
-				class="on-map"
-				class:on={app.layers.stops}
-				onclick={() => (app.layers.stops = !app.layers.stops)}
-				aria-pressed={app.layers.stops}
-			>
-				{app.layers.stops ? c.mood.transitHide : c.mood.transitShow}
-			</button>
-		</header>
+		<SectionHead icon="transit">
+			{c.mood.transit}
+			{#snippet action()}
+				<button
+					type="button"
+					class="on-map"
+					class:on={app.layers.stops}
+					onclick={() => (app.layers.stops = !app.layers.stops)}
+					aria-pressed={app.layers.stops}
+				>
+					{app.layers.stops ? c.mood.transitHide : c.mood.transitShow}
+				</button>
+			{/snippet}
+		</SectionHead>
 
 		{#if modes.length === 0}
 			<p class="none">{c.mood.transitNone}</p>
@@ -132,14 +135,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-	}
-	header {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-	header h3 {
-		margin-right: auto;
 	}
 	.on-map {
 		border: 1px solid var(--separator);

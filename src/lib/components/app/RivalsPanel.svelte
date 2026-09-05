@@ -12,6 +12,7 @@
 	 * and a reader left staring at a cell with no dots would reasonably conclude there
 	 * were no competitors in it. That is the opposite of what the count beside it says.
 	 */
+	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 
@@ -30,20 +31,22 @@
 </script>
 
 <section class="rivals">
-	<header>
-		<h3 class="eyebrow">{c.mood.rivalsOnMap}</h3>
-		{#if !missing}
-			<button
-				type="button"
-				class="on-map"
-				class:on={app.layers.poi}
-				onclick={() => (app.layers.poi = !app.layers.poi)}
-				aria-pressed={app.layers.poi}
-			>
-				{app.layers.poi ? c.mood.transitHide : c.mood.transitShow}
-			</button>
-		{/if}
-	</header>
+	<SectionHead icon="rivals">
+		{c.mood.rivalsOnMap}
+		{#snippet action()}
+			{#if !missing}
+				<button
+					type="button"
+					class="on-map"
+					class:on={app.layers.poi}
+					onclick={() => (app.layers.poi = !app.layers.poi)}
+					aria-pressed={app.layers.poi}
+				>
+					{app.layers.poi ? c.mood.transitHide : c.mood.transitShow}
+				</button>
+			{/if}
+		{/snippet}
+	</SectionHead>
 
 	{#if missing === 'source'}
 		<p class="note">{c.mood.rivalsNoPositions}</p>
@@ -76,14 +79,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.375rem;
-	}
-	header {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-	header h3 {
-		margin-right: auto;
 	}
 	/* Same control as the transit switch, because it is the same job on the same map.
 	   Its "on" state is the competitors' red rather than the accent, so the button
