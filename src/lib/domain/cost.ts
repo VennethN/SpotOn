@@ -1,4 +1,4 @@
-import type { Hex, PropertyStats } from '$lib/types';
+import type { Hex } from '$lib/types';
 
 /**
  * What a shopfront costs here, and what that is worth to a score.
@@ -208,25 +208,3 @@ export function readCost(
 	};
 }
 
-/** The listing types, in the order they are listed. Kept here rather than in the
-    locale files because it is the shape of the data, not a translation. */
-export const PROPERTY_TYPES = [
-	'ruko',
-	'toko',
-	'ruang',
-	'rukan',
-	'komersial',
-	'kantor',
-	'gedung',
-	'gudang'
-] as const;
-export type PropertyType = (typeof PROPERTY_TYPES)[number];
-
-/** The families a small business could actually occupy. The score's price level and
-    space gate are computed from these alone — see `scripts/fetch-property.mjs`. */
-export const PREMISES_TYPES: readonly PropertyType[] = ['ruko', 'toko', 'ruang', 'rukan', 'komersial'];
-
-export const isPremises = (t: string): t is PropertyType =>
-	(PREMISES_TYPES as readonly string[]).includes(t);
-
-export type { PropertyStats };

@@ -1,6 +1,41 @@
-import { isPremises, type PropertyType } from './cost';
 import { haversine } from '$lib/utils/geo';
-import type { HexBase } from '$lib/types';
+import type { HexBase, PropertyType } from '$lib/types';
+
+/**
+ * The listing types the catalogue publishes, in the order they are listed.
+ *
+ * This lived in `domain/cost`, which meant the module about what space COSTS owned the
+ * vocabulary for what space IS, and `premises.ts` had to import its own core predicate
+ * from it. The names belong here; `cost` is one of the callers.
+ */
+export const PROPERTY_TYPES: readonly PropertyType[] = [
+	'ruko',
+	'toko',
+	'ruang',
+	'rukan',
+	'komersial',
+	'kantor',
+	'gedung',
+	'gudang'
+];
+
+/**
+ * The families a small business could actually occupy.
+ *
+ * The score's price level, the space gate and the whole unit pivot are computed from
+ * these alone. An office floor and a warehouse are commercial property on the market
+ * too, and neither is a shopfront — see `scripts/fetch-property.mjs`.
+ */
+export const PREMISES_TYPES: readonly PropertyType[] = [
+	'ruko',
+	'toko',
+	'ruang',
+	'rukan',
+	'komersial'
+];
+
+export const isPremises = (t: string): t is PropertyType =>
+	(PREMISES_TYPES as readonly string[]).includes(t);
 
 /**
  * The individual units on the market around a cell.

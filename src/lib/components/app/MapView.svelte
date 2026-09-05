@@ -15,6 +15,20 @@
 	import { boundsOf, emptyFC, ringCoords } from '$lib/utils/geo';
 	import { railTotal, stopTotal } from '$lib/domain/transit';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
+	import { basemapStyle } from '$lib/map/basemap';
+	import { hatchImage, rivalImage, unitImage } from '$lib/map/icons';
+	import {
+		catchmentFC,
+		labelText,
+		poiFC,
+		poiLinksFC,
+		propertyFC,
+		reachFC,
+		stopLinksFC,
+		stopsFC,
+		unitsFC,
+		type MapCtx
+	} from '$lib/map/sources';
 	import { pct, rampIndex } from '$lib/utils/format';
 	import { cellName } from '$lib/domain/scoring';
 	import { base } from '$app/paths';
@@ -141,490 +155,38 @@
 	const cssVar = (name: string) =>
 		getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-	function basemapStyle(theme: 'light' | 'dark'): string | StyleSpecification {
-		// MAPID MAPS is the mandatory basemap for the finished product; until the style
-		// key is available, an open raster with equally valid attribution is used.
-		//
-		// The value has to be a URL, and it is checked rather than trusted. A bare
-		// style id pasted in here (they look like `f3b5f5f0…`) is not rejected by
-		// MapLibre — it is resolved as a path relative to the page, 404s, and leaves a
-		// blank canvas with no basemap and no error anywhere the user can see. Falling
-		// back to the open raster and saying so in the console turns a map that is
-		// silently broken into a map that works plus one line explaining what to fix.
-		const configured = env.PUBLIC_MAPID_STYLE_URL?.trim();
-		if (configured) {
-			if (/^(https?:)?\/\//.test(configured) || configured.startsWith('/')) return configured;
-			console.warn(
-				`[SpotOn] PUBLIC_MAPID_STYLE_URL is not a URL ("${configured}"), so the open raster basemap is being used instead. ` +
-					'MapLibre needs the full MAPID MAPS style URL, not the style id on its own.'
-			);
-		}
-		const variant = theme === 'dark' ? 'dark_all' : 'light_all';
-		return {
-			version: 8,
-			sources: {
-				base: {
-					type: 'raster',
-					tiles: [
-						`https://a.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}.png`,
-						`https://b.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}.png`,
-						`https://c.basemaps.cartocdn.com/rastertiles/${variant}/{z}/{x}/{y}.png`
-					],
-					tileSize: 256,
-					attribution:
-						'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a> · basemap final: MAPID MAPS'
-				}
-			},
-			layers: [{ id: 'base', type: 'raster', source: 'base' }]
-		} satisfies StyleSpecification;
-	}
-
-	/** Hatching for catchments with no data — absent data must never look like a low score. */
-	function hatchImage(): ImageData {
-		const size = 10;
-		const c = document.createElement('canvas');
-		c.width = c.height = size;
-		const ctx = c.getContext('2d')!;
-		ctx.fillStyle = cssVar('--fill-1') || 'rgba(120,128,140,0.1)';
-		ctx.fillRect(0, 0, size, size);
-		ctx.strokeStyle = cssVar('--nodata');
-		ctx.globalAlpha = 0.5;
-		ctx.lineWidth = 2;
-		ctx.beginPath();
-		ctx.moveTo(-size, size);
-		ctx.lineTo(size, -size);
-		ctx.moveTo(0, size * 2);
-		ctx.lineTo(size * 2, 0);
-		ctx.stroke();
-		return ctx.getImageData(0, 0, size, size);
-	}
-
 	/**
-	 * The cell polygons.
+	 * What the source builders need, gathered at call time.
 	 *
-	 * Built from the BASE grid, not from scored rows, so the map draws the moment the
-	 * page has its geometry — before any category has been chosen, and whether or not
-	 * the heatmap is on. Scores, when there are any, only decide the fill colour.
-	 *
-	 * Every colour is read once here rather than inside the loop. `cssVar` calls
-	 * `getComputedStyle(document.documentElement)`, and doing that per feature meant
-	 * 562 forced style recalculations for a palette of nine colours that is identical
-	 * on every one of them — on every weight change, every hover, every selection.
+	 * A function rather than a `$derived`: these run inside the effect that pushes new
+	 * data to MapLibre, and `cssVar` reads the live document, so the context has to be
+	 * the one that exists at the moment of the call rather than the one that existed
+	 * when a derived last recomputed.
 	 */
-	function catchmentFC(): FeatureCollection {
-		// In unit mode the cells stop being the reading and go back to being structure.
-		//
-		// Leaving the fill on meant the map carried the heatmap twice — a hexagon shaded
-		// by its score with a dot on top shaded by the same score — and the louder of the
-		// two was the one the reader was no longer looking at. The grid stays drawn,
-		// faintly, because it is what tells you which units share a catchment.
-		const rows = heat && app.pivot === 'cell' ? app.rowById : null;
-		const colNodata = cssVar('--nodata');
-		const colIdle = cssVar('--cell-idle');
-		const ramp = Array.from({ length: 7 }, (_, i) => cssVar(`--ramp-${i}`));
-		const selectedId = app.selectedId;
-		const showNodata = app.layers.nodata;
-
-		return {
-			type: 'FeatureCollection',
-			features: app.base
-				.filter((h) => !h.nodata || showNodata)
-				.map((h, i) => {
-					const row = rows?.get(h.id) ?? null;
-					const nodata = Boolean(h.nodata);
-					return {
-						type: 'Feature' as const,
-						// MapLibre's feature-state needs a numeric id; the row index is used because an
-						// H3 id is a hexadecimal string that cannot be turned into a number.
-						id: i,
-						geometry: {
-							type: 'Polygon' as const,
-							// Cell boundaries are computed once at build time, so the client never
-							// has to load the H3 library at all.
-							coordinates: [[...h.boundary, h.boundary[0]]]
-						},
-						properties: {
-							id: h.id,
-							name: cellName(h),
-							nodata,
-							// A real cell left unscored because the active source does not
-							// cover its city. Kept distinct from `nodata` so it does not look
-							// like an empty cell — and given no colour at all, because any
-							// colour would read as a score.
-							//
-							// Only ever claimed while the heatmap is on: with no category
-							// loaded nothing has been checked yet, and dashing every cell
-							// would report a coverage gap that has not been looked for.
-							uncovered: Boolean(row) && !nodata && row!.score === null,
-							color: nodata ? colNodata : row ? ramp[rampIndex(row.score ?? 0)] : colIdle,
-							// Carries a score right now, so the fill means something. An idle cell
-							// is drawn as structure instead: faint fill, crisper edge.
-							scored: Boolean(row) && !nodata && row!.score !== null,
-							saturated: row?.typology === 'saturated',
-							selected: h.id === selectedId
-						}
-					};
-				})
-		};
-	}
-
-	/**
-	 * The transit nodes the SELECTED cell captures — never the whole city's 1,105.
-	 *
-	 * This is the picture of the sentence the area panel just wrote. Drawing every
-	 * stop in Jakarta would answer a question nobody asked and bury the cell's own
-	 * under it; drawing only the captured ones makes "what this area reaches" a thing
-	 * you can see rather than a number you have to trust.
-	 */
-	function stopsFC(): FeatureCollection {
-		if (!app.layers.stops) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedStops.map((s) => ({
-				type: 'Feature' as const,
-				geometry: { type: 'Point' as const, coordinates: [s.lon, s.lat] },
-				properties: {
-					mode: s.mode,
-					name: s.name,
-					// Written only when there IS a name, so `['has', 'label']` can filter on
-					// it. An empty string is a label as far as MapLibre is concerned, and it
-					// reserves collision space for a label nobody can read.
-					...(s.name ? { label: labelText(s.name) } : {}),
-					// Rail gets a bigger mark. It is a single fixed doorway, and there are
-					// twenty of them against nine hundred and seventy-six halte.
-					rail: s.mode !== 'brt',
-					// Placement priority within its own label layer, lowest first. Nearest
-					// wins, because the stop on the cell's own doorstep is the one its
-					// score leans on hardest. Ranking BETWEEN the classes is the layer
-					// order, not this — see `LABEL_LAYERS`.
-					sort: Math.round(s.distance)
-				}
-			}))
-		};
-	}
-
-	/**
-	 * A line from the selected cell's centre to every node it captures.
-	 *
-	 * The dots alone say "there are stations here". The fan says "these belong to the
-	 * cell you picked" — and because every line starts at the same point, the number of
-	 * them is legible at a glance instead of having to be counted off the basemap. It
-	 * is also literally the measurement the grid made: centre to node, under the
-	 * walking range.
-	 */
-	function stopLinksFC(): FeatureCollection {
-		const cell = app.selectedCell;
-		if (!app.layers.stops || !cell) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedStops.map((s) => ({
-				type: 'Feature' as const,
-				geometry: {
-					type: 'LineString' as const,
-					coordinates: [
-						[cell.lon, cell.lat],
-						[s.lon, s.lat]
-					]
-				},
-				properties: { mode: s.mode, rail: s.mode !== 'brt' }
-			}))
-		};
-	}
-
-	/**
-	 * The walking range, drawn as it was measured.
-	 *
-	 * One ring for both fans, because it is one rule: the transit nodes and the
-	 * competitors are captured by the same test at the same radius from the same
-	 * centre. So it is drawn whenever either of them is on screen, and drawing it
-	 * twice would only put two identical circles on top of each other.
-	 */
-	function reachFC(): FeatureCollection {
-		const cell = app.selectedCell;
-		if (!cell) return emptyFC();
-		if (!app.layers.stops && !app.layers.poi) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: [
-				{
-					type: 'Feature' as const,
-					geometry: {
-						type: 'LineString' as const,
-						coordinates: ringCoords(cell.lon, cell.lat, app.weights.radius)
-					},
-					properties: {}
-				}
-			]
-		};
-	}
-
-	/**
-	 * The competitor mark: a square, not a dot.
-	 *
-	 * Colour alone cannot carry this. `--route-krl` is #e05a5a and `--critical` is
-	 * #d1352b, and in dark mode they are #ff7b74 against #ff6257 — so a red circle for
-	 * a competitor and a red circle for a KRL station are the same mark to anyone not
-	 * holding a swatch, and closer still to a reader with a colour vision deficiency.
-	 * The two mean opposite things: one is why a cell is worth having, the other is
-	 * what stands in the way.
-	 *
-	 * A square separates them by shape, which survives both. Drawn at 2× and handed to
-	 * MapLibre with `pixelRatio: 2` so the edges stay crisp on a retina screen, and
-	 * carrying its own knockout border for the same reason the transit nodes have a
-	 * plate: this sits on a heatmap fill whose colour changes cell to cell.
-	 */
-	function rivalImage(): { data: ImageData; pixelRatio: number } {
-		const size = 16;
-		const c = document.createElement('canvas');
-		c.width = c.height = size;
-		const ctx = c.getContext('2d')!;
-		const inset = 2.5;
-		const side = size - inset * 2;
-		ctx.fillStyle = cssVar('--bg-elevated') || '#ffffff';
-		ctx.strokeStyle = cssVar('--bg-elevated') || '#ffffff';
-		ctx.lineWidth = 3;
-		ctx.lineJoin = 'round';
-		ctx.strokeRect(inset, inset, side, side);
-		ctx.fillStyle = cssVar('--critical');
-		ctx.fillRect(inset, inset, side, side);
-		return { data: ctx.getImageData(0, 0, size, size), pixelRatio: 2 };
-	}
-
-	/**
-	 * The property mark: a diamond, and a third shape on purpose.
-	 *
-	 * The map already spends a square on competitors and circles on transit nodes, and
-	 * this is neither. It is a doorway the reader could walk into and take, which is the
-	 * opposite kind of thing from a rival and a different kind of thing from a station.
-	 *
-	 * Colour cannot carry it alone here any more than it could for the competitors. The
-	 * palette's five other map colours are all spoken for — red for rivals, and orange,
-	 * red, green and mauve for the four transit modes — so a diamond in `--warn` is told
-	 * apart by its shape first and its colour second, which is the order that survives a
-	 * colour vision deficiency.
-	 *
-	 * Hollow rather than filled. A filled mark at this size reads as another data point
-	 * competing with the rivals for attention, and these are not competing with anything:
-	 * they are the vacancies among them. The knockout ring is there for the same reason
-	 * the transit plate is, because this sits on a heatmap fill that changes cell to cell.
-	 */
-	function unitImage(): { data: ImageData; pixelRatio: number } {
-		const size = 18;
-		const c = document.createElement('canvas');
-		c.width = c.height = size;
-		const ctx = c.getContext('2d')!;
-		const mid = size / 2;
-		const r = mid - 3;
-		const diamond = () => {
-			ctx.beginPath();
-			ctx.moveTo(mid, mid - r);
-			ctx.lineTo(mid + r, mid);
-			ctx.lineTo(mid, mid + r);
-			ctx.lineTo(mid - r, mid);
-			ctx.closePath();
-		};
-		// The knockout first and the mark over it, so the ring is a border rather than a
-		// halo sitting on top of the shape it is meant to lift off the map.
-		diamond();
-		ctx.lineWidth = 4;
-		ctx.lineJoin = 'round';
-		ctx.strokeStyle = cssVar('--bg-elevated') || '#ffffff';
-		ctx.stroke();
-		ctx.fillStyle = cssVar('--bg-elevated') || '#ffffff';
-		ctx.fill();
-		diamond();
-		ctx.lineWidth = 2.2;
-		ctx.strokeStyle = cssVar('--warn');
-		ctx.stroke();
-		return { data: ctx.getImageData(0, 0, size, size), pixelRatio: 2 };
-	}
-
-	/**
-	 * The units on the market in the selected cell, at their real addresses.
-	 *
-	 * The panel gives one number for the whole catchment — the median asking price per
-	 * m² — and a number like that is only actionable once the reader can see which
-	 * doorways it was taken over. Two shophouses on the main road and eight on a lane
-	 * behind it produce the same median and are not the same choice.
-	 *
-	 * PREMISES ONLY
-	 *
-	 * Warehouses, office floors and whole buildings are on the market too and are counted
-	 * in the panel, but they are not somewhere to open a coffee shop. Drawing them here
-	 * would put marks on the map the reader cannot act on, next to marks they can, with
-	 * nothing on screen separating the two. The panel says how many of each there are.
-	 *
-	 * Every unit carries its type and, where the listing published one, its asking price
-	 * — which is a price to BUY. The catalogue has no rent, and `domain/cost` holds the
-	 * measurement that says so.
-	 */
-	function propertyFC(): FeatureCollection {
-		// Unit mode has its own layer, drawing the whole market rather than one cell's
-		// share of it. Drawing both would put two marks on every doorway.
-		if (app.pivot === 'unit') return emptyFC();
-		if (!app.layers.property) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedListings
-				.filter((l) => l.premises)
-				.map((l) => ({
-					type: 'Feature' as const,
-					geometry: { type: 'Point' as const, coordinates: [l.lon, l.lat] },
-					properties: {
-						label: c.property.types[l.type] ?? l.type,
-						// Only where the listing published one. A unit with no price is still a
-						// vacancy and is still drawn, with its type alone under it — the same
-						// rule the competitors follow for a missing name.
-						...(l.price !== null ? { price: c.property.unitPrice(l.price) } : {}),
-						sort: Math.round(l.distance)
-					}
-				}))
-		};
-	}
-
-	/**
-	 * Every unit on the market, in unit mode — the whole set at once, not one cell's.
-	 *
-	 * Coloured by the opportunity score of the catchment each one stands in, so the map
-	 * answers the two halves of the question in one look: where the units ARE, and which
-	 * of them sit somewhere worth being. A unit whose category has not been surveyed
-	 * carries no colour and is drawn in the no-data grey, never at the bottom of the
-	 * ramp — an unsurveyed catchment is not a bad one.
-	 *
-	 * Only the ranked, filtered list is drawn. That is the point of the mode: the marks
-	 * on screen and the rows in the panel are the same set, so narrowing one narrows the
-	 * other and the reader can see what a filter actually did.
-	 */
-	function unitsFC(): FeatureCollection {
-		if (app.pivot !== 'unit') return emptyFC();
-		// Resolved to real colours here rather than handed over as `var(--ramp-3)`:
-		// MapLibre paints on a canvas and cannot read a CSS custom property. This is the
-		// same resolution `catchmentFC` does, and it is why a theme change re-runs both.
-		const colNodata = cssVar('--nodata');
-		const ramp = Array.from({ length: 7 }, (_, i) => cssVar(`--ramp-${i}`));
-
-		/**
-		 * The ramp follows THE SORT, not the opportunity score.
-		 *
-		 * It was the score, and that made the map disagree with the panel beside it: sort
-		 * the list by price and you got rows ordered by price over a map coloured by
-		 * something else, with nothing saying so. Here the darkest dots are the top of
-		 * the list the reader is actually looking at, whichever measure and direction
-		 * that is — flip to "most expensive first" and the dark dots are where the money
-		 * is. One rule, and it holds for every measure without needing to know which end
-		 * of each one counts as good.
-		 *
-		 * Position in the ranked array, not the value: the values are prices, areas,
-		 * scores and metres, and a ramp keyed on magnitude would be unreadable on any
-		 * measure with a long tail — which is all of them.
-		 */
-		const n = app.unitRows.length;
-		const rank = new Map(app.unitRows.map(({ unit }, i) => [unit.id, n < 2 ? 1 : 1 - i / (n - 1)]));
-
-		// Every unit the filters left, not just the ranked ones. A sort by price per m²
-		// can rank only half of them, and dropping the rest would take a thousand marks
-		// off the map on a change the reader will read as a filter. They are drawn in the
-		// no-data grey instead, which is the same thing the panel counts out loud.
-		return {
-			type: 'FeatureCollection',
-			features: app.unitFiltered.map((unit) => {
-				const r = rank.get(unit.id);
-				return {
-					type: 'Feature' as const,
-					geometry: { type: 'Point' as const, coordinates: [unit.listing.lon, unit.listing.lat] },
-					properties: {
-						id: unit.id,
-						color: r === undefined ? colNodata : ramp[rampIndex(r)],
-						ranked: r !== undefined,
-						selected: unit.id === app.selectedUnitId
-					}
-				};
-			})
-		};
-	}
-
-	/**
-	 * The competitors the SELECTED cell captures — real positions, never the whole
-	 * city's.
-	 *
-	 * This used to scatter every cell's competitor COUNT on a Fibonacci spiral around
-	 * its centre: the right number of dots in invented places, on all 562 cells at
-	 * once. It answered "how many", which the panel already answers better, and
-	 * quietly implied a distribution nobody had measured.
-	 *
-	 * These are the MAPID points themselves, captured by the same distance test the
-	 * grid counted them with. So the dots are not an illustration of the count, they
-	 * ARE the count — and where they cluster is a real fact about the cell.
-	 */
-	function poiFC(): FeatureCollection {
-		if (!app.layers.poi) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedPois.map((p) => ({
-				type: 'Feature' as const,
-				geometry: { type: 'Point' as const, coordinates: [p.lon, p.lat] },
-				properties: {
-					// Only when the dataset has one. An unnamed outlet is still drawn: it
-					// is a competitor whose name was never recorded, not a missing point.
-					...(p.name ? { label: labelText(p.name) } : {}),
-					sort: Math.round(p.distance)
-				}
-			}))
-		};
-	}
-
-	/**
-	 * A line from the selected cell's centre to every competitor it captures.
-	 *
-	 * The same device as the transit fan, doing the same job: the dots say "there are
-	 * rivals here", the fan says "these are the ones counted against this cell". It is
-	 * also literally the measurement — centre to point, under the walking radius.
-	 *
-	 * Fainter and thinner than even the bus links, because a cell can capture thirty
-	 * competitors where it captures twenty-odd stops, and at equal weight the fan
-	 * stops being a fan and becomes a smear.
-	 */
-	function poiLinksFC(): FeatureCollection {
-		const cell = app.selectedCell;
-		if (!app.layers.poi || !cell) return emptyFC();
-		return {
-			type: 'FeatureCollection',
-			features: app.selectedPois.map((p) => ({
-				type: 'Feature' as const,
-				geometry: {
-					type: 'LineString' as const,
-					coordinates: [
-						[cell.lon, cell.lat],
-						[p.lon, p.lat]
-					]
-				},
-				properties: {}
-			}))
-		};
-	}
+	const ctx = (): MapCtx => ({ app, c, heat, cssVar });
 
 	function addLayers(m: MapLibreMap) {
-		if (!m.hasImage('hatch')) m.addImage('hatch', hatchImage());
+		if (!m.hasImage('hatch')) m.addImage('hatch', hatchImage(cssVar));
 		// Both of these bake a theme colour in, so a theme change has to redraw them.
 		// `addLayers` re-runs on `setStyle`, which clears the style's images, and the
 		// guard above is what makes the re-add happen exactly then.
 		if (!m.hasImage('rival')) {
-			const { data, pixelRatio } = rivalImage();
+			const { data, pixelRatio } = rivalImage(cssVar);
 			m.addImage('rival', data, { pixelRatio });
 		}
 		if (!m.hasImage('unit')) {
-			const { data, pixelRatio } = unitImage();
+			const { data, pixelRatio } = unitImage(cssVar);
 			m.addImage('unit', data, { pixelRatio });
 		}
 
-		m.addSource('catchments', { type: 'geojson', data: catchmentFC() });
-		m.addSource('poi', { type: 'geojson', data: poiFC() });
-		m.addSource('property', { type: 'geojson', data: propertyFC() });
-		m.addSource('units', { type: 'geojson', data: unitsFC() });
-		m.addSource('poi-links', { type: 'geojson', data: poiLinksFC() });
-		m.addSource('stops', { type: 'geojson', data: stopsFC() });
-		m.addSource('stop-links', { type: 'geojson', data: stopLinksFC() });
-		m.addSource('reach', { type: 'geojson', data: reachFC() });
+		m.addSource('catchments', { type: 'geojson', data: catchmentFC(ctx()) });
+		m.addSource('poi', { type: 'geojson', data: poiFC(ctx()) });
+		m.addSource('property', { type: 'geojson', data: propertyFC(ctx()) });
+		m.addSource('units', { type: 'geojson', data: unitsFC(ctx()) });
+		m.addSource('poi-links', { type: 'geojson', data: poiLinksFC(ctx()) });
+		m.addSource('stops', { type: 'geojson', data: stopsFC(ctx()) });
+		m.addSource('stop-links', { type: 'geojson', data: stopLinksFC(ctx()) });
+		m.addSource('reach', { type: 'geojson', data: reachFC(ctx()) });
 		// Fetched by URL rather than imported: MapLibre fetches the GeoJSON itself, so
 		// 441 KB of line geometry does not swell the JS bundle and can be cached by the
 		// browser like any other asset.
@@ -1245,27 +807,6 @@
 			''
 		);
 
-	/**
-	 * A name cut down to what a map label can actually carry.
-	 *
-	 * Names run long: the median stop is 16 characters but the tail reaches 57
-	 * ("Direktorat Jenderal Energi Terbarukan dan Konversi Energi"). Wrapped rather
-	 * than cut, that one name becomes a five-line block roughly the height of a
-	 * thumbnail, and because the collision index works on the whole block it evicts
-	 * every neighbour it touches. One halte nobody was looking for costs five labels
-	 * somebody was.
-	 *
-	 * 30 characters is where that stops happening while barely touching the data: 41
-	 * of the 1,104 named nodes are longer, and the p90 is 26. Paired with a 9 em wrap
-	 * this holds every label to at most two lines.
-	 *
-	 * The full name is kept on the feature and is what the panel lists. This is the
-	 * label form, and the ellipsis is there so a cut name is legible AS cut rather
-	 * than passing for a shorter name that does not exist.
-	 */
-	const LABEL_CHARS = 30;
-	const labelText = (n: string): string =>
-		n.length <= LABEL_CHARS ? n : `${n.slice(0, LABEL_CHARS - 1).trimEnd()}…`;
 
 	/**
 	 * The selected cell's transit count, pinned to the cell itself.
@@ -1406,14 +947,14 @@
 		void app.weights.radius;
 		const m = map;
 		if (!m || !ready) return;
-		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC());
-		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC());
-		(m.getSource('property') as GeoJSONSource | undefined)?.setData(propertyFC());
-		(m.getSource('units') as GeoJSONSource | undefined)?.setData(unitsFC());
-		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC());
-		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC());
-		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC());
-		(m.getSource('reach') as GeoJSONSource | undefined)?.setData(reachFC());
+		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC(ctx()));
+		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC(ctx()));
+		(m.getSource('property') as GeoJSONSource | undefined)?.setData(propertyFC(ctx()));
+		(m.getSource('units') as GeoJSONSource | undefined)?.setData(unitsFC(ctx()));
+		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC(ctx()));
+		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC(ctx()));
+		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC(ctx()));
+		(m.getSource('reach') as GeoJSONSource | undefined)?.setData(reachFC(ctx()));
 		for (const mode of ROUTE_MODES) {
 			m.setLayoutProperty(`route-${mode.key}`, 'visibility', app.layers.routes ? 'visible' : 'none');
 		}
