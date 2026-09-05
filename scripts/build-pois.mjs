@@ -54,17 +54,30 @@ function main() {
 	const dir = resolve(ROOT, 'static/data/pois');
 	mkdirSync(dir, { recursive: true });
 
+	let namedTotal = 0;
 	for (const [cat, list] of [...byCat].sort(([a], [b]) => a.localeCompare(b))) {
+		const named = list.filter((p) => p.name).length;
+		namedTotal += named;
 		// Coordinates to five decimals (±1 m) as a flat [y, x] pair, the same economy
 		// `build-stops.mjs` applies: at up to 3,700 points per category the GeoJSON
 		// scaffolding, or even named keys, would cost more than the data itself. The
 		// app builds the GeoJSON it needs for the handful a cell actually captures.
+		//
+		// A named outlet gets a third slot. Left OFF entirely when there is no name,
+		// rather than written as null: at 24,630 points the nulls alone would be
+		// 120 KB of file saying nothing, and the reader has to tell "no name" from
+		// "no label drawn" either way.
 		const out = {
 			meta: {
 				cat,
 				source: file.meta?.source ?? 'MAPID premium data (Data Premium)',
 				note: 'Titik pesaing MAPID. Persis titik yang dihitung join-mapid.mjs untuk kolom `mapid` tiap petak, jadi cacah yang tergambar sama dengan cacah yang dipakai mesin skor.',
 				count: list.length,
+				/* How many carry a name of their own. Stated so a map with marks and no
+				   labels can be read as what it is, rather than as a broken label
+				   layer. Zero here means `mapid-poi.json` predates names being kept
+				   (see the NAMA note in fetch-mapid.mjs) and needs a re-fetch. */
+				named,
 				/* Which cities were READ, carried over from the point file. A city that is
 				   not here was never checked, and that is not the same fact as a city that
 				   was checked and held no competitor. The app needs to be able to tell the
@@ -72,15 +85,29 @@ function main() {
 				coverage: file.meta?.coverage?.[cat] ?? [],
 				regenerate: 'node scripts/build-pois.mjs'
 			},
-			points: list.map((p) => [Math.round(p.lat * 1e5) / 1e5, Math.round(p.lon * 1e5) / 1e5])
+			points: list.map((p) => {
+				const y = Math.round(p.lat * 1e5) / 1e5;
+				const x = Math.round(p.lon * 1e5) / 1e5;
+				return p.name ? [y, x, p.name] : [y, x];
+			})
 		};
 
 		const path = resolve(dir, `${cat}.json`);
 		writeFileSync(path, JSON.stringify(out));
-		console.log(`  ${String(list.length).padStart(5)} · ${cat}.json`);
+		console.log(
+			`  ${String(list.length).padStart(5)} · ${String(named).padStart(5)} named · ${cat}.json`
+		);
 	}
 
 	console.log(`\n→ ${dir}`);
+	if (namedTotal === 0) {
+		console.log(
+			'\nNOTE: not one point carries a name, so the map will draw competitor marks\n' +
+				'without labels. The MAPID features do have a NAMA column — it was simply not\n' +
+				'kept when this point file was written. Re-run `node scripts/fetch-mapid.mjs`\n' +
+				'with MAPID_API_KEY set, then this script again, and the labels appear.'
+		);
+	}
 }
 
 try {

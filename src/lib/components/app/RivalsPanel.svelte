@@ -23,6 +23,10 @@
 	   for the map, so it counts what the map is showing. */
 	const drawn = $derived(app.selectedPois.length);
 	const missing = $derived(app.poisUnavailable);
+	/* How many of the marks on screen carry a name. The stations beside them are
+	   labelled, so competitors drawn bare need a reason given rather than left to
+	   look like a label layer that failed. */
+	const named = $derived(app.selectedPois.filter((p) => p.name).length);
 </script>
 
 <section class="rivals">
@@ -55,6 +59,11 @@
 				? c.mood.rivalsCount(drawn, catMany)
 				: c.mood.rivalsHidden(drawn, catMany)}
 		</p>
+		{#if app.layers.poi && named === 0}
+			<!-- Every station on the map is named and not one competitor is, which
+			     reads as a broken label layer unless it is accounted for. -->
+			<p class="note">{c.mood.rivalsNoNames}</p>
+		{/if}
 	{:else}
 		<!-- Zero really is zero here: the source covers this city, it was checked, and
 		     nothing was found inside the range. That is a finding, not an absence. -->
