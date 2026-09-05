@@ -65,7 +65,21 @@
 	function basemapStyle(theme: 'light' | 'dark'): string | StyleSpecification {
 		// MAPID MAPS is the mandatory basemap for the finished product; until the style
 		// key is available, an open raster with equally valid attribution is used.
-		if (env.PUBLIC_MAPID_STYLE_URL) return env.PUBLIC_MAPID_STYLE_URL;
+		//
+		// The value has to be a URL, and it is checked rather than trusted. A bare
+		// style id pasted in here (they look like `f3b5f5f0…`) is not rejected by
+		// MapLibre — it is resolved as a path relative to the page, 404s, and leaves a
+		// blank canvas with no basemap and no error anywhere the user can see. Falling
+		// back to the open raster and saying so in the console turns a map that is
+		// silently broken into a map that works plus one line explaining what to fix.
+		const configured = env.PUBLIC_MAPID_STYLE_URL?.trim();
+		if (configured) {
+			if (/^(https?:)?\/\//.test(configured) || configured.startsWith('/')) return configured;
+			console.warn(
+				`[SpotOn] PUBLIC_MAPID_STYLE_URL is not a URL ("${configured}"), so the open raster basemap is being used instead. ` +
+					'MapLibre needs the full MAPID MAPS style URL, not the style id on its own.'
+			);
+		}
 		const variant = theme === 'dark' ? 'dark_all' : 'light_all';
 		return {
 			version: 8,
@@ -501,7 +515,7 @@
 			const rank = app.highlight.indexOf(h.id);
 			const selected = app.selectedId === h.id;
 			entry.el.className = `stn${selected ? ' is-selected' : ''}${nodata ? ' is-nodata' : ''}`;
-			entry.el.setAttribute('aria-label', `${name}${nodata ? ' — belum terdata' : ''}`);
+			entry.el.setAttribute('aria-label', `${name}${nodata ? ', belum terdata' : ''}`);
 			entry.el.innerHTML =
 				`<span class="stn-dot"></span>` +
 				(rank > -1 ? `<span class="stn-rank">${rank + 1}</span>` : '') +
@@ -674,6 +688,79 @@
 		m.easeTo({
 			center: [sel.lon, sel.lat],
 			duration: prefersReducedMotion() ? 0 : 520,
+			essential: true
+		});
+	});
+
+	/**
+	 * Padding that keeps the answer clear of the floating panels.
+	 *
+	 * `fitBounds` fits to the CANVAS, and the canvas runs edge to edge underneath
+	 * Tapak and the legend. Fitting without allowing for them lands half the named
+	 * cells behind the panel that just named them.
+	 *
+	 * Each side is clamped below 40% of the canvas: MapLibre throws outright when
+	 * padding exceeds the map's own dimensions, and on a small window the reserved
+	 * strips are wider than the map is.
+	 */
+	function answerPadding() {
+		const el = map?.getContainer();
+		const w = el?.clientWidth ?? window.innerWidth;
+		const h = el?.clientHeight ?? window.innerHeight;
+		const cap = (v: number, of: number) => Math.max(24, Math.min(v, of * 0.4));
+		const wide = window.matchMedia('(min-width: 1024px)').matches;
+		return wide
+			? {
+					top: cap(80, h),
+					bottom: cap(80, h),
+					// The legend, or the area card that replaces it, on the left; Tapak on the right.
+					left: cap(360, w),
+					right: cap(390, w)
+				}
+			: // Compact: the sheet owns the bottom half, and nothing floats at the sides.
+				{ top: cap(80, h), bottom: cap(h * 0.5, h), left: cap(32, w), right: cap(32, w) };
+	}
+
+	/**
+	 * The answer's cells, flown to once per answer.
+	 *
+	 * Tapak names five places and the map is showing all of Jabodetabek: the reader
+	 * is left to hunt for them by hand, which is work the map should have done. So
+	 * when an answer arrives the view moves to what was named.
+	 *
+	 * Keyed on the id list rather than on a boolean, so re-running for any other
+	 * reason does not re-fly, and asking the same question twice does not either.
+	 * The cells are read from `base`, which is always loaded, rather than from the
+	 * scored rows — the flight must not wait on the category's columns landing.
+	 */
+	let flownTo: string | null = null;
+	$effect(() => {
+		const ids = app.highlight;
+		const m = map;
+		if (!m || !ready) return;
+
+		const key = ids.join(',');
+		if (!key) {
+			// Cleared highlight (a new question is on its way): the next answer, even an
+			// identical one, is allowed to fly again.
+			flownTo = null;
+			return;
+		}
+		if (key === flownTo) return;
+
+		const wanted = new Set(ids);
+		const cells = app.base.filter((h) => wanted.has(h.id));
+		if (!cells.length) return;
+		flownTo = key;
+
+		m.fitBounds(boundsOf(cells, 0.004), {
+			padding: answerPadding(),
+			// Five adjacent hexes make very tight bounds. Without a ceiling the map
+			// drops to street level, where the ranking loses the context that makes it
+			// mean anything.
+			maxZoom: 13.5,
+			animate: !prefersReducedMotion(),
+			duration: 900,
 			essential: true
 		});
 	});

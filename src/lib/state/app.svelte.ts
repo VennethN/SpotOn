@@ -94,9 +94,6 @@ export class AppState {
 	theme = $state<Theme>('system');
 	/** The system dark preference, watched so the effective theme stays reactive. */
 	systemDark = $state(false);
-	/** The panel currently on screen in the compact layout. */
-	sheetTab = $state<'recommendations' | 'detail' | 'table' | 'controls'>('recommendations');
-	tableOpen = $state(false);
 
 	/**
 	 * Transit stops, for naming and drawing what a cell captures.
@@ -313,7 +310,6 @@ export class AppState {
 
 	select(id: string | null) {
 		this.selectedId = id;
-		if (id) this.sheetTab = 'detail';
 		if (id) {
 			// Picking a cell is a request for its figures, heatmap or no heatmap — the
 			// area panel and Tapak's remark both read the scored row.
