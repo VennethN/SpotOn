@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { CATEGORIES, CATEGORY_KEYS } from '$lib/domain/categories';
+import { CATEGORIES, CATEGORY_KEYS, normalizeCategories } from '$lib/domain/categories';
 import { CHAT_TOPICS, cleanChatReply, isChatTopic, type ChatTopic } from '$lib/domain/chat';
 import { DEFAULT_METRIC, METRIC_KEYS, isMetric, resolveOrder } from '$lib/domain/metrics';
 import { UNIT_METRIC_KEYS, isUnitMetric, resolveUnitOrder } from '$lib/domain/units';
@@ -200,9 +200,15 @@ ukuran: pilih dari daftar di atas sesuai apa yang benar-benar ditanyakan.
 - "seberapa ramai di sini" / "mana yang paling sepi" → keramaian
 - "di mana sewanya paling murah" / "harga tempat" → harga_tempat
 - "mana yang paling banyak tempat kosong" → unit_dipasarkan
-- "mana yang paling ramai pengunjung" → kunjungan
-- "jam berapa paling ramai" → jam_puncak
+- "mana yang paling ramai pengunjung" → keramaian
 - "mana yang pesaingnya paling sedikit" → pesaing
+
+kategori: DAFTAR jenis usaha, bukan satu. Isi SEMUA yang benar-benar disebut pengguna.
+- "di mana buka kedai kopi" → ["kopi"]
+- "kedai kopi yang juga jual roti" → ["kopi", "roti"]
+- "warteg, mie, atau seafood, mana yang paling masuk" → ["warteg", "mie", "seafood"]
+- pengguna tidak menyebut jenis usaha sama sekali → kosongkan, kategori yang sedang aktif yang dipakai.
+Kalau lebih dari satu, mesin menghitung pesaingnya sebagai satu kumpulan: gerai semua jenis itu dijumlahkan jadi pesaing, dan semuanya sama-sama dikeluarkan dari hitungan usaha lain di sekitarnya. Jangan menambahkan jenis usaha yang tidak disebut hanya karena mirip.
 
 urut: 'desc' untuk "paling banyak/tinggi/mahal/ramai", 'asc' untuk "paling sedikit/rendah/murah/sepi". Kalau pengguna tidak menyebut arah, kosongkan saja — mesin memakai arah yang masuk akal untuk ukuran itu.
 
@@ -254,10 +260,10 @@ const TOOLS = [
 						description: 'Jenis pertanyaan.'
 					},
 					kategori: {
-						type: 'string',
-						enum: CATEGORY_KEYS,
+						type: 'array',
+						items: { type: 'string', enum: CATEGORY_KEYS },
 						description:
-							'Jenis usaha yang ditanyakan. Bila pengguna tidak menyebut, pakai kategori yang sedang aktif.'
+							'Semua jenis usaha yang ditanyakan, sebagai daftar. Satu pertanyaan boleh menyebut lebih dari satu — "kedai kopi dan toko roti" berarti ["kopi", "roti"], dan keduanya dihitung sebagai satu kumpulan pesaing. Kosongkan bila pengguna tidak menyebut jenis usahanya sama sekali; kategori yang sedang aktif yang dipakai. Jangan menambahkan jenis yang tidak disebut.'
 					},
 					ukuran: {
 						type: 'string',
@@ -321,7 +327,7 @@ const TOOLS = [
 							'Radius jalan kaki yang dipakai menghitung, dalam meter. Isi HANYA kalau pengguna menyebut jaraknya sendiri, misalnya "dalam 500 m". Kalau tidak disebut, kosongkan — radius yang sedang dipakai tetap berlaku. JANGAN mengubah lama berjalan kaki (menit) menjadi meter; itu tebakan, bukan data.'
 					}
 				},
-				required: ['intent', 'kategori'],
+				required: ['intent'],
 				additionalProperties: false
 			}
 		}
@@ -378,10 +384,6 @@ interface ToolCall {
 	function?: { name?: string; arguments?: string };
 }
 
-function isCat(v: unknown): v is CategoryKey {
-	return typeof v === 'string' && (CATEGORY_KEYS as string[]).includes(v);
-}
-
 /**
  * Returns `null` when the model layer cannot be used — the caller must treat that
  * as "use the rule-based parser", not as a failure.
@@ -389,7 +391,7 @@ function isCat(v: unknown): v is CategoryKey {
 export async function parseWithLLM(
 	question: string,
 	w: Weights,
-	fallbackCategory: CategoryKey,
+	fallbackCategory: readonly CategoryKey[],
 	lang = 'id'
 ): Promise<ParseResult> {
 	const key = env.OPENROUTER_API_KEY?.trim();
@@ -400,7 +402,7 @@ export async function parseWithLLM(
 			{ role: 'system', content: `${SYSTEM}\n\n${LANG_RULE[lang] ?? LANG_RULE.id}` },
 			{
 				role: 'user',
-				content: `Kategori yang sedang aktif: ${fallbackCategory}.\nPertanyaan: ${question}`
+				content: `Kategori yang sedang aktif: ${fallbackCategory.join(', ')}.\nPertanyaan: ${question}`
 			}
 		],
 		tools: TOOLS,
@@ -511,7 +513,11 @@ export async function parseWithLLM(
 			return null;
 		}
 
-		const kategori = isCat(args.kategori) ? args.kategori : fallbackCategory;
+		/* A list now, and a model that sent one string still lands here correctly —
+		   `normalizeCategories` takes either. Empty falls back to what the reader had,
+		   never to a hard-coded type: a question that named no business is asking about
+		   the one already on screen. */
+		const kategori = normalizeCategories(args.kategori, fallbackCategory);
 		// An unrecognised measure falls back to the opportunity score rather than failing
 		// the whole parse: the model got the shape of the question right, and answering
 		// the usual question beats dropping to the rule parser over one bad enum value.

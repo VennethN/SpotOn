@@ -82,11 +82,11 @@ for (const [q, ukuran, urut, kategori] of CASES) {
 	const parsed = nlq.parseQuestion(q, W, 'kopi');
 	const okMetric = parsed.ukuran === ukuran;
 	const okOrder = urut === null || parsed.urut === urut;
-	const okCat = kategori === null || parsed.kategori === kategori;
+	const okCat = kategori === null || parsed.kategori.join(',') === kategori;
 	check(
 		`"${q}" → ${ukuran}${urut ? ` ${urut}` : ''}`,
 		okMetric && okOrder && okCat,
-		`got ukuran=${parsed.ukuran} urut=${parsed.urut} kategori=${parsed.kategori}`
+		`got ukuran=${parsed.ukuran} urut=${parsed.urut} kategori=${parsed.kategori.join(',')}`
 	);
 }
 
@@ -99,6 +99,52 @@ check(
 	nlq.parseQuestion('mana yang paling ramai', W, 'kopi').urut === 'desc' &&
 		nlq.parseQuestion('mana yang paling sepi', W, 'kopi').urut === 'asc'
 );
+
+/* ── a question naming several business types comes back with all of them ── */
+
+/* The failure this replaced was silent and total: "kedai kopi dan toko roti" parsed to
+   coffee alone, the map coloured itself for coffee, and the reply named both. Nothing
+   on screen said half the question had been dropped. */
+for (const [q, want] of [
+	['kedai kopi dan toko roti dekat MRT', 'kopi,roti'],
+	['mau buka apotek atau laundry, mana yang lebih masuk', 'laundry,apotek'],
+	['minimarket, kelontong, sama apotek', 'minimarket,kelontong,apotek'],
+	// Display order, not the order the words appeared in. Two questions asking for the
+	// same pair must not produce two different sets of chips.
+	['toko roti dan kedai kopi', 'kopi,roti'],
+	// One type is still one type: nothing about a single-category question changes.
+	['di mana sebaiknya buka kedai kopi', 'kopi'],
+	// The catch-all only fires when nothing specific did. Gathered alongside the rest it
+	// would attach a rice warung to every question with the word "makan" in it.
+	['restoran jepang yang enak buat makan', 'restoasing'],
+	['mau buka tempat makan', 'warteg'],
+	// Names no type at all → whatever the reader had in force, which is what the map is
+	// already showing. Guessing here would swing the map off a question that never
+	// mentioned a business.
+	['mana yang paling ramai', 'minimarket']
+]) {
+	const got = nlq.parseQuestion(q, W, ['minimarket']).kategori;
+	check(`"${q}" → [${want}]`, got.join(',') === want, `got [${got.join(',')}]`);
+}
+
+// And the set is genuinely scored as a set, not just carried in the query object. Two
+// types share a street's customers, so their outlets are counted together as rivals —
+// the pair's count can never be below either one on its own.
+{
+	const kopi = nlq.answer('mana yang pesaingnya paling banyak untuk kedai kopi', cells, W, ['kopi']);
+	const both = nlq.answer(
+		'mana yang pesaingnya paling banyak untuk kedai kopi dan toko roti',
+		cells,
+		W,
+		['kopi']
+	);
+	check(
+		'two business types are counted as one pool of rivals',
+		both.query.kategori.join(',') === 'kopi,roti' &&
+			both.items[0].measure.value >= kopi.items[0].measure.value,
+		`kopi ${kopi.items[0]?.measure?.value} vs kopi+roti ${both.items[0]?.measure?.value}`
+	);
+}
 
 /* ── the intents still route ─────────────────────────────────────────────── */
 

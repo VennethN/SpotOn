@@ -24,6 +24,7 @@
 	import TransitPanel from '$lib/components/app/TransitPanel.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
+	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 	import { pct } from '$lib/utils/format';
 
@@ -37,8 +38,8 @@
 	const app = getAppState();
 	const c = $derived(copy());
 	const row = $derived(app.selected);
-	const catName = $derived(c.category[app.category].name);
-	const catMany = $derived(c.category[app.category].many);
+	const catName = $derived(categoryNames(app.categories, c));
+	const catMany = $derived(categoryNames(app.categories, c, 'many'));
 
 	/** The highest-scoring cell in the active category — for the "just pick one" button. */
 	const best = $derived(
@@ -87,7 +88,7 @@
 			<StreetScene
 				{hour}
 				density={busyness}
-				category={app.category}
+				category={app.categories[0]}
 				cameraT={CAMERA_T}
 				nodata={blank}
 				rivals={row.osm}

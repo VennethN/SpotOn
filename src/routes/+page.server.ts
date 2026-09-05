@@ -63,7 +63,7 @@ export interface DemoSet {
 const rank = (category: CategoryKey, smallBudget: boolean): StructuredQuery => ({
 	intent: 'RANK',
 	metrik: 'gap permintaan − penawaran',
-	kategori: category,
+	kategori: [category],
 	radius_m: W.radius,
 	filter: {
 		dalam_catchment_transit: `${W.radius} m`,
@@ -105,7 +105,7 @@ const SCRIPTS: Script[] = [
 		query: {
 			intent: 'FLAG_SATURATED',
 			metrik: 'pesaing sejenis dibanding usaha lain di sekitarnya',
-			kategori: 'minimarket',
+			kategori: ['minimarket'],
 			radius_m: W.radius,
 			urut: 'desc',
 			limit: 3
@@ -126,7 +126,7 @@ const SCRIPTS: Script[] = [
 		query: {
 			intent: 'COVERAGE',
 			metrik: 'petak yang kotanya belum disurvei sumber aktif',
-			kategori: 'kopi',
+			kategori: ['kopi'],
 			radius_m: W.radius,
 			urut: 'asc',
 			limit: 99
