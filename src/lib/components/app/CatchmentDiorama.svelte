@@ -10,6 +10,7 @@
 	 * The wording is deliberately plain: "how busy", not "demand index". The full
 	 * figures are still there, one click below.
 	 */
+	import ScoreBreakdown from '$lib/components/app/ScoreBreakdown.svelte';
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
 	import TransitPanel from '$lib/components/app/TransitPanel.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
@@ -147,6 +148,13 @@
 					<div><dt>{c.mood.rows.space}</dt><dd>{row.listings} / {row.nProp}</dd></div>
 					<div><dt>{c.mood.rows.points}</dt><dd>{row.nTot}</dd></div>
 				</dl>
+
+				<!-- The rows above are the figures; this is what the engine did with them,
+				     and it belongs behind the same fold. Someone who opens "the full
+				     figures" is asking where the score came from, and a list of inputs
+				     with no arithmetic between them only answers half of that. -->
+				<ScoreBreakdown />
+
 				<p class="prov">{c.mood.prov}</p>
 			</details>
 		{/if}

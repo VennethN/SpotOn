@@ -38,6 +38,8 @@ src/lib/
   data/          hexagon grid + transit nodes
   domain/        pure business rules — no DOM, used by server and client alike
     scoring.ts     the Opportunity Score engine
+    composition.ts the same score taken apart again, step by step, for the panel
+    transit.ts     what a cell reaches: stops, modes, and the access index explained
     weights.ts     default weights + value sanitiser (a single way in)
     nlq.ts         question → structured query → answer
     narrate.ts     scoring-engine output → human sentences
@@ -202,6 +204,12 @@ The application's Environment Variables (`PUBLIC_MAPID_STYLE_URL`, `OPENROUTER_A
 
 ```bash
 npm run check    # typecheck + a11y
+npm run selftest # the score breakdown against the scoring engine, no network
 npm run build    # production build
 npm run preview  # run the build
 ```
+
+`selftest` scores 640 combinations of weights, demand, competition, transit access and
+listings with the engine, takes each one apart with `domain/composition`, and holds the
+two against each other: the steps have to add up to the score the engine printed, and
+the transit share plus the rest has to equal it. It runs in CI alongside the typecheck.

@@ -12,7 +12,8 @@
 	// the dev server touches the file and the worker dies without a sound.
 	import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import { env } from '$env/dynamic/public';
-	import { boundsOf, emptyFC, scatterPoints } from '$lib/utils/geo';
+	import { boundsOf, emptyFC, ringCoords, scatterPoints } from '$lib/utils/geo';
+	import { railTotal, stopTotal } from '$lib/domain/transit';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import { pct, rampIndex } from '$lib/utils/format';
 	import { cellName } from '$lib/domain/scoring';
@@ -209,6 +210,53 @@
 		};
 	}
 
+	/**
+	 * A line from the selected cell's centre to every node it captures.
+	 *
+	 * The dots alone say "there are stations here". The fan says "these belong to the
+	 * cell you picked" — and because every line starts at the same point, the number of
+	 * them is legible at a glance instead of having to be counted off the basemap. It
+	 * is also literally the measurement the grid made: centre to node, under the
+	 * walking range.
+	 */
+	function stopLinksFC(): FeatureCollection {
+		const cell = app.selectedCell;
+		if (!app.layers.stops || !cell) return emptyFC();
+		return {
+			type: 'FeatureCollection',
+			features: app.selectedStops.map((s) => ({
+				type: 'Feature' as const,
+				geometry: {
+					type: 'LineString' as const,
+					coordinates: [
+						[cell.lon, cell.lat],
+						[s.lon, s.lat]
+					]
+				},
+				properties: { mode: s.mode, rail: s.mode !== 'brt' }
+			}))
+		};
+	}
+
+	/** The walking range those nodes were captured within, drawn as it was measured. */
+	function reachFC(): FeatureCollection {
+		const cell = app.selectedCell;
+		if (!app.layers.stops || !cell) return emptyFC();
+		return {
+			type: 'FeatureCollection',
+			features: [
+				{
+					type: 'Feature' as const,
+					geometry: {
+						type: 'LineString' as const,
+						coordinates: ringCoords(cell.lon, cell.lat, app.weights.radius)
+					},
+					properties: {}
+				}
+			]
+		};
+	}
+
 	/** Competitor dots — real counts, so they need the active category's columns. */
 	function poiFC(): FeatureCollection {
 		if (!app.layers.poi || !app.ready) return emptyFC();
@@ -226,6 +274,8 @@
 		m.addSource('catchments', { type: 'geojson', data: catchmentFC() });
 		m.addSource('poi', { type: 'geojson', data: poiFC() });
 		m.addSource('stops', { type: 'geojson', data: stopsFC() });
+		m.addSource('stop-links', { type: 'geojson', data: stopLinksFC() });
+		m.addSource('reach', { type: 'geojson', data: reachFC() });
 		// Fetched by URL rather than imported: MapLibre fetches the GeoJSON itself, so
 		// 441 KB of line geometry does not swell the JS bundle and can be cached by the
 		// browser like any other asset.
@@ -350,12 +400,66 @@
 			cssVar('--route-lrt'),
 			cssVar('--route-brt')
 		];
+		// The walking range the nodes below were captured within — the rule, drawn.
+		m.addLayer({
+			id: 'reach-ring',
+			type: 'line',
+			source: 'reach',
+			paint: {
+				'line-color': cssVar('--label-2'),
+				'line-width': 1,
+				'line-dasharray': [3, 3],
+				'line-opacity': 0.55
+			}
+		});
+		// Centre to node, one line each. Bus links are thinner and fainter than rail:
+		// a cell can capture twenty-odd halte, and at equal weight they would swallow
+		// the two rail lines that usually matter more.
+		m.addLayer({
+			id: 'stop-links',
+			type: 'line',
+			source: 'stop-links',
+			paint: {
+				'line-color': modeColour,
+				'line-width': ['case', ['get', 'rail'], 1.6, 0.9],
+				'line-opacity': ['case', ['get', 'rail'], 0.65, 0.42]
+			}
+		});
+		// A plate under each node, so the captured ones read as a set at a glance.
+		//
+		// Light rather than tinted, and this is the whole reason it works: these sit on
+		// top of a heatmap fill whose colour changes from cell to cell, and a
+		// translucent coloured halo simply dissolved into whatever was beneath it. A
+		// knockout disc in the panel material holds the same weight over a pale cell,
+		// a dark one, and a basemap with a station symbol of its own — and the ring
+		// around it keeps the mode's colour, which is what the panel names them by.
+		m.addLayer({
+			id: 'stop-halo',
+			type: 'circle',
+			source: 'stops',
+			paint: {
+				'circle-radius': [
+					'interpolate',
+					['linear'],
+					['zoom'],
+					10,
+					['case', ['get', 'rail'], 8, 4.5],
+					15,
+					['case', ['get', 'rail'], 16, 9.5]
+				],
+				'circle-color': cssVar('--bg-elevated'),
+				'circle-opacity': 0.6,
+				'circle-stroke-width': 1.2,
+				'circle-stroke-color': modeColour,
+				'circle-stroke-opacity': 0.85
+			}
+		});
 		m.addLayer({
 			id: 'stop-dots',
 			type: 'circle',
 			source: 'stops',
 			paint: {
-				'circle-radius': ['case', ['get', 'rail'], 6, 3.4],
+				'circle-radius': ['case', ['get', 'rail'], 6, 4],
 				'circle-color': modeColour,
 				'circle-stroke-width': ['case', ['get', 'rail'], 2, 1],
 				'circle-stroke-color': cssVar('--bg-elevated'),
@@ -500,10 +604,14 @@
 				// Read at hover time rather than captured when the marker was made: a
 				// marker outlives many rescorings, and a captured row would keep showing
 				// the figures from whichever category was active when it was created.
-				el.addEventListener(
-					'pointerenter',
-					() => (hovered = { name, nodata, row: app.rowById.get(h.id) ?? null })
-				);
+				el.addEventListener('pointerenter', (ev) => {
+					hovered = { name, nodata, row: app.rowById.get(h.id) ?? null };
+					// Placed as well as filled. Only the map's own `mousemove` moved this
+					// thing, so hovering a marker showed its figures in the top-left corner
+					// of the screen, nowhere near the marker and often over another panel.
+					const box = container.getBoundingClientRect();
+					positionTip(ev.clientX - box.left, ev.clientY - box.top);
+				});
 				el.addEventListener('pointerleave', () => (hovered = null));
 				const marker = new gl.Marker({ element: el, anchor: 'center' })
 					.setLngLat([h.lon, h.lat])
@@ -515,11 +623,19 @@
 			const rank = app.highlight.indexOf(h.id);
 			const selected = app.selectedId === h.id;
 			entry.el.className = `stn${selected ? ' is-selected' : ''}${nodata ? ' is-nodata' : ''}`;
-			entry.el.setAttribute('aria-label', `${name}${nodata ? ', belum terdata' : ''}`);
+			entry.el.setAttribute(
+				'aria-label',
+				`${name}${nodata ? ', belum terdata' : ''}` +
+					(selected ? `, ${c.app.mapStopsAria(stopTotal(h.transit), app.weights.radius)}` : '')
+			);
 			entry.el.innerHTML =
 				`<span class="stn-dot"></span>` +
 				(rank > -1 ? `<span class="stn-rank">${rank + 1}</span>` : '') +
-				(app.layers.label || selected ? `<span class="stn-label">${shortName(name)}</span>` : '');
+				(app.layers.label || selected ? `<span class="stn-label">${shortName(name)}</span>` : '') +
+				// Only the selected cell carries it. On fourteen markers at once a count
+				// on each is a wall of chips, and the question it answers is one the
+				// reader asks about the cell they have chosen.
+				(selected ? transitBadge(h) : '');
 			entry.el.style.display = nodata && !app.layers.nodata ? 'none' : '';
 		}
 
@@ -574,6 +690,26 @@
 			/ (Bank Syariah Indonesia|Bank Jakarta|Mastercard|Indomaret|BCA|BNI|VISA|TUKU|Astra|Headquarters)$/,
 			''
 		);
+
+	/**
+	 * The selected cell's transit count, pinned to the cell itself.
+	 *
+	 * The halos show WHICH nodes; this says HOW MANY, at the one place on the map the
+	 * reader is already looking. Only the count — the split, the names and what it is
+	 * worth to the score all live in the panel, and a map chip that tries to carry them
+	 * stops being readable at a glance, which is the only thing it is for.
+	 *
+	 * Read from the grid's own counts, so it is right before `stops.json` has arrived,
+	 * and it is the same figure the score was computed from.
+	 */
+	function transitBadge(h: HexBase): string {
+		const n = stopTotal(h.transit);
+		if (!n || !app.layers.stops) return '';
+		// A cell reaching rail gets the accent: one fixed doorway with all-day footfall
+		// is a different proposition from the same count made up of bus stops.
+		const rail = railTotal(h.transit) > 0 ? ' has-rail' : '';
+		return `<span class="stn-transit${rail}">${c.app.mapStops(n)}</span>`;
+	}
 
 	function fitAll(animate = true) {
 		if (!map) return;
@@ -659,11 +795,14 @@
 		void app.highlight;
 		void app.selectedStops;
 		void app.layers.stops;
+		void app.weights.radius;
 		const m = map;
 		if (!m || !ready) return;
 		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC());
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC());
 		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC());
+		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC());
+		(m.getSource('reach') as GeoJSONSource | undefined)?.setData(reachFC());
 		for (const mode of ROUTE_MODES) {
 			m.setLayoutProperty(`route-${mode.key}`, 'visibility', app.layers.routes ? 'visible' : 'none');
 		}
@@ -952,6 +1091,31 @@
 		color: var(--label-1);
 		background: var(--mat-thick);
 	}
+	/* The transit count for the selected cell. Sits under the dot, opposite the name
+	   above it, so the two never fight for the same space. */
+	:global(.stn-transit) {
+		position: absolute;
+		left: 0.625rem;
+		top: 0.3125rem;
+		white-space: nowrap;
+		font-size: 0.625rem;
+		font-weight: 700;
+		letter-spacing: 0.005em;
+		font-variant-numeric: tabular-nums;
+		color: var(--label-1);
+		background: var(--mat-thick);
+		-webkit-backdrop-filter: var(--blur-thin);
+		backdrop-filter: var(--blur-thin);
+		border: 1px solid var(--separator-strong);
+		border-radius: 999px;
+		padding: 0.0625rem 0.4375rem;
+		box-shadow: var(--shadow-chip);
+	}
+	:global(.stn-transit.has-rail) {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
 	:global(.stn-rank) {
 		position: absolute;
 		left: -1.5rem;
