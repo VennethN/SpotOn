@@ -846,6 +846,8 @@ export const en: Copy = {
 		compare: 'Side by side, here is how they compare.',
 		rankNone: (cat: string) =>
 			`Nothing fits a ${cat} under those conditions yet. Want me to loosen them?`,
+		rankBy: (name: string, ukuran: string, nilai: string, n: number) =>
+			`By ${ukuran}, ${name} comes top at ${nilai}. Here are the top ${n} from my notes.`,
 		rankTop: (name: string, nilai: string | null, n: number) =>
 			`If it were up to me, ${name} first${nilai ? `, scoring ${nilai} out of 100` : ''}. Here are the top ${n} from my notes.`,
 		remarkNodata: (name: string, osm: number, cat: string) =>
@@ -864,7 +866,35 @@ export const en: Copy = {
 		coverage: 'with no data yet',
 		within: (r: number) => `within ${r === 800 ? 'an' : 'a'} ${r} m walk of a transit stop`,
 		hasSpace: 'has space for rent',
-		cheap: 'lower rent bracket'
+		cheap: 'lower rent bracket',
+		/* ── The measures a question can be about ───────────────────────────
+		   The keys come from `domain/metrics`, so a measure added there needs a
+		   name here and in id.ts. `harga_tempat` is deliberately not called
+		   "rent": the MAPID catalogue carries no rental listings for Jakarta, and
+		   naming it that would be the one untruth on the screen. */
+		metrics: {
+			skor: 'opportunity score',
+			permintaan: 'demand',
+			penawaran: 'effective supply',
+			pesaing: 'competitor count',
+			keramaian: 'how busy it is',
+			kunjungan: 'recorded transactions',
+			jam_puncak: 'peak hour',
+			nontunai: 'cashless share',
+			listing: 'commercial listings',
+			harga_tempat: 'asking price to buy',
+			unit_dipasarkan: 'units on the market',
+			akses_transit: 'transit access',
+			simpul_transit: 'transit nodes'
+		},
+		sortedBy: (ukuran: string, naik: boolean) =>
+			`sorted by ${ukuran}, ${naik ? 'lowest' : 'highest'} first`,
+		band: (ukuran: string, arah: 'rendah' | 'tinggi' | 'ada') =>
+			arah === 'ada'
+				? `has some ${ukuran}`
+				: `${ukuran} in the ${arah === 'rendah' ? 'bottom' : 'top'} third`,
+		perM2: (v: number) => `${rp(v)}/m²`,
+		count: (v: number) => num(Math.round(v))
 	},
 
 	demo: {

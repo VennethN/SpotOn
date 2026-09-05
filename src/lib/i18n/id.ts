@@ -856,6 +856,8 @@ export const id = {
 		compare: 'Kalau dibandingkan, begini hasilnya.',
 		rankNone: (cat: string) =>
 			`Belum ada kawasan yang cocok untuk ${cat} dengan syarat itu. Mau saya longgarkan syaratnya?`,
+		rankBy: (name: string, ukuran: string, nilai: string, n: number) =>
+			`Menurut ${ukuran}, ${name} yang teratas: ${nilai}. Ini ${n} yang teratas menurut catatan saya.`,
 		rankTop: (name: string, nilai: string | null, n: number) =>
 			`Kalau saya yang pilih, ${name} dulu${nilai ? `, nilainya ${nilai} dari 100` : ''}. Ini ${n} yang teratas menurut catatan saya.`,
 		remarkNodata: (name: string, osm: number, cat: string) =>
@@ -874,7 +876,35 @@ export const id = {
 		coverage: 'yang belum ada datanya',
 		within: (r: number) => `dalam ${r} m jalan kaki dari titik transit`,
 		hasSpace: 'ada tempat yang disewakan',
-		cheap: 'sewa kelas bawah'
+		cheap: 'sewa kelas bawah',
+		/* ── Ukuran yang bisa ditanyakan ────────────────────────────────────
+		   Kuncinya dari `domain/metrics`, jadi ukuran baru di sana harus ada
+		   namanya di sini dan di en.ts. `harga_tempat` sengaja tidak dinamai
+		   "sewa": katalog MAPID tidak punya listing sewa untuk Jakarta, dan
+		   menamainya begitu bakal jadi satu-satunya kebohongan di layar. */
+		metrics: {
+			skor: 'skor peluang',
+			permintaan: 'permintaan',
+			penawaran: 'penawaran efektif',
+			pesaing: 'jumlah pesaing',
+			keramaian: 'keramaian',
+			kunjungan: 'transaksi tercatat',
+			jam_puncak: 'jam puncak',
+			nontunai: 'porsi non-tunai',
+			listing: 'listing ruang usaha',
+			harga_tempat: 'harga jual tempat usaha',
+			unit_dipasarkan: 'unit yang dipasarkan',
+			akses_transit: 'akses transit',
+			simpul_transit: 'simpul transit'
+		},
+		sortedBy: (ukuran: string, naik: boolean) =>
+			`diurutkan dari ${ukuran} ${naik ? 'terkecil' : 'terbesar'}`,
+		band: (ukuran: string, arah: 'rendah' | 'tinggi' | 'ada') =>
+			arah === 'ada'
+				? `${ukuran} ada isinya`
+				: `${ukuran} sepertiga ${arah === 'rendah' ? 'terbawah' : 'teratas'}`,
+		perM2: (v: number) => `${rp(v)}/m²`,
+		count: (v: number) => num(Math.round(v))
 	},
 
 	demo: {
