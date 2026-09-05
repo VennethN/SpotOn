@@ -41,10 +41,17 @@
 	const c = $derived(copy());
 
 	/**
-	 * Act two begins as soon as there is any turn beyond the opening greeting —
-	 * whether the user asked, tapped an option, or picked an area on the map.
+	 * Act two begins as soon as there is any turn beyond the opening greeting: the
+	 * user asked, or tapped one of the options.
+	 *
+	 * Or said they would rather not. Picking an area on the map used to start it too,
+	 * back when doing that filed a turn, but the map is behind the scrim until this
+	 * flips, so nobody could reach it that way in the first place. `skipped` is that
+	 * door, and it is one-way: once the map is open, the question box has nothing left
+	 * to do that the panel does not do better.
 	 */
-	const started = $derived(tapak.turns.length > 1);
+	let skipped = $state(false);
+	const started = $derived(tapak.turns.length > 1 || skipped);
 
 	/** The compact layout uses a draggable sheet. */
 	let compact = $state(false);
@@ -149,7 +156,7 @@
 		     just depth. -->
 		<div class="scrim" transition:fade={{ duration: 320 }} aria-hidden="true"></div>
 		<div class="stage" out:leaveForPanel>
-			<AskLauncher {tapak} meta={data.meta} />
+			<AskLauncher {tapak} meta={data.meta} onskip={() => (skipped = true)} />
 		</div>
 	{:else if compact}
 		<MapLegend />
