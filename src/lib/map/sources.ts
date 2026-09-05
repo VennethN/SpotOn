@@ -270,6 +270,17 @@ export function unitsFC(ctx: MapCtx): FeatureCollection {
 	const n = ctx.app.unitRows.length;
 	const rank = new Map(ctx.app.unitRows.map(({ unit }, i) => [unit.id, n < 2 ? 1 : 1 - i / (n - 1)]));
 
+	/**
+	 * The catchments Tapak's last answer named, carried over to this mode.
+	 *
+	 * The answer engine ranks CATCHMENTS whichever pivot the map is in — it runs on the
+	 * grid, and the individual units are a browser-side file it never sees. So in unit
+	 * mode a highlight would otherwise land on cells nobody can see and the reply would
+	 * name five places the map did not mark. Ringing every unit standing in one keeps the
+	 * sentence and the map talking about the same places.
+	 */
+	const named = new Set(ctx.app.highlight);
+
 	// Every unit the filters left, not just the ranked ones. A sort by price per m²
 	// can rank only half of them, and dropping the rest would take a thousand marks
 	// off the map on a change the reader will read as a filter. They are drawn in the
@@ -285,7 +296,8 @@ export function unitsFC(ctx: MapCtx): FeatureCollection {
 					id: unit.id,
 					color: r === undefined ? colNodata : ramp[rampIndex(r)],
 					ranked: r !== undefined,
-					selected: unit.id === ctx.app.selectedUnitId
+					selected: unit.id === ctx.app.selectedUnitId,
+					named: named.has(unit.cellId)
 				}
 			};
 		})

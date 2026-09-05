@@ -19,7 +19,7 @@ import {
 } from '$lib/domain/units';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
-import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS } from '$lib/domain/weights';
+import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS, snapRadius } from '$lib/domain/weights';
 import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
 import type {
@@ -612,10 +612,23 @@ export class AppState {
 		}
 	}
 
-	/** Open one unit. Its home cell's competitors and stations are fetched with it: the
-	    panel describes the catchment around the unit, and that is what draws it. */
+	/**
+	 * Open one unit — and, with it, the catchment it stands in.
+	 *
+	 * `selectedId` follows deliberately. The unit card describes both halves, and the
+	 * catchment half is drawn by the same panels the area card uses, every one of which
+	 * reads the SELECTED CELL. Parameterising them to take an id instead would leave two
+	 * ways of asking the same question, and the day they answered differently the card
+	 * and the map would be describing different places.
+	 *
+	 * It is what the map wants too: the home cell is outlined, its competitors and its
+	 * stations are drawn, and the reader can see the catchment the figures come from
+	 * rather than being told its name.
+	 */
 	selectUnit(id: string | null) {
 		this.selectedUnitId = id;
+		const unit = id ? this.units.find((u) => u.id === id) : null;
+		this.selectedId = unit?.cellId ?? null;
 		if (id) {
 			void this.loadCategory(this.category);
 			void this.loadStops();
@@ -683,6 +696,34 @@ export class AppState {
 		if (this.selectedId) void this.loadPois(cat);
 	}
 
+	/**
+	 * Change the walking radius every catchment is measured over.
+	 *
+	 * Snapped to a stop the data actually holds a reading for. The competitor counts
+	 * scale by area at any radius, but a median asking price does not — `join-property`
+	 * computes one per stop, so a radius between two of them has no price to show.
+	 *
+	 * The unit pivot re-homes on the way through, because which cell a unit belongs to is
+	 * "the nearest centre within the radius" and the radius just moved. That fall-out is
+	 * why this is a method rather than a field somebody sets.
+	 */
+	setRadius(radius: number) {
+		const snapped = snapRadius(radius);
+		if (snapped === this.weights.radius) return;
+		this.weights.radius = snapped;
+		// A unit outside the new radius has no home cell any more, so an id selected under
+		// the old one can point at a row that no longer exists — and one still in range may
+		// have been re-homed onto a different cell, which is the one the card must describe.
+		if (this.pivot === 'unit' && this.selectedUnitId) {
+			const still = this.units.find((u) => u.id === this.selectedUnitId);
+			if (still) this.selectedId = still.cellId;
+			else {
+				this.selectedUnitId = null;
+				this.selectedId = null;
+			}
+		}
+	}
+
 	/** Switch the competitor-count source. The highlight is cleared with it: the
 	    ranking is recomputed from different data, so the highlighted ids no longer
 	    mean what the user meant when they highlighted them. */
@@ -736,6 +777,38 @@ export class AppState {
 			// warteg emang enak" and swing the whole map to a category the reader never
 			// asked to see. A greeting must not repaint anything.
 			if (data.chat) return;
+
+			/* Tapak drives the two controls in `MapControls` as well as the map underneath
+			   them. That is the whole reason the pivot switch was taken back out of this
+			   panel: the conversation is not one of the modes, it is the thing that can
+			   change them, so a control that replaced the conversation would take away the
+			   thing operating it.
+
+			   All three are applied BEFORE the highlight, and that order is load-bearing.
+			   `setRadius` and `setPivot` both clear things the answer is about — a stale
+			   unit selection, the previous highlight — so an answer that set the highlight
+			   first would have it wiped by its own mode change and name places the map
+			   never marked.
+
+			   The radius goes first of the three. It decides which cell a unit belongs to,
+			   so applying it after a pivot switch would build the whole unit list at the
+			   old radius and immediately rebuild it at the new one. */
+			this.setRadius(data.query.radius_m);
+			// Absent means the question said nothing about the shape of the answer, and the
+			// mode the reader had is left exactly as it was.
+			if (data.query.pivot) this.setPivot(data.query.pivot);
+			if (data.query.pivot === 'unit' && data.query.ukuran_unit) {
+				this.unitSort = data.query.ukuran_unit;
+				// `urut_unit` was resolved against the unit registry by whichever layer
+				// understood the question. Falling back to the measure's own "best" here is
+				// what an older query object gets, and it is the same answer the sort chips
+				// give on a first press.
+				this.unitOrder =
+					data.query.urut_unit ?? UNIT_METRIC_MAP[data.query.ukuran_unit].best;
+			}
+			/* The catchments the answer named. Kept even in unit mode, where they are not
+			   rows any more but still the places the reply is about: `unitsFC` rings every
+			   unit standing in one, so the sentence and the map agree about where to look. */
 			this.highlight = data.highlight;
 			// The parsed query is allowed to change the active category — the map has to
 			// follow to the category that was actually answered, not stay on the old one.

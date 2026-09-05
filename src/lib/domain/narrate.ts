@@ -1,6 +1,7 @@
 import type { Copy } from '$lib/i18n';
 import { formatHour, pct } from '$lib/utils/format';
 import { METRIC_MAP } from './metrics';
+import { DEFAULT_WEIGHTS } from './weights';
 import type { AiAnswer, MetricKey, Recommendation, ScoredHex, StructuredQuery } from '$lib/types';
 
 /**
@@ -45,16 +46,34 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 	const cat = c.category[ans.query.kategori].name.toLowerCase();
 	const n = ans.items.length;
 
+	/**
+	 * The mode this answer put the map into, when the question asked for one.
+	 *
+	 * Worth saying out loud precisely because the two halves of the screen then rank
+	 * different things: the engine runs on the GRID whichever mode the map is in, so
+	 * these named catchments are the answer to "where", while the panel beside them lists
+	 * the individual premises standing in them. Both are true and they are not the same
+	 * list, and a reader who watched the map change without being told what changed would
+	 * reasonably read that as a contradiction.
+	 *
+	 * Only when the question named a mode. `pivot` is left undefined by both the rule
+	 * parser and the model unless the reader asked, so this never appears on a question
+	 * that said nothing about it.
+	 */
+	const mode = ans.query.pivot
+		? ` ${ans.query.pivot === 'unit' ? n$.nowByUnit : n$.nowByCell}`
+		: '';
+
 	if (ans.query.intent === 'COVERAGE') {
-		return n === 0 ? n$.coverageNone : n$.coverageSome(n);
+		return (n === 0 ? n$.coverageNone : n$.coverageSome(n)) + mode;
 	}
 	if (ans.query.intent === 'FLAG_SATURATED') {
-		return n === 0 ? n$.saturatedNone : n$.saturatedSome(n, cat);
+		return (n === 0 ? n$.saturatedNone : n$.saturatedSome(n, cat)) + mode;
 	}
 	if (ans.query.intent === 'COMPARE') {
-		return n < 2 ? ans.headline : n$.compare;
+		return (n < 2 ? ans.headline : n$.compare) + mode;
 	}
-	if (n === 0) return n$.rankNone(cat);
+	if (n === 0) return n$.rankNone(cat) + mode;
 
 	const top = ans.items[0];
 	// A ranking by something other than the opportunity score has to say so, and say
@@ -62,9 +81,12 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 	// of 100" — the same sentence whether the question was where to open, where is
 	// busiest, or where space is cheapest.
 	if (top.measure) {
-		return n$.rankBy(top.name, metricName(top.measure.ukuran, c), metricValue(top.measure, c), n);
+		return (
+			n$.rankBy(top.name, metricName(top.measure.ukuran, c), metricValue(top.measure, c), n) +
+			mode
+		);
 	}
-	return n$.rankTop(top.name, top.value != null ? pct(top.value) : null, n);
+	return n$.rankTop(top.name, top.value != null ? pct(top.value) : null, n) + mode;
 }
 
 /**
@@ -88,6 +110,18 @@ export function describeQuery(q: StructuredQuery, c: Copy): string[] {
 		out.push(c.query.band(metricName(f.ukuran, c), f.arah));
 	}
 	if (q.filter?.dalam_catchment_transit) out.push(c.query.within(q.radius_m));
+	/* The two things an answer is allowed to change about the MAP rather than about the
+	   ranking. Both are said out loud for the same reason every filter is: the reader
+	   watched the map move, and a chip row that does not account for it leaves them
+	   guessing which part of what they are looking at they asked for.
+
+	   The radius is only worth a chip when it is not the standard walk — printed on every
+	   answer it would be a constant, and a constant on a row of chips reads as noise
+	   rather than as information. Skipped when the transit chip above already carries it. */
+	if (q.pivot) out.push(q.pivot === 'unit' ? c.query.pivotUnit : c.query.pivotCell);
+	if (q.radius_m !== DEFAULT_WEIGHTS.radius && !q.filter?.dalam_catchment_transit) {
+		out.push(c.query.radius(q.radius_m));
+	}
 	// Only when the newer filter list did not already say it, so the chips do not read
 	// "space available · space available".
 	if (q.filter?.ruang_sewa_tersedia && !q.filters?.length) out.push(c.query.hasSpace);

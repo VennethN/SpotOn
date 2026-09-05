@@ -682,6 +682,11 @@ export const en: Copy = {
 	/* ── app ──────────────────────────────────────────────────────────────── */
 
 	app: {
+		radiusLabel: 'Range',
+		radiusValue: (m: number) => `${m} m`,
+		radiusAria: 'The walking range being scored',
+		radiusHint:
+			'How far from the centre counts, for areas and for places alike. Each range has its own price, measured rather than interpolated from another.',
 		categoryLabel: 'Business type',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} cells · ${poi} competitors mapped`,
@@ -850,6 +855,13 @@ export const en: Copy = {
 			`By ${ukuran}, ${name} comes top at ${nilai}. Here are the top ${n} from my notes.`,
 		rankTop: (name: string, nilai: string | null, n: number) =>
 			`If it were up to me, ${name} first${nilai ? `, scoring ${nilai} out of 100` : ''}. Here are the top ${n} from my notes.`,
+		/* Added only when the question asked for a mode. What I name above is always
+		   an area, because the sums run on the grid, and the panel beside it lists the
+		   premises standing inside those areas. Both are true and they are not the
+		   same list. */
+		nowByUnit:
+			'I have switched the map to read by place, so each row is one premises rather than an area.',
+		nowByCell: 'I have switched the map back to reading by area, so each row is an area again.',
 		remarkNodata: (name: string, osm: number, cat: string) =>
 			`${name} has no data yet, so I won't put a number on it. All I know is that open map data shows ${osm} ${cat} nearby.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
@@ -928,15 +940,33 @@ export const en: Copy = {
 			}
 			return num(Math.round(v));
 		},
+		/* ── The card's header badge ────────────────────────────────────────
+		   The two cards are deliberately alike, so the badge is what tells 800 m
+		   of city apart from one front door. */
+		markCell: 'One area of the grid',
+		markUnit: 'One place on the market',
+
 		cardIn: (petak: string) => `in ${petak}`,
 		cardWalk: (m: number) => `${num(m)} m from the cell centre`,
 		cardAbout: 'About the place',
 		cardArea: 'About the area',
+		cardFigures: 'See every column on the listing',
 		cardNoScore:
 			'This cell has no competitor coverage for the selected business type, so it has no score yet. What is said about the place above still holds.',
-		cardRivals: (n: number, cat: string, r: number) => `${num(n)} ${cat} within ${r} m`,
-		cardStops: (n: number) => `${num(n)} transit nodes within walking distance`,
-		cardOpen: 'Open its area'
+		/* The listing's own columns. Empty ones are skipped rather than filled with
+		   a dash: half the catalogue leaves the floor count or the certificate
+		   blank, and a table of dashes reads as a unit with nothing to say. */
+		rows: {
+			type: 'Type',
+			cell: 'Its area',
+			distance: 'From the cell centre',
+			price: 'Asking price',
+			ppm: 'Price per m² of land',
+			land: 'Land',
+			build: 'Building',
+			floors: 'Floors',
+			cert: 'Certificate'
+		}
 	},
 
 	query: {
@@ -945,6 +975,12 @@ export const en: Copy = {
 		within: (r: number) => `within ${r === 800 ? 'an' : 'a'} ${r} m walk of a transit stop`,
 		hasSpace: 'has space for rent',
 		cheap: 'lower rent bracket',
+		/* The two things an answer changes about the MAP rather than about the
+		   ranking. Named so a reader who watched the map move can tell which part
+		   of what they are looking at they actually asked for. */
+		pivotCell: 'read by area',
+		pivotUnit: 'read by place',
+		radius: (r: number) => `measured over ${r} m on foot`,
 		/* ── The measures a question can be about ───────────────────────────
 		   The keys come from `domain/metrics`, so a measure added there needs a
 		   name here and in id.ts. `harga_tempat` is deliberately not called

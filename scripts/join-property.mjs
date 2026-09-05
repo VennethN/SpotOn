@@ -37,7 +37,19 @@ import { fileURLToPath } from 'node:url';
 import { normCity } from './lib/mapid.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const RADII = [400, 800];
+/**
+ * The walking radii a reader may choose between.
+ *
+ * Not two any more. The interface offers this as a slider, and a slider with two stops
+ * is a segmented control wearing a costume — so the join computes every stop the slider
+ * can land on, from the listings genuinely inside each one.
+ *
+ * They have to be computed rather than interpolated. A COUNT can be scaled by area, and
+ * the scoring engine does exactly that for competitors. A MEDIAN cannot: half of a
+ * median is not the price of anything, and a price interpolated between two radii would
+ * be the one figure on the screen that came from nobody's data.
+ */
+const RADII = [400, 500, 600, 700, 800];
 
 /** The families a small business could actually occupy. Mirrors `PREMISES_TYPES` in
     `src/lib/domain/cost.ts`, which is where the interface reads the same rule. */
@@ -124,23 +136,28 @@ function main() {
 			if (d <= RADII[RADII.length - 1]) near.push({ p, d });
 		}
 
-		const prop = {};
+		// One entry per radius, keyed by it, rather than eight flat keys named after two.
+		// Adding a stop to RADII used to mean adding four more `n700`-shaped fields to the
+		// type, the join, the reader and the interface; now it means adding a number.
+		const prop = { r: {} };
 		for (const r of RADII) {
 			const inside = near.filter((n) => n.d <= r).map((n) => n.p);
 			const premises = inside.filter((p) => PREMISES.has(p.type));
 			const prices = premises.map((p) => p.ppm).filter((v) => typeof v === 'number' && v > 0);
-			prop[`n${r}`] = inside.length;
-			prop[`u${r}`] = premises.length;
-			// Null, not zero. "No unit in range carried a published price" and "space here
-			// costs nothing" are not the same statement, and only one of them is true.
-			prop[`p${r}`] = median(prices, MIN_PRICED);
-			// How many units that median was read from, so the panel can put the figure and
-			// the weight of evidence behind it in the same sentence. Kept even when the
-			// median came back null, because "two units, not enough to read" is a more
-			// useful thing to be told than "nothing".
-			prop[`q${r}`] = prices.length;
+			prop.r[r] = {
+				n: inside.length,
+				u: premises.length,
+				// Null, not zero. "No unit in range carried a published price" and "space
+				// here costs nothing" are not the same statement, and only one is true.
+				p: median(prices, MIN_PRICED),
+				// How many units that median was read from, so the panel can put the figure
+				// and the weight of evidence behind it in one sentence. Kept even where the
+				// median came back null, because "two units, not enough to read" is more
+				// useful than "nothing".
+				q: prices.length
+			};
 		}
-		if (prop.p800 !== null) tally.priced++;
+		if (prop.r[800].p !== null) tally.priced++;
 
 		// The mix of what is on the market, at the walking radius the grid was built for.
 		// Counted for every type, premises or not: "three shophouses and a warehouse" is a
@@ -152,7 +169,7 @@ function main() {
 		h.prop = prop;
 	}
 
-	const prices800 = grid.hexes.map((h) => h.prop?.p800).filter((v) => typeof v === 'number');
+	const prices800 = grid.hexes.map((h) => h.prop?.r?.[800]?.p).filter((v) => typeof v === 'number');
 	grid.meta.property = {
 		source: file.meta.source,
 		project_id: file.meta.project_id,
@@ -160,6 +177,7 @@ function main() {
 		listingType: file.meta.listingType,
 		tipe3: file.meta.tipe3,
 		priceColumn: file.meta.priceColumn,
+		radii: RADII,
 		coveredCities: [...covered].sort(),
 		cellsCovered: tally.covered,
 		cellsPriced: tally.priced,

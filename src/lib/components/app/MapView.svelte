@@ -4,6 +4,7 @@
 		ExpressionSpecification,
 		GeoJSONSource,
 		Map as MapLibreMap,
+		MapLayerMouseEvent,
 		Marker,
 		StyleSpecification
 	} from 'maplibre-gl';
@@ -360,11 +361,17 @@
 					['case', ['get', 'selected'], 13, 7]
 				],
 				'circle-color': ['get', 'color'],
-				'circle-stroke-width': ['case', ['get', 'selected'], 2.4, 1],
+				// Three rings, in order of who asked for them: the unit the reader opened,
+				// then the units standing in a catchment Tapak's last answer named, then
+				// everything else with the plain knockout that keeps a dot legible on top
+				// of whatever is under it.
+				'circle-stroke-width': ['case', ['get', 'selected'], 2.4, ['get', 'named'], 2, 1],
 				'circle-stroke-color': [
 					'case',
 					['get', 'selected'],
 					cssVar('--label-1'),
+					['get', 'named'],
+					cssVar('--accent'),
 					cssVar('--bg-elevated')
 				],
 				// A unit with no reading for the sorted measure is drawn back as well as grey,
@@ -544,14 +551,18 @@
 			hoverId = null;
 			hovered = null;
 		});
-		m.on('click', 'catchment-fill', (e) => {
+		/* A catchment is only selectable while catchments are what the map is a list of.
+		   In unit mode the selected cell is not something the reader picks: it is wherever
+		   the open unit stands, set by `selectUnit` and described by the card's lower half.
+		   Letting a click on the grid underneath move it would put the card's figures onto
+		   a catchment the unit above them is not in. */
+		const pickCell = (e: MapLayerMouseEvent) => {
+			if (app.pivot !== 'cell') return;
 			const id = e.features?.[0]?.properties?.id;
 			if (typeof id === 'string') app.select(id);
-		});
-		m.on('click', 'catchment-nodata', (e) => {
-			const id = e.features?.[0]?.properties?.id;
-			if (typeof id === 'string') app.select(id);
-		});
+		};
+		m.on('click', 'catchment-fill', pickCell);
+		m.on('click', 'catchment-nodata', pickCell);
 	}
 
 	function positionTip(x: number, y: number) {

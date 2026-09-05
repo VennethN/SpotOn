@@ -2,7 +2,15 @@ import { env } from '$env/dynamic/private';
 import { CATEGORIES, CATEGORY_KEYS } from '$lib/domain/categories';
 import { CHAT_TOPICS, cleanChatReply, isChatTopic, type ChatTopic } from '$lib/domain/chat';
 import { DEFAULT_METRIC, METRIC_KEYS, isMetric, resolveOrder } from '$lib/domain/metrics';
-import type { CategoryKey, MetricKey, StructuredQuery, Weights } from '$lib/types';
+import { UNIT_METRIC_KEYS, isUnitMetric, resolveUnitOrder } from '$lib/domain/units';
+import { RADII, snapRadius } from '$lib/domain/weights';
+import type {
+	CategoryKey,
+	MetricKey,
+	StructuredQuery,
+	UnitMetricKey,
+	Weights
+} from '$lib/types';
 
 /**
  * The language-understanding layer: a person's question → a structured query.
@@ -140,10 +148,35 @@ const METRIC_HELP: Record<MetricKey, string> = {
 	simpul_transit: 'jumlah simpul transit (stasiun/halte) dalam radius jalan kaki.'
 };
 
-// A measure that reached the enum with nothing said about it would be offered to the
+/**
+ * What each UNIT measure means, for the model.
+ *
+ * A second table rather than a mapping off the one above, because the two registries
+ * measure different things and the overlap is smaller than it looks. `harga_tempat` on a
+ * catchment is a median per m² across everything in walking range; `harga` on a unit is
+ * the number on that one doorway. A model told they were the same measure would quote a
+ * grid statistic as an asking price.
+ */
+const UNIT_METRIC_HELP: Record<UnitMetricKey, string> = {
+	harga: 'harga JUAL yang diminta untuk tempat itu, rupiah. Bukan sewa bulanan.',
+	harga_m2: 'harga jual per m² tanah tempat itu, rupiah.',
+	luas_tanah: 'luas tanahnya, m².',
+	luas_bangunan: 'luas bangunannya, m².',
+	lantai: 'jumlah lantainya.',
+	skor_petak: 'skor peluang petak tempat itu berdiri, 0-100. Ini urutan bawaannya.',
+	permintaan_petak: 'perkiraan permintaan pembeli di petak tempat itu berdiri, 0-100.',
+	pesaing_petak: 'jumlah pesaing sejenis di petak tempat itu berdiri.',
+	akses_petak: 'indeks akses transit petak tempat itu berdiri, 0-100.',
+	jarak_pusat: 'jarak tempat itu ke pusat petaknya, meter.'
+};
+
+// A measure that reached either enum with nothing said about it would be offered to the
 // model as a bare key, and the model would guess at what it means.
 for (const k of METRIC_KEYS) {
 	if (!METRIC_HELP[k]) throw new Error(`[SpotOn] metric "${k}" has no description in llm.ts`);
+}
+for (const k of UNIT_METRIC_KEYS) {
+	if (!UNIT_METRIC_HELP[k]) throw new Error(`[SpotOn] unit metric "${k}" has no description in llm.ts`);
 }
 
 const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta data lokasi usaha di kawasan stasiun transit Jakarta.
@@ -174,6 +207,14 @@ ukuran: pilih dari daftar di atas sesuai apa yang benar-benar ditanyakan.
 - "mana yang pesaingnya paling sedikit" → pesaing
 
 urut: 'desc' untuk "paling banyak/tinggi/mahal/ramai", 'asc' untuk "paling sedikit/rendah/murah/sepi". Kalau pengguna tidak menyebut arah, kosongkan saja — mesin memakai arah yang masuk akal untuk ukuran itu.
+
+pivot: bentuk jawabannya. 'cell' memeringkat PETAK kawasan; 'unit' memeringkat TEMPAT USAHA yang sedang dipasarkan, satu per satu, dengan petaknya ikut sebagai keterangan. Kosongkan kalau pengguna tidak menyebut bentuknya — mode yang sedang dipakai dibiarkan.
+- "ruko mana yang paling murah" / "tampilkan per tempat" → pivot unit
+- "kawasan mana yang paling ramai" / "per petak saja" → pivot cell
+- "di mana sebaiknya buka kedai kopi" → kosongkan, ini soal ukuran bukan soal bentuk
+ukuran_unit dipakai HANYA bersama pivot 'unit', untuk mengurutkan daftar tempatnya.
+
+radius_m: radius jalan kaki yang dipakai menghitung. Isi hanya kalau pengguna menyebut jaraknya sendiri, misalnya "dalam 500 m". Pilihannya ${RADII.join(', ')} meter. Menit jalan kaki BUKAN meter, jangan dikonversi.
 
 filters: dipakai untuk menyaring, bukan memeringkat. Tiap filter menyebut satu ukuran dan satu pita: 'rendah' (sepertiga terbawah), 'tinggi' (sepertiga teratas), atau 'ada' (ada isinya, lebih dari nol). JANGAN pernah mengarang angka ambang — kamu tidak bisa, dan memang tidak boleh.
 Contoh: "kedai kopi di tempat yang sewanya murah dan dekat transit" → intent RANK, ukuran skor, filters [{ukuran: harga_tempat, arah: rendah}, {ukuran: akses_transit, arah: tinggi}].
@@ -263,6 +304,23 @@ const TOOLS = [
 						type: 'array',
 						items: { type: 'string' },
 						description: 'Untuk COMPARE: nama kawasan yang disebut pengguna.'
+					},
+					pivot: {
+						type: 'string',
+						enum: ['cell', 'unit'],
+						description:
+							"Yang jadi barisnya di peta. 'cell' = petak kawasan, 'unit' = tempat usaha yang sedang dipasarkan, satu per satu. Isi HANYA kalau pengguna memang menyebut bentuk jawabannya: 'ruko mana yang paling murah' → unit, 'kawasan mana yang paling ramai' → cell. Kalau tidak disebut, KOSONGKAN — mode yang sedang dipakai dibiarkan apa adanya."
+					},
+					ukuran_unit: {
+						type: 'string',
+						enum: UNIT_METRIC_KEYS,
+						description: `Hanya untuk pivot 'unit': daftar tempatnya diurutkan menurut ukuran ini. ${UNIT_METRIC_KEYS.map((k) => `${k} = ${UNIT_METRIC_HELP[k]}`).join(' ')}`
+					},
+					radius_m: {
+						type: 'integer',
+						enum: [...RADII],
+						description:
+							'Radius jalan kaki yang dipakai menghitung, dalam meter. Isi HANYA kalau pengguna menyebut jaraknya sendiri, misalnya "dalam 500 m". Kalau tidak disebut, kosongkan — radius yang sedang dipakai tetap berlaku. JANGAN mengubah lama berjalan kaki (menit) menjadi meter; itu tebakan, bukan data.'
 					}
 				},
 				required: ['intent', 'kategori'],
@@ -468,6 +526,17 @@ export async function parseWithLLM(
 			args.urut === 'asc' || args.urut === 'desc' ? args.urut : undefined
 		);
 
+		/* Absent means "leave the mode alone", and that is the important half: most
+		   questions say nothing about the shape of the answer, and a query that always
+		   carried a pivot would flip the map back to catchments every time somebody
+		   browsing units asked about anything else. */
+		const pivot = args.pivot === 'cell' || args.pivot === 'unit' ? args.pivot : undefined;
+		/* Snapped rather than rejected, and only when the model actually filled it in.
+		   The honest answer for a model that asked for 612 m is the 600 the property data
+		   holds a median for — but the honest answer for a model that asked for nothing is
+		   the radius the reader already had, not the default. */
+		const radius = typeof args.radius_m === 'number' ? snapRadius(args.radius_m) : w.radius;
+
 		const query: StructuredQuery = {
 			intent,
 			metrik:
@@ -480,10 +549,25 @@ export async function parseWithLLM(
 							: `peringkat menurut ${ukuran}`,
 			kategori,
 			ukuran: intent === 'RANK' ? ukuran : DEFAULT_METRIC,
-			radius_m: w.radius,
+			radius_m: radius,
 			urut: intent === 'COVERAGE' ? 'asc' : intent === 'RANK' ? urut : 'desc',
 			limit: intent === 'COMPARE' ? 2 : intent === 'COVERAGE' ? 99 : 5
 		};
+
+		if (pivot) query.pivot = pivot;
+		// Only alongside the pivot it belongs to. On a catchment ranking it is a field
+		// nothing downstream reads, and setting it anyway would leave the unit list
+		// silently re-sorted the next time the reader switched pivot by hand.
+		if (pivot === 'unit' && isUnitMetric(args.ukuran_unit)) {
+			query.ukuran_unit = args.ukuran_unit;
+			// Resolved against the UNIT measure, never against `urut` above — that one was
+			// settled against the catchment measure, and the two registries disagree about
+			// which end is "best" often enough for the reuse to be wrong quietly.
+			query.urut_unit = resolveUnitOrder(
+				args.ukuran_unit,
+				args.urut === 'asc' || args.urut === 'desc' ? args.urut : undefined
+			);
+		}
 
 		if (intent !== 'COVERAGE') {
 			const filter: NonNullable<StructuredQuery['filter']> = {};
@@ -512,7 +596,9 @@ export async function parseWithLLM(
 				}
 			}
 			if (args.dekat_transit === true) {
-				filter.dalam_catchment_transit = `${w.radius} m`;
+				// The radius the query will RUN at, which is not necessarily the one the
+				// reader had set — the question may have named its own.
+				filter.dalam_catchment_transit = `${radius} m`;
 				if (
 					ukuran !== 'akses_transit' &&
 					ukuran !== 'simpul_transit' &&
