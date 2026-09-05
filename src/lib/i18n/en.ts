@@ -231,7 +231,7 @@ export const en: Copy = {
 	data: {
 		mark: 'Data',
 		title: 'Areas we have no data for are shown as exactly that.',
-		body: "When an area's city is not in the catalogue, we don't invent a number to stand in for it. It is marked empty and goes into the queue to be surveyed first. Not one figure in this product is generated: every one is counted from OpenStreetMap or from the MAPID catalogue, and every one can be traced back to the points it came from.",
+		body: "When an area's city is not in the catalogue, we don't invent a number to stand in for it. It is marked empty and goes into the queue to be surveyed first.",
 		gridWithData: 'cells in a surveyed city',
 		gridEmpty: 'not surveyed, not scored, queued',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
@@ -244,7 +244,7 @@ export const en: Copy = {
 			`${pois} similar businesses, also from OpenStreetMap. This is the competitor count the scoring engine uses, not an estimate.`,
 		mockTitle: 'What is deliberately absent',
 		mockNote:
-			'There is no 24-hour profile, no receipt count, no cashless share, and no per-category rental listing. All of those were once in this product as generated sample data, and all of them have been removed. The MAPID catalogue holds no rental listings for Jakarta either, so the price shown is an asking price for sale and is called one. Something unmeasured is better off absent from the screen than present and invented.'
+			'Not one figure in this product is generated. There is no 24-hour profile, no receipt count, no cashless share, and no per-category rental listing. All of those were once in this product as generated sample data, and all of them have been removed. The MAPID catalogue holds no rental listings for Jakarta either, so the price shown is an asking price for sale and is called one. Something unmeasured is better off absent from the screen than present and invented.'
 	},
 
 	spreadChart: {

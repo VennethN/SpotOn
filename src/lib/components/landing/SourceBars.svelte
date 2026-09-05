@@ -124,10 +124,10 @@
 		color: var(--label-3);
 	}
 	.unit {
-		margin-top: 0.625rem;
-		font-size: 0.6875rem;
-		line-height: 1.5;
-		color: var(--label-3);
+		margin-top: 0.75rem;
+		font-size: 0.75rem;
+		line-height: 1.55;
+		color: var(--ink-3, var(--label-3));
 	}
 
 	@media (max-width: 520px) {

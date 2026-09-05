@@ -1,7 +1,11 @@
 <script lang="ts">
 	/**
-	 * The mechanism in a single field: two signals subtract from each other, then one
-	 * condition gates the result.
+	 * The mechanism in three columns: two signals that subtract from each other, then
+	 * one condition that gates the result.
+	 *
+	 * It used to be two columns of unequal weight with the condition hanging off a rule
+	 * to the right, which made the gate read as a footnote to the second signal rather
+	 * than as the third term it is. Three equal columns say what the arithmetic says.
 	 *
 	 * Colour has a job here, it does not decorate — blue for what adds, orange for what
 	 * suppresses, green for the condition that has to be met. Every colour is always
@@ -17,21 +21,19 @@
 	]);
 </script>
 
-<div class="flow">
-	<ol class="sig">
-		{#each SIGNALS as s (s.k)}
-			<li class={s.k}>
-				<div class="hd">
-					<span class="nm">{s.nm}</span>
-					<span class="src">{s.src}</span>
-				</div>
-				<div class="track"><span class="fill" style:width={`${s.w}%`}></span></div>
-				<p>{s.d}</p>
-			</li>
-		{/each}
-	</ol>
+<ol class="flow">
+	{#each SIGNALS as s (s.k)}
+		<li class={s.k}>
+			<div class="hd">
+				<span class="nm">{s.nm}</span>
+				<span class="src">{s.src}</span>
+			</div>
+			<div class="track"><span class="fill" style:width={`${s.w}%`}></span></div>
+			<p>{s.d}</p>
+		</li>
+	{/each}
 
-	<div class="gate">
+	<li class="gate">
 		<div class="hd">
 			<span class="nm">{c.signal.gate.nm}</span>
 			<span class="src">{c.signal.gate.src}</span>
@@ -41,36 +43,42 @@
 			<span class="st no">{c.signal.gate.no}</span>
 		</div>
 		<p>{c.signal.gate.d}</p>
-	</div>
-</div>
+	</li>
+</ol>
 
 <style>
 	.flow {
-		display: grid;
-		grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-		gap: 1.5rem 2.5rem;
-		align-items: start;
-	}
-
-	.sig {
 		list-style: none;
 		margin: 0;
 		padding: 0;
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: clamp(1.25rem, 3vw, 2.25rem);
+	}
+	.flow > li {
 		display: flex;
 		flex-direction: column;
-		gap: 1.25rem;
+		/* A rule between the columns rather than around them: three boxes here would
+		   read as three unrelated things, and these three are one sum. */
+		padding-left: clamp(1.25rem, 3vw, 2.25rem);
+		border-left: 1px solid var(--separator);
+	}
+	.flow > li:first-child {
+		padding-left: 0;
+		border-left: 0;
 	}
 
 	.hd {
 		display: flex;
 		align-items: baseline;
+		flex-wrap: wrap;
 		gap: 0.5rem;
 	}
 	.nm {
 		font-family: var(--font-display);
-		font-size: 0.9375rem;
+		font-size: 1rem;
 		font-weight: 600;
-		letter-spacing: -0.012em;
+		letter-spacing: -0.014em;
 	}
 	.src {
 		font-size: 0.625rem;
@@ -80,7 +88,7 @@
 	}
 
 	.track {
-		margin: 0.5rem 0 0.4375rem;
+		margin: 0.875rem 0 0.75rem;
 		height: 0.375rem;
 		border-radius: 999px;
 		background: var(--fill-1);
@@ -100,27 +108,23 @@
 	}
 
 	p {
-		font-size: 0.8125rem;
+		font-size: 0.875rem;
 		line-height: 1.55;
-		color: var(--label-2);
-		max-width: 40ch;
+		color: var(--ink-2, var(--label-2));
+		margin: 0;
 	}
 
-	.gate {
-		border-left: 1px solid var(--paper-line);
-		padding-left: 1.5rem;
-	}
 	.states {
 		display: flex;
 		flex-direction: column;
 		gap: 0.375rem;
-		margin: 0.625rem 0 0.5rem;
+		margin: 0.75rem 0 0.75rem;
 	}
 	.st {
 		display: flex;
 		align-items: center;
 		gap: 0.4375rem;
-		font-size: 0.75rem;
+		font-size: 0.8125rem;
 		color: var(--label-2);
 	}
 	/* The marker shapes differ too, not just their colours. */
@@ -145,15 +149,20 @@
 		border-radius: 999px;
 	}
 
-	@media (max-width: 720px) {
+	@media (max-width: 56rem) {
 		.flow {
 			grid-template-columns: minmax(0, 1fr);
+			gap: 1.25rem;
 		}
-		.gate {
-			border-left: 0;
-			border-top: 1px solid var(--paper-line);
+		.flow > li {
 			padding-left: 0;
 			padding-top: 1.25rem;
+			border-left: 0;
+			border-top: 1px solid var(--separator);
+		}
+		.flow > li:first-child {
+			padding-top: 0;
+			border-top: 0;
 		}
 	}
 </style>
