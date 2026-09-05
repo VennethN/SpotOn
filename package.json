@@ -9,7 +9,7 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"selftest": "node scripts/selftest-composition.mjs && node scripts/selftest-pois.mjs",
+		"selftest": "node scripts/selftest-composition.mjs && node scripts/selftest-pois.mjs && node scripts/selftest-property.mjs",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
 	},
 	"devDependencies": {
