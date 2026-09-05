@@ -424,7 +424,7 @@ export const id = {
 		layerNames: {
 			score: 'Skor peluang',
 			routes: 'Jalur angkutan',
-			poi: 'Sebaran pesaing',
+			poi: 'Pesaing petak terpilih',
 			nodata: 'Petak belum terdata',
 			label: 'Nama titik transit',
 			stops: 'Simpul transit petak terpilih'
@@ -522,6 +522,22 @@ export const id = {
 		transitRadius: (m: number) => `Dihitung dari pusat petak, radius ${m} m`,
 		transitShow: 'Tampilkan di peta',
 		transitHide: 'Sembunyikan dari peta',
+		/* Pesaing, digambar di tempatnya yang sebenarnya. Kata kerjanya sama dengan
+		   sakelar transit di atas, karena janjinya sama tentang peta yang sama. */
+		rivalsOnMap: 'Pesaing di peta',
+		rivalsCount: (n: number, cat: string) =>
+			`${n} ${cat} digambar di titik aslinya, dalam radius jalan kaki yang sama.`,
+		/* Kalau dimatikan, kalimat di atas menceritakan peta yang tidak ada. Angkanya
+		   sama, dan ini menyebut apa yang harus ditekan untuk melihatnya. */
+		rivalsHidden: (n: number, cat: string) =>
+			`${n} ${cat} di dalam radius jalan kaki. Tampilkan untuk melihat titiknya.`,
+		rivalsLoading: 'Mencari titiknya…',
+		rivalsNone: 'Tidak ada pesaing sejenis di dalam radius jalan kaki.',
+		/* Cuma MAPID yang punya koordinat. Menyebut sumber mana yang punya adalah beda
+		   antara jalan buntu dan sesuatu yang bisa dikerjakan pembaca. */
+		rivalsNoPositions:
+			'OSM memberi cacah pesaing, bukan titiknya, jadi tidak ada yang bisa digambar. Ganti sumber ke MAPID di keterangan peta untuk melihat posisinya.',
+		rivalsFailed: 'Posisi pesaing gagal dimuat. Cacah di sebelahnya tidak terpengaruh.',
 		prov: 'Transaksi & tempat usaha: data contoh MAPID. Pesaing & titik transit: OSM.',
 		sceneLabel: (nama: string, jam: string, isi: string) => `Skema kawasan ${nama} pukul ${jam}. ${isi}`,
 		sceneNodata: 'Belum ada data untuk kawasan ini, jadi jalannya ditampilkan kosong.',
@@ -651,6 +667,11 @@ export const id = {
 		mapStops: (n: number) => `${n} simpul transit`,
 		mapStopsAria: (n: number, r: number) =>
 			`${n} simpul transit dalam ${r} m jalan kaki dari petak ini`,
+		/* Cacah titik pesaing yang benar-benar tergambar, bukan angka panel. Lencana
+		   dan peta yang ditempelinya tidak boleh berselisih. */
+		mapRivals: (n: number) => `${n} pesaing`,
+		mapRivalsAria: (n: number, r: number) =>
+			`${n} pesaing sejenis dalam ${r} m jalan kaki dari petak ini`,
 		mapReach: (r: number) => `jangkauan ${r} m`,
 		tipNodata: 'Data misi MAPID: N = 0 · kandidat prioritas survei',
 		tipScore: (cat: string) => `skor ${cat}`,
