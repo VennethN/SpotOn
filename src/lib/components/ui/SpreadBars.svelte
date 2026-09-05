@@ -14,6 +14,7 @@
 	 * in the collapsible table.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
+	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import { num } from '$lib/utils/format';
 
 	export interface Band {
@@ -39,15 +40,47 @@
 	const peak = $derived(Math.max(1, ...values));
 	const peakAt = $derived(values.indexOf(Math.max(...values)));
 	const total = $derived(values.reduce((a, b) => a + b, 0));
-	// Ticks that land right under the peak label are skipped; two labels stacked on
-	// each other is worse than one missing tick.
-	const ticks = $derived(
-		[0, Math.floor(bands.length / 2), bands.length - 1].filter(
-			(i) => i >= 0 && Math.abs(i - peakAt) > 1.5
-		)
-	);
+	/* Three ticks, always the same three: the first band, the middle, the last. They
+	   used to be dropped whenever they fell near the peak marker, which left the axis
+	   starting at nothing on exactly the charts where the peak is at the left. The peak
+	   is called out above its own bar now, so there is nothing on the axis to collide
+	   with. */
+	const ticks = $derived([0, Math.floor((bands.length - 1) / 2), bands.length - 1]);
 
 	let hover = $state<number | null>(null);
+
+	/**
+	 * The bars grow out of the baseline the first time the chart is scrolled to.
+	 *
+	 * A distribution is a shape, and a shape drawn in front of you is read; the same
+	 * shape already sitting there is skimmed. Left to right, a beat apart, so the eye
+	 * travels the axis in the direction the axis runs.
+	 *
+	 * Its own observer rather than a prop from `Reveal`: the chart knows when it is on
+	 * screen, and a component that needs its parent to tell it is a component that will
+	 * one day be used without one and quietly never animate.
+	 */
+	let plot = $state<HTMLElement | null>(null);
+	let grown = $state(false);
+
+	$effect(() => {
+		if (!plot) return;
+		if (prefersReducedMotion()) {
+			grown = true;
+			return;
+		}
+		const io = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) {
+					grown = true;
+					io.disconnect();
+				}
+			},
+			{ threshold: 0.25 }
+		);
+		io.observe(plot);
+		return () => io.disconnect();
+	});
 
 	const at = (i: number) => ((i + 0.5) / Math.max(1, bands.length)) * 100;
 	/**
@@ -59,8 +92,22 @@
 </script>
 
 <div class="bars" class:dense>
+	<!-- The one figure the plot itself cannot state: how tall the tallest bar is. Put
+	     on the peak rather than on an axis, because one number on the thing it describes
+	     beats a column of numbers up the side that the eye has to travel to. -->
+	{#if !dense}
+		<div class="callout" aria-hidden="true">
+			<span style:left={`${at(peakAt)}%`} style:--anchor={anchor(peakAt)}>
+				{num(peak)}
+				{u}
+			</span>
+		</div>
+	{/if}
+
 	<div
 		class="plot"
+		class:grown
+		bind:this={plot}
 		role="img"
 		aria-label={c.spreadChart.label(num(total), band(peakAt), num(peak), u)}
 		onpointerleave={() => (hover = null)}
@@ -76,7 +123,11 @@
 				onfocus={() => (hover = i)}
 				onblur={() => (hover = null)}
 			>
-				<span class="bar" style:height={`${Math.max(1.5, (b.cells / peak) * 100)}%`}></span>
+				<span
+					class="bar"
+					style:height={`${Math.max(1.5, (b.cells / peak) * 100)}%`}
+					style:--step={`${i * 26}ms`}
+				></span>
 			</button>
 		{/each}
 
@@ -90,12 +141,10 @@
 
 	<div class="axis" aria-hidden="true">
 		{#each ticks as i (i)}
-			<span style:left={`${at(i)}%`} style:--anchor={anchor(i)}>{band(i)}</span>
+			<span style:left={`${at(i)}%`} style:--anchor={anchor(i)}>
+				{band(i)}{i === ticks[ticks.length - 1] ? ` ${c.spreadChart.axisUnit}` : ''}
+			</span>
 		{/each}
-		<span class="peak" style:left={`${at(peakAt)}%`} style:--anchor={anchor(peakAt)}>
-			{c.spreadChart.peak}
-			{band(peakAt)}
-		</span>
 	</div>
 </div>
 
@@ -104,6 +153,23 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
+	}
+	/* Its own row rather than an absolute label over the plot: over the plot it either
+	   overlapped the tallest bar or forced a gap at the top of every chart. */
+	.callout {
+		position: relative;
+		height: 1rem;
+	}
+	.callout span {
+		position: absolute;
+		bottom: 0;
+		transform: translateX(var(--anchor, -50%));
+		white-space: nowrap;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		letter-spacing: -0.005em;
+		color: var(--accent);
+		font-variant-numeric: tabular-nums;
 	}
 	.plot {
 		position: relative;
@@ -136,6 +202,24 @@
 		background-color: color-mix(in srgb, var(--accent) 42%, transparent);
 		background-image: var(--lift-bar);
 		transition: background-color 140ms ease-out;
+		/* Grown from the baseline, not faded in: scaling the box is what a bar chart
+		   drawing itself looks like. `transform` rather than `height` so the growth runs
+		   on the compositor and the layout is never touched. */
+		transform: scaleY(0);
+		transform-origin: bottom;
+	}
+	.plot.grown .bar {
+		transform: none;
+		transition:
+			background-color 140ms ease-out,
+			transform 560ms cubic-bezier(0.32, 0.72, 0, 1) var(--step, 0ms);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.bar,
+		.plot.grown .bar {
+			transform: none;
+			transition: background-color 140ms ease-out;
+		}
 	}
 	.dense .bar {
 		border-radius: 2px 2px 0 0;
@@ -185,9 +269,5 @@
 		transform: translateX(var(--anchor, -50%));
 		white-space: nowrap;
 		font-variant-numeric: tabular-nums;
-	}
-	.axis .peak {
-		color: var(--accent);
-		font-weight: 600;
 	}
 </style>
