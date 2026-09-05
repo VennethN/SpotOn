@@ -1,107 +1,78 @@
 <script lang="ts">
 	/**
-	 * One hexagon per H3 cell, in the same order as the grid.
+	 * Where the survey reaches, drawn as the grid actually lies on the ground.
 	 *
-	 * Drawn isometric and with thickness rather than flat, because the model on the
-	 * stage above has already set the language: white objects seen from above and to
-	 * the side, with their sides visible. A flat grid on the same page would read as
-	 * an image borrowed from a different product.
+	 * WHAT THIS REPLACED, AND WHY
 	 *
-	 * Cells whose city has not been surveyed are drawn as holes — edges only, no body
-	 * and no sides. Not given the palest colour: the palest colour still reads as "a
-	 * small value", and that is not what is happening here. What is happening is that we
-	 * do not know.
+	 * One hexagon per cell, 31 to a row, extruded into an isometric slab. Grid order is
+	 * by transit access, so the field came out as a rectangle with holes wherever the
+	 * sort had put them: a picture with the authority of a map and the content of a
+	 * shuffled list. In the dark it was worse than useless — a flat blue wall with black
+	 * pits in it, every hexagon carrying an outline, and nothing to read.
 	 *
-	 * The holes are a fact about the catalogue's reach now. They used to be a flag set
-	 * by a random number generator when the grid was built, which made this picture an
-	 * honest-looking drawing of nothing.
+	 * These are the real positions. The holes fall where the catalogue genuinely stops,
+	 * along the edges of the province, and the corridors show as the arms they are. It is
+	 * the same claim as before and now it is worth looking at.
+	 *
+	 * Flat, not extruded. The model on the stage above is the page's one three-dimensional
+	 * object, and a second slab competing with it made both look like decoration. A cell
+	 * that has been surveyed is filled and has no outline at all; one that has not is an
+	 * outline with nothing in it. That reads at a glance and does not depend on telling
+	 * two similar colours apart.
 	 */
 	import { copy } from '$lib/state/lang.svelte';
 
+	export interface CoveragePoint {
+		x: number;
+		y: number;
+		/** Has this cell's city been read from the catalogue. */
+		s: boolean;
+	}
+
 	interface Props {
-		/** One character per cell, '1' = this cell's city has not been surveyed. */
-		mask: string;
+		map: { pts: CoveragePoint[]; height: number; radius: number };
 		surveyed: number;
 		unsurveyed: number;
 	}
-	let { mask, surveyed, unsurveyed }: Props = $props();
+	let { map, surveyed, unsurveyed }: Props = $props();
 
 	const c = $derived(copy());
 
-	const COLS = 31;
-	/* A pointy-top hexagon plan, squashed into an isometric projection and then given
-	   thickness. These four numbers are the viewing angle. */
-	const W = 15;
-	const H_PLAN = W * 1.1547;
-	const SQUASH = 0.54;
-	const H = H_PLAN * SQUASH;
-	const DEPTH = 3.4;
-	const PITCH_X = W + 1.2;
-	const PITCH_Y = H_PLAN * 0.75 * SQUASH + 1.1;
+	/** A pointy-top hexagon at the origin, as a path, at the grid's own pitch. */
+	const hex = $derived.by(() => {
+		const r = map.radius;
+		const pts = Array.from({ length: 6 }, (_, i) => {
+			const a = (Math.PI / 180) * (60 * i - 90);
+			return `${(r * Math.cos(a)).toFixed(2)},${(r * Math.sin(a)).toFixed(2)}`;
+		});
+		return `M${pts.join('L')}Z`;
+	});
 
-	/** The top face: the squashed hexagon. */
-	const FACE = `M ${W / 2} 0 L ${W} ${H * 0.25} L ${W} ${H * 0.75} L ${W / 2} ${H} L 0 ${
-		H * 0.75
-	} L 0 ${H * 0.25} Z`;
-	/** The sides: the hexagon's three lower edges, dropped by DEPTH. */
-	const SIDE = `M 0 ${H * 0.75} L ${W / 2} ${H} L ${W} ${H * 0.75} L ${W} ${H * 0.75 + DEPTH} L ${
-		W / 2
-	} ${H + DEPTH} L 0 ${H * 0.75 + DEPTH} Z`;
-
-	const rows = $derived(Math.ceil(mask.length / COLS));
-	const cells = $derived(
-		Array.from(mask, (c, i) => {
-			const r = Math.floor(i / COLS);
-			const q = i % COLS;
-			return {
-				x: q * PITCH_X + (r % 2 ? PITCH_X / 2 : 0),
-				y: r * PITCH_Y,
-				empty: c === '1'
-			};
-		})
-	);
-
-	const w = $derived((COLS - 1) * PITCH_X + PITCH_X / 2 + W);
-	const h = $derived((rows - 1) * PITCH_Y + H + DEPTH);
+	const pad = $derived(map.radius * 1.4);
 </script>
 
 <figure class="cov">
 	<svg
-		viewBox={`-1 -1 ${w + 2} ${h + 2}`}
+		viewBox={`${-pad} ${-pad} ${1000 + pad * 2} ${map.height + pad * 2}`}
 		role="img"
-		aria-label={c.data.gridLabel(mask.length, surveyed, unsurveyed)}
+		aria-label={c.data.gridLabel(map.pts.length, surveyed, unsurveyed)}
 	>
-		<defs>
-			<!-- One gradient across the whole field, not one per cell: the light
-			     falls on the model, not on each tile individually. -->
-			<linearGradient id="cov-lift" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={h}>
-				<stop offset="0" class="g-top" />
-				<stop offset="1" class="g-bot" />
-			</linearGradient>
-			<path id="cov-face" d={FACE} />
-			<path id="cov-side" d={SIDE} />
-		</defs>
-
-		<!-- Row by row from back to front: the sides of a front-row cell have to
-		     cover the cell behind it, not the other way round. -->
-		{#each cells as c, i (i)}
-			{#if c.empty}
-				<use href="#cov-face" x={c.x} y={c.y} class="hole" />
-			{:else}
-				<use href="#cov-side" x={c.x} y={c.y} class="side" />
-				<use href="#cov-face" x={c.x} y={c.y} class="face" />
-			{/if}
+		<defs><path id="cov-hex" d={hex} /></defs>
+		{#each map.pts as p, i (i)}
+			<use href="#cov-hex" x={p.x} y={p.y} class={p.s ? 'on' : 'off'} />
 		{/each}
 	</svg>
 
 	<figcaption>
 		<span class="key">
-			<span class="sw ada" aria-hidden="true"></span>
-			<b>{surveyed}</b> {c.data.gridWithData}
+			<span class="sw on" aria-hidden="true"></span>
+			<b>{surveyed}</b>
+			{c.data.gridWithData}
 		</span>
 		<span class="key">
-			<span class="sw empty" aria-hidden="true"></span>
-			<b>{unsurveyed}</b> {c.data.gridEmpty}
+			<span class="sw off" aria-hidden="true"></span>
+			<b>{unsurveyed}</b>
+			{c.data.gridEmpty}
 		</span>
 	</figcaption>
 </figure>
@@ -111,58 +82,43 @@
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
-		/* This is a diagram, not a mural: left page-wide it would swallow its own section. */
-		max-width: 34rem;
+		gap: 1rem;
 	}
 	svg {
 		display: block;
 		width: 100%;
+		/* Capped, and centred once it is. The field is nearly square, so at full panel
+		   width it stood a screen tall and the caption under it fell off the bottom. */
+		max-width: 42rem;
+		margin-inline: auto;
 		height: auto;
+		overflow: visible;
 	}
 
-	/* The tiles are lit white objects, not coloured cells: the blue is only a tint on
-	   a bright surface, and what separates a face from a side is light and shade.
-	   Painted fully blue, this grid becomes the loudest field on a page made entirely
-	   of hairlines. Its base is `--bg-elevated`, which in both themes is always
-	   lighter than the paper. */
-	.g-top {
-		stop-color: color-mix(in srgb, var(--accent) 30%, var(--bg-elevated));
+	/* Surveyed: filled, no stroke. An outline on 462 of these turned the field into a
+	   mesh, and the mesh was the loudest thing in the picture. */
+	.on {
+		fill: var(--accent);
+		fill-opacity: 0.62;
 	}
-	.g-bot {
-		stop-color: color-mix(in srgb, var(--accent) 18%, var(--bg-elevated));
-	}
-	.face {
-		fill: url(#cov-lift);
-	}
-	.side {
-		fill: color-mix(in srgb, var(--accent) 34%, #05070c);
-		fill-opacity: 0.5;
-	}
-	/* A hole has to read as a recess, not as a differently coloured tile. Without a
-	   fill, the warm paper shows between pale blue tiles and the eye can invert the
-	   image: the holes appear to stand proud. A thin shadow inside locks that reading
-	   in place, and its ink is pinned dark so the direction stays the same in both
-	   the light and the dark theme. */
-	.hole {
-		fill: #05070c;
-		fill-opacity: 0.09;
+	/* Not surveyed: the shape of a cell with nothing in it, which is the claim. */
+	.off {
+		fill: none;
 		stroke: var(--label-3);
-		stroke-width: 0.9;
+		stroke-width: 1.6;
 	}
 
 	figcaption {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.375rem 1.25rem;
-		font-size: 0.6875rem;
-		line-height: 1.5;
-		color: var(--label-3);
+		gap: 0.5rem 1.5rem;
+		font-size: 0.75rem;
+		color: var(--ink-3, var(--label-3));
 	}
 	.key {
 		display: flex;
 		align-items: center;
-		gap: 0.375rem;
+		gap: 0.4375rem;
 	}
 	.key b {
 		color: var(--label-1);
@@ -170,19 +126,20 @@
 		font-variant-numeric: tabular-nums;
 	}
 	.sw {
-		width: 0.6875rem;
-		height: 0.5rem;
+		width: 0.625rem;
+		height: 0.6875rem;
 		flex: none;
-		/* The same squashed hexagon as in the grid, at letter size. */
+		/* The same silhouette as the field itself, so the key is the thing it explains
+		   rather than a square standing in for it. */
 		clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-		background: color-mix(in srgb, var(--accent) 26%, var(--bg-elevated));
 	}
-	/* An outlined box, not an outlined hexagon: at this size the hexagon's lines
-	   touch each other and the shape stops reading. */
-	.sw.empty {
-		clip-path: none;
-		border-radius: 1px;
+	.sw.on {
+		background: color-mix(in srgb, var(--accent) 62%, transparent);
+	}
+	/* An outline, exactly as the field draws it. A filled grey swatch stood for a
+	   shape that is never filled. */
+	.sw.off {
 		background: transparent;
-		border: 1px solid var(--label-3);
+		box-shadow: inset 0 0 0 1.5px var(--label-3);
 	}
 </style>
