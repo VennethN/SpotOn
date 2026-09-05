@@ -208,6 +208,29 @@ bearing:
   "fewest competitors" is indistinguishable from a real finding, which is the same
   mistake as reading an unsurveyed count as zero.
 
+## Two pivots: the area, and the place standing in it
+
+`domain/units` is the second one. Everything else ranks catchments, which is the right
+shape for "where should I open" and the wrong shape for what a reader does next, because
+nobody rents a hexagon. In unit mode each unit on the market is a row and its catchment
+travels with it as context.
+
+The rule that makes it work is that **each unit gets exactly one home cell**, the nearest
+centre within the walking radius. That is deliberately NOT the rule `join-property.mjs`
+uses: the join counts a listing into every catchment that reaches it, which is correct
+for a count and fatal for a list — the same shophouse would appear five times with five
+different scores beside it. A unit with no cell centre in range is dropped rather than
+handed the figures of a cell it cannot walk to.
+
+Everything else follows the rules the cell pivot already follows. Filters are bands
+(thirds of the current set), never thresholds. A unit with nothing measured for the
+sorted figure is dropped from the ranking, not sorted to the bottom of it.
+
+One thing the data forced, and it is worth knowing before changing the default sort:
+every listing carries a total asking price, and only half carry a price per m². Sorting
+cheapest-first leads with the least trustworthy rows — a "Komersial lain" asking Rp 100
+juta, a kiosk on 6 m² — so the list opens on the home cell's score instead.
+
 ## Small talk is allowed, and fenced in code
 
 Tapak can say hello, say what SpotOn is, and talk generally about running a small

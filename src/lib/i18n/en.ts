@@ -878,6 +878,62 @@ export const en: Copy = {
 			'What usually decides it is who walks past, who is already selling there, and whether there is space you can actually take. Those three are the ones I can put numbers to, area by area.'
 	},
 
+	/* ── The unit pivot ────────────────────────────────────────────────────
+	   The map's second mode: the row is a unit on the market rather than a
+	   catchment. The keys come from `domain/units`, so a measure added there
+	   needs a name here and in id.ts.
+
+	   `harga` is still an asking price to BUY. There are no rental listings in
+	   the MAPID catalogue for Jakarta, and calling it rent here would be the
+	   one sentence in this product that is not true. */
+	units: {
+		title: 'Places on the market',
+		pivotCell: 'By area',
+		pivotUnit: 'By place',
+		pivotHint: 'Change what counts as a row: the area, or the premises themselves',
+		count: (n: number) => `${num(n)} places a business could take`,
+		filteredOut: (n: number) => `${num(n)} more filtered out`,
+		unmeasured: (n: number, ukuran: string) =>
+			`${num(n)} more are unranked because their ${ukuran.toLowerCase()} is not measured`,
+		none: 'Nothing gets through these filters. Loosen one of them.',
+		more: (n: number) => `+${num(n)} more, sort or filter to narrow it down`,
+		cellScore: (nilai: string) => `area scores ${nilai}`,
+		cellUnscored: 'its area is unscored for this business type',
+		provenance:
+			'Each place is matched to the nearest cell whose centre is still within walking distance. The area figures come from that cell, not from the doorway itself.',
+		metrics: {
+			harga: 'Price',
+			harga_m2: 'Price per m²',
+			luas_tanah: 'Land area',
+			luas_bangunan: 'Floor area',
+			lantai: 'Floors',
+			skor_petak: 'Area score',
+			permintaan_petak: 'Area demand',
+			pesaing_petak: 'Rivals nearby',
+			akses_petak: 'Transit access',
+			jarak_pusat: 'Distance to cell centre'
+		},
+		value: (k: string, v: number) => {
+			if (k === 'harga') return rp(v);
+			if (k === 'harga_m2') return `${rp(v)}/m²`;
+			if (k === 'luas_tanah' || k === 'luas_bangunan') return `${num(Math.round(v))} m²`;
+			if (k === 'jarak_pusat') return `${num(Math.round(v))} m`;
+			if (k === 'skor_petak' || k === 'permintaan_petak' || k === 'akses_petak') {
+				return String(Math.round(v * 100));
+			}
+			return num(Math.round(v));
+		},
+		cardIn: (petak: string) => `in ${petak}`,
+		cardWalk: (m: number) => `${num(m)} m from the cell centre`,
+		cardAbout: 'About the place',
+		cardArea: 'About the area',
+		cardNoScore:
+			'This cell has no competitor coverage for the selected business type, so it has no score yet. What is said about the place above still holds.',
+		cardRivals: (n: number, cat: string, r: number) => `${num(n)} ${cat} within ${r} m`,
+		cardStops: (n: number) => `${num(n)} transit nodes within walking distance`,
+		cardOpen: 'Open its area'
+	},
+
 	query: {
 		saturated: 'already crowded',
 		coverage: 'with no data yet',

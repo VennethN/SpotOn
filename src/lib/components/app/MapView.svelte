@@ -453,6 +453,9 @@
 	 * measurement that says so.
 	 */
 	function propertyFC(): FeatureCollection {
+		// Unit mode has its own layer, drawing the whole market rather than one cell's
+		// share of it. Drawing both would put two marks on every doorway.
+		if (app.pivot === 'unit') return emptyFC();
 		if (!app.layers.property) return emptyFC();
 		return {
 			type: 'FeatureCollection',
@@ -470,6 +473,42 @@
 						sort: Math.round(l.distance)
 					}
 				}))
+		};
+	}
+
+	/**
+	 * Every unit on the market, in unit mode — the whole set at once, not one cell's.
+	 *
+	 * Coloured by the opportunity score of the catchment each one stands in, so the map
+	 * answers the two halves of the question in one look: where the units ARE, and which
+	 * of them sit somewhere worth being. A unit whose category has not been surveyed
+	 * carries no colour and is drawn in the no-data grey, never at the bottom of the
+	 * ramp — an unsurveyed catchment is not a bad one.
+	 *
+	 * Only the ranked, filtered list is drawn. That is the point of the mode: the marks
+	 * on screen and the rows in the panel are the same set, so narrowing one narrows the
+	 * other and the reader can see what a filter actually did.
+	 */
+	function unitsFC(): FeatureCollection {
+		if (app.pivot !== 'unit') return emptyFC();
+		// Resolved to real colours here rather than handed over as `var(--ramp-3)`:
+		// MapLibre paints on a canvas and cannot read a CSS custom property. This is the
+		// same resolution `catchmentFC` does, and it is why a theme change re-runs both.
+		const colNodata = cssVar('--nodata');
+		const ramp = Array.from({ length: 7 }, (_, i) => cssVar(`--ramp-${i}`));
+		return {
+			type: 'FeatureCollection',
+			features: app.unitRows.map(({ unit }) => ({
+				type: 'Feature' as const,
+				geometry: { type: 'Point' as const, coordinates: [unit.listing.lon, unit.listing.lat] },
+				properties: {
+					id: unit.id,
+					// The no-data grey for a catchment the active category has not been
+					// surveyed in. Never the bottom of the ramp: unsurveyed is not bad.
+					color: unit.row?.score == null ? colNodata : ramp[rampIndex(unit.row.score)],
+					selected: unit.id === app.selectedUnitId
+				}
+			}))
 		};
 	}
 
@@ -550,6 +589,7 @@
 		m.addSource('catchments', { type: 'geojson', data: catchmentFC() });
 		m.addSource('poi', { type: 'geojson', data: poiFC() });
 		m.addSource('property', { type: 'geojson', data: propertyFC() });
+		m.addSource('units', { type: 'geojson', data: unitsFC() });
 		m.addSource('poi-links', { type: 'geojson', data: poiLinksFC() });
 		m.addSource('stops', { type: 'geojson', data: stopsFC() });
 		m.addSource('stop-links', { type: 'geojson', data: stopLinksFC() });
@@ -708,6 +748,36 @@
 		// Every vacancy counted has to be drawn, for the same reason every competitor is:
 		// the panel states a count, and a map quietly showing fewer of them than the
 		// panel claims is the map contradicting the number beside it.
+		// Unit mode: every unit on the market, coloured by the catchment it stands in.
+		// Circles rather than the diamond, because these are the ROWS here rather than a
+		// detail of a chosen cell, and because the colour is the reading — a shape with a
+		// hole in it fights the fill it is carrying.
+		m.addLayer({
+			id: 'unit-pivot',
+			type: 'circle',
+			source: 'units',
+			paint: {
+				'circle-radius': [
+					'interpolate',
+					['linear'],
+					['zoom'],
+					10,
+					['case', ['get', 'selected'], 6, 3.2],
+					15,
+					['case', ['get', 'selected'], 13, 7]
+				],
+				'circle-color': ['get', 'color'],
+				'circle-stroke-width': ['case', ['get', 'selected'], 2.4, 1],
+				'circle-stroke-color': [
+					'case',
+					['get', 'selected'],
+					cssVar('--label-1'),
+					cssVar('--bg-elevated')
+				],
+				'circle-opacity': 0.95
+			}
+		});
+
 		m.addLayer({
 			id: 'property-units',
 			type: 'symbol',
@@ -843,6 +913,13 @@
 				}
 			});
 		}
+
+		m.on('click', 'unit-pivot', (e) => {
+			const id = e.features?.[0]?.properties?.id;
+			if (typeof id === 'string') app.selectUnit(id);
+		});
+		m.on('mouseenter', 'unit-pivot', () => (m.getCanvas().style.cursor = 'pointer'));
+		m.on('mouseleave', 'unit-pivot', () => (m.getCanvas().style.cursor = ''));
 
 		let hoverId: number | null = null;
 		m.on('mousemove', 'catchment-fill', (e) => {
@@ -1287,12 +1364,16 @@
 		void app.layers.stops;
 		void app.layers.property;
 		void app.selectedListings;
+		void app.pivot;
+		void app.unitRows;
+		void app.selectedUnitId;
 		void app.weights.radius;
 		const m = map;
 		if (!m || !ready) return;
 		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC());
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC());
 		(m.getSource('property') as GeoJSONSource | undefined)?.setData(propertyFC());
+		(m.getSource('units') as GeoJSONSource | undefined)?.setData(unitsFC());
 		(m.getSource('poi-links') as GeoJSONSource | undefined)?.setData(poiLinksFC());
 		(m.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC());
 		(m.getSource('stop-links') as GeoJSONSource | undefined)?.setData(stopLinksFC());
