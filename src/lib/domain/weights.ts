@@ -48,12 +48,42 @@ export const DEFAULT_WEIGHTS: Weights = {
 const clamp01 = (v: unknown, fallback: number): number =>
 	typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : fallback;
 
+/** The nearest radius the data actually holds a reading for. */
+export function snapRadius(v: unknown): number {
+	if (typeof v !== 'number' || !Number.isFinite(v)) return DEFAULT_WEIGHTS.radius;
+	return RADII.reduce((best, r) => (Math.abs(r - v) < Math.abs(best - v) ? r : best), RADII[0]);
+}
+
+/**
+ * The walking radii the reader may choose between.
+ *
+ * A closed list, not a range, and the reason is the property data. Competitor counts
+ * are precomputed at 800 m and scaled by area, which is legitimate at any radius. A
+ * MEDIAN PRICE is not: half a median is not the price of anything, so
+ * `scripts/join-property.mjs` computes one per stop from the listings genuinely inside
+ * it, and a radius with no stop has no price to show.
+ *
+ * Adding a stop means adding it here AND in that script, then re-running the join. The
+ * two lists are checked against each other by `selftest-property.mjs`, so a stop added
+ * to one and not the other fails rather than quietly showing an empty price.
+ *
+ * Typed as plain numbers rather than `as const`. The literal union that `as const`
+ * produces reads well until something has to look a radius UP in the list — a slider
+ * index, a URL parameter, a model's answer — at which point every ordinary number has
+ * to be narrowed back into the union before it can be compared against it, and the
+ * casts that takes are noise around a list of five numbers.
+ */
+export const RADII: readonly number[] = [400, 500, 600, 700, 800];
+export const MIN_RADIUS = RADII[0];
+export const MAX_RADIUS = RADII[RADII.length - 1];
+
 /**
  * Weights from any origin → weights the scoring engine can safely use.
  *
- * The radius deliberately accepts only 400 or 800: the engine can only rescale its
- * precomputed counts to those two values. Any other number would produce figures
- * that look plausible while resting on nothing.
+ * The radius is snapped to the nearest stop rather than rejected. It arrives from a
+ * slider, a URL and a model, and the honest failure for "612" is the 600 the data
+ * actually holds — not a silent fall back to 800, which would answer a different
+ * question from the one asked.
  */
 export function normalizeWeights(partial: Partial<Weights> | undefined): Weights {
 	const p = partial ?? {};
@@ -61,7 +91,7 @@ export function normalizeWeights(partial: Partial<Weights> | undefined): Weights
 		wd: clamp01(p.wd, DEFAULT_WEIGHTS.wd),
 		ws: clamp01(p.ws, DEFAULT_WEIGHTS.ws),
 		gate: typeof p.gate === 'boolean' ? p.gate : DEFAULT_WEIGHTS.gate,
-		radius: p.radius === 400 ? 400 : 800,
+		radius: snapRadius(p.radius),
 		// An unrecognised value falls back to the default, not to a hand-written
 		// 'osm'. This once read `? 'mapid' : 'osm'`, which meant the real source
 		// default lived in two places — and moving it in DEFAULT_WEIGHTS would have

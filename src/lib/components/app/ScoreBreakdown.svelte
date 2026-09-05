@@ -29,6 +29,7 @@
 		type Mode
 	} from '$lib/domain/transit';
 	import { composeScore, type CompositionStep } from '$lib/domain/composition';
+	import { readCost } from '$lib/domain/cost';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { rampIndex } from '$lib/utils/format';
@@ -40,6 +41,10 @@
 	   computed from, and they are here from the first frame. */
 	const cell = $derived(app.selectedCell);
 	const comp = $derived(row ? composeScore(row, app.weights) : null);
+	/* Why the cost step landed where it did. The multiplier itself comes from the
+	   composition, which read it off the engine's own row — this is only here to name
+	   which of the four silences a multiplier of 1 stands for. */
+	const cost = $derived(cell ? readCost(cell, app.priceLadder, app.weights.radius) : null);
 
 	const transit = $derived(cell?.transit ?? null);
 	const total = $derived(transit ? stopTotal(transit) : 0);
@@ -92,6 +97,20 @@
 				return s.factor === 1 ? n.gatePass(row?.listings ?? 0) : n.gateBlock(s.factor ?? 1);
 			case 'access':
 				return n.access(s.factor ?? 1, access);
+			case 'cost':
+				// Four different silences, and the row has to say which one it is. A step
+				// that reads the same whether nobody surveyed the city, nothing is for
+				// sale, or this is the cheapest catchment on the map would make the
+				// engine look as though it had an opinion it does not have.
+				if (cost === null || cost.level === null) {
+					if (cost?.absence === 'uncovered') return n.costUncovered;
+					if (cost?.absence === 'empty') return n.costEmpty;
+					if (cost?.absence === 'unpriced') return n.costUnpriced(cost.units);
+					if (cost?.absence === 'thin') return n.costThin(cost.priced);
+					return n.costUngraded;
+				}
+				if (s.factor === 1) return n.costCheapest(s.factor);
+				return n.cost(s.factor ?? 1, Math.round(cost.level * 100));
 		}
 	}
 </script>

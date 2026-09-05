@@ -12,6 +12,7 @@
 	 * reset and the map-selection remark live with the instance, on the page.
 	 */
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
+	import { metricValue } from '$lib/domain/narrate';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import type { Tapak } from '$lib/state/tapak.svelte';
@@ -61,8 +62,18 @@
 										>
 											<span class="rank">{k + 1}</span>
 											<span class="nm">{item.name}</span>
+											<!-- The figure the question was about leads, and the
+											     opportunity score keeps its place beside it. A list
+											     answering "where is it busiest" that shows only a
+											     score is answering a question nobody asked, which is
+											     what this whole layer exists to stop. -->
+											{#if item.measure}
+												<span class="metric">{metricValue(item.measure, c)}</span>
+											{/if}
 											{#if item.value != null}
-												<span class="score">{pct(item.value)}</span>
+												<span class="score" class:aside={Boolean(item.measure)}>
+													{pct(item.value)}
+												</span>
 											{/if}
 										</button>
 									</li>
@@ -201,6 +212,21 @@
 		font-weight: 650;
 		color: var(--accent);
 		font-variant-numeric: tabular-nums;
+	}
+	/* The figure the question was about. It takes the accent and the weight; the
+	   opportunity score beside it steps back to a caption, because on a list answering
+	   "where is it busiest" the score is context rather than the answer. */
+	.metric {
+		font-size: 0.8125rem;
+		font-weight: 650;
+		color: var(--accent);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+	.score.aside {
+		font-size: 0.6875rem;
+		font-weight: 500;
+		color: var(--label-3);
 	}
 
 	.chips {

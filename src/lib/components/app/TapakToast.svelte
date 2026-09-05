@@ -79,11 +79,15 @@
 
 <style>
 	/* Bottom centre: the card owns the left, the thread owns the right, and the map
-	   under the middle is where the user just tapped. */
+	   under the middle is where the user just tapped.
+
+	   Clear of `MapControls`, which took the very bottom of that middle column. The two
+	   used to be given the same corner and the toast landed on top of the pivot switch,
+	   hiding half of it behind a remark about the cell the reader had just chosen. */
 	.toast {
 		position: fixed;
 		left: 50%;
-		bottom: 2.5rem;
+		bottom: 3.75rem;
 		z-index: 7;
 		transform: translateX(-50%);
 		display: flex;
