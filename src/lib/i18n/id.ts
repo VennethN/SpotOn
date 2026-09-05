@@ -56,9 +56,21 @@ export const id = {
 	theme: { system: 'Ikut sistem', light: 'Terang', dark: 'Gelap' },
 
 	stage: {
-		heroTitle: 'Lihat jalannya dulu.\nBaru tanda tangan.',
+		/**
+		 * Judulnya menyebut produknya, bukan perumpamaan.
+		 *
+		 * Yang dulu di sini "Lihat jalannya dulu. Baru tanda tangan." — kiasan yang
+		 * baru masuk akal kalau pembacanya SUDAH tahu ini soal menyewa tempat usaha,
+		 * padahal itulah yang belum ia ketahui saat baris ini dibaca. Isinya pun cuma
+		 * menerangkan maketnya, jadi orang yang baru sampai di sini selesai membaca
+		 * satu layar penuh tanpa tahu SpotOn ini apa.
+		 *
+		 * Sekarang: satu kalimat yang menyatakan pekerjaannya, lalu isi yang
+		 * menyambungkan adegan di belakangnya ke pekerjaan itu.
+		 */
+		heroTitle: 'Jangan tebak lokasi usaha.\nTanya petanya.',
 		heroBody:
-			'Ini satu blok di sekitar stasiun, pada jam yang sedang berjalan sekarang. Ramai sepinya trotoar mengikuti data transaksi 24 jam. Angka di halaman ini masih contoh; hitungan sebenarnya ada di dalam aplikasi.',
+			'SpotOn membaca keramaian, jumlah pesaing, dan tempat yang bisa disewa di tiap kawasan transit Jakarta, lalu menjawab di mana sebaiknya Anda buka usaha dan kenapa. Angka di halaman ini masih contoh.',
 		heroHint: 'gulir untuk melihat satu hari penuh',
 		dayTitle: 'Ramainya berubah tiap jam.',
 		dayBody:
@@ -178,7 +190,7 @@ export const id = {
 		},
 		outOfScale: 'belum terdata, di luar skala',
 		label:
-			'Maket kisi heksagon. Tiap petak satu heksagon; tinggi dan warnanya mewakili skor peluang pada skala yang sama dengan peta, dan petak yang belum terdata dibiarkan cekung tanpa warna. Lingkaran putus-putus menandai jangkauan berjalan kaki dari petak yang sedang dibidik.'
+			'Maket kisi heksagon. Tiap petak satu heksagon, dan tinggi serta warnanya mewakili skor peluang pada skala yang sama dengan peta. Petak yang belum terdata dibiarkan cekung tanpa warna. Lingkaran putus-putus menandai jangkauan berjalan kaki dari petak yang sedang dibidik.'
 	},
 
 	ai: {
@@ -192,7 +204,7 @@ export const id = {
 		more: (n: number) => `+${n} lagi di dalam aplikasi`,
 		play: 'Jalankan percakapan',
 		pause: 'Jeda percakapan',
-		foot: 'Pertanyaannya contoh; jawabannya dihitung mesin skor yang sama dengan aplikasinya.',
+		foot: 'Pertanyaannya contoh, tapi jawabannya dihitung mesin skor yang sama dengan aplikasinya.',
 		footMock: 'atribut misi masih data contoh.'
 	},
 
@@ -263,10 +275,10 @@ export const id = {
 	},
 
 	meta: {
-		title: 'SpotOn — Jangan tebak lokasi usaha. Tanya petanya.',
+		title: 'SpotOn · Jangan tebak lokasi usaha. Tanya petanya.',
 		description:
 			'SpotOn menggabungkan permintaan, persaingan, dan ketersediaan tempat usaha di setiap kawasan berjalan kaki di sekitar transit Jakarta, lalu menunjukkan di mana sebaiknya buka usaha dan kenapa.',
-		appTitle: 'SpotOn — Peta cari lokasi usaha kawasan transit Jakarta'
+		appTitle: 'SpotOn · Peta cari lokasi usaha kawasan transit Jakarta'
 	},
 
 	typology: {
@@ -300,13 +312,13 @@ export const id = {
 		listingOf: (n: number) => `listing dari ${n}`,
 		cashless: 'Non-tunai',
 		cashlessSub: 'perkiraan daya beli',
-		hourTitle: (n: number) => `Transaksi per jam — Struk Go · N = ${n}`,
+		hourTitle: (n: number) => `Transaksi per jam · Struk Go · N = ${n}`,
 		acrossTitle: 'Peluang per jenis usaha, dengan bobot saat ini',
 		summaryLead: 'Ringkasan.',
 		summary: (jam: string, cat: string, osm: number, r: number, frasa: string, listing: number, kat: string) =>
-			`Petak ini paling ramai pukul ${jam}. Untuk ${cat}, OSM mencatat ${osm} pesaing dalam radius ${r} m; ${frasa}. Tersedia ${listing} listing berkategori ${kat}.`,
+			`Petak ini paling ramai pukul ${jam}. Untuk ${cat}, OSM mencatat ${osm} pesaing dalam radius ${r} m, dan ${frasa}. Tersedia ${listing} listing berkategori ${kat}.`,
 		summaryNote:
-			'Angka pesaing dari OSM (nyata); atribut misi MAPID masih contoh. N ditampilkan supaya bisa diperiksa.'
+			'Angka pesaing dari OSM (nyata), sedangkan atribut misi MAPID masih contoh. N ditampilkan supaya bisa diperiksa.'
 	},
 
 	/* ── Susunan skor ──────────────────────────────────────────────────────
@@ -336,7 +348,7 @@ export const id = {
 			`Dari ${total} poin skor petak ini, ${poin} datang dari akses transitnya.`,
 		without: (poin: number) => `Tanpa transit sama sekali, petak ini cuma ${poin}.`,
 		ceiling: (poin: number) =>
-			`Di petak ini akses transit paling banyak bisa menyumbang ${poin} poin; sisanya sudah ditentukan permintaan dan persaingan.`,
+			`Di petak ini akses transit paling banyak bisa menyumbang ${poin} poin. Sisanya sudah ditentukan permintaan dan persaingan.`,
 		splitBase: 'permintaan − persaingan',
 		splitTransit: 'akses transit',
 		splitAria: (dasar: number, transit: number, total: number) =>
@@ -376,11 +388,10 @@ export const id = {
 		stationsTitle: 'Simpul yang terjangkau, satu per satu',
 		stationsLoading: 'Memuat daftar simpulnya…',
 		stationsFailed:
-			'Daftar nama simpulnya tidak bisa dimuat. Cacah dan indeks aksesnya di atas tetap berlaku — keduanya dibaca dari kisi, bukan dari berkas itu.',
+			'Daftar nama simpulnya tidak bisa dimuat. Cacah dan indeks aksesnya di atas tetap berlaku, keduanya dibaca dari kisi, bukan dari berkas itu.',
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} simpul`,
 		unnamed: (n: number) =>
-			`+${n} simpul lagi tanpa nama sendiri — peron stasiun yang sama, atau halte yang belum dinamai di OSM`,
-		prov: 'Simpul transit dan pesaing: OpenStreetMap, data nyata. Permintaan dan tempat usaha: contoh MAPID.'
+			`+${n} simpul lagi tanpa nama sendiri: peron stasiun yang sama, atau halte yang belum dinamai di OSM`
 	},
 
 	table: {
@@ -505,7 +516,7 @@ export const id = {
 		transitUplift: (persen: number) =>
 			`Akses ini menaikkan skor peluang petak ini sekitar ${persen}% dibanding petak tanpa transit sama sekali.`,
 		transitWhyRail:
-			'Stasiun rel mengalirkan orang yang sama tiap hari kerja pada jam yang sama — arus yang bisa direncanakan, bukan lalu-lalang acak.',
+			'Stasiun rel mengalirkan orang yang sama tiap hari kerja pada jam yang sama. Itu arus yang bisa direncanakan, bukan lalu-lalang acak.',
 		transitWhyBus:
 			'Halte TransJakarta menyebar, jadi keramaiannya terbagi ke banyak titik. Bagus untuk jangkauan, bukan untuk satu titik ramai.',
 		transitRadius: (m: number) => `Dihitung dari pusat petak, radius ${m} m`,
@@ -533,12 +544,12 @@ export const id = {
 		advanced: 'Pengaturan lanjutan',
 		advancedClose: 'Tutup pengaturan',
 		tapak: 'Tapak',
-		tapakSub: '— pemandu Anda',
+		tapakSub: ', pemandu Anda',
 		mood: 'Suasana kawasan',
 		numbers: 'Angka lengkap kawasan',
 		table: 'Tabel atribut',
 		tableHide: 'Sembunyikan tabel atribut',
-		tableHint: '— klik judul kolom untuk mengurutkan',
+		tableHint: ', klik judul kolom untuk mengurutkan',
 		panel: 'Panel',
 		tabs: { recommendations: 'Tapak', detail: 'Kawasan', table: 'Tabel', controls: 'Lanjutan' },
 		loadingMap: 'Memuat peta…',
@@ -547,15 +558,15 @@ export const id = {
 		reset: 'Kembalikan tampilan awal',
 		legendUnit: 'skor peluang',
 		sourceLabel: 'Sumber data pesaing',
-		sourceOsm: 'OpenStreetMap — merata, dikumpulkan sukarela',
-		sourceMapid: 'MAPID — tersurvei, lengkap 5 kota DKI',
+		sourceOsm: 'OpenStreetMap: merata, dikumpulkan sukarela',
+		sourceMapid: 'MAPID: tersurvei, lengkap 5 kota DKI',
 		/* Menyebut sumbernya, bukan menulis "MAPID" mati. Sejak empat kategori
 		   makanan dinyatakan tidak punya sumber OSM, keadaan "tidak ada yang bisa
 		   dinilai" justru paling sering terjadi pada OSM — dan kalimat lamanya
 		   menyuruh pengguna mengimpor dataset, langkah yang sudah tidak ada, lalu
 		   menyarankan kembali ke OSM yang justru sedang jadi masalahnya. */
 		legendUncovered: (n: number, cat: string, src: string) =>
-			`${n} petak belum tercakup data ${src} untuk ${cat} — tidak dinilai, bukan berarti tanpa pesaing`,
+			`${n} petak belum tercakup data ${src} untuk ${cat}, jadi tidak dinilai. Itu bukan berarti tanpa pesaing`,
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} tidak punya data pesaing untuk ${cat}, jadi tidak ada petak yang bisa dinilai. Coba sumber ${other}.`,
 		legendNodata: (n: number) => `${n} petak belum terdata, tidak dinilai`,
@@ -574,6 +585,56 @@ export const id = {
 		ask: 'Atau tanya sendiri…',
 		askAria: 'Tanya Tapak',
 		askSend: 'Tanya',
+		/* Kotak tanya pembuka, di tengah layar. Judulnya pertanyaan, bukan slogan:
+		   yang diminta dari pengguna memang menjawabnya. */
+		launchTitle: 'Mau buka usaha apa?',
+		/**
+		 * Contoh pertanyaan, dipakai dua kali sekaligus.
+		 *
+		 * `ask` yang mengetikkan dirinya sendiri di dalam kolom, dan juga yang benar
+		 * -benar dikirim. `short` yang tertulis di tombolnya. Dua wujud, satu daftar,
+		 * jadi tombol tidak mungkin menjanjikan pertanyaan yang berbeda dari yang
+		 * dikirimnya.
+		 *
+		 * Yang mengetik sendiri mengajarkan BENTUK kalimatnya; tombolnya memberi
+		 * jalan masuk sekali tekan. Label tombol sengaja pendek: kalimat penuh di
+		 * atas pil membuat barisnya melebar dan berhenti terbaca sebagai saran.
+		 *
+		 * Tiap contoh harus benar-benar terjawab, dan jawabannya harus berguna. Dua
+		 * mencari lokasi, satu menandai kawasan yang sesak, satu membandingkan dua
+		 * tempat. Nama kawasan yang disebut wajib ada di kisi, kalau tidak,
+		 * pembandingnya jatuh ke pesan "sebutkan dua nama" dan sarannya jadi jebakan.
+		 */
+		launchSuggestions: [
+			{ short: 'Kedai kopi sewa murah', ask: 'Di mana buka kedai kopi dengan sewa murah dekat MRT?' },
+			/* Label pil harus berdiri sendiri, tanpa kalimat sebelumnya untuk disandari.
+			   Karena itu tiap label menyebut subjeknya. "Yang sebaiknya dihindari" dan
+			   "Yang belum ada datanya" dibuka kata ganti tanpa acuan: dihindari apa,
+			   belum ada datanya apa. Di dalam percakapan hal itu tidak masalah karena
+			   ada jawaban di atasnya, tapi di sini tidak ada apa-apa di atasnya. */
+			{
+				short: 'Kawasan yang sebaiknya dihindari',
+				ask: 'Kawasan mana yang sudah jenuh untuk minimarket?'
+			},
+			{ short: 'Bandingkan dua kawasan', ask: 'Bandingkan Balai Kota dan Manggarai untuk apotek' },
+			/* Di sini dulu "Kawasan yang belum terdata". Pertanyaan itu memang bisa
+			   dijawab, tapi jawabannya daftar kawasan yang justru TIDAK dinilai, dan
+			   tidak ada orang membuka SpotOn untuk itu. Sebagai saran pembuka ia
+			   membuang satu dari empat tempat yang ada. Pertanyaan soal cakupan data
+			   tetap hidup di dalam percakapan, tempatnya memang di sana: setelah ada
+			   jawaban yang pantas dipertanyakan. */
+			{ short: 'Kawasan bagus untuk laundry', ask: 'Di mana buka laundry dekat stasiun?' }
+		],
+		/* Kaki kartu: seberapa tebal dasar jawabannya, dalam empat angka. Labelnya
+		   menyebut sumber, karena angka tanpa asal cuma hiasan. */
+		launchStats: {
+			hexes: 'petak kawasan',
+			stops: 'titik transit',
+			pois: 'titik usaha terdata',
+			cats: 'jenis usaha'
+		},
+		closeArea: 'Tutup kawasan',
+		home: 'Kembali ke beranda SpotOn',
 		emptyMood: 'Belum ada kawasan yang dipilih. Tekan salah satu petak di peta untuk melihat suasananya.',
 		pickBest: (cat: string) => `Pilihkan yang terbaik untuk ${cat}`,
 		clock: 'Jam',
@@ -594,12 +655,19 @@ export const id = {
 
 	tapak: {
 		greet: (total: number, terdata: number) =>
-			`Halo, saya Tapak. Saya sudah keliling ${total} petak di sekitar MRT, KRL, LRT, dan koridor TransJakarta; ${terdata} di antaranya sudah ada datanya. Lagi kepikiran buka usaha apa?`,
-		budgetAsk: (cat: string) => `Oke, ${cat}. Modalnya kira-kira bagaimana?`,
-		budgetTight: 'Pas-pasan',
-		budgetLoose: 'Agak longgar',
-		prefaceTight: 'Saya carikan yang tempatnya memang sedang disewakan, ya.',
-		prefaceLoose: 'Baik, saya lihat semuanya dulu.',
+			`Halo, saya Tapak. Saya sudah keliling ${total} petak di sekitar MRT, KRL, LRT, dan koridor TransJakarta, dan ${terdata} di antaranya sudah ada datanya. Lagi kepikiran buka usaha apa?`,
+		/* Pertanyaan ini dulu berbunyi "Modalnya kira-kira bagaimana?" dengan pilihan
+		   "Pas-pasan" dan "Agak longgar" — dua kata yang tidak memberi tahu apa pun
+		   soal apa yang akan berubah. Yang sebenarnya dipilih di sini cuma satu:
+		   apakah hasilnya disaring ke kawasan yang tempatnya memang sedang
+		   disewakan, di kelas sewa bawah. Jadi itu yang ditanyakan, dan itu yang
+		   tertulis di tombolnya. */
+		budgetAsk: (cat: string) => `Oke, ${cat}. Sewa tempatnya bagaimana?`,
+		budgetTight: 'Harus yang sewanya murah',
+		budgetLoose: 'Berapa pun, asal kawasannya bagus',
+		prefaceTight:
+			'Baik. Saya saring ke kawasan yang tempatnya memang sedang disewakan, di kelas sewa bawah.',
+		prefaceLoose: 'Baik, semua kawasan saya lihat, tanpa saringan sewa.',
 		restart: 'Mau lihat usaha apa sekarang?',
 		tryOther: 'Coba usaha lain',
 		avoid: 'Mana yang sebaiknya dihindari?',
@@ -616,7 +684,7 @@ export const id = {
 			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk tiga belas jenis usaha. Mau saya carikan salah satunya?`,
 		coverageNone: 'Semua kawasan sudah ada datanya.',
 		coverageSome: (n: number) =>
-			`Ada ${n} kawasan yang datanya belum saya punya sama sekali. Saya tidak menilainya; daripada saya karang, lebih baik saya bilang belum tahu.`,
+			`Ada ${n} kawasan yang datanya belum saya punya sama sekali. Saya tidak menilainya. Daripada saya karang, lebih baik saya bilang belum tahu.`,
 		saturatedNone: 'Tidak ada yang benar-benar sesak untuk usaha ini.',
 		saturatedSome: (n: number, cat: string) =>
 			`Ini ${n} kawasan yang sebaiknya dihindari dulu untuk ${cat}. Pesaingnya rapat dan kebanyakan ramai.`,

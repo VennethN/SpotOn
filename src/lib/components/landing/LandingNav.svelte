@@ -37,48 +37,100 @@
 	}
 </script>
 
-<!-- Floating chrome: content flows beneath it, and the separator only appears once
-     something is genuinely passing behind it. -->
+<!-- Floating chrome: content flows beneath it.
+     Over the diorama the bar is invisible chrome sitting on the sky. Once the stage
+     has passed it draws itself in as a rounded pill that hovers over the paper,
+     rather than a full-width band welded to the top edge: the page below is a sheet
+     of drawing paper, and a bar spanning the whole viewport cuts it in half. -->
 <header class="nav" class:scrolled>
-	<a class="brand" href="#top">
-		<span class="mark" aria-hidden="true"></span>
-		{c.brand.name}
-	</a>
+	<div class="bar">
+		<a class="brand" href="#top">
+			<span class="mark" aria-hidden="true"></span>
+			{c.brand.name}
+		</a>
 
-	<nav aria-label={c.nav.aria}>
-		{#each c.nav.sections as l (l.href)}
-			<a href={l.href}>{l.label}</a>
-		{/each}
-	</nav>
+		<nav aria-label={c.nav.aria}>
+			{#each c.nav.sections as l (l.href)}
+				<a href={l.href}>{l.label}</a>
+			{/each}
+		</nav>
 
-	<div class="actions">
-		<LangToggle ghost />
-		<ThemeToggle {theme} onchange={pickTheme} ghost />
-		<a class="cta" href="/app">{c.brand.open}</a>
+		<div class="actions">
+			<LangToggle ghost />
+			<ThemeToggle {theme} onchange={pickTheme} ghost />
+			<a class="cta" href="/app">{c.brand.open}</a>
+		</div>
 	</div>
 </header>
 
 <style>
+	/* The fixed rail is only a place to stand: it spans the viewport so the bar inside
+	   it can centre, and it never paints anything itself. Pointer events are handed
+	   back to the bar alone, so the transparent gutters either side stay clickable
+	   map/paper rather than an invisible strip that eats clicks. */
 	.nav {
 		position: fixed;
 		inset-inline: 0;
 		top: 0;
 		z-index: 30;
 		display: flex;
-		align-items: center;
-		gap: 1rem;
-		padding: 0.625rem max(1rem, calc((100vw - 68rem) / 2));
-		background: transparent;
-		transition:
-			background-color 260ms ease-out,
-			box-shadow 260ms ease-out,
-			backdrop-filter 260ms ease-out;
+		justify-content: center;
+		padding: 0.625rem max(0.75rem, calc((100vw - 68rem) / 2));
+		pointer-events: none;
+		transition: padding-top 320ms cubic-bezier(0.32, 0.72, 0, 1);
 	}
 	.nav.scrolled {
+		/* Lifted off the top edge, which is what makes it read as floating rather than
+		   fixed to the frame. */
+		padding-top: 0.875rem;
+	}
+
+	.bar {
+		position: relative;
+		pointer-events: auto;
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		width: 100%;
+		padding: 0.3125rem 0.3125rem 0.3125rem 0.75rem;
+		border: 1px solid transparent;
+		border-radius: 999px;
+		background: transparent;
+		/* The material arrives as a material: blur, edge and shadow move together with
+		   the width rather than an opacity fade tacked onto a static shape. */
+		transition:
+			max-width 380ms cubic-bezier(0.32, 0.72, 0, 1),
+			background-color 300ms ease-out,
+			border-color 300ms ease-out,
+			box-shadow 300ms ease-out,
+			backdrop-filter 300ms ease-out;
+		max-width: 100%;
+	}
+	.nav.scrolled .bar {
+		/* Narrower than the text column below it: the pill has to read as an object
+		   sitting ON the sheet, and matching the sheet's width would read as its header. */
+		max-width: 56rem;
 		background: var(--mat-thick);
 		-webkit-backdrop-filter: var(--blur-thick);
 		backdrop-filter: var(--blur-thick);
-		box-shadow: 0 1px 0 var(--separator);
+		border-color: var(--separator);
+		box-shadow: var(--shadow-panel);
+	}
+	/* A bright hairline along the top: light landing on the material. Only once the
+	   material is actually there. */
+	.bar::before {
+		content: '';
+		position: absolute;
+		inset: 0 0 auto;
+		height: 1px;
+		border-radius: inherit;
+		background: var(--mat-edge);
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 300ms ease-out;
+	}
+	.nav.scrolled .bar::before {
+		opacity: 1;
 	}
 
 	.brand {
