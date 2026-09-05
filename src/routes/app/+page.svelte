@@ -159,7 +159,13 @@
 			<AskLauncher {tapak} meta={data.meta} onskip={() => (skipped = true)} />
 		</div>
 	{:else if compact}
-		<MapLegend />
+		<!-- Same rule as the wide layout below: the legend explains the colours, and
+		     once an area is picked the answer about that area is the more specific
+		     reply to the same question. Here it also clears the top-left corner, which
+		     is where Tapak's remark about that area arrives. -->
+		{#if !app.selectedId}
+			<MapLegend />
+		{/if}
 		<Sheet bind:index={sheetIndex} detents={[0.12, 0.55, 0.94]}>
 			{#if app.selectedId}
 				<div class="spot-inline" transition:materialize={{ origin: 'top center' }}>

@@ -133,12 +133,18 @@
 	}
 
 	/* On a compact screen the sheet owns the bottom of the window, so the toast moves
-	   to the top, under the chrome. */
+	   to the top, under the chrome. It stops short of the right edge rather than
+	   spanning the width: the zoom controls stand in that column, and a note is not
+	   worth covering a control for nine seconds. */
 	@media (max-width: 1023px) {
 		.toast {
 			top: 6.75rem;
 			bottom: auto;
-			max-width: calc(100vw - 1.5rem);
+			left: 0.75rem;
+			right: 4.25rem;
+			width: auto;
+			max-width: none;
+			transform: none;
 		}
 	}
 </style>
