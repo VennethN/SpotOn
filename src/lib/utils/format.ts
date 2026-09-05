@@ -13,18 +13,24 @@
 /** Indonesian-style thousands: 7577 → "7.577". */
 export const num = (v: number): string => v.toLocaleString('id-ID');
 
-/** 0..1 → "0".."100". Null/undefined becomes "—", not "0" — unknown is not zero. */
+/**
+ * The marker for a missing value. A middot rather than a rule: a dash sitting where
+ * a number should be reads as a minus sign.
+ */
+const MISSING = '·';
+
+/** 0..1 → "0".."100". Null/undefined becomes the missing marker, not "0": unknown is not zero. */
 export const pct = (v: number | null | undefined): string =>
-	v === null || v === undefined ? '—' : String(Math.round(v * 100));
+	v === null || v === undefined ? MISSING : String(Math.round(v * 100));
 
 /**
- * Indonesian-style hours: 12 → "12.00", 20.35 → "20.21", negative → "—".
+ * Indonesian-style hours: 12 → "12.00", 20.35 → "20.21", negative → the missing marker.
  *
  * Accepts fractional hours so the diorama clock (which moves smoothly with the
  * scroll) and whole hours (from the 24-hour profile) share one formatter.
  */
 export function formatHour(hour: number): string {
-	if (hour < 0) return '—';
+	if (hour < 0) return MISSING;
 	const h = Math.floor(hour) % 24;
 	const m = Math.floor((hour - Math.floor(hour)) * 60);
 	return `${String(h).padStart(2, '0')}.${String(m).padStart(2, '0')}`;
