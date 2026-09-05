@@ -173,19 +173,19 @@ export function runQuery(
 		w.source === 'mapid'
 			? `Sumber pesaing (nyata): MAPID Data Premium, ${def.mapidSet}, around:${w.radius}.`
 			: `Sumber pesaing (nyata): OpenStreetMap via Overpass API, ${def.osmTag}, around:${w.radius}.`,
-		`Sumber lain (contoh): Struk Go · Menu Go · Properti Go — struktur mengikuti kolom asli.`
+		`Sumber lain (contoh): Struk Go · Menu Go · Properti Go, struktur mengikuti kolom asli.`
 	];
 
 	if (query.intent === 'COVERAGE') {
 		const nd = rows.filter((r) => r.nodata);
 		return {
 			query,
-			headline: `${nd.length} catchment tanpa data misi MAPID. Kawasan tersebut tidak diberi nilai — ditampilkan apa adanya dan diusulkan sebagai prioritas survey activities berikutnya.`,
+			headline: `${nd.length} catchment tanpa data misi MAPID. Kawasan tersebut tidak diberi nilai, ditampilkan apa adanya, dan diusulkan sebagai prioritas survey activities berikutnya.`,
 			items: nd.map<Recommendation>((r) => ({
 				id: r.id,
 				name: r.name,
 				value: null,
-				why: `Tidak ada titik Struk/Menu/Properti Go. Namun OSM mencatat ${r.osm} ${def.name.toLowerCase()} di radius ${w.radius} m — indikasi kawasan aktif yang belum tersentuh survei.`,
+				why: `Tidak ada titik Struk/Menu/Properti Go. Namun OSM mencatat ${r.osm} ${def.name.toLowerCase()} di radius ${w.radius} m, indikasi kawasan aktif yang belum tersentuh survei.`,
 				evidence: 'N misi = 0 · estimasi 1 hari lapangan untuk memotret papan menu & storefront'
 			})),
 			highlight: nd.map((r) => r.id),
@@ -200,7 +200,7 @@ export function runQuery(
 			.slice(0, 5);
 		return {
 			query,
-			headline: `Lima catchment dengan penawaran efektif tertinggi untuk ${def.name} — pesaing padat dan mayoritas ramai, sehingga celah pasar paling sempit. Disarankan dihindari.`,
+			headline: `Lima catchment dengan penawaran efektif tertinggi untuk ${def.name}. Pesaing padat dan mayoritas ramai, sehingga celah pasar paling sempit. Disarankan dihindari.`,
 			items: sat.map<Recommendation>((r) => ({
 				id: r.id,
 				name: r.name,
@@ -219,7 +219,7 @@ export function runQuery(
 		if (picked.length < 2) {
 			return {
 				query,
-				headline: 'Sebutkan dua nama catchment untuk dibandingkan, misalnya "Bandingkan Blok M BCA dan Bundaran HI".',
+				headline: 'Sebutkan dua nama catchment untuk dibandingkan, misalnya "Bandingkan Blok M BCA dan Bendungan Hilir".',
 				items: [],
 				highlight: [],
 				provenance
@@ -234,7 +234,7 @@ export function runQuery(
 				: 'penawaran eksisting lebih lemah';
 		return {
 			query,
-			headline: `Untuk ${def.name}, ${win.name} unggul (${pct(win.score)} vs ${pct(lose.score)}) — terutama karena ${reason}.`,
+			headline: `Untuk ${def.name}, ${win.name} unggul (${pct(win.score)} vs ${pct(lose.score)}), terutama karena ${reason}.`,
 			items: picked.map<Recommendation>((r) => ({
 				id: r.id,
 				name: r.name,
@@ -262,7 +262,7 @@ export function runQuery(
 			id: r.id,
 			name: r.name,
 			value: r.score,
-			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.peakHour)}, non-tunai ${pct(r.cashless)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.busy)}% ramai — ${supplyPhrase(r, ID)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propertyCategory}.`,
+			why: `Permintaan ${pct(r.demand)} (${r.nStruk} struk, puncak ${formatHour(r.peakHour)}, non-tunai ${pct(r.cashless)}%); ${r.osm} pesaing dalam radius ${w.radius} m dengan ${pct(r.busy)}% ramai, ${supplyPhrase(r, ID)} → penawaran ${pct(r.supply)}; tersedia ${r.listings} listing ${def.propertyCategory}.`,
 			evidence: evidence(r)
 		})),
 		highlight: cands.map((r) => r.id),
