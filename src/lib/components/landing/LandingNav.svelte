@@ -1,6 +1,7 @@
 <script lang="ts">
 	import BrandMark from '$lib/components/ui/BrandMark.svelte';
 	import { browser } from '$app/environment';
+	import NavAccount from '$lib/components/landing/NavAccount.svelte';
 	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeControl from '$lib/components/ui/ThemeControl.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -51,6 +52,11 @@
 		<div class="actions">
 			<LangToggle ghost />
 			<ThemeControl ghost />
+			<!-- Whether there is an account at all, which this page is prerendered and so
+			     cannot be told. It resolves in the browser and holds a placeholder until it
+			     does, rather than guessing signed out and correcting itself in front of
+			     somebody who is signed in. -->
+			<NavAccount {scrolled} />
 			<a class="cta" href="/app">{c.brand.open}</a>
 		</div>
 	</div>
@@ -208,6 +214,14 @@
 		}
 		.actions {
 			margin-left: auto;
+		}
+	}
+	/* On a phone the two toggles go before the account does. Language and theme are
+	   preferences that can be set anywhere, and this is the only way to an account on
+	   the whole page. */
+	@media (max-width: 30rem) {
+		.actions :global(.ghost) {
+			display: none;
 		}
 	}
 </style>
