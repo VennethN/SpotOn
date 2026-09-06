@@ -16,6 +16,7 @@
 	 * - **It does not force motion.** With `prefers-reduced-motion`, the whole
 	 *     conversation is shown at once and nothing runs on its own.
 	 */
+	import Dots from '$lib/components/ui/Dots.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
@@ -178,7 +179,7 @@
 		{#if step === 2}
 			<div class="turn tapak">
 				<span class="av"><TapakFigure size={22} walking={false} /></span>
-				<p class="bub think">{c.ai.thinking}</p>
+				<p class="bub think">{c.ai.thinking}<Dots /></p>
 			</div>
 		{/if}
 		{#if step >= LAST}

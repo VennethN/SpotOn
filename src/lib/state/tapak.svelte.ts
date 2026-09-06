@@ -3,7 +3,7 @@ import { categoryNames, narrate } from '$lib/domain/narrate';
 import { copy } from '$lib/state/lang.svelte';
 import { pct } from '$lib/utils/format';
 import type { AppState } from '$lib/state/app.svelte';
-import type { AiAnswer, CategoryKey } from '$lib/types';
+import type { AiAnswer, AiStage, CategoryKey } from '$lib/types';
 
 /**
  * Tapak — the guide inside SpotOn.
@@ -47,8 +47,22 @@ export interface Turn {
 	chips?: Chip[];
 	/** The scoring engine's result, shown as a list of places. */
 	answer?: AiAnswer;
-	/** Marks a turn that is waiting for the engine's answer. */
+	/**
+	 * Marks a turn that is waiting with nothing to show yet. The panel says which
+	 * `stage` is running rather than one motionless line, because the wait runs to
+	 * ninety seconds at its longest and a line that never changes in that time is
+	 * indistinguishable from a broken one.
+	 */
 	pending?: boolean;
+	stage?: AiStage;
+	/**
+	 * The text is arriving in pieces and is not final.
+	 *
+	 * True only for the casual reply, which is the one sentence in the product the model
+	 * writes. It is a PREVIEW: the sentence in the finished answer replaces it, and it
+	 * can be taken away entirely if it fails `domain/chat`'s fence.
+	 */
+	streaming?: boolean;
 }
 
 /* Chips are built on demand rather than once at module level: their labels follow
@@ -170,15 +184,50 @@ export class Tapak {
 		void this.#ask(action.question);
 	}
 
+	/**
+	 * The turn being waited on, by id.
+	 *
+	 * Found by id, not by object identity: `turns` is a proxy, so `indexOf` on the raw
+	 * object always misses and the reply is dropped on the floor. Looked up fresh on
+	 * every event rather than held onto, because a language switch clears the thread
+	 * mid-answer and a held index would then write into somebody else's turn.
+	 */
+	#waiting(id: number): Turn | null {
+		const idx = this.turns.findIndex((t) => t.id === id);
+		return idx === -1 ? null : this.turns[idx];
+	}
+
 	async #ask(question: string, preface?: string) {
 		if (preface) this.#say(preface);
 		const id = this.#nextId++;
-		this.turns.push({ id, who: 'tapak', text: copy().ai.thinking, pending: true });
+		this.turns.push({ id, who: 'tapak', text: '', pending: true, stage: 'reading' });
 
-		await this.#app.ask(question);
+		await this.#app.ask(question, {
+			// Which half of the engine is running. No figures, and no percentage of
+			// anything: there is nothing here that could honestly be a fraction.
+			stage: (stage) => {
+				const turn = this.#waiting(id);
+				if (turn) turn.stage = stage;
+			},
+			// The casual reply, as it is written. Nothing else arrives this way.
+			delta: (text) => {
+				const turn = this.#waiting(id);
+				if (!turn) return;
+				turn.text += text;
+				turn.streaming = true;
+				turn.pending = false;
+			},
+			// The reply broke the fence, or the model that was writing it gave up. Either
+			// way it comes off the screen and the wait goes back on.
+			reset: () => {
+				const turn = this.#waiting(id);
+				if (!turn) return;
+				turn.text = '';
+				turn.streaming = false;
+				turn.pending = true;
+			}
+		});
 
-		// Found by id, not by object identity: `turns` is a proxy, so `indexOf` on the
-		// raw object always misses and the reply is dropped on the floor.
 		const idx = this.turns.findIndex((t) => t.id === id);
 		if (idx === -1) return;
 
