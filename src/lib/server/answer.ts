@@ -2,7 +2,8 @@ import { normalizeCategories } from '$lib/domain/categories';
 import { ruleChatTopic } from '$lib/domain/chat';
 import { answer, parseQuestion, runQuery } from '$lib/domain/nlq';
 import { normalizeWeights } from '$lib/domain/weights';
-import { parseWithLLM } from '$lib/server/llm';
+import { llmEnabled, parseWithLLM } from '$lib/server/llm';
+import { writeReply } from '$lib/server/reply';
 import { loadHexes } from '$lib/server/source';
 import type { AiAnswer, AiEvent, CategoryKey, ChatTopic, ChatTurn, Weights } from '$lib/types';
 
@@ -28,8 +29,9 @@ import type { AiAnswer, AiEvent, CategoryKey, ChatTopic, ChatTurn, Weights } fro
  * shared free model, and that is where the seconds go — up to ninety of them before the
  * chain gives up and the rule parser takes over. A reader watching one motionless line
  * for that long has no way to tell a slow answer from a broken one. So the stages are
- * said out loud, and the one sentence the model does write is passed on as it is
- * written.
+ * said out loud, and the casual reply, which is the one sentence written with nothing
+ * computed behind it, is passed on as it is written. The ANSWER's own sentence is not:
+ * it is made of figures, and no figure is ever streamed.
  *
  * The stages are reported from where the work actually is, not on a timer. `reading` is
  * the question going out. `retrying` is one model dropping out and the next taking over,
@@ -239,7 +241,47 @@ export async function resolveQuestion(
 		if (parsed.query.intent === 'COMPARE') parsed.query.target = said.slice(0, 2);
 	}
 
-	return parsed
+	const computed: AiAnswer = parsed
 		? { ...runQuery(parsed.query, question, catchments, weights), parsedBy: 'model' }
 		: { ...answer(question, catchments, weights, fallback, said), parsedBy: 'rules' };
+
+	/* THE ANSWER IS COMPUTED. NOW IT GETS SAID.
+	   
+	   Every figure above is already fixed, and this pass cannot change one: it is handed
+	   them and may write those and no others, which `domain/grounded` checks rather than
+	   requests. What it buys is that the reply answers the question that was asked. Before
+	   it, an operation ran and a template read the result out, so "kenapa yang itu" and
+	   "menurutmu sewa di sana bagus" resolved to the same operation on the same place and
+	   came back as the same paragraph, twice, word for word.
+
+	   Best effort throughout. No model, no time, or a reply that broke the fence, and the
+	   answer travels without one, exactly as it always did. The interface composes its own
+	   sentence from these same figures, so the fallback is a plainer answer and never a
+	   missing one. */
+	/* Nothing to announce and nothing to wait for when there is no model. Said before the
+	   call rather than inside it, so a reader running this from a bare clone does not
+	   watch a stage appear for the length of one tick and vanish. */
+	if (!llmEnabled()) return computed;
+
+	emit?.({ kind: 'stage', stage: 'writing' });
+	const written = await writeReply(
+		computed,
+		question,
+		input.history ?? [],
+		// Every name on the grid, so a reply can be checked for naming a place this answer
+		// never named. A right figure against a wrong place is the one error a reader
+		// cannot catch, because the number checks out.
+		catchments.map((c) => c.name).filter((n): n is string => Boolean(n)),
+		input.lang === 'en' ? 'en' : 'id'
+	);
+	if (!written) return computed;
+
+	return {
+		...computed,
+		reply: written,
+		provenance: [
+			...computed.provenance,
+			'Kalimat jawabannya ditulis model dari angka yang sudah dihitung di atas. Tiap angka di dalamnya dicocokkan kembali ke angka-angka itu, dan yang memuat angka di luarnya dibuang mesin, bukan diperbaiki — lihat `domain/grounded`.'
+		]
+	};
 }
