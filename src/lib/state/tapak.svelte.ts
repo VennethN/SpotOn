@@ -107,8 +107,8 @@ export class Tapak {
 		this.#greeted = true;
 		// The figures are read from the data, not written by hand — once the grid is
 		// rebuilt, Tapak's greeting stays correct without anyone remembering to update it.
-		const { total, surveyed } = this.#app.coverage;
-		this.#say(copy().tapak.greet(total, surveyed), categoryChips());
+		const { total } = this.#app.coverage;
+		this.#say(copy().tapak.greet(total), categoryChips());
 	}
 
 	/** Closes the chips on the last turn so stale options cannot be tapped again. */

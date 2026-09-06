@@ -207,7 +207,7 @@
 				/>
 				<TapakDemo
 					sets={data.conversation[lang()]}
-					greeting={c.tapak.greet(k.hexes, k.surveyed)}
+					greeting={c.tapak.greet(k.hexes)}
 					onstep={(st) => (demoStep = st)}
 				/>
 			</div>
