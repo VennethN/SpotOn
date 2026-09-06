@@ -201,6 +201,10 @@ export const en: Copy = {
 		mapCaption: (kind: string) => `Opportunity score for ${kind}, 562 catchments, computed just now.`,
 		caught: 'What the map understood',
 		thinking: 'One moment, let me check my notes',
+		stage: {
+			reading: 'One moment, I am reading your question',
+			computing: 'Now counting it up from my notes'
+		},
 		more: (n: number) => `+${n} more in the app`,
 		play: 'Play conversation',
 		pause: 'Pause conversation'

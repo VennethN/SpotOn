@@ -1,73 +1,32 @@
 import { error, json } from '@sveltejs/kit';
-import { normalizeCategories } from '$lib/domain/categories';
-import { ruleChatTopic } from '$lib/domain/chat';
-import { answer, parseQuestion, runQuery } from '$lib/domain/nlq';
-import { normalizeWeights } from '$lib/domain/weights';
-import { parseWithLLM } from '$lib/server/llm';
-import { loadHexes } from '$lib/server/source';
-import type { AiAnswer, CategoryKey, ChatTopic, Weights } from '$lib/types';
+import { resolveQuestion, type AskInput } from '$lib/server/answer';
+import type { AiEvent } from '$lib/types';
 import type { RequestHandler } from './$types';
 
-/**
- * A casual turn, in the shape every other answer has.
- *
- * Deliberately carries no items and no highlight: nothing was computed, so nothing may
- * appear on the map. A chat reply that moved the map would be the map claiming to have
- * answered a question it never received.
- *
- * `query` is still filled in, because the response shape is a published contract and a
- * consumer reading `query.kategori` should not have to special-case this. It describes
- * what WOULD have been asked, and `chat` is what tells a reader it was not.
- */
-function chatAnswer(
-	topik: ChatTopic,
-	text: string | undefined,
-	question: string,
-	weights: Weights,
-	fallback: readonly CategoryKey[],
-	parsedBy: 'model' | 'rules'
-): AiAnswer {
-	return {
-		query: parseQuestion(question, weights, fallback),
-		parsedBy,
-		chat: text ? { topik, text } : { topik },
-		// The headline is what an API consumer reads. Empty would make this turn look
-		// like a failed query rather than a deliberate non-answer.
-		headline: text ?? 'Obrolan biasa, bukan pertanyaan data. Tidak ada angka yang dihitung.',
-		items: [],
-		highlight: [],
-		provenance: [
-			'Giliran ini tidak menyentuh data: tidak ada operasi yang dijalankan dan tidak ada angka yang dihitung.',
-			'Balasan obrolan tidak boleh memuat angka. Yang memuat angka dibuang mesin dan diganti kalimat baku — lihat `domain/chat`.'
-		]
-	};
-}
-
-interface Body {
-	question?: string;
-	/** The business types the reader has in force — one name, or a list of them. */
-	kategori?: string | string[];
-	weights?: Partial<Weights>;
-	/** The reader's language; only affects the model's "I don't understand" sentence. */
-	lang?: string;
-}
+/** The media type one answer-per-line is served as. */
+const NDJSON = 'application/x-ndjson';
 
 /**
- * POST /api/ai/query — the recommendation engine behind the interface.
+ * POST /api/ai/query — ask the recommendation engine.
  *
- * Two layers, and the split between them is what matters:
+ * Answers in one of two ways, and the difference is transport only. Both run the same
+ * `resolveQuestion`, so there is no branch in which the two could come to disagree
+ * about what the answer is:
  *
- * - **Understanding** the question is done by the model (OpenRouter,
- *   function-calling). The model only picks the operation and fills its arguments.
- * - **Computing** is done by the scoring engine on the server, from the data. The
- *   model never touches a single number, so there is no value it could invent.
+ * - **One JSON object**, the way this endpoint has always replied. Anything reading it
+ *   as an API gets exactly what it got before.
+ * - **A stream of NDJSON lines**, one `AiEvent` each, ending in the `answer` event that
+ *   carries the very same object. Asked for with `stream: true` in the body, or by an
+ *   `Accept` header naming `application/x-ndjson`.
  *
- * If the model is unavailable — no key configured, network down, time up — the
- * rule-based parser takes over and an answer still comes out. What changes is only
- * how cleverly the question was understood, not whether the figures are right.
- * Which path was taken is sent along as `parsedBy`, so the interface can be honest
- * about it instead of glossing over it.
+ * NDJSON rather than server-sent events: this is a POST, so `EventSource` was never on
+ * the table, and a line of JSON per line of output needs no framing rules to explain.
  */
+interface Body extends Partial<AskInput> {
+	/** Reply as a stream of events instead of as one object. */
+	stream?: boolean;
+}
+
 export const POST: RequestHandler = async ({ request }) => {
 	let body: Body;
 	try {
@@ -80,55 +39,58 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!question) throw error(400, 'Pertanyaan kosong.');
 	if (question.length > 500) throw error(413, 'Pertanyaan terlalu panjang.');
 
-	/* What the question is answered ABOUT when it does not name a business type itself:
-	   whatever the reader already had in force, and NOTHING if they had nothing.
-	
-	   This used to fall back to coffee, and that was the last place the old default was
-	   hiding. A reader who has named no business and asks "where is busiest" is asking
-	   about the city, not about coffee — and one who asks "where should I open" is
-	   asking a question that is one word short, which `runQuery` answers by asking for
-	   the word rather than by choosing a business on their behalf. */
-	const fallback: CategoryKey[] = normalizeCategories(body.kategori, []);
-	const weights: Weights = normalizeWeights(body.weights);
+	const input: AskInput = {
+		question,
+		kategori: body.kategori,
+		weights: body.weights,
+		lang: body.lang
+	};
 
-	const catchments = loadHexes();
-	const parsed = await parseWithLLM(question, weights, fallback, body.lang === 'en' ? 'en' : 'id');
-
-	// A greeting, a question about SpotOn itself, or general talk about running a small
-	// business. No operation runs and nothing is computed, which is exactly right: there
-	// was no question about the data to compute an answer to.
-	if (parsed && !parsed.ok && 'chat' in parsed) {
-		return json(chatAnswer(parsed.chat, parsed.text ?? undefined, question, weights, fallback, 'model'));
+	if (body.stream !== true && !(request.headers.get('accept') ?? '').includes(NDJSON)) {
+		return json(await resolveQuestion(input, () => {}));
 	}
 
-	// The model admits it did not understand. That is a legitimate result, not a
-	// failure — and far better than answering a misinterpreted question.
-	if (parsed && !parsed.ok) {
-		const empty: AiAnswer = {
-			query: parseQuestion(question, weights, fallback),
-			parsedBy: 'model',
-			notUnderstood: parsed.reason,
-			headline: parsed.reason,
-			items: [],
-			highlight: [],
-			provenance: [
-				'Pertanyaan tidak dipetakan ke operasi mana pun, jadi tidak ada angka yang dihitung.'
-			]
-		};
-		return json(empty);
-	}
+	const encoder = new TextEncoder();
+	const stream = new ReadableStream<Uint8Array>({
+		async start(controller) {
+			/* Closed the moment the reader goes away, and every write after that is
+			   dropped rather than thrown. A reader who asks a question and then closes
+			   the tab is not an error to report, and an unhandled throw inside this
+			   callback takes the whole response down with it. */
+			let open = true;
+			const send = (event: AiEvent) => {
+				if (!open) return;
+				try {
+					controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+				} catch {
+					open = false;
+				}
+			};
 
-	// No model, and the question is plainly a greeting. Recognised by rule, answered
-	// with the interface's own canned line rather than a refusal — see `domain/chat`
-	// for why only the narrow half of chat is reachable without a model.
-	if (!parsed) {
-		const topic = ruleChatTopic(question);
-		if (topic) return json(chatAnswer(topic, undefined, question, weights, fallback, 'rules'));
-	}
+			try {
+				send({ kind: 'answer', answer: await resolveQuestion(input, send) });
+			} catch (err) {
+				/* The status line went out with the first byte, so a failure here cannot
+				   become a 500 any more. Saying so in the stream is the honest remaining
+				   option: the interface reads this and says the question could not be
+				   answered, rather than waiting on a reply that is never coming. */
+				console.error('[SpotOn] Streamed answer failed:', (err as Error).message);
+				send({ kind: 'error', message: 'Pertanyaan tidak bisa diproses.' });
+			} finally {
+				open = false;
+				controller.close();
+			}
+		}
+	});
 
-	const result: AiAnswer = parsed
-		? { ...runQuery(parsed.query, question, catchments, weights), parsedBy: 'model' }
-		: { ...answer(question, catchments, weights, fallback), parsedBy: 'rules' };
-
-	return json(result);
+	return new Response(stream, {
+		headers: {
+			'content-type': `${NDJSON}; charset=utf-8`,
+			'cache-control': 'no-store',
+			// Tells nginx and friends not to sit on the body until it is complete, which
+			// would turn every one of these events into one delivery at the very end and
+			// leave the streaming doing nothing at all.
+			'x-accel-buffering': 'no'
+		}
+	});
 };

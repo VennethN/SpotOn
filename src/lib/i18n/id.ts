@@ -206,6 +206,14 @@ export const id = {
 		   digambar `ui/Dots`, karena elipsis yang diketik cuma bilang kalimatnya
 		   menggantung, bukan bahwa masih ada yang sedang dikerjakan. */
 		thinking: 'Sebentar, saya cek catatan saya',
+		/* Menunggunya ada dua bagian, dan lamanya jauh berbeda. Membaca pertanyaan
+		   berarti menunggu model yang dipakai ramai-ramai, dan di situlah hampir
+		   semua waktunya habis. Menghitungnya cepat. Menyebut yang mana yang sedang
+		   jalan itu versi jujurnya bilah kemajuan: tidak ada persen yang dikarang. */
+		stage: {
+			reading: 'Sebentar, saya baca dulu pertanyaannya',
+			computing: 'Sekarang saya hitung dari catatan saya'
+		},
 		more: (n: number) => `+${n} lagi di dalam aplikasi`,
 		play: 'Jalankan percakapan',
 		pause: 'Jeda percakapan'
