@@ -16,6 +16,20 @@ export interface ToolCall {
 }
 
 /**
+ * What one completion came back with.
+ *
+ * Both fields are optional and both can be absent, which is a model that said nothing
+ * usable. They can also both be present: some models narrate a sentence before calling
+ * a tool. Where that happens the tool call is the answer and the prose is throat
+ * clearing, so the caller reads `call` first and only falls back to `content`.
+ */
+export interface Completion {
+	call?: ToolCall;
+	/** Plain prose, when the model answered without calling anything. */
+	content?: string;
+}
+
+/**
  * Where a casual reply goes while it is still arriving.
  *
  * Only the casual reply. Everything else the model produces is a tool argument that
@@ -184,14 +198,15 @@ export function partialArg(buf: string, key: string): string | null {
  * Only the first tool call is followed. This layer asks for one operation and there is
  * nothing sensible to do with a second.
  */
-export async function readStream(res: Response, preview: Preview | null): Promise<ToolCall | undefined> {
-	if (!res.body) return undefined;
+export async function readStream(res: Response, preview: Preview | null): Promise<Completion> {
+	if (!res.body) return {};
 	const reader = res.body.getReader();
 	const decoder = new TextDecoder();
 
 	let buf = '';
 	let name = '';
 	let args = '';
+	let content = '';
 
 	try {
 		for (;;) {
@@ -216,21 +231,39 @@ export async function readStream(res: Response, preview: Preview | null): Promis
 					continue;
 				}
 
-				const calls = (msg as { choices?: [{ delta?: { tool_calls?: unknown } }] })?.choices?.[0]
-					?.delta?.tool_calls;
-				if (!Array.isArray(calls)) continue;
-				for (const raw of calls) {
-					const tc = raw as { index?: number; function?: { name?: string; arguments?: string } };
-					if (typeof tc.index === 'number' && tc.index !== 0) continue;
-					if (typeof tc.function?.name === 'string' && tc.function.name) name = tc.function.name;
-					if (typeof tc.function?.arguments === 'string') args += tc.function.arguments;
+				const delta = (msg as { choices?: [{ delta?: { content?: unknown; tool_calls?: unknown } }] })
+					?.choices?.[0]?.delta;
+				if (!delta) continue;
+
+				if (typeof delta.content === 'string') content += delta.content;
+
+				const calls = delta.tool_calls;
+				if (Array.isArray(calls)) {
+					for (const raw of calls) {
+						const tc = raw as { index?: number; function?: { name?: string; arguments?: string } };
+						if (typeof tc.index === 'number' && tc.index !== 0) continue;
+						if (typeof tc.function?.name === 'string' && tc.function.name) name = tc.function.name;
+						if (typeof tc.function?.arguments === 'string') args += tc.function.arguments;
+					}
 				}
 
-				// Show it as it is written, but only the casual reply, and only once the
-				// model has said that is what it is calling.
-				if (preview && name === 'ngobrol') {
+				if (!preview) continue;
+				if (name === 'ngobrol') {
+					// The casual reply, shown as it is written.
 					const partial = partialArg(args, 'balasan');
 					if (partial !== null) preview.offer(partial);
+				} else if (!name && content) {
+					/* Prose, with no tool named yet, which is a model answering casually
+					   without reaching for `ngobrol`. Shown for the same reason and under
+					   the same fence.
+
+					   Gated on no tool being named YET, and that gate is the whole care
+					   here: a model that narrates a sentence and then calls
+					   `jalankan_query` would otherwise put its throat clearing on the
+					   reader's screen. When that happens the name arrives, this stops
+					   feeding, and the caller's `preview.clear()` takes the sentence back
+					   down. */
+					preview.offer(content);
 				}
 			}
 		}
@@ -238,8 +271,5 @@ export async function readStream(res: Response, preview: Preview | null): Promis
 		reader.releaseLock();
 	}
 
-	// No tool named means no operation chosen, which to this layer is the same as no
-	// answer at all — the caller moves on to the next model.
-	if (!name) return undefined;
-	return { function: { name, arguments: args } };
+	return { call: name ? { function: { name, arguments: args } } : undefined, content };
 }

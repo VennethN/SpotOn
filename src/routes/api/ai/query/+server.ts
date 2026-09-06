@@ -47,7 +47,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	};
 
 	if (body.stream !== true && !(request.headers.get('accept') ?? '').includes(NDJSON)) {
-		return json(await resolveQuestion(input, () => {}));
+		return json(await resolveQuestion(input));
 	}
 
 	const encoder = new TextEncoder();

@@ -305,7 +305,7 @@ const events = [
 
 for (const size of [1, 7, 64, 4096]) {
 	const shown = [];
-	const call = await stream.readStream(
+	const { call } = await stream.readStream(
 		sse(events, size),
 		new stream.Preview({ delta: (t) => shown.push(t), reset: () => shown.push(null) })
 	);
@@ -322,17 +322,64 @@ for (const size of [1, 7, 64, 4096]) {
 	);
 }
 
-// A model that wrote prose instead of calling a tool is, to this layer, exactly as
-// useless as a network error: the caller moves on to the next model.
-const noTool = await stream.readStream(sse([{ choices: [{ delta: { content: 'hai' } }] }], 16), null);
-check('a completion with no tool call reads as nothing', noTool === undefined);
-
 // Only the operation this layer asked for. A second call has nothing sensible to do.
 const second = await stream.readStream(
 	sse([frag('ngobrol', '{"balasan":"Halo"}'), { choices: [{ delta: { tool_calls: [{ index: 1, function: { name: 'lain', arguments: '{}' } }] } }] }], 16),
 	null
 );
-check('a second tool call is ignored', second.function.name === 'ngobrol' && second.function.arguments === '{"balasan":"Halo"}');
+check(
+	'a second tool call is ignored',
+	second.call.function.name === 'ngobrol' && second.call.function.arguments === '{"balasan":"Halo"}'
+);
+
+/* ── a model that answers casually without reaching for a tool ───────────── */
+
+// The tools are offered, not forced. Free models vary in how well they honour a
+// required tool choice, and a plain "halo" answered in plain prose used to be read as a
+// failure and fall through the whole chain to the rule parser.
+const proseEvents = ['Halo, ', 'saya Tapak. ', 'Mau lihat kawasan mana dulu?'].map((t) => ({
+	choices: [{ delta: { content: t } }]
+}));
+const proseShown = [];
+const prose = await stream.readStream(
+	sse(proseEvents, 9),
+	new stream.Preview({ delta: (t) => proseShown.push(t), reset: () => proseShown.push(null) })
+);
+check(
+	'prose with no tool call is carried back rather than dropped',
+	prose.call === undefined && prose.content === 'Halo, saya Tapak. Mau lihat kawasan mana dulu?',
+	JSON.stringify(prose)
+);
+check(
+	'and it streams to the reader like any other casual reply',
+	proseShown.length > 1 && proseShown.join('') === chat.cleanChatReply(prose.content),
+	JSON.stringify(proseShown)
+);
+// The fence does not care which route the sentence took. This is what stops a model
+// that skips the tools and answers a data question in fluent invented prose.
+check(
+	'prose carrying a figure fails the same fence ngobrol does',
+	chat.cleanChatReply('Warteg biasanya balik modal dalam 8 bulan.') === null
+);
+
+// A model that narrates before calling a tool must not put its throat clearing on the
+// reader's screen. The preview stops the moment a tool is named, and the caller takes
+// down whatever went up.
+const preambleShown = [];
+const preamble = await stream.readStream(
+	sse([{ choices: [{ delta: { content: 'Sebentar ya' } }] }, frag('jalankan_query', '{"intent":"RANK"}')], 6),
+	new stream.Preview({ delta: (t) => preambleShown.push(t), reset: () => preambleShown.push(null) })
+);
+check(
+	'a preamble does not stop the tool call being read',
+	preamble.call.function.name === 'jalankan_query',
+	JSON.stringify(preamble)
+);
+check(
+	'and nothing more is shown once the tool is named',
+	preambleShown.join('').length <= 'Sebentar ya'.length,
+	JSON.stringify(preambleShown)
+);
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
