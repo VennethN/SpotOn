@@ -67,7 +67,12 @@ function main() {
 	const rows = [];
 	for (const [cell, mine] of byCell) {
 		for (const r of mine) {
-			const row = { cell, m: r.mission, lat: r.lat, lon: r.lon, d: r.distance };
+			/* The id travels. It is what the lists on the card are keyed by, and these
+			   records have one: MAPID assigns it, and it is stable across a rebuild.
+			   Keying on the visible fields instead is what a list of them cannot do —
+			   112 of the property records share one placeholder photograph, and several
+			   share an address, so any key built from what is on screen collides. */
+			const row = { id: r.id, cell, m: r.mission, lat: r.lat, lon: r.lon, d: r.distance };
 			// Only the keys a record actually carries. An absent field stays absent all
 			// the way to the interface, which is what lets the card say "no price was
 			// written down" rather than printing a zero somebody would read as free.
