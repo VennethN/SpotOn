@@ -11,6 +11,7 @@
 	 * survive intact when that box turns into this panel. Greeting, the language
 	 * reset and the map-selection remark live with the instance, on the page.
 	 */
+	import AskGlow from '$lib/components/ui/AskGlow.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { metricValue } from '$lib/domain/narrate';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -109,12 +110,12 @@
 	</div>
 
 	<form onsubmit={send}>
-		<!-- The halo is its own element rather than a shadow on the field, because the
-		     breathing and the fading are two separate things: the pulse runs forever on
-		     the inner span, the outer one fades it in and out. Put both on one opacity
-		     and the fade has nothing to hand over to, so the glow vanishes on a frame. -->
 		<span class="field" class:inviting>
-			<span class="glow" aria-hidden="true"><span class="pulse"></span></span>
+			<!-- Shorter reach than the launcher's. This field is a third of the height,
+			     and it sits in 14px of panel padding: at full reach the motes start up
+			     among the chips above it and out past the panel's own rounded corner,
+			     which puts a stray dot on the map. Cut to fit the room there is. -->
+			<AskGlow on={inviting} reach={0.42} />
 			<input
 				bind:value={draft}
 				placeholder={c.app.ask}
@@ -314,7 +315,7 @@
 		opacity: 0.6;
 	}
 	.field.inviting input {
-		border-color: color-mix(in srgb, var(--accent) 40%, var(--separator));
+		border-color: color-mix(in srgb, var(--accent) 62%, var(--separator));
 	}
 
 	/* A full-strength accent button that cannot be pressed is a lie about what is
@@ -336,48 +337,11 @@
 		filter: none;
 	}
 
-	/* Sits just outside the field's own edge, under it in the stack, and never takes a
-	   pointer: it is a light, not a control. */
-	.glow {
-		position: absolute;
-		inset: -1px;
-		border-radius: 999px;
-		pointer-events: none;
-		opacity: 0;
-		transition: opacity 520ms ease-in-out;
-	}
-	.field.inviting .glow {
-		opacity: 1;
-	}
-	.pulse {
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
-		box-shadow:
-			0 0 0 3px var(--accent-soft),
-			0 0 14px 1px color-mix(in srgb, var(--accent) 32%, transparent);
-		animation: breathe-glow 3.2s ease-in-out infinite;
-	}
-	/* Eased at both ends, so the light arrives and leaves rather than switching. */
-	@keyframes breathe-glow {
-		0%,
-		100% {
-			opacity: 0.34;
-		}
-		50% {
-			opacity: 1;
-		}
-	}
-
-	/* Reduced motion keeps the signal and drops the movement: the box still says it is
-	   ready, it just says it by holding still. */
+	/* Reduced motion keeps the signal and drops the movement: the line still says
+	   Tapak is working, it just says it by holding still. */
 	@media (prefers-reduced-motion: reduce) {
 		.thinking {
 			animation: none;
-		}
-		.pulse {
-			animation: none;
-			opacity: 0.72;
 		}
 	}
 </style>

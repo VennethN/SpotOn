@@ -18,6 +18,7 @@
 	 * one it offered.
 	 */
 	import { onMount } from 'svelte';
+	import AskGlow from '$lib/components/ui/AskGlow.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { CATEGORIES } from '$lib/domain/categories';
 	import { copy, lang } from '$lib/state/lang.svelte';
@@ -141,10 +142,9 @@
 	<h1>{c.app.launchTitle}</h1>
 
 	<form onsubmit={send} class:inviting>
-		<!-- Two elements, one light. The inner span breathes forever, the outer one
-		     fades that breathing in and out. Both eased, so the glow never arrives or
-		     leaves on a single frame. -->
-		<span class="glow" aria-hidden="true"><span class="pulse"></span></span>
+		<!-- Full reach here. This box stands alone in the middle of the screen with the
+		     map behind it, so there is room for the motes to come in from a distance. -->
+		<AskGlow on={inviting} />
 		<input
 			bind:this={field}
 			bind:value={draft}
@@ -244,49 +244,7 @@
 		border-color: var(--accent);
 	}
 	form.inviting {
-		border-color: color-mix(in srgb, var(--accent) 45%, var(--separator-strong));
-	}
-
-	/* Just outside the field's own edge, and never takes a pointer: it is a light, not
-	   a control. */
-	.glow {
-		position: absolute;
-		inset: -1px;
-		border-radius: 999px;
-		pointer-events: none;
-		opacity: 0;
-		transition: opacity 520ms ease-in-out;
-	}
-	form.inviting .glow {
-		opacity: 1;
-	}
-	.pulse {
-		position: absolute;
-		inset: 0;
-		border-radius: inherit;
-		box-shadow:
-			0 0 0 4px var(--accent-soft),
-			0 0 20px 2px color-mix(in srgb, var(--accent) 30%, transparent);
-		animation: breathe-glow 3.2s ease-in-out infinite;
-	}
-	/* Eased at both ends, so the light swells and settles rather than switching. */
-	@keyframes breathe-glow {
-		0%,
-		100% {
-			opacity: 0.32;
-		}
-		50% {
-			opacity: 1;
-		}
-	}
-
-	/* Reduced motion keeps the signal and drops the movement: the box still says it is
-	   ready, it just says it by holding still. */
-	@media (prefers-reduced-motion: reduce) {
-		.pulse {
-			animation: none;
-			opacity: 0.7;
-		}
+		border-color: color-mix(in srgb, var(--accent) 66%, var(--separator-strong));
 	}
 	input {
 		flex: 1;
