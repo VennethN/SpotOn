@@ -207,7 +207,7 @@ kategori: DAFTAR jenis usaha, bukan satu. Isi SEMUA yang benar-benar disebut pen
 - "di mana buka kedai kopi" → ["kopi"]
 - "kedai kopi yang juga jual roti" → ["kopi", "roti"]
 - "warteg, mie, atau seafood, mana yang paling masuk" → ["warteg", "mie", "seafood"]
-- pengguna tidak menyebut jenis usaha sama sekali → kosongkan, kategori yang sedang aktif yang dipakai.
+- pengguna tidak menyebut jenis usaha sama sekali → kosongkan, kategori yang sedang aktif yang dipakai. Kalau memang belum ada yang aktif, biarkan kosong juga: mesin akan menjawab yang bisa dijawab tanpa jenis usaha, dan balik bertanya untuk yang tidak bisa. JANGAN menebak jenis usaha yang tidak disebut.
 Kalau lebih dari satu, mesin menghitung pesaingnya sebagai satu kumpulan: gerai semua jenis itu dijumlahkan jadi pesaing, dan semuanya sama-sama dikeluarkan dari hitungan usaha lain di sekitarnya. Jangan menambahkan jenis usaha yang tidak disebut hanya karena mirip.
 
 urut: 'desc' untuk "paling banyak/tinggi/mahal/ramai", 'asc' untuk "paling sedikit/rendah/murah/sepi". Kalau pengguna tidak menyebut arah, kosongkan saja — mesin memakai arah yang masuk akal untuk ukuran itu.
@@ -402,7 +402,9 @@ export async function parseWithLLM(
 			{ role: 'system', content: `${SYSTEM}\n\n${LANG_RULE[lang] ?? LANG_RULE.id}` },
 			{
 				role: 'user',
-				content: `Kategori yang sedang aktif: ${fallbackCategory.join(', ')}.\nPertanyaan: ${question}`
+				content:
+					`Kategori yang sedang aktif: ${fallbackCategory.length ? fallbackCategory.join(', ') : 'belum ada, pengguna belum menyebut jenis usaha apa pun'}.\n` +
+					`Pertanyaan: ${question}`
 			}
 		],
 		tools: TOOLS,

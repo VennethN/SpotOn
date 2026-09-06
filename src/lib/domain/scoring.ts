@@ -161,7 +161,14 @@ function otherTrade(c: Hex, cats: readonly CategoryKey[], source: PoiSource, rad
 	return Math.max(0, Math.round(total * areaFactor(radius)) - own);
 }
 
-/** Normalisation scale for demand, set the same way `maxPoi` sets supply's. */
+/**
+ * Normalisation scale for demand, set the same way `maxPoi` sets supply's.
+ *
+ * With no business type named this is the busiest cell on the grid outright, since
+ * `otherTrade` has nothing to subtract — which is exactly the scale the opening map
+ * needs, where the reading is "how much trade is here" and not "how much trade other
+ * than mine".
+ */
 function maxTrade(all: Hex[], cats: readonly CategoryKey[], source: PoiSource, radius: number): number {
 	const counts = all
 		.map((c) => otherTrade(c, cats, source, radius))
@@ -242,6 +249,39 @@ export function scoreOne(
 	const units = unitsOf(c, w.radius);
 	const propCovered = c.propCovered ?? false;
 	const space = { price, priceLevel: level, costFactor: cost, units, propCovered };
+
+	/**
+	 * NOBODY HAS NAMED A BUSINESS TYPE YET.
+	 *
+	 * The trade standing around this cell is still reported, because it is a count that
+	 * needs no business type at all: every business in walking range, whatever it sells.
+	 * Nothing was subtracted from it, since there is no category to take out.
+	 *
+	 * The OPPORTUNITY is not reported, and that is the point of having this branch
+	 * rather than letting the empty set fall through. 83 for a coffee shop is not 83 for
+	 * a laundry, so a score with no business type behind it is a number about nothing.
+	 * And the arithmetic would not merely be meaningless, it would be flattering: no
+	 * type named means no rivals counted, no rivals is no competition, and no
+	 * competition is the highest score this engine can award. Every cell on the map
+	 * would come back excellent.
+	 *
+	 * `supply` is null for the same reason, rather than 0. Zero rivals is a finding; not
+	 * having asked about rivals is not.
+	 */
+	if (!cats.length) {
+		return {
+			...base,
+			...space,
+			osm: 0,
+			source: w.source,
+			covered: trade !== null,
+			score: null,
+			demand: trade === null ? null : Math.min(1, trade / tradeScale),
+			supply: null,
+			density: trade ?? 0,
+			typology: trade === null ? 'not-covered' : 'no-type'
+		};
+	}
 
 	// Not yet covered: this cell is real and inhabited, the active source simply has
 	// not surveyed its city. Refusing to give it a score is the correct answer — any

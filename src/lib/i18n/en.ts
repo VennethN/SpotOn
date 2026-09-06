@@ -306,7 +306,9 @@ export const en: Copy = {
 		competitive: 'Competitive',
 		saturated: 'Saturated',
 		'busy-limited-space': 'Busy, little space',
-		'not-covered': 'Not yet surveyed'
+		'not-covered': 'Not yet surveyed',
+		/* Not a gap in the data, but a question nobody has asked yet. */
+		'no-type': 'No business type yet'
 	},
 
 	supply: {
@@ -600,7 +602,13 @@ export const en: Copy = {
 		sceneLabel: (nama: string, isi: string) => `Schematic of ${nama}. ${isi}`,
 		sceneNodata: "This area's city has not been surveyed, so the street is shown empty.",
 		sceneBody: (n: number, osm: number, cat: string, unit: number) =>
-			`${n} businesses within walking range, ${osm} of them competing ${cat}, and ${unit} units on the market.`
+			`${n} businesses within walking range, ${osm} of them competing ${cat}, and ${unit} units on the market.`,
+		/* No business type has been named. The counts are still given because they were
+		   genuinely counted; the rivals are not, because rivals of WHAT is precisely the
+		   question that has not been asked. */
+		sceneNoType: (n: number, unit: number) =>
+			`${n} businesses within walking range and ${unit} units on the market.`,
+		askForScore: 'Say what you want to open and I will work out this area\'s opportunity score.'
 	},
 
 	/* ── app ──────────────────────────────────────────────────────────────── */
@@ -635,6 +643,16 @@ export const en: Copy = {
 		zoomOut: 'Zoom out',
 		reset: 'Reset the view',
 		legendUnit: 'opportunity score',
+		/* The opening map: no business type has been named, so there is no opportunity
+		   score to give. The one thing that can be counted without a business type is how
+		   many businesses stand within walking range, whatever they sell. */
+		basisDensity: 'Businesses around',
+		basisDensityUnit: 'every business type',
+		basisDensityLow: '0 · quiet',
+		basisDensityHigh: 'busiest',
+		basisDensityHint:
+			'An opportunity score needs a business type, because 83 for a coffee shop is not 83 for a laundry. Say what you want to open and this map becomes that score.',
+		basisDensityCells: (n: number) => `${n} cells sit in an unsurveyed city, not counted`,
 		sourceLabel: 'Competitor data source',
 		sourceOsm: 'OpenStreetMap: even coverage, volunteered',
 		sourceMapid: 'MAPID: surveyed, all 5 Jakarta cities',
@@ -653,6 +671,9 @@ export const en: Copy = {
 		heatmapAria: 'Opportunity score heatmap',
 		/* The map tooltip before any category is loaded: the cell is named, and nothing
 		   more is claimed. */
+		/* What a cell reads before a business type has been named: a count of the trade
+		   around it, not an opportunity score. */
+		tipDensity: 'businesses around',
 		tipNoCategory: 'Turn the heatmap on to see its score',
 		needCategory: 'No category loaded yet. Turn the heatmap on, or ask Tapak.',
 		ask: 'Or ask your own…',
@@ -765,6 +786,10 @@ export const en: Copy = {
 	},
 
 	narrate: {
+		/* Understood, and one word short. Not a refusal: what is missing is the business
+		   type, not the data, and an opportunity score means nothing without one. */
+		needsCategory:
+			'Before I answer, what do you want to open? An opportunity score is always for one kind of business, because 83 for a coffee shop is not 83 for a laundry.',
 		notUnderstood: (why: string) =>
 			`${why} All I know is the areas around Jakarta transit, for thirteen kinds of business. Want me to look at one of those?`,
 		coverageNone: 'Every area has data.',

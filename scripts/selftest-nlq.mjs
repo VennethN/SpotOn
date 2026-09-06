@@ -79,7 +79,7 @@ const CASES = [
 ];
 
 for (const [q, ukuran, urut, kategori] of CASES) {
-	const parsed = nlq.parseQuestion(q, W, 'kopi');
+	const parsed = nlq.parseQuestion(q, W, ['kopi']);
 	const okMetric = parsed.ukuran === ukuran;
 	const okOrder = urut === null || parsed.urut === urut;
 	const okCat = kategori === null || parsed.kategori.join(',') === kategori;
@@ -96,8 +96,8 @@ for (const [q, ukuran, urut, kategori] of CASES) {
 // answer "which is quietest" with the busiest cell on the grid.
 check(
 	'busiest and quietest are the same measure, read opposite ways',
-	nlq.parseQuestion('mana yang paling ramai', W, 'kopi').urut === 'desc' &&
-		nlq.parseQuestion('mana yang paling sepi', W, 'kopi').urut === 'asc'
+	nlq.parseQuestion('mana yang paling ramai', W, ['kopi']).urut === 'desc' &&
+		nlq.parseQuestion('mana yang paling sepi', W, ['kopi']).urut === 'asc'
 );
 
 /* ── a question naming several business types comes back with all of them ── */
@@ -146,16 +146,66 @@ for (const [q, want] of [
 	);
 }
 
+/* ── no business type named: answer what can be answered, ask for the rest ── */
+
+/* The map now opens with no business type at all, because opening on coffee handed a
+   reader a map about a business they never mentioned. That makes "nothing named" a
+   state real questions arrive in, and the split below is the whole of how it behaves:
+   a figure about the PLACE is answered, a figure about a place AND a trade is not. */
+for (const [q, answerable] of [
+	['mana yang paling ramai', true],
+	['di mana harganya paling murah', true],
+	['mana yang paling banyak tempat kosong', true],
+	['mana yang simpul transitnya paling banyak', true],
+	// Rivals of what, saturated with what, best opportunity for what. One word short,
+	// and the honest move is to ask for it rather than to pick a business type.
+	['di mana sebaiknya buka', false],
+	['mana yang pesaingnya paling sedikit', false],
+	['mana yang sudah jenuh', false]
+]) {
+	const ans = nlq.answer(q, cells, W, []);
+	const asked = ans.needsCategory === true;
+	check(
+		`"${q}" with no business type → ${answerable ? 'answered' : 'asks which business'}`,
+		answerable ? !asked && ans.items.length > 0 : asked && ans.items.length === 0,
+		`needsCategory=${asked} items=${ans.items.length}`
+	);
+}
+
+// An empty set must never be scored. No type named means no rivals counted, no rivals
+// is no competition, and no competition is the best score this engine can award — so
+// the failure mode is not a blank map, it is 562 cells reporting excellence.
+{
+	const busy = nlq.answer('mana yang paling ramai', cells, W, []);
+	check(
+		'a question with no business type reports no opportunity score at all',
+		busy.items.length > 0 && busy.items.every((i) => i.value === null),
+		`${busy.items.filter((i) => i.value !== null).length} item(s) came back scored`
+	);
+}
+
+// And the busyness it does report is the full count, not a count with something taken
+// out of it: there is no category to subtract.
+{
+	const none = nlq.answer('mana yang paling ramai', cells, W, []);
+	const kopi = nlq.answer('mana yang paling ramai untuk kedai kopi', cells, W, ['kopi']);
+	check(
+		'with no business type the crowd is counted whole, nothing subtracted',
+		none.items[0].measure.value >= kopi.items[0].measure.value,
+		`none ${none.items[0]?.measure?.value} vs kopi ${kopi.items[0]?.measure?.value}`
+	);
+}
+
 /* ── the intents still route ─────────────────────────────────────────────── */
 
-check('coverage still reachable', nlq.parseQuestion('mana yang belum ada datanya', W, 'kopi').intent === 'COVERAGE');
-check('saturation still reachable', nlq.parseQuestion('mana yang sudah jenuh', W, 'kopi').intent === 'FLAG_SATURATED');
-check('compare still reachable', nlq.parseQuestion('bandingkan Blok M dan Dukuh Atas', W, 'kopi').intent === 'COMPARE');
+check('coverage still reachable', nlq.parseQuestion('mana yang belum ada datanya', W, ['kopi']).intent === 'COVERAGE');
+check('saturation still reachable', nlq.parseQuestion('mana yang sudah jenuh', W, ['kopi']).intent === 'FLAG_SATURATED');
+check('compare still reachable', nlq.parseQuestion('bandingkan Blok M dan Dukuh Atas', W, ['kopi']).intent === 'COMPARE');
 
 /* ── the answers actually come back measured ─────────────────────────────── */
 
 for (const [q, ukuran] of CASES) {
-	const ans = nlq.answer(q, cells, W, 'kopi');
+	const ans = nlq.answer(q, cells, W, ['kopi']);
 	const top = ans.items[0];
 	if (!top) {
 		check(`"${q}" returns results`, false, 'no items');
@@ -171,7 +221,7 @@ for (const [q, ukuran] of CASES) {
 
 /* ── a ranking never includes a cell that was never measured ─────────────── */
 
-const priced = nlq.answer('di mana harganya paling murah', cells, W, 'kopi');
+const priced = nlq.answer('di mana harganya paling murah', cells, W, ['kopi']);
 check(
 	'a price ranking lists only catchments that carry a price',
 	priced.items.every((i) => i.measure && Number.isFinite(i.measure.value)),
@@ -180,8 +230,8 @@ check(
 
 // The one that would be invisible: an unsurveyed cell sorted to the top of "fewest
 // competitors" looks exactly like a genuine finding.
-const fewest = nlq.answer('mana yang pesaingnya paling sedikit', cells, W, 'kopi');
-const scored = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, 'kopi');
+const fewest = nlq.answer('mana yang pesaingnya paling sedikit', cells, W, ['kopi']);
+const scored = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']);
 const coveredIds = new Set(scored.items.map((i) => i.id));
 check(
 	`"fewest competitors" returns ${fewest.items.length} catchments, none of them unsurveyed`,
@@ -192,19 +242,19 @@ check(
 
 /* ── filters narrow without inventing a threshold ────────────────────────── */
 
-const cheap = nlq.parseQuestion('kedai kopi modal kecil dekat MRT', W, 'kopi');
+const cheap = nlq.parseQuestion('kedai kopi modal kecil dekat MRT', W, ['kopi']);
 check(
 	'"modal kecil dekat MRT" produces band filters, never a number',
 	(cheap.filters ?? []).length >= 2 &&
 		(cheap.filters ?? []).every((f) => ['rendah', 'tinggi', 'ada'].includes(f.arah)),
 	JSON.stringify(cheap.filters)
 );
-const filtered = nlq.answer('kedai kopi modal kecil dekat MRT', cells, W, 'kopi');
+const filtered = nlq.answer('kedai kopi modal kecil dekat MRT', cells, W, ['kopi']);
 check('a filtered question still returns something', filtered.items.length > 0);
 
 /* ── every registered measure is reachable and readable ──────────────────── */
 
-const rows = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, 'kopi');
+const rows = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']);
 check('every measure has a definition', metrics.METRIC_KEYS.every((k) => metrics.METRIC_MAP[k]));
 check(
 	'every measure declares which end is best',
@@ -244,14 +294,14 @@ for (const [q, pivot] of [
 	['seberapa ramai di sini', undefined],
 	['mana yang paling banyak tempat kosong', undefined]
 ]) {
-	const got = nlq.parseQuestion(q, W, 'kopi').pivot;
+	const got = nlq.parseQuestion(q, W, ['kopi']).pivot;
 	check(`"${q}" → pivot ${pivot ?? '(left alone)'}`, got === pivot, `got ${got ?? '(left alone)'}`);
 }
 
 // A question about which AREA has the most units on the market and a question about
 // which UNIT is cheapest are the pair this parser is most likely to confuse, and they
 // mean opposite things.
-const areaUnits = nlq.parseQuestion('mana yang paling banyak tempat kosong', W, 'kopi');
+const areaUnits = nlq.parseQuestion('mana yang paling banyak tempat kosong', W, ['kopi']);
 check(
 	'"paling banyak tempat kosong" ranks areas by a property count, not doorways',
 	areaUnits.pivot === undefined && areaUnits.ukuran === 'unit_dipasarkan',
@@ -264,7 +314,7 @@ for (const [q, ukuran, urut] of [
 	['tempat mana yang bangunannya paling luas', 'luas_bangunan', 'desc'],
 	['tempat mana yang paling dekat pusat petak', 'jarak_pusat', 'asc']
 ]) {
-	const p = nlq.parseQuestion(q, W, 'kopi');
+	const p = nlq.parseQuestion(q, W, ['kopi']);
 	check(
 		`"${q}" → unit sort ${ukuran} ${urut}`,
 		p.ukuran_unit === ukuran && p.urut_unit === urut,
@@ -277,7 +327,7 @@ for (const [q, ukuran, urut] of [
 // unit list the next time the reader switched pivot by hand.
 check(
 	'a catchment question carries no unit sort',
-	nlq.parseQuestion('di mana sewanya paling murah', W, 'kopi').ukuran_unit === undefined
+	nlq.parseQuestion('di mana sewanya paling murah', W, ['kopi']).ukuran_unit === undefined
 );
 
 /* The radius. A question that names one has to be ANSWERED at it — computing at 800 m
@@ -292,13 +342,13 @@ for (const [q, radius] of [
 	['kedai kopi 10 menit jalan kaki', W.radius],
 	['di mana sebaiknya buka kedai kopi', W.radius]
 ]) {
-	const got = nlq.parseQuestion(q, W, 'kopi').radius_m;
+	const got = nlq.parseQuestion(q, W, ['kopi']).radius_m;
 	check(`"${q}" → radius ${radius} m`, got === radius, `got ${got}`);
 }
 
 // And the answer is genuinely computed at it, rather than the field being decoration.
-const near = nlq.answer('mana yang pesaingnya paling banyak dalam 400 m', cells, W, 'kopi');
-const far = nlq.answer('mana yang pesaingnya paling banyak dalam 800 m', cells, W, 'kopi');
+const near = nlq.answer('mana yang pesaingnya paling banyak dalam 400 m', cells, W, ['kopi']);
+const far = nlq.answer('mana yang pesaingnya paling banyak dalam 800 m', cells, W, ['kopi']);
 check(
 	'a radius named in the question changes the figures, not just the query object',
 	near.query.radius_m === 400 &&

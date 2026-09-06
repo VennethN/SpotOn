@@ -19,7 +19,7 @@ import {
 } from '$lib/domain/units';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
-import { DEFAULT_CATEGORY, DEFAULT_WEIGHTS, snapRadius } from '$lib/domain/weights';
+import { DEFAULT_WEIGHTS, snapRadius } from '$lib/domain/weights';
 import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
 import type {
@@ -85,15 +85,27 @@ export class AppState {
 	 * this set are counted together as rivals and all of them come out of the trade
 	 * around each cell, so the picture is the answer to the question that was asked.
 	 *
-	 * Never empty, and that is enforced by the setters rather than by the type: a set
-	 * of none has no rivals to count, and the engine reads no rivals as the best
-	 * opportunity there is — the whole grid would light up.
+	 * EMPTY UNTIL SOMEBODY ASKS. It opened on coffee, and there was no defending that:
+	 * a reader who had not said a word about coffee was handed a map coloured for it,
+	 * with the legend naming a business type they never chose. Picking a different one
+	 * to open on would have been just as arbitrary, and opening on all thirteen is not
+	 * available either — the trade around a cell IS the thirteen counts added up, so a
+	 * set of all of them subtracts the whole of itself and leaves every cell reading
+	 * zero demand.
+	 *
+	 * So the opening map scores nothing and paints the one figure that needs no
+	 * business type: how much trade stands in walking range. See `basis`.
+	 *
+	 * `setCategories` still refuses to make this empty AGAIN once a type has been
+	 * named, which is not a contradiction of the above but the same rule read forwards:
+	 * the reader asked about something, and silently dropping back to a map about
+	 * nothing would throw their question away.
 	 *
 	 * It is set by ASKING. There is no other way in: the chips at the top of the map
 	 * report what the last answer covered and nothing on them is pressable, so this
 	 * field only ever moves because somebody asked a question.
 	 */
-	categories = $state<CategoryKey[]>([DEFAULT_CATEGORY]);
+	categories = $state<CategoryKey[]>([]);
 	weights = $state<Weights>({ ...DEFAULT_WEIGHTS });
 	layers = $state<Record<LayerKey, boolean>>({
 		/**
@@ -240,16 +252,27 @@ export class AppState {
 	#poiJobs = new Map<CategoryKey, Promise<void>>();
 	#listingsJob: Promise<void> | null = null;
 
-	constructor(base: HexBase[], initial?: CategorySlice, meta?: GridMeta) {
+	constructor(base: HexBase[], meta?: GridMeta) {
 		this.base = base;
-		// The opening category arrives with the page, so the first paint is already
-		// scored. Anything else is fetched on demand from here on.
-		if (initial) this.slices = { [initial.cat]: initial };
 		this.meta = meta ?? null;
 	}
 
 	/** The categories whose columns are loaded and therefore genuinely scoreable. */
 	loaded = $derived(Object.keys(this.slices) as CategoryKey[]);
+
+	/**
+	 * WHICH FIGURE the heatmap is painting.
+	 *
+	 * An opportunity score needs a business type behind it, so before one is named
+	 * there is none to paint. What can be painted is the trade standing around each
+	 * cell: a count of every business in walking range whatever it sells, which is as
+	 * real as any other column and belongs to no category at all.
+	 *
+	 * Two bases rather than an empty map, because "just show me the map" has to show
+	 * something, and rather than one basis quietly standing for both, because the two
+	 * answer different questions and the legend has to say which one is on screen.
+	 */
+	basis = $derived<'skor' | 'keramaian'>(this.categories.length ? 'skor' : 'keramaian');
 
 	/**
 	 * Are the active set's columns here yet — ALL of them?
@@ -333,6 +356,24 @@ export class AppState {
 	/** Row by id — the map's hover handler needs this on every pointer move. */
 	rowById = $derived(new Map(this.rows.map((r) => [r.id, r])));
 
+	/**
+	 * The single 0..1 the heatmap paints, per cell. Null means nothing may be painted.
+	 *
+	 * Here rather than in the map layer so there is one place that decides what a
+	 * colour on this map MEANS. The layer used to read `score` directly, which was
+	 * fine while a score was the only thing it could be showing and became a quiet
+	 * lie the moment it was not: with no business type every score is null, and the
+	 * layer would have drawn all 562 cells as unsurveyed.
+	 */
+	heatById = $derived(
+		new Map(
+			this.rows.map((r) => [
+				r.id,
+				this.basis === 'skor' ? r.score : r.covered ? r.demand : null
+			])
+		)
+	);
+
 	get selected(): ScoredHex | null {
 		return this.rowById.get(this.selectedId ?? '') ?? null;
 	}
@@ -363,9 +404,16 @@ export class AppState {
 			surveyed: mapid ? this.base.filter((c) => c.dens?.mapid !== null).length : this.base.length,
 			/** Competitor total — needs the active category, so it is 0 until one is loaded. */
 			poi: rows.reduce((a, r) => a + r.osm, 0),
-			/** Cells left unscored because the active source does not cover them. */
-			notCovered: rows.filter((r) => r.score === null).length,
-			scored: rows.filter((r) => r.score !== null).length
+			/**
+			 * Cells the active source does not cover, so nothing can be read off them.
+			 *
+			 * Counted off `covered` and not off a null score. The two agreed while a score
+			 * was the only thing the map could show; they stopped agreeing the moment the
+			 * opening map had no business type, where every score is null and this would
+			 * have reported the whole grid as unsurveyed.
+			 */
+			notCovered: rows.filter((r) => !r.covered).length,
+			scored: rows.filter((r) => r.covered).length
 		};
 	});
 
@@ -900,12 +948,8 @@ export class AppState {
 	}
 }
 
-export function setAppState(
-	base: HexBase[],
-	initial?: CategorySlice,
-	meta?: GridMeta
-): AppState {
-	return setContext(KEY, new AppState(base, initial, meta));
+export function setAppState(base: HexBase[], meta?: GridMeta): AppState {
+	return setContext(KEY, new AppState(base, meta));
 }
 
 export function getAppState(): AppState {

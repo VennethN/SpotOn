@@ -308,7 +308,9 @@ export const id = {
 		competitive: 'Bersaing ketat',
 		saturated: 'Sudah jenuh',
 		'busy-limited-space': 'Ramai, tempat terbatas',
-		'not-covered': 'Belum disurvei'
+		'not-covered': 'Belum disurvei',
+		/* Bukan kekosongan data, tapi pertanyaan yang belum diajukan. */
+		'no-type': 'Belum ada jenis usaha'
 	},
 
 	supply: {
@@ -600,7 +602,14 @@ export const id = {
 		sceneLabel: (nama: string, isi: string) => `Skema kawasan ${nama}. ${isi}`,
 		sceneNodata: 'Kota kawasan ini belum disurvei, jadi jalannya ditampilkan kosong.',
 		sceneBody: (n: number, osm: number, cat: string, unit: number) =>
-			`Ada ${n} usaha dalam radius jalan kaki, ${osm} di antaranya ${cat} pesaing, dan ${unit} unit sedang dipasarkan.`
+			`Ada ${n} usaha dalam radius jalan kaki, ${osm} di antaranya ${cat} pesaing, dan ${unit} unit sedang dipasarkan.`,
+		/* Belum ada jenis usaha yang disebut. Cacahnya tetap disebut karena memang
+		   terhitung; pesaingnya tidak, karena pesaing untuk usaha apa itu justru
+		   pertanyaan yang belum diajukan. */
+		sceneNoType: (n: number, unit: number) =>
+			`Ada ${n} usaha dalam radius jalan kaki dan ${unit} unit sedang dipasarkan.`,
+		askForScore:
+			'Sebutkan mau buka usaha apa, nanti saya hitung skor peluangnya untuk petak ini.'
 	},
 
 	/* ── app ──────────────────────────────────────────────────────────────── */
@@ -635,6 +644,16 @@ export const id = {
 		zoomOut: 'Perkecil',
 		reset: 'Kembalikan tampilan awal',
 		legendUnit: 'skor peluang',
+		/* Peta pembuka: belum ada jenis usaha yang disebut, jadi belum ada skor peluang
+		   yang bisa diberikan. Yang bisa dihitung tanpa jenis usaha cuma satu, yaitu
+		   berapa banyak usaha yang berdiri dalam radius jalan kaki, apa pun jualannya. */
+		basisDensity: 'Usaha di sekitar',
+		basisDensityUnit: 'semua jenis usaha',
+		basisDensityLow: '0 · sepi',
+		basisDensityHigh: 'terpadat',
+		basisDensityHint:
+			'Skor peluang butuh jenis usaha, karena 83 untuk kedai kopi bukan 83 untuk laundry. Sebutkan mau buka apa dan peta ini berganti jadi skornya.',
+		basisDensityCells: (n: number) => `${n} petak kotanya belum disurvei, tidak dihitung`,
 		sourceLabel: 'Sumber data pesaing',
 		sourceOsm: 'OpenStreetMap: merata, dikumpulkan sukarela',
 		sourceMapid: 'MAPID: tersurvei, lengkap 5 kota DKI',
@@ -658,6 +677,9 @@ export const id = {
 		heatmapAria: 'Peta panas skor peluang',
 		/* Tooltip peta sebelum ada kategori yang dimuat: petaknya dinamai, tidak ada
 		   angka yang diklaim. */
+		/* Bacaan petak sebelum ada jenis usaha yang disebut: cacah usaha di sekitarnya,
+		   bukan skor peluang. */
+		tipDensity: 'usaha di sekitar',
 		tipNoCategory: 'Nyalakan peta panas untuk melihat skornya',
 		needCategory: 'Belum ada kategori yang dimuat. Nyalakan peta panas atau tanya Tapak.',
 		ask: 'Atau tanya sendiri…',
@@ -769,6 +791,10 @@ export const id = {
 	},
 
 	narrate: {
+		/* Paham, cuma kurang satu kata. Bukan penolakan: yang kurang bukan datanya,
+		   tapi jenis usahanya, dan skor peluang memang tidak ada artinya tanpa itu. */
+		needsCategory:
+			'Sebelum saya jawab, mau buka usaha apa? Skor peluang selalu untuk satu jenis usaha, karena 83 untuk kedai kopi bukan 83 untuk laundry.',
 		notUnderstood: (why: string) =>
 			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk tiga belas jenis usaha. Mau saya carikan salah satunya?`,
 		coverageNone: 'Semua kawasan sudah ada datanya.',

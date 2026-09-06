@@ -1,10 +1,11 @@
 import { id as ID } from '$lib/i18n/id';
 import { pct } from '$lib/utils/format';
-import { CATEGORY_MAP, orderCategories } from './categories';
+import { CATEGORY_KEYS, CATEGORY_MAP, orderCategories } from './categories';
 import {
 	DEFAULT_METRIC,
 	METRIC_MAP,
 	applyFilters,
+	needsBusinessType,
 	rankBy,
 	resolveOrder,
 	type MetricFilter
@@ -396,6 +397,38 @@ export function runQuery(
 	   `join-property` computed. */
 	const w: Weights = { ...weights, radius: snapRadius(query.radius_m) };
 	query.radius_m = w.radius;
+	/**
+	 * NO BUSINESS TYPE NAMED, AND THIS QUESTION NEEDS ONE.
+	 *
+	 * Five of the nine measures are facts about the place and answer perfectly well
+	 * without a trade behind them: how busy it is, what space costs, how much is on the
+	 * market, and the two transit readings. Four are not — rivals of what, saturated
+	 * with what, a good opportunity for what — and the two shaped intents below are in
+	 * the same position.
+	 *
+	 * Asking back is the honest move and it is cheap. The alternative was what this used
+	 * to do: fall back to coffee, and answer a question about coffee that nobody asked,
+	 * with a map that recoloured itself to match.
+	 */
+	const wantsType =
+		query.intent === 'FLAG_SATURATED' ||
+		query.intent === 'COVERAGE' ||
+		(query.intent === 'RANK' && needsBusinessType(query.ukuran ?? DEFAULT_METRIC));
+	if (!cats.length && wantsType) {
+		return {
+			query,
+			needsCategory: true,
+			headline:
+				'Pertanyaan ini perlu jenis usaha dulu, karena 83 untuk kedai kopi bukan 83 untuk laundry. Mau buka usaha apa?',
+			items: [],
+			highlight: [],
+			provenance: [
+				'Tidak ada operasi yang dijalankan: ukuran yang ditanyakan tidak bisa dibaca tanpa jenis usaha.',
+				`Jenis usaha yang tersedia: ${CATEGORY_KEYS.join(', ')}.`
+			]
+		};
+	}
+
 	const rows = scoreAll(catchments, cats, w);
 	const provenance = [
 		`Alur: pertanyaan → parsing niat → function-calling ke daftar operasi spasial terbatas → PostGIS mengeksekusi → peta & panel diperbarui.`,
@@ -408,7 +441,9 @@ export function runQuery(
 		   pool of rivals, and all of them come back out of the trade around the cell. */
 		cats.length > 1
 			? `${cats.length} jenis usaha ditanyakan sekaligus: pesaingnya dijumlahkan jadi satu, dan semuanya sama-sama dikeluarkan dari hitungan usaha lain di sekitarnya. Satu petak yang salah satu jenisnya belum disurvei tidak diberi nilai sama sekali.`
-			: `Satu jenis usaha yang ditanyakan: ${defs[0].name}.`,
+			: cats.length === 1
+				? `Satu jenis usaha yang ditanyakan: ${defs[0].name}.`
+				: `Tidak ada jenis usaha yang disebut, jadi tidak ada pesaing yang dihitung dan tidak ada skor peluang yang diberikan. Keramaian di bawah ini adalah cacah semua usaha dalam radius, apa pun jenisnya.`,
 		`Sisi permintaan: jumlah usaha lain dalam radius yang sama, sumber yang sama, dikurangi pesaing sejenis.`,
 		`Harga dan unit yang dipasarkan: katalog properti komersial MAPID. Semuanya harga JUAL, bukan sewa.`
 	];
@@ -512,7 +547,7 @@ export function runQuery(
 	return {
 		query,
 		headline:
-			`${ranked.length} catchment teratas untuk ${def.name} menurut ${key} (${order === 'asc' ? 'terkecil' : 'terbesar'} dulu).` +
+			`${ranked.length} catchment teratas ${def.name ? `untuk ${def.name} ` : ''}menurut ${key} (${order === 'asc' ? 'terkecil' : 'terbesar'} dulu).` +
 			(filtered ? ` ${filtered} catchment disaring keluar oleh filter.` : '') +
 			(unmeasured ? ` ${unmeasured} catchment belum terukur untuk ${key} dan tidak diperingkat.` : '') +
 			(skipped ? ` ${skipped} catchment dikecualikan karena kotanya belum disurvei ${sourceLabel(w.source)}.` : ''),
