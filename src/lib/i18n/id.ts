@@ -1353,6 +1353,15 @@ export const id = {
 		openingMap: 'Menyiapkan peta',
 		openingAccount: 'Menyiapkan halaman akun',
 
+		/* ── dua penantian, bukan satu ─────────────────────────────────────────────
+		   Masuk itu dua tahap dan cuma yang pertama yang cepat: email dan kata sandi
+		   pergi lalu balik, sesudah itu halaman tujuannya yang dimuat, dan bagian kedua
+		   inilah yang lama. Masing-masing dibacakan dari tempat kerjanya benar-benar
+		   berjalan, bukan dari hitungan mundur, dan tidak satu pun berupa persentase,
+		   aturan yang sama dengan aliran jawaban Tapak. */
+		checking: 'Mencocokkan akun Anda',
+		making: 'Menyiapkan akun baru Anda',
+
 		demoHead: 'Mode demo',
 		demoEnter: 'Masuk sebagai akun demo',
 		demoWhy:

@@ -1359,6 +1359,15 @@ export const en: Copy = {
 		openingMap: 'Getting the map ready',
 		openingAccount: 'Getting your account page ready',
 
+		/* ── two waits, not one ────────────────────────────────────────────────────
+		   Signing in is two stages and only the first is quick: the address and the
+		   password go out and come back, and then the destination loads, which is the
+		   long half. Each is said from where the work actually is rather than off a
+		   countdown, and neither is a percentage, which is the rule Tapak's own answer
+		   stream already follows. */
+		checking: 'Checking your account',
+		making: 'Setting your account up',
+
 		demoHead: 'Demo mode',
 		demoEnter: 'Continue on the demo account',
 		demoWhy:
