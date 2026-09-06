@@ -393,7 +393,9 @@ export class AppState {
 	   category, which is the same condition the engine refuses to score without. */
 	coverage = $derived.by(() => {
 		const rows = this.rows;
-		const mapid = this.weights.source === 'mapid';
+		// Only the pure-OSM reading covers the whole grid outright. The catalogue has not
+		// read 100 cells, and "both" inherits OSM's reach for them rather than the gap.
+		const everywhere = this.weights.source !== 'mapid';
 		return {
 			total: this.base.length,
 			/* Cells the source in use has actually read, counted off the density column
@@ -401,7 +403,9 @@ export class AppState {
 			   base, so the greeting is right on the first frame rather than waiting for a
 			   category. OSM covers the whole grid: it is one worldwide dataset, and what it
 			   cannot do is per CATEGORY, which `covered` on the scored row says instead. */
-			surveyed: mapid ? this.base.filter((c) => c.dens?.mapid !== null).length : this.base.length,
+			surveyed: everywhere
+				? this.base.length
+				: this.base.filter((c) => c.dens?.mapid !== null).length,
 			/** Competitor total — needs the active category, so it is 0 until one is loaded. */
 			poi: rows.reduce((a, r) => a + r.osm, 0),
 			/**
@@ -605,7 +609,10 @@ export class AppState {
 	 */
 	selectedPois = $derived.by(() => {
 		const cell = this.selectedCell;
-		if (!cell || this.weights.source !== 'mapid') return [];
+		// Positions exist only in the MAPID catalogue, so pure OSM draws nothing. Reading
+		// both draws them: the dots are then a subset of what was counted rather than a
+		// different source's shops, and `RivalsPanel` says as much beside them.
+		if (!cell || this.weights.source === 'osm') return [];
 		/* Every type in the set, in one pool of dots — the same pool the engine counted
 		   as this cell's rivals. Drawing only the first type's would put a count of
 		   fourteen in the panel above a map showing nine. */
@@ -619,7 +626,7 @@ export class AppState {
 	    to load. Both leave the count intact and only the positions missing. */
 	poisUnavailable = $derived.by(() => {
 		if (!this.selectedCell) return null;
-		if (this.weights.source !== 'mapid') return 'source' as const;
+		if (this.weights.source === 'osm') return 'source' as const;
 		// One type's file failing is enough. The dots left on screen would be a subset of
 		// the rivals the count beside them was taken over, and nothing would say so.
 		if (this.categories.some((k) => this.poisFailed.includes(k))) return 'failed' as const;
@@ -838,7 +845,7 @@ export class AppState {
 		// Only MAPID carries positions, so switching to it with a cell already open has
 		// to fetch them — otherwise the competitors stay off the map until the next
 		// click, and switching source looks like it did nothing.
-		if (source === 'mapid' && this.selectedId) void this.loadPoiSet();
+		if (source !== 'osm' && this.selectedId) void this.loadPoiSet();
 	}
 
 	setTheme(theme: Theme) {

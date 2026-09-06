@@ -196,6 +196,47 @@ for (const [q, answerable] of [
 	);
 }
 
+/* ── two surveys, read together, never added ─────────────────────────────── */
+
+/* The whole risk of a "both" reading is that somebody makes it a sum. OpenStreetMap
+   and the MAPID catalogue survey the SAME city, so their counts are largely the same
+   shops seen twice and there is no shared id to match them on. Added, a street with
+   eight coffee shops is reported as having fourteen and the competition side of every
+   score is inflated by an amount nobody can account for. */
+{
+	const W_BOTH = { ...W, source: 'both' };
+	const W_OSM = { ...W, source: 'osm' };
+	const one = nlq.answer('mana yang pesaingnya paling banyak untuk kedai kopi', cells, W, ['kopi']);
+	const osm = nlq.answer('mana yang pesaingnya paling banyak untuk kedai kopi', cells, W_OSM, ['kopi']);
+	const both = nlq.answer('mana yang pesaingnya paling banyak untuk kedai kopi', cells, W_BOTH, ['kopi']);
+	const v = (a) => a.items[0]?.measure?.value ?? 0;
+	check(
+		'reading both surveys never exceeds their sum, and never falls below either',
+		v(both) <= v(one) + v(osm) && v(both) >= Math.max(v(one), v(osm)) && v(both) < v(one) + v(osm),
+		`mapid ${v(one)} · osm ${v(osm)} · both ${v(both)}`
+	);
+
+	// And the point of reading both: the cells the catalogue has never reached stop
+	// being blank, because OpenStreetMap can still speak for them.
+	const gapMapid = nlq.answer('mana yang belum ada datanya', cells, W, ['kopi']).items.length;
+	const gapBoth = nlq.answer('mana yang belum ada datanya', cells, W_BOTH, ['kopi']).items.length;
+	check(
+		`reading both closes the survey gap (${gapMapid} unsurveyed → ${gapBoth})`,
+		gapBoth < gapMapid,
+		`mapid ${gapMapid} vs both ${gapBoth}`
+	);
+
+	// A business type OpenStreetMap cannot count at all is not helped by adding it, and
+	// must not be reported as if it were: warteg has no OSM tag, so both reads as MAPID.
+	const wartegMapid = nlq.answer('mana yang belum ada datanya untuk warteg', cells, W, ['warteg']).items.length;
+	const wartegBoth = nlq.answer('mana yang belum ada datanya untuk warteg', cells, W_BOTH, ['warteg']).items.length;
+	check(
+		'a type OSM cannot count gains nothing from reading both, and claims nothing',
+		wartegMapid === wartegBoth,
+		`mapid ${wartegMapid} vs both ${wartegBoth}`
+	);
+}
+
 /* ── the intents still route ─────────────────────────────────────────────── */
 
 check('coverage still reachable', nlq.parseQuestion('mana yang belum ada datanya', W, ['kopi']).intent === 'COVERAGE');

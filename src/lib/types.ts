@@ -214,12 +214,25 @@ export interface CategorySlice {
 }
 
 /**
- * The competitor data source. The two are deliberately kept apart and never mixed
- * into one score: OSM is volunteered and widespread but uneven, MAPID is surveyed
- * and uniform but covers only some cities so far. Merging them would produce a
- * number whose provenance nobody could account for.
+ * Which survey the competitor counts are read from.
+ *
+ * `both` is the default and it does NOT add the two together. They are two surveys of
+ * the same city, not two halves of one: 1,569 cafes in OpenStreetMap and 4,753 in the
+ * MAPID catalogue are mostly the SAME cafes counted twice, and there is no shared id
+ * to match them on. Added, a street with eight coffee shops would be reported as
+ * having fourteen, and the competition side of every score would be inflated by an
+ * amount nobody could account for.
+ *
+ * What `both` does instead is read each cell from whichever survey actually reached
+ * it, and where both did, from the one that found more. Nothing is ever counted twice,
+ * every figure still comes from a single named survey, and the result is a floor
+ * rather than a guess: at least this many, because somebody counted them.
+ *
+ * The two are still selectable on their own, which is the other half of why they are
+ * not merged into one number — a reader comparing the surveys has to be able to see
+ * each of them as it is.
  */
-export type PoiSource = 'osm' | 'mapid';
+export type PoiSource = 'osm' | 'mapid' | 'both';
 
 /** Opportunity profile of a cell. These are internal keys — the label the reader
     sees comes from the `typology` dictionary in the locale files. */

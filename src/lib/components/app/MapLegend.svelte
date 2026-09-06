@@ -53,7 +53,12 @@
 	   OSM source: picking Warteg on OSM dashes EVERY cell, and it is exactly in that
 	   state that the note was being suppressed. */
 	const uncovered = $derived(coverage.notCovered);
-	const srcName = $derived(app.weights.source === 'mapid' ? 'MAPID' : 'OSM');
+	const srcName = $derived(
+		app.weights.source === 'mapid' ? 'MAPID' : app.weights.source === 'osm' ? 'OSM' : 'MAPID + OSM'
+	);
+	/* What to try instead when the current reading cannot score a single cell. Reading
+	   both is the widest of the three, so from there the suggestion is not another
+	   source but another business type. */
 	const otherSrcName = $derived(app.weights.source === 'mapid' ? 'OSM' : 'MAPID');
 
 	let open = $state(true);
@@ -141,8 +146,9 @@
 						value={app.weights.source}
 						onchange={(v: PoiSource) => app.setSource(v)}
 						options={[
-							{ value: 'osm', label: 'OSM', hint: c.app.sourceOsm },
-							{ value: 'mapid', label: 'MAPID', hint: c.app.sourceMapid }
+							{ value: 'both', label: c.app.sourceBothLabel, hint: c.app.sourceBoth },
+							{ value: 'mapid', label: 'MAPID', hint: c.app.sourceMapid },
+							{ value: 'osm', label: 'OSM', hint: c.app.sourceOsm }
 						]}
 					/>
 				</div>

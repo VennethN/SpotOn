@@ -655,6 +655,11 @@ export const id = {
 			'Skor peluang butuh jenis usaha, karena 83 untuk kedai kopi bukan 83 untuk laundry. Sebutkan mau buka apa dan peta ini berganti jadi skornya.',
 		basisDensityCells: (n: number) => `${n} petak kotanya belum disurvei, tidak dihitung`,
 		sourceLabel: 'Sumber data pesaing',
+		sourceBothLabel: 'Keduanya',
+		/* "Keduanya" bukan penjumlahan, dan kalimat ini yang menjaga supaya tidak
+		   dibaca begitu. Dua survei ini membaca kota yang sama, jadi menjumlahkannya
+		   berarti menghitung toko yang sama dua kali. */
+		sourceBoth: 'Tiap petak dibaca dari survei yang menjangkaunya, yang lebih banyak kalau dua-duanya. Tidak dijumlahkan.',
 		sourceOsm: 'OpenStreetMap: merata, dikumpulkan sukarela',
 		sourceMapid: 'MAPID: tersurvei, lengkap 5 kota DKI',
 		/* Menyebut sumbernya, bukan menulis "MAPID" mati. Sejak empat kategori
