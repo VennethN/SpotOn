@@ -7,6 +7,7 @@
 	import SignalFlow from '$lib/components/landing/SignalFlow.svelte';
 	import SourceBars from '$lib/components/landing/SourceBars.svelte';
 	import StreetStage from '$lib/components/landing/StreetStage.svelte';
+	import QueryMap from '$lib/components/landing/QueryMap.svelte';
 	import TapakDemo from '$lib/components/landing/TapakDemo.svelte';
 	import Reveal from '$lib/components/ui/Reveal.svelte';
 	import ScoreRamp from '$lib/components/ui/ScoreRamp.svelte';
@@ -35,6 +36,19 @@
 		{ nm: 'LRT', v: k.stopsByMode.lrt ?? 0 },
 		{ nm: 'MRT', v: k.stopsByMode.mrt ?? 0 }
 	]);
+
+	/**
+	 * Which question the conversation is on, and whether its answer has landed.
+	 *
+	 * The conversation owns this clock and reports it, rather than the page driving
+	 * both halves from a timer of its own. Two timers would drift, and the drift shows
+	 * as a map that repaints a moment before or after the sentence explaining it.
+	 */
+	let demoStep = $state({ index: 0, answered: false });
+	const demo = $derived({
+		...(data.conversation[lang()][demoStep.index] ?? data.conversation[lang()][0]),
+		answered: demoStep.answered
+	});
 
 	const POIS = $derived([
 		{ nm: c.category.minimarket.name, v: k.poisByCategory.minimarket ?? 0 },
@@ -196,18 +210,32 @@
 			</header>
 		</Reveal>
 
-		<div class="duo">
-			<Reveal distance={12}>
-				<div class="prose">
-					<p class="body">{c.ai.p2}</p>
-					<p class="body">{c.ai.p3}</p>
-				</div>
-			</Reveal>
+		<!-- The map is the bigger half, and deliberately. This section makes one claim,
+		     that asking repaints the map, and a chat box quoting place names asks the
+		     reader to take that on trust. Here the whole city changes colour when the
+		     business type does. -->
+		<Reveal delay={60} distance={12}>
+			<div class="panel ai-stage">
+				<QueryMap
+					map={data.coverage}
+					data={data.queryMaps[demo.id]}
+					label={demo.choice}
+					answered={demo.answered}
+				/>
+				<TapakDemo
+					sets={data.conversation[lang()]}
+					greeting={c.tapak.greet(k.hexes, k.surveyed)}
+					onstep={(st) => (demoStep = st)}
+				/>
+			</div>
+		</Reveal>
 
-			<Reveal delay={90} distance={12}>
-				<TapakDemo sets={data.conversation[lang()]} greeting={c.tapak.greet(k.hexes, k.surveyed)} />
-			</Reveal>
-		</div>
+		<Reveal delay={90} distance={12}>
+			<div class="prose two-up">
+				<p class="body">{c.ai.p2}</p>
+				<p class="body">{c.ai.p3}</p>
+			</div>
+		</Reveal>
 	</section>
 
 	<!-- ── data honesty ─────────────────────────────────────────────────── -->
@@ -240,15 +268,6 @@
 					<h3 class="lede">{c.data.poiTitle}</h3>
 					<SourceBars rows={POIS} unit={c.data.poiUnit(n(k.pois))} />
 				</div>
-			</div>
-		</Reveal>
-
-		<!-- No panel: this is the page admitting something, and an admission set in a
-		     raised field reads as a feature being advertised. -->
-		<Reveal delay={60} distance={10}>
-			<div class="absence">
-				<h3>{c.data.mockTitle}</h3>
-				<p class="body">{c.data.mockNote}</p>
 			</div>
 		</Reveal>
 	</section>
@@ -641,26 +660,40 @@
 		margin-bottom: 0.375rem;
 	}
 
-	/* Prose beside an object: the demo is the object, so it keeps its own frame
-	   and the words do not. */
-	.duo {
-		display: grid;
-		grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-		gap: var(--s-wide);
-		align-items: start;
-	}
 	.prose {
 		display: flex;
 		flex-direction: column;
 		gap: var(--s-group);
 	}
-
-	.absence {
-		max-width: 62ch;
+	/* Two columns of body copy under the stage, because after the map has made the
+	   point these two paragraphs are a footnote to it rather than a second act. */
+	.prose.two-up {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--s-block);
+		align-items: start;
 	}
-	.absence h3 {
-		margin-bottom: var(--s-tight);
-		color: var(--ink-2);
+
+	/* The map takes the room and the conversation runs down its side, which is the
+	   shape of the app itself. The map is given the wider share on purpose: it is the
+	   thing being claimed, and the conversation is what provokes it. */
+	.ai-stage {
+		display: grid;
+		grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+		gap: var(--s-block);
+		align-items: center;
+	}
+
+	@media (max-width: 56rem) {
+		.prose.two-up {
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--s-group);
+		}
+		/* The map first, then the conversation under it. Stacked the other way the
+		   reader scrolls past the question before the thing it changes. */
+		.ai-stage {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 
 	/* ── Closing ───────────────────────────────────────────────────────────
@@ -787,8 +820,7 @@
 		}
 		.tri,
 		.steps,
-		.who,
-		.duo {
+		.who {
 			grid-template-columns: minmax(0, 1fr);
 			gap: var(--s-block);
 		}

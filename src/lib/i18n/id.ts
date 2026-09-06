@@ -217,24 +217,27 @@ export const id = {
 
 	ai: {
 		mark: 'Tanya petanya',
-		title: 'Tanya petanya pakai bahasa sehari-hari.',
-		p1: 'Tidak ada rumus yang harus diisi dan tidak ada istilah yang harus dihafal. Tapak yang mulai duluan: dia bertanya, menyodorkan pilihan yang tinggal ditekan, lalu menjawab dengan daftar tempat beserta alasannya.',
+		title: 'Tanya pakai bahasa sehari-hari, petanya yang berubah.',
+		p1: 'Sebutkan mau buka usaha apa, dan seluruh kota berganti warna untuk usaha itu. Tidak ada rumus yang harus diisi dan tidak ada istilah yang harus dihafal.',
 		p2: 'Sebelum menjawab, peta menunjukkan apa yang dia tangkap dari pertanyaan Anda. Kalau ada yang salah tangkap, Anda langsung tahu. Jawabannya selalu menyebut alasan dan berapa banyak data yang jadi dasarnya.',
-		p3: 'Percakapan di sebelah jalan sendiri. Pertanyaannya memang sudah kami siapkan, tapi angkanya tidak: tiap nama dan nilai di situ dihitung mesin skor yang sama dengan yang dipakai peta. Tekan jenis usaha untuk pindah ke percakapan lain.',
+		p3: 'Pertanyaannya memang sudah kami siapkan, tapi angkanya tidak. Tiap warna, nama, dan nilai di sini dihitung mesin skor yang sama dengan yang dipakai aplikasinya, dari data yang sama, saat halaman ini dibangun.',
+		mapEmpty: 'Peta 562 petak kawasan transit Jakarta, menunggu pertanyaan pertama.',
+		mapLabel: (jenis: string) =>
+			`Peta 562 petak kawasan transit Jakarta, diwarnai menurut skor peluang untuk ${jenis}.`,
+		mapCaption: (jenis: string) => `Skor peluang ${jenis}, 562 petak, dihitung saat ini juga.`,
 		caught: 'Yang ditangkap peta',
 		thinking: 'Sebentar, saya cek catatan saya…',
 		more: (n: number) => `+${n} lagi di dalam aplikasi`,
 		play: 'Jalankan percakapan',
-		pause: 'Jeda percakapan',
-		foot: 'Pertanyaannya contoh, tapi jawabannya dihitung mesin skor yang sama dengan aplikasinya.'
+		pause: 'Jeda percakapan'
 	},
 
 	data: {
 		mark: 'Data',
-		title: 'Kawasan yang datanya belum ada kami tampilkan apa adanya.',
-		body: 'Kalau kota satu kawasan belum ada di katalog, kami tidak mengarang angka penggantinya. Kawasannya ditandai kosong dan masuk antrean untuk disurvei duluan.',
+		title: 'Tiap angka bisa ditelusuri sampai ke sumbernya.',
+		body: 'Dua survei, dibaca bersamaan dan tidak pernah dijumlahkan. Tiap petak dibaca dari survei yang memang menjangkaunya, jadi angkanya batas bawah, bukan taksiran.',
 		gridWithData: 'petak kotanya sudah disurvei',
-		gridEmpty: 'belum disurvei, tidak dinilai, masuk antrean',
+		gridEmpty: 'belum ada di katalog MAPID',
 		gridLabel: (total: number, terdata: number, nodata: number) =>
 			`Kisi ${total} petak: ${terdata} kotanya sudah disurvei, ${nodata} belum.`,
 		realTitle: 'Yang nyata',
@@ -242,10 +245,7 @@ export const id = {
 			`${stops} titik transit empat moda, lengkap dengan geometri jalurnya, dari OpenStreetMap lewat Overpass API (ODbL). Akses transit tiap petak dihitung dari sini.`,
 		poiTitle: 'Pesaing terdata, per jenis usaha',
 		poiUnit: (pois: string) =>
-			`${pois} titik usaha sejenis, juga dari OpenStreetMap. Inilah angka pesaing yang dipakai mesin skor, bukan perkiraan.`,
-		mockTitle: 'Yang sengaja tidak ada',
-		mockNote:
-			'Tidak ada satu pun angka di produk ini yang dibangkitkan. Tidak ada profil 24 jam, tidak ada jumlah struk, tidak ada porsi non-tunai, dan tidak ada listing sewa per jenis usaha. Semua itu dulu ada di produk ini sebagai data contoh yang dibangkitkan, dan sekarang dihapus seluruhnya. Katalog MAPID untuk Jakarta juga tidak memuat satu pun listing sewa, jadi harga yang ditampilkan adalah harga jual dan disebut harga jual. Yang tidak terukur lebih baik tidak ada di layar daripada ada tapi dikarang.'
+			`${pois} titik usaha sejenis, juga dari OpenStreetMap. Inilah angka pesaing yang dipakai mesin skor, bukan perkiraan.`
 	},
 
 	spreadChart: {
@@ -971,16 +971,13 @@ export const id = {
 		count: (v: number) => num(Math.round(v))
 	},
 
+	/* Pertanyaan contoh di halaman utama, ditulis utuh seperti orang yang sudah tahu
+	   mau buka apa. Dulu dipecah jadi empat giliran tanya jawab, dan di halaman
+	   penjualan itu terlalu lama sebelum ada yang terjawab. */
 	demo: {
-		coverageAsk: 'Sebentar, datanya lengkap?',
-		coverageChip: 'Cakupan data',
-		coverageReply: 'Tidak semuanya. Mau saya tunjukkan yang mana saja yang belum?',
-		coverageYes: 'Tunjukkan',
-		coveragePreface: 'Ini yang belum saya punya datanya.',
-		saturatedChip: 'Yang jenuh',
-		saturatedAsk: 'Oke, minimarket. Mau saya carikan yang bagus, atau yang sebaiknya dihindari?',
-		saturatedYes: 'Yang sebaiknya dihindari',
-		saturatedPreface: 'Boleh. Ini yang pesaingnya paling rapat.'
+		askOpen: (jenis: string) => `Di mana sebaiknya buka ${jenis} dekat stasiun?`,
+		askCheap: (jenis: string) => `Di mana buka ${jenis} modal kecil dekat MRT?`,
+		askSaturated: (jenis: string) => `Kawasan mana yang ${jenis}-nya sudah terlalu padat?`
 	}
 };
 
