@@ -1351,6 +1351,14 @@ export const en: Copy = {
 		passwordHint: (min: number) => `At least ${min} characters.`,
 		working: 'One moment…',
 
+		/* ── the two pages that are genuinely slow ─────────────────────────────────
+		   The map fetches its grid before it can colour a single cell, and the account
+		   page reads that same grid on the server and projects all 562 catchments. Only
+		   those two are slow enough to be worth drawing the outline of first, and only
+		   those two are named here. */
+		openingMap: 'Getting the map ready',
+		openingAccount: 'Getting your account page ready',
+
 		demoHead: 'Demo mode',
 		demoEnter: 'Continue on the demo account',
 		demoWhy:
