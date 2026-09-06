@@ -98,11 +98,30 @@ const TOTAL_MS = 90_000;
  * Environment Variable change — no rebuild needed. Blank entries are dropped, so
  * a stray trailing comma or a whitespace-only value reads as "not set" rather
  * than as an empty model name that OpenRouter would reject with a confusing 400.
+ *
+ * QUOTES ARE TAKEN OFF, because half the ways this value gets set do not take
+ * them off for you. A `.env` file goes through dotenv, which strips a pair
+ * wrapping the whole value, so quoting there was always harmless. Every other
+ * route — the Vercel Environment Variables field, `export`, a CI secret, docker
+ * `-e` — hands the value over exactly as typed, quotes and all, and a slug with a
+ * `"` stuck to it is not a model OpenRouter serves.
+ *
+ * Stripping per entry rather than once around the whole value is what makes the
+ * list survive: `"a/b, c/d"` splits into `"a/b` and `c/d"`, each carrying one half
+ * of the pair, and `"a/b", "c/d"` gives both entries a pair of their own. Taking a
+ * leading and a trailing quote off each entry covers all of them, and costs
+ * nothing on a value that was never quoted. No model slug contains a quote, so
+ * there is nothing here to lose.
+ *
+ * One case is beyond reach from here: quoting the entries individually *inside a
+ * `.env` file* (`OPENROUTER_MODEL="a/b", "c/d"`). dotenv reads that as ending at
+ * the second quote and drops the rest, so only `a/b` ever arrives. `.env.example`
+ * says not to write it that way.
  */
 function pinnedModels(): string[] {
 	return (env.OPENROUTER_MODEL ?? '')
 		.split(',')
-		.map((slug) => slug.trim())
+		.map((slug) => slug.trim().replace(/^["']|["']$/g, '').trim())
 		.filter(Boolean);
 }
 
