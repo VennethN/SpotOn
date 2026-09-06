@@ -26,6 +26,14 @@
 	let draft = $state('');
 	let log = $state<HTMLDivElement | null>(null);
 
+	/**
+	 * The box is inviting a question: Tapak is not working on one, and nothing has
+	 * been typed yet. That is the only moment the glow says anything — once there are
+	 * words in the field the reader has clearly found it, and once Tapak is thinking
+	 * the box cannot be acted on at all.
+	 */
+	const inviting = $derived(!tapak.busy && !draft.trim());
+
 	// The scroll follows the newest turn rather than jumping: the user has to see
 	// the new message arrive, not suddenly find themselves at the bottom.
 	$effect(() => {
@@ -46,7 +54,7 @@
 		{#each tapak.turns as turn (turn.id)}
 			{#if turn.who === 'tapak'}
 				<div class="row">
-					<span class="avatar"><TapakFigure size={26} /></span>
+					<span class="avatar"><TapakFigure size={26} pacing={turn.pending} /></span>
 					<div class="bubble">
 						<p class:thinking={turn.pending}>{turn.text}</p>
 
@@ -101,12 +109,19 @@
 	</div>
 
 	<form onsubmit={send}>
-		<input
-			bind:value={draft}
-			placeholder={c.app.ask}
-			aria-label={c.app.askAria}
-			disabled={tapak.busy}
-		/>
+		<!-- The halo is its own element rather than a shadow on the field, because the
+		     breathing and the fading are two separate things: the pulse runs forever on
+		     the inner span, the outer one fades it in and out. Put both on one opacity
+		     and the fade has nothing to hand over to, so the glow vanishes on a frame. -->
+		<span class="field" class:inviting>
+			<span class="glow" aria-hidden="true"><span class="pulse"></span></span>
+			<input
+				bind:value={draft}
+				placeholder={c.app.ask}
+				aria-label={c.app.askAria}
+				disabled={tapak.busy}
+			/>
+		</span>
 		<button type="submit" class="btn accent" disabled={tapak.busy || !draft.trim()}>
 			{c.app.askSend}
 		</button>
@@ -157,8 +172,22 @@
 		background: var(--accent);
 		color: var(--accent-ink);
 	}
+	/* Waiting reads on two things at once: the figure beside the bubble is pacing, and
+	   the line itself breathes. Slow and shallow on purpose. It has to be legible as
+	   "still going" out of the corner of an eye, without pulling the eye off the
+	   answer above it. */
 	.thinking {
 		color: var(--label-3);
+		animation: breathe-text 1.9s ease-in-out infinite;
+	}
+	@keyframes breathe-text {
+		0%,
+		100% {
+			opacity: 0.58;
+		}
+		50% {
+			opacity: 1;
+		}
 	}
 
 	.places {
@@ -264,7 +293,14 @@
 		display: flex;
 		gap: 0.375rem;
 	}
+	.field {
+		position: relative;
+		flex: 1;
+		min-width: 0;
+		display: flex;
+	}
 	input {
+		position: relative;
 		flex: 1;
 		min-width: 0;
 		border: 1px solid var(--separator);
@@ -272,8 +308,76 @@
 		border-radius: 999px;
 		padding: 0.375rem 0.75rem;
 		font-size: 0.8125rem;
+		transition: border-color 420ms ease-in-out;
 	}
 	input:disabled {
 		opacity: 0.6;
+	}
+	.field.inviting input {
+		border-color: color-mix(in srgb, var(--accent) 40%, var(--separator));
+	}
+
+	/* A full-strength accent button that cannot be pressed is a lie about what is
+	   available. It steps back while Tapak is thinking, and while there is nothing
+	   typed to send, on the same easing as everything else here. */
+	form button {
+		flex: none;
+		transition:
+			transform 100ms ease-out,
+			opacity 320ms ease-in-out,
+			background-color 320ms ease-in-out;
+	}
+	form button:disabled {
+		opacity: 0.4;
+		box-shadow: none;
+		cursor: default;
+	}
+	form button:disabled:hover {
+		filter: none;
+	}
+
+	/* Sits just outside the field's own edge, under it in the stack, and never takes a
+	   pointer: it is a light, not a control. */
+	.glow {
+		position: absolute;
+		inset: -1px;
+		border-radius: 999px;
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 520ms ease-in-out;
+	}
+	.field.inviting .glow {
+		opacity: 1;
+	}
+	.pulse {
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		box-shadow:
+			0 0 0 3px var(--accent-soft),
+			0 0 14px 1px color-mix(in srgb, var(--accent) 32%, transparent);
+		animation: breathe-glow 3.2s ease-in-out infinite;
+	}
+	/* Eased at both ends, so the light arrives and leaves rather than switching. */
+	@keyframes breathe-glow {
+		0%,
+		100% {
+			opacity: 0.34;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+
+	/* Reduced motion keeps the signal and drops the movement: the box still says it is
+	   ready, it just says it by holding still. */
+	@media (prefers-reduced-motion: reduce) {
+		.thinking {
+			animation: none;
+		}
+		.pulse {
+			animation: none;
+			opacity: 0.72;
+		}
 	}
 </style>
