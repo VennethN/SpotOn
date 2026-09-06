@@ -284,10 +284,11 @@ check('compare still reachable', nlq.parseQuestion('bandingkan Blok M dan Dukuh 
 		);
 	}
 
-	// The first question of a session has nothing behind it, so nothing can be pointed
-	// at and the sentence is read exactly as it always was.
+	// With no candidate names at all there is nothing to point at, and the sentence is
+	// read exactly as it was before any of this existed. Through `answer` the grid's own
+	// names are candidates, which is the next block.
 	check(
-		'a why-question with no conversation behind it is not an explanation',
+		'a why-question with no candidate names is not an explanation',
 		nlq.parseQuestion('kenapa Setiabudi Astra', W, ['kopi']).intent === 'RANK'
 	);
 
@@ -359,6 +360,107 @@ check('compare still reachable', nlq.parseQuestion('bandingkan Blok M dan Dukuh 
 	   model gets the whole thread and decides for itself, per turn, whether a turn needs
 	   data. Growing a phrasebook here would only make the two halves disagree about what
 	   was asked. */
+}
+
+/* ── naming a place is enough, and the measure survives ──────────────────── */
+
+/* THE SECOND ROUND OF THE SAME MISTAKE. A follow-up can POINT ("kenapa yang itu"), which
+   needs a why-word because there is nothing else in the sentence to go on. Or it can
+   NAME ("what is the rent at Pusdiklat BPS"), which needs no why-word at all and used to
+   get none of this: with no "kenapa" in it the question fell through to a ranking, and a
+   question about one place's price came back as the grid's five best catchments.
+
+   And the measure was thrown away on the way past even when the shape was right, so
+   "berapa harga tempat di X" was answered with X's opportunity score. A shape and a
+   measure are chosen separately everywhere else in this engine. */
+{
+	const named = nlq.answer('di mana sebaiknya buka toko roti', cells, W, ['roti']).items[0].name;
+
+	for (const [q, ukuran] of [
+		['berapa harga tempat di NAME', 'harga_tempat'],
+		['what is the rent at NAME', 'harga_tempat'],
+		['NAME mahal tidak', 'harga_tempat'],
+		['seberapa ramai NAME', 'keramaian'],
+		['how busy is NAME', 'keramaian'],
+		['ada berapa pesaing di NAME', 'pesaing'],
+		// No measure named at all is the score, which is the shape this started as.
+		['kenapa NAME', 'skor'],
+		['jelaskan NAME', 'skor']
+	]) {
+		const asked = q.replace('NAME', named);
+		const ans = nlq.answer(asked, cells, W, ['roti'], []);
+		check(
+			`"${q}" → EXPLAIN ${ukuran}`,
+			ans.query.intent === 'EXPLAIN' && ans.query.ukuran === ukuran && ans.explain?.name === named,
+			`got ${ans.query.intent} ukuran=${ans.query.ukuran} name=${ans.explain?.name}`
+		);
+	}
+
+	// And the figure asked about actually reaches the answer, rather than being computed
+	// and then dropped in favour of the score.
+	{
+		const ans = nlq.answer(`berapa harga tempat di ${named}`, cells, W, ['roti'], []);
+		const row = scoring.scoreAll(cells, ['roti'], W).find((r) => r.id === ans.explain?.id);
+		check(
+			'an explanation reports the measure it was asked about',
+			ans.explain?.measure?.ukuran === 'harga_tempat' && ans.explain?.measure?.value === row?.price,
+			`measure=${JSON.stringify(ans.explain?.measure)} price=${row?.price}`
+		);
+		// A question about the score does not carry one, because it would print the same
+		// number twice.
+		check(
+			'an explanation of the score carries no separate measure',
+			nlq.answer(`kenapa ${named}`, cells, W, ['roti'], []).explain?.measure == null
+		);
+	}
+
+	/* The three shapes that name a place and are NOT about it. Without these a question
+	   asking the grid to be sorted would be answered about whichever catchment it
+	   happened to mention. */
+	for (const [q, intent] of [
+		[`di mana buka toko roti dekat ${named}`, 'RANK'],
+		[`bandingkan ${named} dan Pesing`, 'COMPARE'],
+		[`kawasan mana yang lebih ramai dari ${named}`, 'RANK']
+	]) {
+		check(`"${q}" → ${intent}`, nlq.answer(q, cells, W, ['roti'], []).query.intent === intent, `got ${nlq.answer(q, cells, W, ['roti'], []).query.intent}`);
+	}
+
+	/* And the failure that would be invisible. Eighty-seven catchments are named with a
+	   single word and some of those are ordinary ones, so scanning the whole grid for a
+	   name has to be word-bounded and has to skip the short ones. Otherwise "kawasannya
+	   damai" is read as a question about a catchment in South Jakarta. */
+	for (const q of [
+		'kawasannya damai tidak',
+		'harga karet berapa sekarang',
+		'pesaingnya berduri di mana-mana'
+	]) {
+		check(
+			`"${q}" is not read as naming a catchment`,
+			nlq.answer(q, cells, W, ['roti'], []).query.intent !== 'EXPLAIN',
+			`got ${nlq.answer(q, cells, W, ['roti'], []).query.intent} target=${(nlq.answer(q, cells, W, ['roti'], []).query.target ?? []).join(',')}`
+		);
+	}
+}
+
+/* ── the English half of the money words ─────────────────────────────────── */
+
+/* The catchment list carried no English money word at all, while the unit list beside it
+   had `cheap|price` all along, so the two registries disagreed about the same question in
+   the same language. Every English question about money fell past them to the opportunity
+   score. The pair at the end is the collision that had to be split by hand: a bare "for
+   rent" means "on the rent measure" and asks about the price, while "space for rent" asks
+   which places are being offered, and those are two different measures. */
+for (const [q, ukuran] of [
+	['where is the rent cheapest', 'harga_tempat'],
+	['which area has the lowest price', 'harga_tempat'],
+	['how much does space cost there', 'harga_tempat'],
+	['where is it most expensive', 'harga_tempat'],
+	['why did it score 1 for rent', 'harga_tempat'],
+	['which areas have space for rent', 'sewa_ditawarkan'],
+	['di mana ada tempat yang disewakan', 'sewa_ditawarkan']
+]) {
+	const got = nlq.parseQuestion(q, W, ['kopi']).ukuran;
+	check(`"${q}" → ${ukuran}`, got === ukuran, `got ${got}`);
 }
 
 /* ── two places pointed at rather than typed out ─────────────────────────── */
