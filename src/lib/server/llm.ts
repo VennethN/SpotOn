@@ -68,8 +68,6 @@ const MODEL_CHAIN = [
 	'openai/gpt-oss-20b:free'
 ];
 
-const DEFAULT_MODEL = MODEL_CHAIN[0];
-
 /**
  * The time budget for one attempt, and the budget for the whole chain.
  *
@@ -88,15 +86,24 @@ const ATTEMPT_MS = 60_000;
 const TOTAL_MS = 90_000;
 
 /**
- * The model this understanding layer uses, from `OPENROUTER_MODEL`.
+ * The models named in `OPENROUTER_MODEL`, in the order they were written.
+ *
+ * One slug pins one model. Several of them, separated by commas, pin a chain of
+ * that same shape as `MODEL_CHAIN` above but chosen by hand — which is what a
+ * deployment wants when it has a paid model to fall back to, or when the free
+ * models named here have been retired and the chain needs replacing without a
+ * code change.
  *
  * Read through `$env/dynamic/private`, so switching models on Vercel is just an
- * Environment Variable change — no rebuild needed. An empty or whitespace-only
- * value is treated as "not set", rather than as an empty model name that
- * OpenRouter would reject with a confusing 400.
+ * Environment Variable change — no rebuild needed. Blank entries are dropped, so
+ * a stray trailing comma or a whitespace-only value reads as "not set" rather
+ * than as an empty model name that OpenRouter would reject with a confusing 400.
  */
-export function activeModel(): string {
-	return env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
+function pinnedModels(): string[] {
+	return (env.OPENROUTER_MODEL ?? '')
+		.split(',')
+		.map((slug) => slug.trim())
+		.filter(Boolean);
 }
 
 /**
@@ -105,8 +112,21 @@ export function activeModel(): string {
  * fallbacks they never asked for.
  */
 function modelChain(): string[] {
-	const pinned = env.OPENROUTER_MODEL?.trim();
-	return pinned ? [pinned] : MODEL_CHAIN;
+	const pinned = pinnedModels();
+	return pinned.length ? pinned : MODEL_CHAIN;
+}
+
+/** The whole chain this understanding layer will try, in order. */
+export function activeModels(): string[] {
+	return modelChain();
+}
+
+/**
+ * The main model: the first one tried, and the one that answers most of the time.
+ * The rest of the chain only gets a turn when it is busy or too slow.
+ */
+export function activeModel(): string {
+	return modelChain()[0];
 }
 
 /** Whether the model layer is actually usable (the key is configured). */
