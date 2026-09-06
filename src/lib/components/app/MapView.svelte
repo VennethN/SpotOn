@@ -14,7 +14,7 @@
 	import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 	import { env } from '$env/dynamic/public';
 	import { boundsOf, emptyFC, ringCoords } from '$lib/utils/geo';
-	import { railTotal, stopTotal } from '$lib/domain/transit';
+	import { countStops, railTotal, stopTotal } from '$lib/domain/transit';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
 	import { basemapStyle } from '$lib/map/basemap';
 	import { hatchImage, rivalImage, unitImage } from '$lib/map/icons';
@@ -810,6 +810,13 @@
 		}
 
 		const order = [...keep];
+		/* Which counts the selected marker's chip and label carry, and where they come
+		   from: the grid while the range is the cell's, the nodes actually drawn once it
+		   is a place's. Worked out once rather than per marker, because only one of them
+		   is ever the selected one and the answer is the same for all of them. */
+		const placeNodes = app.reachIsPlace ? countStops(app.selectedStops) : null;
+		const stopsAria = app.reachIsPlace ? c.app.mapStopsAriaPlace : c.app.mapStopsAria;
+		const rivalsAria = app.reachIsPlace ? c.app.mapRivalsAriaPlace : c.app.mapRivalsAria;
 		for (const h of cells) {
 			if (!keep.has(h.id)) continue;
 			const name = cellName(h);
@@ -848,12 +855,15 @@
 			const rank = app.highlight.indexOf(h.id);
 			const selected = app.selectedId === h.id;
 			entry.el.className = `stn${selected ? ' is-selected' : ''}`;
+			/* A label saying "of this cell" over a range measured from a doorway would be
+			   the one reading on this map with nothing on screen to check it against. */
+			const nodes = stopTotal(placeNodes ?? h.transit);
 			entry.el.setAttribute(
 				'aria-label',
 				name +
-					(selected ? `, ${c.app.mapStopsAria(stopTotal(h.transit), app.weights.radius)}` : '') +
+					(selected ? `, ${stopsAria(nodes, app.weights.radius)}` : '') +
 					(selected && app.layers.poi && app.selectedPois.length
-						? `, ${c.app.mapRivalsAria(app.selectedPois.length, app.weights.radius)}`
+						? `, ${rivalsAria(app.selectedPois.length, app.weights.radius)}`
 						: '')
 			);
 			entry.el.innerHTML =
@@ -1009,22 +1019,27 @@
 
 
 	/**
-	 * The selected cell's transit count, pinned to the cell itself.
+	 * The transit count, pinned to the selected cell.
 	 *
 	 * The halos show WHICH nodes; this says HOW MANY, at the one place on the map the
 	 * reader is already looking. Only the count — the split, the names and what it is
 	 * worth to the score all live in the panel, and a map chip that tries to carry them
 	 * stops being readable at a glance, which is the only thing it is for.
 	 *
-	 * Read from the grid's own counts, so it is right before `stops.json` has arrived,
-	 * and it is the same figure the score was computed from.
+	 * Read from the grid's own counts while the range is measured from the cell centre,
+	 * so it is right before `stops.json` has arrived and it is the same figure the score
+	 * was computed from. Once the range is measured from a place it is counted off the
+	 * nodes actually drawn instead, for the reason the competitor chip below has always
+	 * been: a chip sitting on top of a fan must not say a different number from the one
+	 * the fan has lines for.
 	 */
 	function transitBadge(h: HexBase): string {
-		const n = stopTotal(h.transit);
+		const counts = app.reachIsPlace ? countStops(app.selectedStops) : h.transit;
+		const n = stopTotal(counts);
 		if (!n || !app.layers.stops) return '';
 		// A cell reaching rail gets the accent: one fixed doorway with all-day footfall
 		// is a different proposition from the same count made up of bus stops.
-		const rail = railTotal(h.transit) > 0 ? ' has-rail' : '';
+		const rail = railTotal(counts) > 0 ? ' has-rail' : '';
 		return `<span class="stn-chip${rail}">${c.app.mapStops(n)}</span>`;
 	}
 
@@ -1164,6 +1179,9 @@
 		void app.highlight;
 		void app.selectedStops;
 		void app.selectedPois;
+		// The centre the ring and both fans are drawn from, which moves with the pivot
+		// and with the open place rather than with anything already named here.
+		void app.reach;
 		void app.layers.stops;
 		void app.layers.property;
 		void app.selectedListings;

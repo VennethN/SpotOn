@@ -507,6 +507,43 @@ every listing carries a total asking price, and only half carry a price per m².
 cheapest-first leads with the least trustworthy rows — a "Komersial lain" asking Rp 100
 juta, a kiosk on 6 m² — so the list opens on the home cell's score instead.
 
+## The walking range is measured from whatever the reader picked
+
+`app.reach` is the one place that decides it: the cell centre in area mode, and the
+place itself once one is open in place mode. Nobody rents a hexagon, and nobody walks
+from the middle of one either — what a tenant walks starts at their own front door.
+
+Everything that IS that range follows it, and they all have to move together. The ring
+on the map, the transit fan and the competitor fan under it, and the four captured sets
+those fans are drawn from: `selectedStops`, `selectedPois`, `selectedListings`,
+`selectedOpen`. Move some and not others and you get a circle on screen with lines
+reaching out past it.
+
+**What does not move is anything the grid measured at build time.** The opportunity
+score, how busy a cell is, the competitor count that score was taken over, the access
+index, the median asking price and its rank were all counted from the cell centre by the
+build scripts, at every radius the interface offers. There is no doorway reading of any
+of them, and deriving one would be interpolating a figure nobody measured, which this
+product does not do. So they stay the catchment's, and the copy beside them says whose
+they are: `cardAreaNote` on the place card, `transitBandCell` beside the access index,
+`medianIsCell` beside the price.
+
+The rule that falls out of this, and the one to hold any change here to: **a figure
+printed above a captured list is counted from the same point that list was.** Where the
+grid has a reading for that point it is the grid's, because it is also what the score was
+computed from and it is right before the file it names has even been fetched. Where the
+grid has none, the figure is counted off the very list underneath it:
+`countStops` does that for the transit nodes, `hoursReading` for the businesses the hour
+curve is drawn from, and `RivalsPanel` was already counting the dots on the map rather
+than the scored row's figure.
+
+Two absences the grid used to cover for, and which have to be said out loud once the
+range is a place's. Nothing has been counted until `stops.json` and `hours.json` land, so
+an empty capture means "not yet" rather than "none", and a failed fetch means "could not
+be counted" rather than "nothing here". `ScoreBreakdown` is the one surface deliberately
+left on the cell centre, through `cellStops`: it takes the access index apart, and that
+index was built from counts taken from the cell centre.
+
 ## Small talk is allowed, and fenced in code
 
 Tapak can say hello, say what SpotOn is, and talk generally about running a small

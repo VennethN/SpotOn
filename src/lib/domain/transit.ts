@@ -140,6 +140,27 @@ export function presentModes(transit: TransitCounts): Array<{ mode: Mode; n: num
 }
 
 /**
+ * A captured list of stops, counted back into the shape the grid holds.
+ *
+ * The grid's own counts are the ones on display wherever the range is measured from a
+ * cell centre, because they are what the access index was computed from and they are
+ * right before `stops.json` has arrived. A range measured from a doorway has no such
+ * counts to read: `build-hexes.mjs` never stood in that doorway. So the nodes are
+ * counted off the very list being named underneath them, which is honest for the same
+ * reason the grid's figure is honest in the other case, and it is why the two can
+ * never disagree with each other.
+ *
+ * The stop file is the whole of OpenStreetMap's transit nodes for the city rather than
+ * a sample of it, so this counts what the grid would have counted had it been asked
+ * about this point.
+ */
+export function countStops(stops: Stop[]): TransitCounts {
+	const out: TransitCounts = { mrt: 0, krl: 0, lrt: 0, brt: 0 };
+	for (const s of stops) out[s.mode] += 1;
+	return out;
+}
+
+/**
  * Every transit node the cell captures, and the rail half of it.
  *
  * Read from the GRID's counts rather than from the stop list, so both are right on
