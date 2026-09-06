@@ -30,10 +30,11 @@
 		unitsFC,
 		type MapCtx
 	} from '$lib/map/sources';
-	import { pct, rampIndex } from '$lib/utils/format';
+	import { pct, rampIndex, rampVar } from '$lib/utils/format';
 	import { cellName } from '$lib/domain/scoring';
 	import { base } from '$app/paths';
 	import { getAppState } from '$lib/state/app.svelte';
+	import type { ScoredUnit } from '$lib/domain/units';
 	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 	import type { HexBase, ScoredHex } from '$lib/types';
@@ -149,10 +150,56 @@
 
 	/** The tooltip follows the pointer; its position is written straight to the DOM so no frame lags. */
 	let tipEl: HTMLDivElement;
-	/* The name comes from the base grid and the figures from the scored row, so the
-	   tooltip still names a cell before any category has been loaded — rather than the
-	   map going quiet under the pointer until the heatmap is switched on. */
-	let hovered = $state<{ name: string; row: ScoredHex | null } | null>(null);
+	/**
+	 * What the pointer is over, in the terms the reader chose to read the map in.
+	 *
+	 * A union rather than one shape with optional halves, because the two pivots hover
+	 * different KINDS of thing: a catchment is 800 m of city, a unit is one doorway on the
+	 * market, and almost nothing worth printing about one is a fact about the other. This
+	 * held a catchment and only a catchment for as long as the tooltip could describe only
+	 * that, which is how "by place" came to answer every hover with the hexagon underneath.
+	 *
+	 * For a cell the name comes from the base grid and the figures from the scored row, so
+	 * the tooltip still names one before any category has loaded, rather than the map going
+	 * quiet under the pointer until the heatmap is switched on.
+	 */
+	type Hovered =
+		| { kind: 'cell'; name: string; row: ScoredHex | null }
+		| { kind: 'unit'; unit: ScoredUnit };
+	let hovered = $state<Hovered | null>(null);
+
+	/**
+	 * The hovered place, as the tooltip has to read it: its rung on the list the reader is
+	 * looking at, and the figure that put it there.
+	 *
+	 * The same ladder the dots are coloured from, so the figure printed beside a dot wears
+	 * the dot's own shade. Absent means the sort could not rank this unit — the dot is grey
+	 * for it, and the tooltip says so rather than printing a figure it does not have.
+	 */
+	const hoveredRank = $derived(
+		hovered?.kind === 'unit' ? (app.unitRanks.get(hovered.unit.id) ?? null) : null
+	);
+
+	/**
+	 * The rest of what the listing itself says, as one line.
+	 *
+	 * Built rather than written into the markup so an empty one can be left out whole. Half
+	 * the catalogue publishes no floor count and a good many carry no land area, and the
+	 * separators between three absent figures are still three separators: a blank rule
+	 * across the tooltip, which reads as a line that failed to load.
+	 *
+	 * The asking price steps aside when the list is already sorted by it, exactly as the
+	 * rows in the panel do. One figure twice makes the reader work out which is which.
+	 */
+	const hoveredTraits = $derived.by(() => {
+		if (hovered?.kind !== 'unit') return '';
+		const l = hovered.unit.listing;
+		const out: string[] = [];
+		if (l.price !== null && app.unitSort !== 'harga') out.push(c.units.value('harga', l.price));
+		if (l.land !== null) out.push(c.property.unitLand(l.land));
+		if (l.floors !== null) out.push(c.property.unitFloors(l.floors));
+		return out.join(' · ');
+	});
 
 	const cssVar = (name: string) =>
 		getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -525,7 +572,20 @@
 			if (typeof id === 'string') app.selectUnit(id);
 		});
 		m.on('mouseenter', 'unit-pivot', () => (m.getCanvas().style.cursor = 'pointer'));
-		m.on('mouseleave', 'unit-pivot', () => (m.getCanvas().style.cursor = ''));
+		/* A dot is a ROW here, so hovering one has to read like hovering a hexagon does in
+		   the other mode: the thing under the pointer, described in the figures the reader
+		   is ranking by. A lookup rather than a scan, for the reason the catchment handler
+		   below spells out — this runs on every pointer move. */
+		m.on('mousemove', 'unit-pivot', (e) => {
+			const id = e.features?.[0]?.properties?.id;
+			const unit = typeof id === 'string' ? app.unitById.get(id) : undefined;
+			hovered = unit ? { kind: 'unit', unit } : null;
+			positionTip(e.point.x, e.point.y);
+		});
+		m.on('mouseleave', 'unit-pivot', () => {
+			m.getCanvas().style.cursor = '';
+			hovered = null;
+		});
 
 		let hoverId: number | null = null;
 		m.on('mousemove', 'catchment-fill', (e) => {
@@ -536,12 +596,24 @@
 				m.setFeatureState({ source: 'catchments', id: hoverId }, { hover: false });
 			hoverId = f.id as number;
 			m.setFeatureState({ source: 'catchments', id: hoverId }, { hover: true });
+			/* The READOUT follows the pivot, the way the ranking and the dot colours already
+			   do. In unit mode a hexagon is the context an open place stands in rather than a
+			   row, and answering a hover with its opportunity score hands the reader the
+			   other mode's figures: they asked to read by place and got 800 m of city.
+
+			   The highlight above is kept. It orients, it is the cheapest way to show which
+			   catchment a doorway belongs to, and it claims nothing.
+
+			   Returning rather than clearing is load bearing. A unit dot is drawn ON a
+			   hexagon, so both layers answer the same pointer move, and whichever handler
+			   ran last would win: clearing here would wipe the place the dot just reported. */
+			if (app.pivot !== 'cell') return;
 			// A map lookup, not a scan. This runs on every pointer move, and reading
 			// `app.rows` here used to rescore all 562 cells each time — the single
 			// biggest reason moving the pointer over the map felt heavy.
 			const id = f.properties?.id as string | undefined;
 			hovered = id
-				? { name: (f.properties?.name as string) ?? '', row: app.rowById.get(id) ?? null }
+				? { kind: 'cell', name: (f.properties?.name as string) ?? '', row: app.rowById.get(id) ?? null }
 				: null;
 			positionTip(e.point.x, e.point.y);
 		});
@@ -639,7 +711,11 @@
 				// marker outlives many rescorings, and a captured row would keep showing
 				// the figures from whichever category was active when it was created.
 				el.addEventListener('pointerenter', (ev) => {
-					hovered = { name, row: app.rowById.get(h.id) ?? null };
+					// Gated for the same reason the grid underneath is: these sit above the
+					// canvas, so no layer handler ever sees them, and left ungated they were the
+					// one surface still answering "by place" with the area's figures.
+					if (app.pivot !== 'cell') return;
+					hovered = { kind: 'cell', name, row: app.rowById.get(h.id) ?? null };
 					// Placed as well as filled. Only the map's own `mousemove` moved this
 					// thing, so hovering a marker showed its figures in the top-left corner
 					// of the screen, nowhere near the marker and often over another panel.
@@ -1080,7 +1156,29 @@
 </div>
 
 <div class="tip material" bind:this={tipEl} class:show={!!hovered} aria-hidden="true">
-	{#if hovered}
+	{#if hovered?.kind === 'unit'}
+		<!-- READ BY PLACE. The listing's own columns lead and the catchment closes, which is
+		     the order the unit card puts them in: the reader picked the pivot where a doorway
+		     is the row, so the doorway is what a hover answers with. -->
+		{@const unit = hovered.unit}
+		{@const type = unit.listing.type}
+		<strong>{c.property.types[type] ?? type}</strong>
+		{#if hoveredRank}
+			<span class="tip-score" style:color={rampVar(hoveredRank.fraction)}>
+				{c.units.value(app.unitSort, hoveredRank.value)}
+				<span class="tip-unit">{c.units.metrics[app.unitSort]}</span>
+			</span>
+		{:else}
+			<!-- Nothing measured for the figure the list is sorted by. The dot is drawn in
+			     the no-data grey for exactly this, and a place with no reading is said to
+			     have none rather than shown a zero it never carried. -->
+			<span class="tip-sub">{c.units.rampNodata}</span>
+		{/if}
+		<span class="tip-sub">
+			{#if hoveredTraits}{hoveredTraits}<br />{/if}
+			{c.units.cardIn(unit.cellName)} · {c.units.cardWalk(unit.distance)}
+		</span>
+	{:else if hovered}
 		<strong>{hovered.name}</strong>
 		{#if hovered.row && !hovered.row.covered}
 			<span class="tip-sub">{c.app.tipNodata}</span>
