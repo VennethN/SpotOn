@@ -373,3 +373,64 @@ Two rules follow from the same place as the rest of this file:
   at Rp 9.6 billion per m² among them, and one of those alone in a catchment would cost
   it a quarter of its score on the strength of a typo.
 
+## When the doors are open, and the other word this product will not use
+
+The area panel draws a chart shaped exactly like Google's popular times. It is a
+different measurement, and that difference is the whole of why it can be shown here.
+
+Google counts phones. This counts DOORS: for each hour of each day, how many businesses
+within walking range say they are open, read from the `opening_hours` tag in
+OpenStreetMap. Nobody has counted a person in Jakarta for this product, so the section
+never says ramai, busy, popular or footfall, and it says what it counts on screen rather
+than only in this file.
+
+Struk Go and Mission Go are what would carry the other half, because a receipt is the
+demand side of the same hour. Neither exists yet, which `fetch-mission.mjs` re-checks on
+every run rather than letting the absence quietly become an assumption. When they arrive
+the two go side by side, and until then neither is renamed to sound like the other.
+
+Three rules hold it up. They are the property layer's rules with different nouns:
+
+- **A refused timetable is refused whole.** `opening_hours` is a small language and
+  `scripts/lib/hours.mjs` reads a deliberately narrow part of it: weekday selectors,
+  clock ranges, `off`, `24/7`, spans past midnight. A public holiday clause, an hour
+  that moves with the sunset, a rule that only holds in July, a comment where a time
+  should be: the value is rejected BY NAME, counted under that name, and never read down
+  to the half that fitted. Reading the readable half of `Mo-Fr 09:00-17:00; PH off` is
+  harmless, and the same leniency applied to a seasonal rule reports the winter
+  timetable all year. It costs 82 of Jakarta's 3,156 published timetables, 2.6%, and it
+  is what makes the other 97.4% worth drawing.
+- **A curve needs eight readable businesses.** Three shops are three timetables, not a
+  rhythm, and one 24-hour minimart among them draws a street that never sleeps. 202 of
+  the 562 cells clear it, 296 are too thin and 64 have nothing at all, and each of those
+  three says which it is. The distribution the threshold was picked against is written
+  into the grid's metadata (`hours.perCell`) so the number can be argued with from the
+  data rather than defended from memory.
+- **The denominator travels with the curve.** Only 3,156 of the 19,548 businesses
+  counted publish hours at all. A chart with no count beside it reads as the whole
+  street, so `join-hours.mjs` stores three figures per cell per radius — businesses
+  counted, businesses publishing, timetables readable — and the panel prints them under
+  every curve it draws.
+
+What counts as a business is a list of EXCLUSIONS, in `NOT_A_BUSINESS` in
+`fetch-hours.mjs`: every `shop`, `craft`, `office` and `amenity`, minus unattended
+fixtures, institutions and public offices. An inclusion list was the first attempt and
+it was the wrong shape, because a list of the amenity values somebody thought of
+silently discards the ones they did not. The cull is real either way: 410 of the 2,335
+Jakarta amenities publishing opening hours are cash machines, and a hole in the wall is
+not a competitor.
+
+The week itself is NOT in the grid. Seven days of 24 hours per cell per radius is
+470,000 figures on a grid file that is 674 KB carrying only the counts, so the
+timetables travel with the businesses in
+`static/data/hours.json` (88 KB, 474 distinct timetables between 3,074 businesses) and
+the browser adds up the ones a cell captures. That is the split `domain/premises` makes
+for the property listings, for the same reason.
+
+Two passes over two files, and the panel prints the first above a chart drawn from the
+second, so `selftest-hours.mjs` checks that they agree on every cell at every radius. It
+already earned that: the join used the mean earth radius while `utils/geo` uses the
+WGS84 equatorial one, 0.11% apart, which put one shop inside 400 m on one side of the
+comparison and outside it on the other. The join now measures with the same earth the
+browser does. **The other join scripts still use the mean radius**, which is harmless
+there only because nothing recounts their work in the browser.
