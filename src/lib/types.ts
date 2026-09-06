@@ -728,6 +728,20 @@ export interface GridMeta {
 export interface Explanation {
 	id: string;
 	name: string;
+	/**
+	 * The figure the question was actually about, when it was not the opportunity score.
+	 *
+	 * A SHAPE AND A MEASURE ARE CHOSEN SEPARATELY, and this shape forgot that. Explaining
+	 * one catchment always explained its score, so "what is the rent at Pusdiklat BPS"
+	 * and "why is it on the list" produced the same paragraph and neither answered the
+	 * first. It is the same mistake the ranking intents made before `ukuran` split off
+	 * from `intent`, made again in a newer shape.
+	 *
+	 * Null when the question really was about the score, where leading with it would
+	 * print the same number twice, and `value` is null where the catchment has no reading
+	 * for the measure at all — which is said out loud rather than shown as a zero.
+	 */
+	measure?: { ukuran: MetricKey; value: number | null; text: string } | null;
 	/** The walking radius every count below was measured at. */
 	radius: number;
 	/**

@@ -183,6 +183,20 @@ export function factSheet(ans: AiAnswer): string {
 	if (ans.explain) {
 		const e = ans.explain;
 		lines.push(`Rincian ${e.name}:`);
+		/* Said first, because it is what was asked. The rest below is context for it, and
+		   a sheet that buried the answer among the context is what produced a paragraph
+		   about the opportunity score in reply to a question about the price. */
+		if (e.measure) {
+			lines.push(
+				e.measure.value === null
+					? `- YANG DITANYAKAN: ${e.measure.ukuran}. Tidak ada angkanya untuk petak ini. Bukan nol: belum terukur, jadi katakan begitu.`
+					: `- YANG DITANYAKAN: ${e.measure.ukuran} = ${
+							METRIC_MAP[e.measure.ukuran]?.kind === 'rupiah'
+								? rupiah(e.measure.value)
+								: e.measure.text
+						}`
+			);
+		}
 		if (!e.covered) {
 			lines.push(
 				`- Kotanya belum disurvei untuk kategori ini, jadi tidak ada skor, tidak ada hitungan pesaing, dan tidak ada keramaian. Bukan nol: belum dihitung.`
