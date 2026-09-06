@@ -39,11 +39,24 @@ export interface Completion {
  * can hand it over without knowing whether the other end is an HTTP stream, a test, or
  * nothing at all.
  */
-export interface ChatSink {
+export interface ModelSink {
 	/** More of the reply, ready to be shown. */
 	delta(text: string): void;
 	/** Everything sent so far is void. Drop it. */
 	reset(): void;
+	/**
+	 * The model has named the operation it is going to run, and is now writing its
+	 * arguments.
+	 *
+	 * Nothing is shown from those arguments, and nothing should be: half of an enum
+	 * value is not half an answer, and the figures are not the model's to write. What
+	 * this is for is the fact that SOMETHING happened. The wait can run to a minute
+	 * and a half, and a reader watching one line that never changes has no way to tell
+	 * a slow answer from a dead one.
+	 */
+	chose(tool: string): void;
+	/** The model working on this dropped out, and the next one is taking over. */
+	retrying(): void;
 }
 
 /**
@@ -61,11 +74,11 @@ export interface ChatSink {
  * answer.
  */
 export class Preview {
-	#sink: ChatSink;
+	#sink: ModelSink;
 	#shown = '';
 	#fenced = false;
 
-	constructor(sink: ChatSink) {
+	constructor(sink: ModelSink) {
 		this.#sink = sink;
 	}
 
@@ -102,6 +115,19 @@ export class Preview {
 		if (s.length === this.#shown.length) return;
 		this.#sink.delta(s.slice(this.#shown.length));
 		this.#shown = s;
+	}
+
+	/**
+	 * The model has named its operation.
+	 *
+	 * Passed straight on, and for anything other than `ngobrol` the preview comes down
+	 * with it. That covers the model that narrates a sentence before calling
+	 * `jalankan_query`: the throat clearing was already going up a word at a time, and
+	 * it must not be left sitting there next to figures it knows nothing about.
+	 */
+	chose(tool: string) {
+		if (tool !== 'ngobrol') this.clear();
+		this.#sink.chose(tool);
 	}
 
 	/**
@@ -207,6 +233,10 @@ export async function readStream(res: Response, preview: Preview | null): Promis
 	let name = '';
 	let args = '';
 	let content = '';
+	/* The name arrives in one fragment and is then repeated on none of the others, but
+	   a model is free to send it again, and `chose` moving the reader's line twice for
+	   one decision would read as the answer changing its mind. */
+	let announced = false;
 
 	try {
 		for (;;) {
@@ -248,6 +278,12 @@ export async function readStream(res: Response, preview: Preview | null): Promis
 				}
 
 				if (!preview) continue;
+
+				if (name && !announced) {
+					announced = true;
+					preview.chose(name);
+				}
+
 				if (name === 'ngobrol') {
 					// The casual reply, shown as it is written.
 					const partial = partialArg(args, 'balasan');

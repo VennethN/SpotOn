@@ -212,6 +212,14 @@ export const id = {
 		   jalan itu versi jujurnya bilah kemajuan: tidak ada persen yang dikarang. */
 		stage: {
 			reading: 'Sebentar, saya baca dulu pertanyaannya',
+			/* Jujur untuk semua sebabnya, bukan cuma yang paling sering. Modelnya bisa
+			   penuh, bisa lambat, bisa balas ngawur. Yang pasti cuma satu: yang tadi
+			   belum menjawab. */
+			retrying: 'Belum ada jawaban dari yang tadi, saya coba yang lain',
+			/* Bukan "sedang mengambil data", karena belum ada data yang diambil. Yang
+			   sedang terjadi persis ini: pertanyaannya sudah ditangkap, dan pencarian
+			   yang mau dijalankan sedang disusun. */
+			choosing: 'Sudah saya tangkap, sedang saya susun pencariannya',
 			computing: 'Sekarang saya hitung dari catatan saya'
 		},
 		more: (n: number) => `+${n} lagi di dalam aplikasi`,

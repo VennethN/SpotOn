@@ -203,6 +203,8 @@ export const en: Copy = {
 		thinking: 'One moment, let me check my notes',
 		stage: {
 			reading: 'One moment, I am reading your question',
+			retrying: 'No answer from that one, trying another',
+			choosing: 'I have it, working out what to look up',
 			computing: 'Now counting it up from my notes'
 		},
 		more: (n: number) => `+${n} more in the app`,
