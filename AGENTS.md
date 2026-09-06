@@ -105,7 +105,7 @@ src/lib/
   components/app/        surfaces that only exist inside the app
   components/landing/    surfaces that only exist on the landing page
   components/ui/         shared between both
-  domain/                scoring, natural-language query, categories, narration
+  domain/                scoring, natural-language query, categories, narration, markdown
   state/                 app, tapak, lang, theme
   server/source.ts       the one place the data source is decided
   i18n/                  id.ts defines the shape, en.ts fills it
@@ -185,7 +185,8 @@ There is no setting for this in the application.
 breakdown against the scoring engine, the competitor pipeline including the
 absent-name rules, which the real data no longer exercises now that every point
 in it has a name, the cost-of-space layer against the grid on disk, and which
-measure each kind of question is understood to be asking about.
+measure each kind of question is understood to be asking about, and the markdown
+reader.
 
 ## Questions are a shape and a measure, chosen separately
 
@@ -287,6 +288,20 @@ that are traceable to a source. So `domain/chat` enforces what the prompt asks f
 Without a model key only greetings are reachable, by rule, and a greeting counts only
 when it is the whole message: "oke berapa harga tempat di sini" is a question with a
 courtesy in front of it, and answering it with hello throws away what was asked.
+
+That reply, and the "I did not understand" sentence beside it, are the only two strings
+in the product the model writes, and they arrive as markdown whether or not anybody
+asked for it. `domain/markdown` reads the bold, italics, code and lists, and it parses
+to a tree of plain objects rather than to HTML. There is no `{@html}` on that path and
+therefore nothing to sanitise: a tag the model writes arrives as text and leaves as
+text. Links are not supported on purpose, because a link is the one markdown construct
+carrying a destination, and the destination would be a URL a remote model chose.
+
+`ui/Typed` reads a bubble out at the pace somebody would say it, and every Tapak bubble
+goes through it whether the words came from the model or were composed here from figures
+that already existed. That is deliberate. A reader must not be able to tell from the
+animation which sentences the model wrote, because the animation is not what tells them:
+`parsedBy` and the provenance list are.
 
 ## What space costs, and the word this product will not use
 
