@@ -12,6 +12,7 @@
 	import Reveal from '$lib/components/ui/Reveal.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { CATEGORY_KEYS } from '$lib/domain/categories';
+	import { greetingNow } from '$lib/state/clock';
 	import { copy, lang } from '$lib/state/lang.svelte';
 	import type { PageData } from './$types';
 
@@ -20,6 +21,11 @@
 	const c = $derived(copy());
 	const n = (v: number) => v.toLocaleString(lang() === 'en' ? 'en-GB' : 'id-ID');
 	const k = $derived(data.grid);
+
+	/* This page is prerendered, so Tapak's demo greeting would otherwise be frozen at
+	   whatever hour the build ran. The clock is read again in the browser, which is
+	   where somebody is actually reading it. */
+	const greet = greetingNow();
 
 	// The figures are read from the grid, not written by hand. A hand-written version of
 	// this page once said "13 MRT areas" long after the grid had grown to 562 cells
@@ -248,7 +254,7 @@
 				/>
 				<TapakDemo
 					sets={data.conversation[lang()]}
-					greeting={c.tapak.greet(k.hexes)}
+					greeting={c.tapak.greet(k.hexes, greet.part, greet.wording)}
 					onstep={(st) => (demoStep = st)}
 				/>
 			</div>
