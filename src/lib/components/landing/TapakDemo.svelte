@@ -238,7 +238,9 @@
 		box-shadow: inset 0 1px 0 var(--lift-edge);
 		display: flex;
 		flex-direction: column;
-		height: clamp(26rem, 58vh, 32rem);
+		/* Sized to the four turns it now holds. It was set when the conversation ran to
+		   seven, and shortening the script left a panel two thirds empty above the talk. */
+		height: clamp(21rem, 46vh, 26rem);
 	}
 
 	.bar {
