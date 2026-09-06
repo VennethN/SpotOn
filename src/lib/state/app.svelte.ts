@@ -14,6 +14,7 @@ import {
 	applyUnitFilters,
 	buildUnits,
 	rankUnits,
+	unitRanks,
 	type ScoredUnit,
 	type UnitFilter
 } from '$lib/domain/units';
@@ -671,6 +672,26 @@ export class AppState {
 
 	/** The unit list as the reader has it: filtered, then ranked. */
 	unitRows = $derived(rankUnits(this.unitFiltered, this.unitSort, this.unitOrder));
+
+	/**
+	 * Each unit's place in that list, by id.
+	 *
+	 * Held here rather than rebuilt by each surface that needs it, for the same reason
+	 * `priceLadder` is: two of them do. The map colours every dot from it and the hover
+	 * readout colours the figure it prints beside one, so as two separate expressions each
+	 * would walk the whole ranked list again on every pointer move. One derived, read
+	 * twice, is one pass.
+	 */
+	unitRanks = $derived(unitRanks(this.unitRows));
+
+	/**
+	 * Unit by id — the map's hover handler needs this on every pointer move.
+	 *
+	 * The counterpart of `rowById`, and here for the same reason it is: scanning 2,700
+	 * units inside a `mousemove` is the mistake reading `rows` there used to be, paid per
+	 * frame for what is a lookup.
+	 */
+	unitById = $derived(new Map(this.units.map((u) => [u.id, u])));
 
 	get selectedUnit(): ScoredUnit | null {
 		if (this.pivot !== 'unit' || !this.selectedUnitId) return null;
