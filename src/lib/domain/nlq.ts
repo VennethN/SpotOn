@@ -24,6 +24,7 @@ import { snapRadius } from './weights';
    Indonesian questions. */
 import type {
 	AiAnswer,
+	Explanation,
 	Hex,
 	CategoryKey,
 	MetricKey,
@@ -201,6 +202,83 @@ const CELL_PIVOT =
 const RADIUS_WORDS = /(\d{3,4})\s*(?:m\b|meter|metre|metres|meters)/i;
 
 /**
+ * A question about one place already named, rather than a search for new ones.
+ *
+ * "Kenapa Setiabudi Astra" used to parse as a fresh ranking, so the reply was the same
+ * five names all over again with the same sentence over them. That is the single most
+ * common follow-up there is, and answering it by repeating yourself reads as a guide
+ * that has stopped listening.
+ */
+const WHY = /\b(kenapa|mengapa|knp|kok|why|alasan\w*|jelas\w+|explain)\b/i;
+
+/**
+ * What may stand in for a name in a follow-up, and nothing else.
+ *
+ * The same shape as the greeting rule in `domain/chat`, for the same reason. Strip the
+ * why-word, and if what is left is a pointer or is nothing at all, the question is
+ * pointing at the place just named. Anything else is a question carrying its own
+ * subject: "kenapa lokasi penting" is not a question about a catchment, and answering
+ * it with the top one's arithmetic would be answering something nobody asked.
+ */
+const POINTING =
+	/^(itu|ini|tsb|tersebut|dia|nya|yang itu|yang ini|yang pertama|yang teratas|yang nomor satu|nomor satu|that|this|it|that one|the first|the top one)?[\s,.!?~-]*$/i;
+
+/** Politeness that can sit inside a follow-up without giving it a subject of its own. */
+const ASIDE = /\b(sih|dong|ya|yah|kah|deh|nih|gitu|memangnya|emang|so|then|exactly|please)\b/gi;
+
+/**
+ * How strongly a sentence names one catchment: the length of its words found in it.
+ *
+ * Words of two letters or fewer are skipped, because "MRT" and "BCA" aside, the short
+ * ones are prepositions that appear in every question ever asked.
+ */
+function nameHit(name: string, ql: string): number {
+	return name
+		.toLowerCase()
+		.split(/\s+/)
+		.filter((wd) => wd.length > 2)
+		.reduce((acc, wd) => acc + (ql.includes(wd) ? wd.length : 0), 0);
+}
+
+/** The one name in `names` a sentence names most strongly, or null if it names none. */
+function bestName(q: string, names: readonly string[]): string | null {
+	const ql = q.toLowerCase();
+	let best: string | null = null;
+	let hit = 0;
+	for (const name of names) {
+		const h = nameHit(name, ql);
+		if (h > hit) {
+			hit = h;
+			best = name;
+		}
+	}
+	return best;
+}
+
+/**
+ * The catchment a why-question is about, read against what the conversation just said.
+ *
+ * Null unless there is a name to point at. That is the whole safety of this: without a
+ * previous answer there is nothing a follow-up could be about, so the question is read
+ * the way every question was read before this existed.
+ */
+function explainTarget(q: string, said: readonly string[]): string | null {
+	if (!said.length || !WHY.test(q)) return null;
+	const named = bestName(q, said);
+	if (named) return named;
+	const rest = q
+		.toLowerCase()
+		.replace(WHY, ' ')
+		.replace(ASIDE, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.replace(/^[,.!?~-]+/, '')
+		.trim();
+	// "Kenapa?" on its own, or "kenapa yang itu": pointing at the last thing said.
+	return POINTING.test(rest) ? said[0] : null;
+}
+
+/**
  * Translates a natural-language question into a structured query.
  *
  * The model does this job when a key is configured; this is what runs when it is not,
@@ -211,7 +289,16 @@ const RADIUS_WORDS = /(\d{3,4})\s*(?:m\b|meter|metre|metres|meters)/i;
 export function parseQuestion(
 	q: string,
 	w: Weights,
-	fallback: CategoryKey | readonly CategoryKey[]
+	fallback: CategoryKey | readonly CategoryKey[],
+	/**
+	 * The catchments the conversation has just named, newest answer first.
+	 *
+	 * The only thing this parser is told about the thread, and it is told it because a
+	 * follow-up is by definition a sentence that does not carry its own subject. Empty
+	 * on a first question, and on every caller that has no conversation to speak of, in
+	 * which case nothing here behaves differently from before it existed.
+	 */
+	said: readonly string[] = []
 ): StructuredQuery {
 	// Every type the question names, or the ones the reader already had if it names
 	// none. Never a hard-coded default: a question that said nothing about the business
@@ -263,10 +350,24 @@ export function parseQuestion(
 		}
 	}
 
-	// `kosong` on its own used to be here, and it meant "mana yang paling banyak tempat
-	// kosong" — which areas have the most empty units — came back as a list of cells
-	// nobody has surveyed. The word has to be attached to the data to mean that.
-	if (/belum terdata|belum ada data|tidak ada data|data\w*\s+kosong|cakupan data|cakupan/i.test(q)) {
+	/* Read FIRST, because a why-question can carry any other word in the language and
+	   still be a why-question. "Kenapa Blok M sudah jenuh" has `jenuh` in it and is not
+	   a request for the five most crowded catchments, it is a request for one place's
+	   reasons. It only fires when there is a name to point at, so a first question can
+	   never land here. */
+	const explains = explainTarget(q, said);
+	if (explains) {
+		out.intent = 'EXPLAIN';
+		out.metrik = 'rincian skor satu catchment';
+		out.target = [explains];
+		out.limit = 1;
+		/* No filters on an explanation. One named place is not a pool to narrow, and a
+		   chip row saying "cheap space" under a reply about one catchment would claim a
+		   narrowing that never happened. Deleting them also skips the two blocks at the
+		   foot of this function, which are guarded on `out.filter` for exactly this. */
+		delete out.filter;
+		delete out.filters;
+	} else if (/belum terdata|belum ada data|tidak ada data|data\w*\s+kosong|cakupan data|cakupan/i.test(q)) {
 		out.intent = 'COVERAGE';
 		out.metrik = 'N titik data misi per catchment';
 		out.ukuran = DEFAULT_METRIC;
@@ -331,18 +432,41 @@ function joinID(parts: string[]): string {
 function matchNames(q: string, rows: ScoredHex[]): ScoredHex[] {
 	const ql = q.toLowerCase();
 	return rows
-		.map((r) => ({
-			r,
-			hit: r.name
-				.toLowerCase()
-				.split(/\s+/)
-				.filter((wd) => wd.length > 2)
-				.reduce((acc, wd) => acc + (ql.includes(wd) ? wd.length : 0), 0)
-		}))
+		.map((r) => ({ r, hit: nameHit(r.name, ql) }))
 		.filter((m) => m.hit > 0)
 		.sort((a, b) => b.hit - a.hit)
 		.slice(0, 2)
 		.map((m) => m.r);
+}
+
+/**
+ * The catchments an answer about NAMED PLACES is about, in the order they were named.
+ *
+ * The names the query carries are tried first and the question's own words second, and
+ * that order is the point rather than a preference. `target` is what the understanding
+ * layer resolved against the conversation, and "bandingkan dua teratas" or "kenapa yang
+ * itu" carry no name at all — read from the sentence alone, both come back empty and get
+ * answered as though nobody had named anything, which is exactly what they used to do.
+ * Falling through to the sentence is what keeps the rule parser and any older client
+ * working, since neither fills `target` in.
+ */
+function namedRows(
+	query: StructuredQuery,
+	question: string,
+	rows: ScoredHex[],
+	want: number
+): ScoredHex[] {
+	const picked: ScoredHex[] = [];
+	for (const target of query.target ?? []) {
+		const hit = matchNames(target, rows)[0];
+		if (hit && !picked.some((r) => r.id === hit.id)) picked.push(hit);
+		if (picked.length === want) return picked;
+	}
+	for (const hit of matchNames(question, rows)) {
+		if (!picked.some((r) => r.id === hit.id)) picked.push(hit);
+		if (picked.length === want) break;
+	}
+	return picked;
 }
 
 /**
@@ -371,9 +495,11 @@ export function answer(
 	question: string,
 	catchments: Hex[],
 	w: Weights,
-	fallback: CategoryKey | readonly CategoryKey[]
+	fallback: CategoryKey | readonly CategoryKey[],
+	/** The catchments the conversation just named — see `parseQuestion`. */
+	said: readonly string[] = []
 ): AiAnswer {
-	return runQuery(parseQuestion(question, w, fallback), question, catchments, w);
+	return runQuery(parseQuestion(question, w, fallback, said), question, catchments, w);
 }
 
 /**
@@ -429,6 +555,10 @@ export function runQuery(
 	const wantsType =
 		query.intent === 'FLAG_SATURATED' ||
 		query.intent === 'COVERAGE' ||
+		/* An explanation is an explanation OF a score, and a score is always a score for
+		   a trade. Explaining one with no business type named would be reading out how
+		   busy a street is and calling it the reason a shop nobody named belongs there. */
+		query.intent === 'EXPLAIN' ||
 		(query.intent === 'RANK' && needsBusinessType(query.ukuran ?? DEFAULT_METRIC));
 	if (!cats.length && wantsType) {
 		return {
@@ -511,8 +641,74 @@ export function runQuery(
 		};
 	}
 
+	/* ONE PLACE, TAKEN APART. Every other intent answers "which ones"; this one answers
+	   the question a reader asks the moment they have been handed a list.
+
+	   Nothing new is computed for it. The row was scored by the same engine on the same
+	   grid as every ranking, and what this adds is only that its parts are handed over
+	   separately, so the reply can say what the score is made of rather than quoting the
+	   score back. */
+	if (query.intent === 'EXPLAIN') {
+		const row = namedRows(query, question, rows, 1)[0] ?? null;
+		// Named, so the reader can see which place was read, and so a client repeating
+		// the query gets the same answer rather than a fresh guess at the sentence.
+		query.target = row ? [row.name] : [];
+		if (!row) {
+			return {
+				query,
+				headline:
+					'Sebutkan kawasan mana yang mau dijelaskan, misalnya "kenapa Bendungan Hilir".',
+				items: [],
+				highlight: [],
+				provenance
+			};
+		}
+		const explain: Explanation = {
+			id: row.id,
+			name: row.name,
+			radius: w.radius,
+			// An unsurveyed cell is explained as unsurveyed. Every figure that depends on
+			// counting competitors is null there, and reading a street nobody has read as
+			// an empty one is the mistake this whole file is built to avoid.
+			covered: row.covered !== false,
+			score: row.score,
+			demand: row.demand,
+			supply: row.supply,
+			density: row.density,
+			rivals: row.osm,
+			stops: stopTotal(row.transit),
+			access: row.access,
+			units: row.units,
+			price: row.price,
+			priceLevel: row.priceLevel,
+			costFactor: row.costFactor
+		};
+		return {
+			query,
+			explain,
+			headline: row.covered === false
+				? `${row.name} belum disurvei ${sourceLabel(w.source)} untuk ${def.name}, jadi tidak diberi nilai. Yang terukur di sana: ${stopTotal(row.transit)} simpul transit dan ${row.units} unit komersial dipasarkan dalam radius ${w.radius} m.`
+				: `Rincian skor ${row.name} untuk ${def.name}: keramaian ${pct(row.demand)}%, penawaran ${pct(row.supply)}%, skor ${pct(row.score)}.`,
+			items: [
+				{
+					id: row.id,
+					name: row.name,
+					value: row.score,
+					why: whyLine(row, 'skor', row.score ?? 0, def, w),
+					evidence: evidence(row)
+				}
+			],
+			highlight: [row.id],
+			provenance
+		};
+	}
+
 	if (query.intent === 'COMPARE') {
-		const picked = matchNames(question, rows);
+		/* Read from the query's own names before the sentence, so "bandingkan dua teratas"
+		   works at all. It used to read the sentence only, which meant the two names had
+		   to be typed out in the very message asking for the comparison — and a reader who
+		   has just been shown a ranking does not type them out, they point at it. */
+		const picked = namedRows(query, question, rows, 2);
 		query.target = picked.map((r) => r.name);
 		if (picked.length < 2) {
 			return {
