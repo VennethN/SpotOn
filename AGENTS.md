@@ -434,3 +434,33 @@ WGS84 equatorial one, 0.11% apart, which put one shop inside 400 m on one side o
 comparison and outside it on the other. The join now measures with the same earth the
 browser does. **The other join scripts still use the mean radius**, which is harmless
 there only because nothing recounts their work in the browser.
+
+
+## One earth, and why it took three goes to get there
+
+Every script that measures a distance imports `haversine` from `scripts/lib/geo.mjs`,
+and that file holds the only earth radius in the repository. It is `6378137`, the WGS84
+equatorial radius, because that is what `src/lib/utils/geo.ts` measures with and the
+browser is the side a reader actually sees.
+
+It was not always one. The joins each carried their own copy opening
+`const R = 6371008.8`, the mean radius, and `lib/home-cell.mjs` arrived later with a
+third, `6_371_000`. The three differ by about a tenth of a percent, which is 0.9 m at an
+800 m radius and invisible right up until two of them measure the same thing:
+
+- **21 property readings** disagreed with what the browser recounts, by as many as 7
+  listings at once, because the catalogue geocodes to the street and one coordinate on
+  the line carries several units.
+- **93 cells** were wrong on their MAPID competitor count, by as many as 3.
+- **The opening-hours layer** disagreed on one cell, which is how the whole thing was
+  found: `selftest-hours.mjs` compares the two passes on every cell at every radius.
+- **The field records** were untouched, because a record's home cell is decided once at
+  build time and the browser never recounts it. That is luck rather than design, and
+  `selftest-field.mjs` now asserts `home-cell.mjs` uses the shared function rather than
+  a copy, so the luck is not needed twice.
+
+Two tests hold it: `selftest-property.mjs` checks the scripts and the app return the
+same DISTANCE rather than merely declaring the same constant, and `selftest-field.mjs`
+checks the home-cell rule has not grown its own again. `build-hexes.mjs` was switched
+over but not re-run, since nothing recounts its output and its transit counts were
+measured identical under both radii.

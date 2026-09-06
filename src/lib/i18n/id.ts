@@ -555,12 +555,14 @@ export const id = {
 			properti: 'Properti',
 			catatan: 'Catatan warga'
 		}
+	},
 
 	/* ── Jam buka ───────────────────────────────────────────────────────────
 	   Satu kata yang sengaja tidak dipakai di sini: ramai. Yang dihitung PINTU yang
 	   buka, dari tag `opening_hours` OpenStreetMap, bukan orang yang lewat. Bentuk
 	   grafiknya memang mirip popular times Google, dan pengukurannya lain sama sekali.
-	   Struk Go dan Mission Go yang membawa sisi belanjanya, dan datanya belum ada. */
+	   Sisi belanjanya ada di catatan lapangan, dan di sana tidak ada jamnya sama
+	   sekali, cuma tanggal. Jadi keduanya tidak bisa disatukan jadi satu kurva. */
 	activity: {
 		title: 'Jam buka di sekitar sini',
 		dayPicker: 'Pilih hari',
@@ -592,7 +594,7 @@ export const id = {
 		refused: (n: number) =>
 			`${n} lagi memasangnya dalam bentuk yang tidak dibaca di sini, misalnya aturan hari libur atau "sunset". Itu tidak ditebak.`,
 		notFootfall:
-			'Yang dihitung pintu yang buka, bukan orang yang lewat. Sisi belanjanya ada di Struk Go dan Mission Go, dan datanya belum ada. Begitu ada, keduanya ditaruh berdampingan.',
+			'Yang dihitung pintu yang buka, bukan orang yang lewat. Struk yang dicatat surveyor ada di bawah, terpisah, karena catatannya cuma bertanggal dan tidak berjam.',
 		loading: 'Memuat jam bukanya…',
 		failed: (n: number) =>
 			`Jam bukanya tidak bisa dimuat, jadi kurvanya tidak digambar. Cacah ${n} usaha di bawah tetap berlaku, itu dibaca dari kisi, bukan dari berkas itu.`

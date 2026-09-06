@@ -10,12 +10,17 @@
 	 * here is a number of businesses within walking range whose published opening hours
 	 * say they are open in that hour, read from OpenStreetMap.
 	 *
-	 * So the word "ramai" appears nowhere in this section, the caption says what was
-	 * counted before the reader has finished looking at the bars, and the panel names
-	 * the datasets that would carry the other half. Struk Go and Mission Go publish
-	 * receipts, which is the demand side of the same hour. They do not exist yet. When
-	 * they do the two sit beside each other, and neither is renamed to sound like the
-	 * other in the meantime.
+	 * So the word "ramai" appears nowhere in this section, and the caption says what was
+	 * counted before the reader has finished looking at the bars.
+	 *
+	 * THE OTHER HALF, AND WHY IT IS NOT ON THIS CHART
+	 *
+	 * The MAPID Apps field surveys hold the spending side: receipts photographed in
+	 * range, and eateries a surveyor rated while standing in front of them. Real people,
+	 * real crowds, and no hour on any of it — every record carries a date and no time,
+	 * which `scripts/fetch-missions.mjs` measures on every run rather than assuming.
+	 * `FieldPanel` shows them as their own section further down this card, not as a
+	 * second series on these bars, where they would need an hour nobody wrote down.
 	 *
 	 * WHAT IT REFUSES TO DRAW
 	 *
