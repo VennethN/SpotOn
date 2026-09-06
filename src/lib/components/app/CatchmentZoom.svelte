@@ -41,7 +41,7 @@
 	 */
 	import { untrack } from 'svelte';
 	import CatchmentScene from '$lib/components/ui/CatchmentScene.svelte';
-	import { HOURS_IN_DAY, jakartaNow, openAt, readHours, weekProfile } from '$lib/domain/activity';
+	import { HOURS_IN_DAY, jakartaNow, openAt, weekProfile } from '$lib/domain/activity';
 	import { categoryNames } from '$lib/domain/narrate';
 	import { daylightAt } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -51,7 +51,6 @@
 	const c = $derived(copy());
 	const row = $derived(app.selected);
 	const cell = $derived(app.selectedCell);
-	const radius = $derived(app.weights.radius);
 	const catMany = $derived(categoryNames(app.categories, c, 'many'));
 
 	/**
@@ -129,9 +128,18 @@
 
 	/* ── what was counted here ─────────────────────────────────────────────── */
 
-	/** The counts the join wrote: businesses in range, how many publish hours, how many
-	    of those could be read. Null on a grid the join has never been run on. */
-	const stat = $derived(cell ? readHours(cell, radius) : null);
+	/**
+	 * What was counted around the point the range is measured from.
+	 *
+	 * The same reading `ActivityPanel` draws its chart from, taken from the app rather
+	 * than recomputed here: the model and the chart are one measurement looked at two
+	 * ways, and this view opens on top of that card. `counted` carries the join's wider
+	 * figures and exists only for a cell centre, which is why the silences below check
+	 * `readable` where there is none.
+	 */
+	const reading = $derived(app.hoursReading);
+	const readable = $derived(reading?.readable ?? 0);
+	const counted = $derived(reading?.counted ?? null);
 	/** The rule, from the grid's own metadata rather than typed into a sentence. */
 	const minReadable = $derived(app.meta?.hours?.minReadable ?? 0);
 	const profile = $derived(weekProfile(app.selectedOpen));
@@ -168,11 +176,18 @@
 		if (blank) return { counted: false, note: c.zoom.stillNodata };
 		// No counts on the grid at all is a build state, not a finding about the place,
 		// and a sentence explaining it would be an apology to the wrong reader.
-		if (!stat) return { counted: false, note: null };
+		if (!reading) return { counted: false, note: null };
 		if (app.hoursLoading) return { counted: false, note: c.zoom.stillLoading };
 		if (app.openPlacesFailed) return { counted: false, note: c.zoom.stillFailed };
-		if (stat.p === 0) return { counted: false, note: c.zoom.stillNone };
-		if (stat.h < minReadable) return { counted: false, note: c.zoom.still(stat.h) };
+		/* Nobody publishing at all, and nothing readable in range, are two different
+		   silences and only one of them is provable from each mode. The join counted
+		   how many businesses published hours around a cell centre. Around a place all
+		   that is known is how many published hours could be read there, so that is what
+		   the sentence claims. */
+		if (counted ? counted.p === 0 : readable === 0) {
+			return { counted: false, note: counted ? c.zoom.stillNone : c.zoom.stillPlaceNone };
+		}
+		if (readable < minReadable) return { counted: false, note: c.zoom.still(readable) };
 		return { counted: true, note: null };
 	});
 
@@ -281,8 +296,8 @@
 			<p class="read">
 				{#if crowd.note}
 					{crowd.note}
-				{:else if stat}
-					{c.zoom.doors(c.activity.dayFull[now.day], at, openHere, stat.h)}
+				{:else if reading}
+					{c.zoom.doors(c.activity.dayFull[now.day], at, openHere, readable)}
 					{#if standing}<span class="standing">{standing}</span>{/if}
 				{/if}
 			</p>
