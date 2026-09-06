@@ -9,65 +9,135 @@ The competition's mission data — **Properti Go**, **Menu Go** and **Struck Go*
 transcription of those pages, with a section on top recording what the endpoints actually
 did when they were called on 22 August 2026, because the two do not agree.
 
-This matters to SpotOn because Struck Go carries a transaction date **and time**, and Menu
-Go carries opening and closing hours. That is the demand side of the hour the area panel
-currently answers from OpenStreetMap opening hours alone — see the activity section in
-[`AGENTS.md`](../AGENTS.md).
+It was written to answer one question: can Struck Go's receipts give the area panel the
+hour that OpenStreetMap opening hours cannot — see the activity section in
+[`AGENTS.md`](../AGENTS.md). The documentation says yes, and the data says no. That is the
+whole of the first section, and the short answer is that the `waktu` field the docs
+promise is written on none of the 429 records published for Jakarta.
 
 ---
 
 ## What actually answers today
 
-Every row below was produced by calling the endpoint. The polygon is SpotOn's own bounding
-box, `-6.42,106.65` to `-6.05,107.05`.
+Every row below was produced by calling the endpoint on 22 August 2026. The polygon is
+SpotOn's own bounding box, `-6.42,106.65` to `-6.05,107.05`.
 
-| Path | Key | Result |
+| Call | Key | Result |
 |---|---|---|
 | `POST /web/competition/{mission-type}` | none | `400 {"message":"x-api-key header is required"}` |
-| `POST /web/competition/{mission-type}` | ours, or a deliberately invalid one | `500 {"message":"Internal server error"}` |
-| `POST /web/competition/activities` | none / any | same 400, then the same 500 |
+| `POST /web/competition/{mission-type}` | ours, or one deliberately invalid | `500 {"message":"Internal server error"}` |
+| `POST /web/competition/activities` | none, then any | the same 400, then the same 500 |
 | `POST /web/survei/competition/{mission-type}` | — | `404 Cannot POST` |
-| `POST /web/survei/public/{mission-type}` | none | `200`, real features |
+| `POST /web/survei/public/{mission-type}` | none | `200`, features with **empty** properties |
+| `GET /web/survei/public/{mission-type}?_id=…` | none | `200`, one feature **with** its properties |
 
-Three things follow, and each is worth knowing before writing a fetch script.
+### The documented endpoint is broken, and it is not our key
 
-**The documented endpoint is the right one and it is currently broken.**
-`/web/competition/…` rejects a request with no key correctly, and then answers 500 to every
-request that carries one. A key we know to be wrong gets exactly the same 500 as ours, and
-so does a request with an empty body, so this is not our key being refused and not our
-polygon being rejected. There is nothing to work around on our side.
+`/web/competition/…` refuses a request with no key correctly, and then answers 500 to
+every request that carries one. Four things were varied and none of them changed it:
 
-**There is an undocumented keyless path that works.** `/web/survei/public/{mission-type}`
-is what the MAPID Maps front end calls itself — it is in the shipped bundle as
-`` `${BASE}/web/survei/public/propertigo` `` — and it answers 200 with no key at all. Over
-the Jakarta box it returns:
+- **The key.** Ours and a deliberately invalid one get the identical 500.
+- **The header spelling.** `x-api-key`, `X-API-KEY` and `X-Api-Key` all reach the 500,
+  which is the header being matched case-insensitively as HTTP requires. `api-key`,
+  `Authorization: Bearer` and `?api_key=` all fall back to the 400, so `x-api-key` is the
+  only name the route honours.
+- **The body.** An empty `{}` gets the same 500, so the polygon is not being rejected.
+- **The mission.** All three mission types, and `activities`.
 
-| Mission | Total features |
-|---|--:|
-| `propertigo` | 132 |
-| `menugo` | 99 |
-| `struckgo` | 198 |
+`MAPID_API_KEY` is live. The control is the premium catalogue call the data scripts
+already make: `GET geoserver.mapid.io/layers_new/get_layer_list` with our key answers
+`200` and real content, and the same call with a made-up key answers `404 {}`. So the key
+is being accepted somewhere else on the same day, and there is nothing to fix on our side.
 
-**But that path returns no attributes.** Every feature comes back with `properties: {}`.
-It carries `_id`, `mission`, `key`, `type` and a `geometry` Point, and nothing else. So the
-public path answers *where*, and only the documented path can answer *what* — which is the
-half SpotOn needs, and the half that is 500-ing.
+### There is an undocumented keyless path, in two halves
+
+`/web/survei/public/…` is what the MAPID Maps front end calls itself — it is in the
+shipped bundle as `` `${BASE}/web/survei/public/propertigo` `` — and it needs no key at
+all. Sending our key changes nothing about the answer.
+
+It comes in two halves, and only together are they useful:
+
+- **`POST /web/survei/public/{mission-type}`** takes the same polygon body and returns
+  the list, paginated the documented way. Every feature carries `_id`, `mission`, `key`,
+  `type` and a Point `geometry`, and `properties: {}`. It answers *where*, never *what*.
+- **`GET /web/survei/public/{mission-type}?_id=…`** returns that one feature with its
+  properties filled in. This is the detail call the front end makes when a point is
+  clicked, and it is the only route to the attributes that answers at all today.
 
 ```json
 {
-  "_id": "6a867bc7fcdb2a71e5feb6e0",
-  "mission": "struk",
-  "key": "427d610bb2d54a459934efbba17d315e",
-  "geometry": { "type": "Point", "coordinates": [106.82180679136314, -6.223573648716149] },
-  "type": "Feature",
-  "properties": {}
+  "_id": "…", "mission": "struk", "key": "…",
+  "geometry": { "type": "Point", "coordinates": [106.8218, -6.2236] },
+  "properties": {
+    "nama_tempat": "Nasi Uduk Bu May",
+    "kategori_tempat": "Warung/kaki lima",
+    "tanggal": "2026-08-20T00:00:00.000Z",
+    "metode_pembayaran": "QRIS",
+    "foto_struk": "https://mapid-app-chat.cdn.mapid.io/…"
+  },
+  "type": "Feature"
 }
 ```
 
-One more discrepancy, noted so nobody loses an afternoon to it: the Playground page on the
-docs site pre-fills its URL box with `https://server.mapid.io/web/survei/competition/propertigo`,
-which is a fourth path and a 404. The prose on the Missions page is right and the
-Playground's placeholder is wrong.
+One list call per mission plus one detail call per feature is 429 requests for the whole
+of Jakarta, which is what was done to produce the next section.
+
+### What is actually in the data
+
+All 429 records inside the bounding box, fetched one by one. Not a sample.
+
+| Mission | Records | Distinct coordinates |
+|---|--:|--:|
+| Struck Go | 198 | 161 |
+| Menu Go | 99 | 82 |
+| Properti Go | 132 | 117 |
+
+**Fields documented but not present in a single record:**
+
+| Mission | Missing |
+|---|---|
+| Struck Go | `waktu`, `catatan` |
+| Menu Go | `waktu`, `jam_buka`, `jam_tutup`, `link_menu`, `catatan` |
+| Properti Go | none (`catatan` is present on 1 of 132) |
+
+Nothing undocumented turned up. Everything else the docs promise is on every record.
+
+**There is no time of day anywhere.** `tanggal` is present on all 429 and every one of
+them is midnight UTC exactly — `00:00:00.000Z`, 429 times out of 429. It is a date field,
+not a timestamp, and the `waktu` that would have carried the hour is not being written.
+That is the single most consequential fact in this file, and the reason is in the last
+section.
+
+Date ranges: Struck Go 13 May to 20 August 2026, Menu Go 2 June to 21 August, Properti Go
+13 February to 19 August.
+
+**What the categorical fields hold**, across every record:
+
+```
+struckgo.metode_pembayaran   QRIS 132 · Tunai 24 · E-wallet 21 · Debit 14 · Kartu Kredit 7
+struckgo.kategori_tempat     Restoran/kafe 74 · Minimarket/supermarket 42 · Warung/kaki lima 22 · E-commerce 19 · …
+menugo.kondisi_tempat        Sedang (1-3 pembeli menunggu/makan) 50 · Sepi 28 · Ramai (antrean >3) 21
+menugo.jenis_tempat          Warung/Tenda 27 · Kafe 26 · Restoran 20 · Fast Food 17 · Kaki Lima/Gerobak 9
+menugo.mobilitas             Menetap 97 · Berkeliling 2
+propertigo.kategori_properti Ruko 83 · Rumah 23 · Tanah 15 · Kos 5 · Retail 3 · Kantor 1
+propertigo.jenis_properti    Dijual 83 · Disewa 49
+```
+
+Two of those are worth stopping on.
+
+`menugo.kondisi_tempat` is a **surveyor's observation of the crowd**: how many people were
+waiting or eating when the photograph was taken. It is the closest thing in any MAPID
+dataset to a footfall reading, and there are 99 of them.
+
+`propertigo.jenis_properti` contains **49 Disewa**, which is to say rental listings, in a
+product that says at length that MAPID publishes no rent for Jakarta. That statement is
+about the premium property catalogue and it is still exactly true: `fetch-property.mjs`
+re-tallies its sale-or-rent column on every run and it comes back sale every time.
+Properti Go is a different dataset, gathered a different way, and it does record that a
+property is for rent. It records no price of any kind, for rent or for sale, so it still
+cannot produce a monthly rent figure. What it changes is smaller and worth knowing: "no
+listing in Jakarta is for rent" was never the claim, and this is the data that shows why
+the claim was written as narrowly as it was.
 
 ---
 
@@ -547,30 +617,55 @@ untestable while it answers 500 to every key.
 
 ## What this changes for SpotOn
 
-Nothing yet, and it is worth being precise about why.
+Less than the reachability suggests, and the reason is worth stating plainly rather than
+being rediscovered later.
 
 `scripts/fetch-mission.mjs` was written against a different assumption: that the mission
 datasets would arrive as MAPID **layers**, discoverable by layer id, and its `probe()`
 re-checks on every run that they are not in the catalogue. That is still true, and it is
-now beside the point — the missions have their own competition endpoint, which that script
-does not know about.
+now beside the point. The missions have their own endpoint, and that script cannot find
+it because it is not looking for a route.
 
-What the endpoint gives us today is 429 locations across Jakarta with no attributes on
-them. Locations alone cannot answer the hour: a Struck Go point with no `waktu` is a
-receipt with no time on it. So the activity signal stays where it is, counted from
-OpenStreetMap opening hours, until `/web/competition/…` stops answering 500.
+**The hourly demand signal is not there.** Struck Go was going to be the receipt behind
+the hour: 198 receipts across Jakarta, each with a payment method, a place category and a
+date. And no time. `waktu` is documented and written on none of the 198, and `tanggal` is
+midnight on all of them. A receipt with no time on it cannot say when a street is busy, so
+the area panel's curve stays counted from OpenStreetMap opening hours, which do carry the
+hour. Menu Go was the second route to the same figure through `jam_buka` and `jam_tutup`,
+and those are absent from all 99 records too.
 
-When it does, two things become possible and both are small:
+**The counts are thin even where the fields are complete.** 198 receipts and 99 menus over
+a grid of 562 cells is well under one observation per cell, before any of them are asked
+to fall inside a particular 800 m catchment. Compare the layers already in use: 24,630
+competitor points and 3,547 property listings. Nothing here is dense enough to carry a
+per-cell figure, and a per-cell figure resting on nought-point-something observations is
+the kind of number this product exists not to print.
 
-- **Struck Go → the demand side of the hour.** `tanggal` plus `waktu` per receipt is the
-  measurement the area panel's chart currently cannot make. It would sit beside the
-  door-count curve rather than replacing it, because they measure different things.
-- **Menu Go → published hours from a second survey.** `jam_buka` and `jam_tutup` are the
-  same fact `opening_hours` carries in OpenStreetMap, from a different surveyor. The rules
-  in `domain/activity` already handle two surveys of one city without adding them together.
+So: nothing to wire in today. What would be worth doing the day `waktu` starts being
+written, in rough order of value:
 
-Neither should be built against the public keyless path. Empty `properties` is not a thin
-version of the real payload, it is a different endpoint answering a different question.
+- **Struck Go, once it carries a time.** `tanggal` plus `waktu` per receipt is the
+  measurement the activity chart cannot make. It would sit beside the door-count curve
+  rather than replacing it, because doors open and money spent are different things, and
+  the panel already says which one it is drawing.
+- **`menugo.kondisi_tempat`.** Sepi, Sedang, Ramai, as observed by a person standing
+  there. Real crowding, already collected. Undated by hour like everything else, so it is
+  a reading of a place rather than of an hour, and it would need far more than 99 records
+  before it could be shown per cell.
+- **`struckgo.metode_pembayaran`.** A cashless share, which is one of the columns this
+  repository once generated with a PRNG and deleted for it. It is real now. It is also 198
+  rows.
+
+Two rules for whoever picks this up.
+
+Do not build against the keyless list call alone. Empty `properties` is not a thin version
+of the real payload, it is a different question being answered, and a fetch script that
+counted those features would be counting locations while reporting attributes.
+
+Do not read the detail endpoint as a bulk source without asking first. It is one HTTP
+request per record, undocumented, and the front end uses it for one point at a time. 429
+requests to characterise the data once is reconnaissance. A rebuild loop over it is
+something else, and the documented bulk endpoint is the one to use once it answers.
 
 ---
 
@@ -588,4 +683,6 @@ retyped, so it is what the page says. The endpoint behaviour in the first sectio
 calling `server.mapid.io` directly.
 
 The `/web/survei/public/…` path is not in the documentation. It was found by searching the
-site's own JavaScript bundle for the mission type names.
+site's own JavaScript bundle for the mission type names, list call and detail call alike.
+The field tallies come from fetching all 429 records once, one detail request each, spaced
+200 ms apart.
