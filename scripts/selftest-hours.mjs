@@ -39,6 +39,7 @@ import { createServer } from 'vite';
 import { DAYS, encodeWeek, openHours, readWeek } from './lib/hours.mjs';
 import { buildHours } from './build-hours.mjs';
 import { MIN_READABLE, RADII as JOIN_RADII } from './join-hours.mjs';
+import { gridExtent, haversine } from './lib/geo.mjs';
 
 const ROOT = new URL('..', import.meta.url);
 
@@ -292,6 +293,46 @@ check(
 const gridPath = fileURLToPath(new URL('src/lib/data/hexes.json', ROOT));
 const filePath = fileURLToPath(new URL('static/data/hours.json', ROOT));
 const grid = JSON.parse(readFileSync(gridPath, 'utf8'));
+
+/* ── the fetched box actually covers every catchment ─────────────────────── */
+
+console.log('\nThe box that was fetched');
+
+/*
+ * The fetch is bounded by the grid's extent PADDED by one walking radius, because a
+ * cell's catchment reaches a full radius past its own centre. Three cells sit closer to
+ * the edge than that — all at Soekarno-Hatta, the nearest 32 m — so an unpadded fetch
+ * left up to 768 m of their catchment unread.
+ *
+ * The first pad was still five metres short, because it divided by 111,320 m per degree
+ * of latitude when the shortest a degree gets is 110,574. A pad short by any amount is
+ * not a guarantee, so the margin is asserted rather than assumed.
+ */
+{
+	const { box } = gridExtent(grid);
+	const [w, s, e, n] = box;
+	let closest = Infinity;
+	let who = null;
+	for (const h of grid.hexes) {
+		const d = Math.min(
+			haversine(h.lat, h.lon, s, h.lon),
+			haversine(h.lat, h.lon, n, h.lon),
+			haversine(h.lat, h.lon, h.lat, w),
+			haversine(h.lat, h.lon, h.lat, e)
+		);
+		if (d < closest) {
+			closest = d;
+			who = h.name;
+		}
+	}
+	const widest = RADII[RADII.length - 1];
+	check(
+		`no catchment reaches past the box that was fetched (nearest ${Math.round(closest)} m, ${who})`,
+		closest >= widest,
+		`${Math.round(closest)} m of pad against a ${widest} m radius`
+	);
+}
+
 const hasFile = existsSync(filePath);
 const joined = grid.hexes.filter((h) => h.hours).length;
 
