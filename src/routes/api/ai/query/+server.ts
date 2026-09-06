@@ -1,5 +1,5 @@
 import { error, json } from '@sveltejs/kit';
-import { isCategory } from '$lib/domain/categories';
+import { normalizeCategories } from '$lib/domain/categories';
 import { ruleChatTopic } from '$lib/domain/chat';
 import { answer, parseQuestion, runQuery } from '$lib/domain/nlq';
 import { normalizeWeights } from '$lib/domain/weights';
@@ -24,7 +24,7 @@ function chatAnswer(
 	text: string | undefined,
 	question: string,
 	weights: Weights,
-	fallback: CategoryKey,
+	fallback: readonly CategoryKey[],
 	parsedBy: 'model' | 'rules'
 ): AiAnswer {
 	return {
@@ -45,7 +45,8 @@ function chatAnswer(
 
 interface Body {
 	question?: string;
-	kategori?: string;
+	/** The business types the reader has in force — one name, or a list of them. */
+	kategori?: string | string[];
 	weights?: Partial<Weights>;
 	/** The reader's language; only affects the model's "I don't understand" sentence. */
 	lang?: string;
@@ -79,7 +80,15 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (!question) throw error(400, 'Pertanyaan kosong.');
 	if (question.length > 500) throw error(413, 'Pertanyaan terlalu panjang.');
 
-	const fallback: CategoryKey = isCategory(body.kategori) ? body.kategori : 'kopi';
+	/* What the question is answered ABOUT when it does not name a business type itself:
+	   whatever the reader already had in force, and NOTHING if they had nothing.
+	
+	   This used to fall back to coffee, and that was the last place the old default was
+	   hiding. A reader who has named no business and asks "where is busiest" is asking
+	   about the city, not about coffee — and one who asks "where should I open" is
+	   asking a question that is one word short, which `runQuery` answers by asking for
+	   the word rather than by choosing a business on their behalf. */
+	const fallback: CategoryKey[] = normalizeCategories(body.kategori, []);
 	const weights: Weights = normalizeWeights(body.weights);
 
 	const catchments = loadHexes();

@@ -34,8 +34,10 @@ export const GET: RequestHandler = () => {
 			meta: grid,
 			counts: {
 				total: catchments.length,
-				withData: catchments.filter((c) => !c.nodata).length,
-				titikMisi: catchments.reduce((a, c) => a + c.nStruk + c.nMenu + c.nProp, 0)
+				/* Cells whose city the MAPID catalogue has actually been read for. The
+				   density column is null exactly there, which is why it is what gets
+				   counted rather than a flag stored beside it. */
+				disurvei: catchments.filter((c) => c.dens.mapid !== null).length
 			}
 		},
 		{ headers: { 'cache-control': 'public, max-age=60, s-maxage=3600' } }

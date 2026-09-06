@@ -94,7 +94,7 @@
 				return n.clamp;
 			case 'gate':
 				if (!app.weights.gate) return n.gateOff;
-				return s.factor === 1 ? n.gatePass(row?.listings ?? 0) : n.gateBlock(s.factor ?? 1);
+				return s.factor === 1 ? n.gatePass(row?.units ?? 0) : n.gateBlock(s.factor ?? 1);
 			case 'access':
 				return n.access(s.factor ?? 1, access);
 			case 'cost':

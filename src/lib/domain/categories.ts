@@ -212,3 +212,37 @@ export function normPropertyCategory(v: string): string {
 export function matchesPropertyCategory(def: CategoryDef, raw: string): boolean {
 	return normPropertyCategory(def.propertyCategory) === normPropertyCategory(raw);
 }
+
+/**
+ * A question can name more than one business type, so everything downstream works in
+ * LISTS. These two keep such a list in a shape the rest of the code can rely on.
+ *
+ * `orderCategories` puts it back into display order and drops repeats. The order a
+ * list arrives in is the order the words happened to appear in a sentence, or the
+ * order a model wrote them in, and neither is a decision about how they should read:
+ * "kopi dan roti" and "roti dan kopi" are the same set and must produce the same
+ * label, or the chips reshuffle themselves between two questions that asked for the
+ * same thing.
+ */
+export function orderCategories(cats: readonly CategoryKey[]): CategoryKey[] {
+	const wanted = new Set(cats);
+	return CATEGORY_KEYS.filter((k) => wanted.has(k));
+}
+
+/**
+ * Anything at all → a usable list of business types.
+ *
+ * Accepts a single key as well as a list, because `kategori` arrives from a query
+ * string, a JSON body and a model tool call, and two of those three have been sending
+ * one string since before a set was possible. An empty result falls back to what the
+ * caller had, never to a hard-coded category: a request that named nothing is asking
+ * for the type already in force, not for coffee.
+ */
+export function normalizeCategories(
+	raw: unknown,
+	fallback: readonly CategoryKey[] = []
+): CategoryKey[] {
+	const list = Array.isArray(raw) ? raw : typeof raw === 'string' ? raw.split(',') : [];
+	const clean = orderCategories(list.map((v) => String(v).trim()).filter(isCategory));
+	return clean.length ? clean : orderCategories(fallback);
+}

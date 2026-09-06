@@ -32,6 +32,23 @@ export const cellName = (c: Pick<HexBase, 'id' | 'name'>): string =>
 const areaFactor = (radius: number) => Math.pow(radius / 800, 2);
 
 /**
+ * One business type, or several asked about together.
+ *
+ * A question naming one type and a question naming three differ only in the LENGTH of
+ * this list, so there is one code path through the whole engine and the single
+ * category is not a special case of anything. What "several" means arithmetically is
+ * stated once, in `poiCount` and `otherTrade` below: the types compete for the same
+ * customer, so their outlets are counted together as rivals and taken out of the trade
+ * around the cell together.
+ *
+ * A bare key is still accepted because most callers have exactly one and writing
+ * `['kopi']` at every one of them would be noise around a decision they are not making.
+ */
+export type Cats = CategoryKey | readonly CategoryKey[];
+
+const catList = (c: Cats): readonly CategoryKey[] => (typeof c === 'string' ? [c] : c);
+
+/**
  * Where a cell sits before a single figure has been read: dead level, demand and
  * competition cancelling out. The gap is a deviation FROM this, in both directions.
  */
@@ -58,8 +75,29 @@ export const GATE_BLOCKED = 0.15;
  * as zero, the areas that have been examined least would be crowned the best
  * opportunities — the exact opposite of what the user is looking for.
  */
-function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
-	if (c.nodata) return 0;
+function oneCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): number | null {
+	/**
+	 * BOTH SURVEYS: the larger of the two readings, never their sum.
+	 *
+	 * They are two surveys of the same city rather than two halves of one. The MAPID
+	 * catalogue holds 4,753 cafes in the surveyed cells and OpenStreetMap holds 1,569,
+	 * and those 1,569 are overwhelmingly the same cafes — there is no shared id to match
+	 * them on, so adding them would report a street of eight coffee shops as having
+	 * fourteen and inflate the competition side of every score by an amount nobody could
+	 * account for.
+	 *
+	 * The larger reading is a floor: at least this many exist, because one of the two
+	 * surveys went and counted them. Null only when NEITHER survey can speak for this
+	 * cell — where one can, its count stands on its own, which is what closes the gap of
+	 * 100 cells the catalogue has never read.
+	 */
+	if (source === 'both') {
+		const a = oneCount(c, cat, 'mapid', radius);
+		const b = oneCount(c, cat, 'osm', radius);
+		if (a === null) return b;
+		if (b === null) return a;
+		return Math.max(a, b);
+	}
 	if (source === 'mapid') {
 		if (!c.covered?.[cat]) return null;
 		return Math.round((c.mapid?.[cat] ?? 0) * areaFactor(radius));
@@ -85,38 +123,119 @@ function poiCount(c: Hex, cat: CategoryKey, source: PoiSource, radius: number): 
 	return typeof n === 'number' ? Math.round(n * areaFactor(radius)) : null;
 }
 
+/**
+ * Rivals for the whole set of business types asked about, added together.
+ *
+ * Added rather than averaged, because that is what a rival IS. Somebody weighing a
+ * cafe that also sells bread is competing with every cafe on the street AND every
+ * bakery on it; the two counts are of different shops, so the total is the number of
+ * doors already selling to the customer they want.
+ *
+ * ONE UNCOUNTED TYPE MAKES THE WHOLE SET UNCOUNTED. If MAPID has not read this city
+ * for bakeries, then "cafes and bakeries here" has no answer — and a sum that quietly
+ * skipped the missing half would report the cafes alone as though they were the lot,
+ * which is the same lie as reading a null as a zero, told at set level.
+ *
+ * An empty set is null for the same reason and not 0: no business type asked about
+ * means no rivals to count, and a zero there would make every cell on the map look
+ * competitor-free, which is the best score this product can award.
+ */
+function poiCount(c: Hex, cats: readonly CategoryKey[], source: PoiSource, radius: number): number | null {
+	if (!cats.length) return null;
+	let total = 0;
+	for (const cat of cats) {
+		const n = oneCount(c, cat, source, radius);
+		if (n === null) return null;
+		total += n;
+	}
+	return total;
+}
+
 /** Normalisation scale for supply: the densest catchment in this category. Cells
     that are not yet covered must not get a say in setting the scale. */
-function maxPoi(all: Hex[], cat: CategoryKey, source: PoiSource, radius: number): number {
+function maxPoi(all: Hex[], cats: readonly CategoryKey[], source: PoiSource, radius: number): number {
 	const counts = all
-		.filter((c) => !c.nodata)
-		.map((c) => poiCount(c, cat, source, radius))
+		.map((c) => poiCount(c, cats, source, radius))
 		.filter((n): n is number => n !== null);
 	return Math.max(1, ...counts);
 }
 
-function typologyOf(
-	demand: number,
-	supply: number,
-	busy: number,
-	listings: number
-): Typology {
-	if (supply > 0.6 && busy < 0.45) return 'saturated';
+/**
+ * The trade around a cell that is NOT the category being asked about, at this radius.
+ *
+ * The subtraction is the point. Density is every counted business in range, so for a
+ * category as common as minimarkets it is largely a count of minimarkets — and left
+ * whole it would tell a would-be minimarket owner that the fuller a street is of
+ * minimarkets the more demand there is for another. Taking the category out leaves
+ * the footfall its rivals are living off, which is what the demand side is meant to
+ * be reading.
+ *
+ * Null means the source has not surveyed here, and the same rule as `poiCount`
+ * applies: a zero would call an unread city empty of trade.
+ */
+function otherTrade(c: Hex, cats: readonly CategoryKey[], source: PoiSource, radius: number): number | null {
+	// The same rule as `oneCount`, applied to the total: the fuller survey speaks for
+	// the cell, and the two are never added. See the note there.
+	const total =
+		source === 'both'
+			? (c.dens?.mapid ?? null) === null
+				? c.dens?.osm
+				: Math.max(c.dens?.mapid ?? 0, c.dens?.osm ?? 0)
+			: source === 'mapid'
+				? c.dens?.mapid
+				: c.dens?.osm;
+	if (total === null || total === undefined) return null;
+	// Every type asked about comes out, not just the first. Ask about cafes and bakeries
+	// on a street of cafes and bakeries and leaving either one in would count that
+	// street's own rivals as the footfall they are supposed to be living off.
+	const own = poiCount(c, cats, source, radius) ?? 0;
+	return Math.max(0, Math.round(total * areaFactor(radius)) - own);
+}
+
+/**
+ * Normalisation scale for demand, set the same way `maxPoi` sets supply's.
+ *
+ * With no business type named this is the busiest cell on the grid outright, since
+ * `otherTrade` has nothing to subtract — which is exactly the scale the opening map
+ * needs, where the reading is "how much trade is here" and not "how much trade other
+ * than mine".
+ */
+function maxTrade(all: Hex[], cats: readonly CategoryKey[], source: PoiSource, radius: number): number {
+	const counts = all
+		.map((c) => otherTrade(c, cats, source, radius))
+		.filter((n): n is number => n !== null);
+	return Math.max(1, ...counts);
+}
+
+/**
+ * The shape of a cell, read off the two figures the score is made of plus what is on
+ * the market.
+ *
+ * `units` is premises genuinely listed in the MAPID catalogue, not a per-category
+ * count of rentals: there are no rentals to count. So "busy, no space" now means the
+ * catalogue holds nothing a small business could take here, which is a claim the data
+ * can actually carry.
+ */
+function typologyOf(demand: number, supply: number, units: number): Typology {
+	if (supply > 0.6) return 'saturated';
 	if (demand > 0.55 && supply < 0.32) return 'underserved';
-	if (demand > 0.55 && listings === 0) return 'busy-limited-space';
+	if (demand > 0.55 && units === 0) return 'busy-limited-space';
 	return 'competitive';
 }
 
 /**
- * The Opportunity Score of one catchment for one category.
+ * The Opportunity Score of one catchment for one business type, or for several
+ * asked about at once.
  *
  *   Gap   = (wd·demand − ws·supply) / (wd + ws)
  *   Score = clamp(Gap + 0.5) × space_gate × transit_access × cost_of_space
  *
- * Supply is not merely a competitor count: density is weighted by how busy those
- * competitors are, so busy competitors push the opportunity down harder than quiet
- * ones. The availability of commercial space is treated as a gate — with no space
- * the opportunity cannot be acted on at all, it is not just more expensive.
+ * EVERY TERM IS COUNTED, NONE IS GENERATED. Demand is the trade around the cell other
+ * than this category, supply is this category's own rivals, access is transit nodes,
+ * the gate is premises actually on the market, and the cost is the median asking price
+ * per m². Supply used to be weighted by how busy the rivals were, and the space gate
+ * used to read a per-category rental count: both of those columns were invented and
+ * both are gone, so what is left is thinner and true.
  *
  * WHAT THE SPACE COSTS IS THE ONE THAT IS ONLY EXPENSIVE
  *
@@ -130,11 +249,13 @@ function typologyOf(
  */
 export function scoreOne(
 	c: Hex,
-	cat: CategoryKey,
+	cat: Cats,
 	w: Weights,
 	scale: number,
-	ladder: number[] = []
+	ladder: number[] = [],
+	tradeScale = 1
 ): ScoredHex {
+	const cats = catList(cat);
 	const base = {
 		id: c.id,
 		name: cellName(c),
@@ -142,19 +263,17 @@ export function scoreOne(
 		lon: c.lon,
 		boundary: c.boundary,
 		transit: c.transit,
-		access: c.access,
-		nStruk: c.nStruk,
-		nMenu: c.nMenu,
-		nProp: c.nProp
+		access: c.access
 	};
 
-	const count = poiCount(c, cat, w.source, w.radius);
+	const count = poiCount(c, cats, w.source, w.radius);
+	const trade = otherTrade(c, cats, w.source, w.radius);
 
 	// What is on the market here, and what that costs. Read for every branch below,
-	// including the ones with no score: the listings are real MAPID data and stay true
-	// whether or not the mission attributes for this cell exist, exactly as the transit
-	// counts do. A panel that can say nothing about the opportunity can still say what
-	// space is going for.
+	// including the one with no score: the property catalogue is a separate survey with
+	// its own coverage, so a cell whose competitors nobody has counted can still have a
+	// price somebody published. A panel that can say nothing about the opportunity can
+	// still say what space is going for.
 	const price = priceOf(c, w.radius);
 	const level = priceLevel(price, ladder);
 	const cost = costFactor(level);
@@ -162,61 +281,66 @@ export function scoreOne(
 	const propCovered = c.propCovered ?? false;
 	const space = { price, priceLevel: level, costFactor: cost, units, propCovered };
 
-	if (c.nodata) {
+	/**
+	 * NOBODY HAS NAMED A BUSINESS TYPE YET.
+	 *
+	 * The trade standing around this cell is still reported, because it is a count that
+	 * needs no business type at all: every business in walking range, whatever it sells.
+	 * Nothing was subtracted from it, since there is no category to take out.
+	 *
+	 * The OPPORTUNITY is not reported, and that is the point of having this branch
+	 * rather than letting the empty set fall through. 83 for a coffee shop is not 83 for
+	 * a laundry, so a score with no business type behind it is a number about nothing.
+	 * And the arithmetic would not merely be meaningless, it would be flattering: no
+	 * type named means no rivals counted, no rivals is no competition, and no
+	 * competition is the highest score this engine can award. Every cell on the map
+	 * would come back excellent.
+	 *
+	 * `supply` is null for the same reason, rather than 0. Zero rivals is a finding; not
+	 * having asked about rivals is not.
+	 */
+	if (!cats.length) {
 		return {
 			...base,
 			...space,
 			osm: 0,
 			source: w.source,
-			covered: false,
-			nodata: true,
+			covered: trade !== null,
 			score: null,
-			demand: null,
+			demand: trade === null ? null : Math.min(1, trade / tradeScale),
 			supply: null,
-			busy: 0,
-			listings: 0,
-			nTot: 0,
-			cashless: 0,
-			hourly: [],
-			peakHour: -1,
-			typology: 'no-data'
+			density: trade ?? 0,
+			typology: trade === null ? 'not-covered' : 'no-type'
 		};
 	}
 
 	// Not yet covered: this cell is real and inhabited, the active source simply has
 	// not surveyed its city. Refusing to give it a score is the correct answer — any
 	// number here would invent competition nobody has ever looked at.
-	if (count === null) {
+	if (count === null || trade === null) {
 		return {
 			...base,
 			...space,
 			osm: 0,
 			source: w.source,
 			covered: false,
-			nodata: false,
 			score: null,
-			demand: c.d?.[cat] ?? 0,
+			demand: null,
 			supply: null,
-			busy: c.busy?.[cat] ?? 0,
-			listings: 0,
-			nTot: c.nStruk + c.nMenu + c.nProp,
-			cashless: c.cashless ?? 0,
-			hourly: c.hourly ?? [],
-			peakHour: -1,
+			density: trade ?? 0,
 			typology: 'not-covered'
 		};
 	}
 
-	const demand = c.d?.[cat] ?? 0;
-	const busy = c.busy?.[cat] ?? 0;
-	const supply = Math.min(1, (count / scale) * (0.55 + 0.9 * busy));
-	const listings = Math.round((c.listing?.[cat] ?? 0) * areaFactor(w.radius));
-	const gate = w.gate ? (listings > 0 ? 1 : GATE_BLOCKED) : 1;
-	// Transit access is REAL data (OSM), unlike the mission indicators which are
-	// still samples — so it enters as a multiplier of its own rather than being
-	// folded into demand. That way a cell served by both the MRT and TransJakarta
-	// really is worth more, and its contribution can be traced separately from the
-	// figures that are still samples.
+	const demand = Math.min(1, trade / tradeScale);
+	const supply = Math.min(1, count / scale);
+	// The gate is premises on the market, from the property catalogue. It used to be a
+	// per-category count of rentals, which was invented twice over: the figure was
+	// generated, and the catalogue holds no rentals for Jakarta to generate it from.
+	const gate = w.gate ? (units > 0 ? 1 : GATE_BLOCKED) : 1;
+	// Transit access enters as a multiplier of its own rather than being folded into
+	// demand, so that a cell served by both the MRT and TransJakarta really is worth
+	// more and its contribution can be traced on its own.
 	//
 	// The floor and the span come from `domain/transit`, which is also where the
 	// panel reads them to say what that access was worth. Written out here as well
@@ -225,8 +349,6 @@ export function scoreOne(
 	const accessFactor = ACCESS_FLOOR + ACCESS_SPAN * c.access;
 	const gap = (w.wd * demand - w.ws * supply) / Math.max(0.0001, w.wd + w.ws);
 	const score = Math.max(0, Math.min(1, gap + BALANCE_POINT)) * gate * accessFactor * cost;
-	const hourly = c.hourly ?? [];
-	const peak = hourly.length ? hourly.indexOf(Math.max(...hourly)) : -1;
 
 	return {
 		...base,
@@ -234,35 +356,39 @@ export function scoreOne(
 		osm: count,
 		source: w.source,
 		covered: true,
-		nodata: false,
 		score,
 		demand,
 		supply,
-		busy,
-		listings,
-		nTot: c.nStruk + c.nMenu + c.nProp,
-		cashless: c.cashless ?? 0,
-		hourly,
-		peakHour: peak,
-		typology: typologyOf(demand, supply, busy, listings)
+		density: trade,
+		typology: typologyOf(demand, supply, units)
 	};
 }
 
-/** Score every catchment for one category. */
-export function scoreAll(all: Hex[], cat: CategoryKey, w: Weights): ScoredHex[] {
-	const scale = maxPoi(all, cat, w.source, w.radius);
-	// The price scale, built once for the whole run exactly as `scale` is. Not filtered
-	// to the cells with mission data: what a shopfront is being asked for is real MAPID
-	// data and does not stop being true because the sample attributes for that cell were
-	// never generated. Leaving those cells out would shorten the ladder every catchment
-	// is ranked against, and move prices nobody disputes.
+/**
+ * Score every catchment for the business type — or types — being asked about.
+ *
+ * Both scales are built over the SET, not per type and then combined. The densest
+ * street for "cafes and bakeries" is the street with the most of the two together, and
+ * that is the only cell that should read 100% supply; scaling each type against its own
+ * busiest street and adding the results would let a set of three exceed 1 on a street
+ * that is nowhere near the busiest for any of them.
+ */
+export function scoreAll(all: Hex[], cat: Cats, w: Weights): ScoredHex[] {
+	const cats = catList(cat);
+	const scale = maxPoi(all, cats, w.source, w.radius);
+	const tradeScale = maxTrade(all, cats, w.source, w.radius);
+	// The price scale, built once for the whole run exactly as the other two are.
 	const ladder = priceLadder(all, w.radius);
-	return all.map((c) => scoreOne(c, cat, w, scale, ladder));
+	return all.map((c) => scoreOne(c, cats, w, scale, ladder, tradeScale));
 }
 
 /**
  * Score one catchment across every category — for the "opportunity per business type"
  * panel.
+ *
+ * One type at a time here even when the map is showing several, and deliberately: this
+ * panel answers "which single business would do best on this corner", so combining them
+ * would be answering a question nobody asked it.
  *
  * `keys` exists because the client loads categories one at a time: a category whose
  * columns have not arrived is left OUT of the comparison rather than scored from
@@ -288,6 +414,13 @@ export function scoreAcrossCategories(
 	const wanted = new Set(keys);
 	return CATEGORY_KEYS.filter((key) => wanted.has(key)).map((key) => ({
 		key,
-		score: scoreOne(target, key, w, maxPoi(all, key, w.source, w.radius), ladder).score
+		score: scoreOne(
+			target,
+			[key],
+			w,
+			maxPoi(all, [key], w.source, w.radius),
+			ladder,
+			maxTrade(all, [key], w.source, w.radius)
+		).score
 	}));
 }

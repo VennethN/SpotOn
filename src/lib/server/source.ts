@@ -6,10 +6,9 @@ import type { CategoryKey, CategorySlice, GridMeta, Hex, HexBase } from '$lib/ty
  * SpotOn's data source.
  *
  * Every endpoint reads through this module and never touches the data file
- * directly. Once the MAPID API is available to curated teams, this is the only
- * file that changes: `loadHexes()` becomes an API call (a spatial join of
- * Struk/Menu/Properti Go onto the H3 cells) while the `Hex` contract stays the
- * same, so the UI needs no changes at all.
+ * directly. Should the grid ever be served from an API rather than a file, this is
+ * the only module that changes: `loadHexes()` becomes a request while the `Hex`
+ * contract stays the same, so the UI needs no changes at all.
  *
  * The grid itself is rebuilt by `scripts/build-hexes.mjs`.
  */
@@ -17,7 +16,7 @@ import type { CategoryKey, CategorySlice, GridMeta, Hex, HexBase } from '$lib/ty
 interface RawFile {
 	meta: GridMeta & {
 		real: string;
-		mock: string;
+		density: string;
 		regenerate: string;
 	};
 	hexes: Hex[];
@@ -71,10 +70,7 @@ export function loadCategorySlice(cat: CategoryKey): CategorySlice {
 		n: hexes.length,
 		osm: hexes.map((h) => h.osm?.[cat] ?? null),
 		mapid: hexes.map((h) => h.mapid?.[cat] ?? null),
-		covered: hexes.map((h) => h.covered?.[cat] ?? false),
-		busy: hexes.map((h) => h.busy?.[cat] ?? 0),
-		listing: hexes.map((h) => h.listing?.[cat] ?? 0),
-		d: hexes.map((h) => h.d?.[cat] ?? 0)
+		covered: hexes.map((h) => h.covered?.[cat] ?? false)
 	};
 	sliceCache.set(cat, slice);
 	return slice;
@@ -86,7 +82,7 @@ export const grid = file.meta;
    so they stay in Indonesian like the rest of the product copy. */
 /** Provenance metadata sent with every response so data claims can be traced. */
 export const provenance = {
-	source: 'osm+mock',
+	source: 'osm+mapid',
 	grid: {
 		resolution: file.meta.resolution,
 		walkRadius: file.meta.walkRadius,
@@ -109,9 +105,12 @@ export const provenance = {
 				tipe3: file.meta.property.tipe3
 			}
 		: null,
-	mock: {
-		label: 'MOCK',
-		note: `Atribut misi MAPID (profil jam, Struk Go, Menu Go, Properti Go, metode pembayaran) masih CONTOH karena datasetnya belum publik. Dibangkitkan mengikuti akses transit dan kepadatan usaha yang nyata agar polanya masuk akal secara spasial, bukan acak buta. ${file.meta.nodata} dari ${file.meta.hexes} petak sengaja dibiarkan tanpa data.`
+	/* Sisi permintaan. Bukan survei kedua: titik yang sama dengan hitungan pesaing di
+	   atas, dijumlah lintas kategori. Ditulis terpisah supaya jelas bahwa angkanya
+	   turunan, bukan pengukuran sendiri. */
+	density: {
+		label: 'OSM+MAPID',
+		note: `Keramaian satu petak adalah jumlah usaha apa pun dalam radius jalan kaki, dari sumber pesaing yang sedang dipakai, dikurangi pesaing sejenis. Tidak ada kolom misi yang dibangkitkan lagi: profil jam, jumlah struk, jumlah menu, pangsa nontunai, dan listing sewa per kategori sudah dihapus seluruhnya karena datanya memang tidak ada.`
 	},
 	basemap: 'Produk final wajib memakai MAPID MAPS sebagai basemap.'
 };

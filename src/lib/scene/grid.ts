@@ -56,15 +56,14 @@ const BASE_R = CELL * (RINGS + 0.95) * 1.732;
 /** The focus cell: where the measuring marks are attached. */
 const FOCUS = { q: 1, r: -1 };
 
-function mulberry32(seed: number) {
-	return function () {
-		seed |= 0;
-		seed = (seed + 0x6d2b79f5) | 0;
-		let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-	};
-}
+/**
+ * What the field falls back to when it is built without one.
+ *
+ * A plain ramp, so a scene constructed outside the landing page still shows something
+ * shaped like a field. It carries no hollow cells: claiming an unsurveyed cell is a
+ * statement about the data, and a placeholder is in no position to make one.
+ */
+const FALLBACK_FIELD: number[] = Array.from({ length: 91 }, (_, i) => 1 - i / 120);
 
 /** Axial coordinates → a flat position, flat-top layout. */
 function axialToXZ(q: number, r: number): [number, number] {
@@ -116,7 +115,10 @@ export class GridWorld {
 	#color = new THREE.Color();
 	#viewWidth = 104;
 
-	constructor(canvas: HTMLCanvasElement, opts: { reducedMotion?: boolean } = {}) {
+	constructor(
+		canvas: HTMLCanvasElement,
+		opts: { reducedMotion?: boolean; field?: Array<number | null> } = {}
+	) {
 		this.#canvas = canvas;
 		this.#reduced = opts.reducedMotion ?? false;
 
@@ -138,7 +140,7 @@ export class GridWorld {
 
 		this.#camera = new THREE.OrthographicCamera(-30, 30, 22, -22, -200, 400);
 
-		this.#layout();
+		this.#layout(opts.field?.length ? opts.field : FALLBACK_FIELD);
 		this.#buildLights(small ? 1024 : 2048);
 		this.#buildBase();
 		this.#buildTiles();
@@ -150,31 +152,52 @@ export class GridWorld {
 
 	/* ── plan ─────────────────────────────────────────────────────────────── */
 
-	#layout() {
-		const rnd = mulberry32(60413);
+	/**
+	 * The field.
+	 *
+	 * THE HEIGHTS ARE REAL SCORES; THE ARRANGEMENT IS NOT. `field` is a sample of the
+	 * grid's own opportunity scores, read from the same engine the app runs on, and the
+	 * hollow cells are cells whose city the catalogue has genuinely not been surveyed
+	 * for. What is schematic is only WHERE each one is put: the sample is laid out
+	 * tallest at the centre so the field reads as a landscape rather than a sawtooth,
+	 * which is what the mark on screen means by "not a particular area".
+	 *
+	 * The values used to be drawn from a PRNG, along with one cell in seven declared
+	 * dataless, and the caption underneath called that a demonstration of how scoring
+	 * works. It is a better demonstration when the numbers are the product's own.
+	 */
+	#layout(field: Array<number | null>) {
 		const [fx, fz] = axialToXZ(FOCUS.q, FOCUS.r);
+		const spots: Array<{ x: number; z: number; d: number }> = [];
 
 		for (let q = -RINGS; q <= RINGS; q++) {
 			const lo = Math.max(-RINGS, -q - RINGS);
 			const hi = Math.min(RINGS, -q + RINGS);
 			for (let r = lo; r <= hi; r++) {
 				const [x, z] = axialToXZ(q, r);
-				// The values represent no real area: all that needs to read is "every
-				// cell has its own figure", so the shape falls away from the centre and
-				// the field has a ridge rather than a random sawtooth.
-				const d = Math.hypot(x, z) / (CELL * RINGS * 1.8);
-				// The differences have to read from a distance: on too tight a range the
-				// grid flattens back into a plane and the point is lost.
-				const score = Math.max(0.09, Math.min(1, (1.1 - d * 0.8) * (0.4 + rnd())));
-				this.#cells.push({
-					x,
-					z,
-					score,
-					h: score * MAX_H,
-					nodata: rnd() < 0.14,
-					wave: Math.hypot(x - fx, z - fz)
-				});
+				spots.push({ x, z, d: Math.hypot(x, z) });
 			}
+		}
+
+		// Highest first, and the closest spot to the middle takes the highest. An
+		// unsurveyed cell has no height to place, so it goes wherever it falls.
+		const values = [...field].sort((a, b) => (b ?? -1) - (a ?? -1));
+		spots.sort((a, b) => a.d - b.d);
+
+		for (const [i, spot] of spots.entries()) {
+			const v = values[i % Math.max(1, values.length)] ?? null;
+			// The floor keeps the lowest cells legible as cells: at a true 0 the tile
+			// collapses into the base and reads as a hole, which is what a cell with no
+			// data is meant to look like.
+			const score = v === null ? 0.09 : Math.max(0.09, Math.min(1, v));
+			this.#cells.push({
+				x: spot.x,
+				z: spot.z,
+				score,
+				h: score * MAX_H,
+				nodata: v === null,
+				wave: Math.hypot(spot.x - fx, spot.z - fz)
+			});
 		}
 
 		const maxWave = Math.max(...this.#cells.map((c) => c.wave)) || 1;

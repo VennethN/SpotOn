@@ -7,14 +7,16 @@ import type { RequestHandler } from './$types';
 /** GET /api/meta — business categories, data coverage, provenance, and the language layer. */
 export const GET: RequestHandler = () => {
 	const catchments = loadHexes();
-	const withData = catchments.filter((c) => !c.nodata);
+	const surveyed = catchments.filter((c) => c.dens.mapid !== null);
 	return json({
 		categories: CATEGORIES,
 		coverage: {
 			total: catchments.length,
-			withData: withData.length,
-			withoutData: catchments.length - withData.length,
-			missionPoints: withData.reduce((a, c) => a + c.nStruk + c.nMenu + c.nProp, 0)
+			/* Coverage is read off the data itself: the MAPID density is null exactly for
+			   the cells whose city was never surveyed. What stood here before counted a
+			   flag that a random number generator had set at build time. */
+			disurvei: surveyed.length,
+			belumDisurvei: catchments.length - surveyed.length
 		},
 		// The model name is stated plainly — it is not a secret, and without it there is
 		// no way to check that the OPENROUTER_MODEL configured is the one actually used.
