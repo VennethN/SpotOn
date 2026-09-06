@@ -480,6 +480,79 @@ export const id = {
 			`${num(n)} listing properti komersial dari katalog Data Premium MAPID, ${kota} kota administrasi. Semuanya listing jual.`
 	},
 
+	/* Catatan lapangan: survei MAPID Apps yang dikerjakan orang, bukan katalog.
+	   Bedanya harus kelihatan di setiap kalimat. Katalog pesaing mengaku memuat
+	   semua kedai kopi di Jakarta, jadi angka nol di sana itu temuan. Ini tidak
+	   mengaku apa-apa: 191 dari 562 petak punya catatan, dan petak yang kosong cuma
+	   berarti belum ada yang ke sana. Makanya setiap label bilang "tercatat". */
+	field: {
+		title: 'Catatan lapangan',
+		notCensus:
+			'Ini catatan orang yang datang ke tempatnya, bukan sensus. Petak tanpa catatan belum tentu sepi, bisa jadi memang belum ada yang ke sana.',
+		none: 'Belum ada yang mencatat apa pun di petak ini.',
+		loading: 'Memuat catatannya…',
+		failed: 'Catatannya gagal dimuat. Angka di atas tetap utuh, yang hilang cuma daftarnya.',
+		count: (n: number) => `${num(n)} catatan di petak ini`,
+		last: (tanggal: string) => `Terakhir dicatat ${tanggal}.`,
+		mapShow: 'Tampilkan di peta',
+		mapHide: 'Sembunyikan dari peta',
+		walk: (m: number) => `${m} m`,
+		more: (n: number) => `+${n} lagi`,
+
+		/* Struk Go */
+		strukTitle: 'Struk belanja',
+		strukCount: (n: number) => `${num(n)} struk difoto di sini`,
+		cashless: (persen: number) => `${persen}% di antaranya dibayar nontunai.`,
+		cashlessThin: (n: number, min: number) =>
+			`Baru ${n} struk yang metode bayarnya terbaca. Di bawah ${min}, pangsanya belum bisa dibilang apa-apa.`,
+
+		/* Menu Go */
+		menuTitle: 'Tempat makan',
+		menuCount: (n: number) => `${num(n)} tempat makan didatangi surveyor`,
+		menuTypical: (v: number) => `Sekali makan di sini rata-rata ${rp(v)}.`,
+		menuTypicalThin: (n: number, min: number) =>
+			`Baru ${n} tempat yang harganya tercatat. Di bawah ${min}, itu harga satu warung, bukan harga kawasan.`,
+		menuPrice: (v: number) => `${rp(v)} rata-rata`,
+		menuNoPrice: (n: number) => `+${n} tempat lagi tanpa harga yang tertulis`,
+		crowd: { sepi: 'sepi', sedang: 'sedang', ramai: 'ramai' },
+		crowdSeen: (kata: string) => `pas didatangi: ${kata}`,
+
+		/* Properti Go. Satu-satunya sumber sewa yang dipunya produk ini, jadi
+		   kalimatnya menyebut itu terang-terangan. Yang dicatat penawarannya, harganya
+		   tidak ditanyakan di formulirnya. */
+		propTitle: 'Tempat yang ditawarkan',
+		propCount: (n: number) => `${num(n)} tempat tercatat di sini`,
+		propRent: (n: number) => `${n} di antaranya disewakan.`,
+		propNoRent: 'Semuanya dijual, tidak ada yang disewakan.',
+		rentNote:
+			'Cuma survei ini yang mencatat sewa. Yang dicatat penawarannya, harga sewanya tidak ditanyakan.',
+		offer: { sewa: 'Disewakan', jual: 'Dijual' },
+
+		/* Catatan warga */
+		noteTitle: 'Catatan warga',
+		noteCount: (n: number) => `${num(n)} catatan tentang jalan di sekitar sini`,
+		noteBy: (nama: string) => `oleh ${nama}`,
+
+		provenance: (n: number, petak: number, total: number) =>
+			`${num(n)} catatan lapangan MAPID Apps, tersebar di ${petak} dari ${total} petak. Tidak satu pun masuk ke perhitungan skor.`,
+
+		/* Tanggalnya ditulis di berkas bahasa, bukan di komponen: nama bulan dan
+		   urutannya beda per bahasa, dan yang dioper komponen selalu angka atau ISO. */
+		day: (iso: string) => {
+			const bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+			const [y, m, d] = iso.split('-').map(Number);
+			return bulan[m - 1] ? `${d} ${bulan[m - 1]} ${y}` : iso;
+		},
+		mapAria: (jenis: string, tempat: string, m: number) =>
+			`${jenis}: ${tempat}, ${m} m dari pusat petak`,
+		kinds: {
+			struk: 'Struk',
+			menu: 'Tempat makan',
+			properti: 'Properti',
+			catatan: 'Catatan warga'
+		}
+	},
+
 
 
 	mood: {
@@ -935,7 +1008,9 @@ export const id = {
 			harga_tempat: 'harga jual tempat usaha',
 			unit_dipasarkan: 'unit yang dipasarkan',
 			akses_transit: 'akses transit',
-			simpul_transit: 'simpul transit'
+			simpul_transit: 'simpul transit',
+			struk_dicatat: 'struk yang tercatat',
+			sewa_ditawarkan: 'tempat yang disewakan'
 		},
 		sortedBy: (ukuran: string, naik: boolean) =>
 			`diurutkan dari ${ukuran} ${naik ? 'terkecil' : 'terbesar'}`,

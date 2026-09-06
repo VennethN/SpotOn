@@ -41,12 +41,13 @@ async function load() {
 	const nlq = await server.ssrLoadModule('/src/lib/domain/nlq.ts');
 	const metrics = await server.ssrLoadModule('/src/lib/domain/metrics.ts');
 	const chat = await server.ssrLoadModule('/src/lib/domain/chat.ts');
+	const scoring = await server.ssrLoadModule('/src/lib/domain/scoring.ts');
 	const source = await server.ssrLoadModule('/src/lib/server/source.ts');
 	await server.close();
-	return { nlq, metrics, chat, cells: source.loadHexes() };
+	return { nlq, metrics, chat, scoring, cells: source.loadHexes() };
 }
 
-const { nlq, metrics, chat, cells } = await load();
+const { nlq, metrics, chat, scoring, cells } = await load();
 const W = { wd: 0.5, ws: 0.5, gate: true, radius: 800, source: 'mapid' };
 
 let failures = 0;
@@ -75,7 +76,14 @@ const CASES = [
 	['mana yang paling ramai pengunjungnya', 'keramaian', 'desc', null],
 	['jam berapa paling ramai', 'keramaian', null, null],
 	['mana yang pesaingnya paling sedikit untuk apotek', 'pesaing', 'asc', 'apotek'],
-	['mana yang simpul transitnya paling banyak', 'simpul_transit', 'desc', null]
+	['mana yang simpul transitnya paling banyak', 'simpul_transit', 'desc', null],
+	/* The field surveys. The pair below them is the collision they had to be split
+	   around: asking WHERE a place is offered to let is a different question from asking
+	   WHAT it costs, and both sentences carry the word sewa. */
+	['di mana ada tempat yang disewakan', 'sewa_ditawarkan', 'desc', null],
+	['mana yang struknya paling banyak', 'struk_dicatat', 'desc', null],
+	['berapa harga sewa di sini', 'harga_tempat', null, null],
+	['di mana sewanya paling murah', 'harga_tempat', 'asc', null]
 ];
 
 for (const [q, ukuran, urut, kategori] of CASES) {
@@ -279,6 +287,46 @@ check(
 	fewest.items.length > 0 &&
 		fewest.items.every((i) => i.measure !== null && i.measure !== undefined),
 	`ids not in the scored set: ${fewest.items.filter((i) => !coveredIds.has(i.id)).length}`
+);
+
+/* ── the field surveys rank only where somebody actually went ───────────── */
+
+/* This is the same rule as the one above, and the place it matters most. 191 of the
+   562 cells carry a field record. If an empty cell read as 0 rather than as nothing,
+   371 streets nobody has visited would fill the whole of "fewest receipts" and look
+   exactly like a finding. */
+const struk = nlq.answer('mana yang struknya paling banyak', cells, W, ['kopi']);
+const withRecords = cells.filter((c) => c.field).length;
+check(
+	`"most receipts" ranks only the ${withRecords} catchments that have any record`,
+	struk.items.length > 0 && struk.items.length <= withRecords,
+	`${struk.items.length} items against ${withRecords} catchments with records`
+);
+check(
+	'every catchment in it carries at least one receipt',
+	struk.items.every((i) => (cells.find((c) => c.id === i.id)?.field?.struk ?? 0) > 0)
+);
+
+const sewa = nlq.answer('di mana ada tempat yang disewakan', cells, W, ['kopi']);
+check(
+	'"where is space up for rent" lists only catchments with a rental recorded',
+	sewa.items.length > 0 &&
+		sewa.items.every((i) => (cells.find((c) => c.id === i.id)?.field?.sewa ?? 0) > 0),
+	`${sewa.items.length} items`
+);
+
+/* The field data must never reach the score. Two cells identical in every counted
+   figure must score the same whether or not a surveyor happened to walk one of them. */
+check(
+	'a field record does not move the opportunity score',
+	(() => {
+		const plain = cells.find((c) => !c.field && c.covered?.kopi);
+		if (!plain) return true;
+		const withField = { ...plain, field: { struk: 40, menu: 9, properti: 5, catatan: 3, sewa: 4, nontunai: 1, harga: 25000 } };
+		const a = scoring.scoreOne(plain, ['kopi'], W, 50, [], 200);
+		const b = scoring.scoreOne(withField, ['kopi'], W, 50, [], 200);
+		return a.score === b.score && a.demand === b.demand && a.supply === b.supply;
+	})()
 );
 
 /* ── filters narrow without inventing a threshold ────────────────────────── */
