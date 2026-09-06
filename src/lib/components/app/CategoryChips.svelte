@@ -1,29 +1,29 @@
 <script lang="ts">
 	/**
-	 * What the map is currently scoring, as chips over it.
+	 * What the map is currently scoring. A read-out, and nothing else.
 	 *
 	 * WHAT THIS REPLACED, AND WHY
 	 *
 	 * A row of thirteen marks, one per business type, exactly one of them lit. It was
 	 * the only way to change what the map scored, which made the question box beside it
 	 * decoration: a reader who typed "kedai kopi dan toko roti" watched the map colour
-	 * itself for coffee and had to go and press a button to fix it. If asking cannot set
-	 * what is on screen, there is no reason to ask.
+	 * itself for coffee and had to go and press a button to fix it.
 	 *
-	 * So this is a READ-OUT FIRST. It says what the last answer covered, in the answer's
-	 * own words, and each type can be dropped from it. Adding one is done by saying so,
-	 * which is what the box is for — the "+" is an escape hatch for a reader who arrived
-	 * knowing what they want to open, not the way the product is meant to be driven.
+	 * The first pass at fixing that kept a picker behind a "+", on the argument that a
+	 * reader who already knows what they want to open should not have to type a sentence
+	 * about it. That argument is wrong here. The whole claim of this product is that you
+	 * ask and the map answers, and a picker sitting on top of the map says the asking is
+	 * not to be trusted — the reader reaches for the buttons, and the question box is
+	 * back to being decoration by another route.
 	 *
-	 * The full list is the same icon row it always was, folded away until asked for.
-	 * Thirteen labels across the top of a map read as a menu of everything the product
-	 * does; open only on request, they read as a control.
+	 * So there are no controls left. These chips state what the last answer covered, in
+	 * the answer's own words, and the only thing that changes them is asking. Nothing
+	 * here is pressable, which is the point: there is one way in, and it is a sentence.
 	 *
 	 * The glyphs live here and not in `domain/categories`, which is where their names
 	 * and data sources live: the domain layer describes what a category IS, and a path
 	 * on a 24-unit grid is a decision about how it looks on screen.
 	 */
-	import { CATEGORIES } from '$lib/domain/categories';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
@@ -45,7 +45,7 @@
 		// a burger
 		cepatsaji: ['M5 11a7 3.5 0 0 1 14 0z', 'M5.5 13.5h13', 'M5 16h14a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z'],
 		// noodles in a bowl, with a chopstick through them. The stick is what keeps this
-		// apart from `warteg` at 17px: two bowls differing only in what floats above
+		// apart from `warteg` at 16px: two bowls differing only in what floats above
 		// them read as the same mark, and a diagonal breaks the silhouette.
 		mie: [
 			'M4.5 13h15a7.5 7.5 0 0 1-15 0z',
@@ -68,26 +68,8 @@
 		apotek: ['M10 4.5h4V10h5.5v4H14v5.5h-4V14H4.5v-4H10z']
 	};
 
-	let open = $state(false);
-	let rail = $state<HTMLDivElement | null>(null);
-
+	let rail = $state<HTMLUListElement | null>(null);
 	const active = $derived(app.categories);
-	/* The last type standing cannot be dropped. An empty set has no rivals to count,
-	   and the engine reads no rivals as no competition — the whole map would go green
-	   for a question nobody asked. Said in the tooltip rather than silently ignored. */
-	const canDrop = $derived(active.length > 1);
-
-	/* An answer closes the list. The reader asked, the map moved, and leaving a picker
-	   open across it hides the thing they asked to see.
-
-	   Keyed on the ANSWER and not on the set, though the set is what the picker changes.
-	   Closing on the set would shut the list on its own first click, which makes picking
-	   a second type a matter of reopening it — and picking several is the one thing this
-	   list is better at than typing. */
-	$effect(() => {
-		void app.ai;
-		open = false;
-	});
 
 	/* Only a few chips fit on a phone, so the bar scrolls. Whatever was just added is
 	   brought into view, otherwise a question can add a type whose chip is sitting off
@@ -102,125 +84,41 @@
 			inline: 'nearest'
 		});
 	});
-
-	function toggle(key: CategoryKey) {
-		if (active.includes(key)) app.removeCategory(key);
-		else app.setCategories([...active, key]);
-	}
 </script>
 
-<div class="wrap">
-	<div class="cats material" bind:this={rail} aria-label={c.app.categoryLabel} role="group">
-		{#each active as key (key)}
-			<span class="chip">
-				<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-					{#each ICONS[key] as d (d)}
-						<path
-							{d}
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.6"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					{/each}
-				</svg>
-				<span class="lbl">{c.category[key].short}</span>
-				<button
-					type="button"
-					class="x"
-					disabled={!canDrop}
-					title={canDrop ? c.app.catRemove(c.category[key].name) : c.app.catOnlyOne}
-					aria-label={c.app.catRemove(c.category[key].name)}
-					onclick={() => app.removeCategory(key)}
-				>
-					<svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
-						<path
-							d="M6 6 18 18M18 6 6 18"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2.4"
-							stroke-linecap="round"
-						/>
-					</svg>
-				</button>
-			</span>
-		{/each}
-
-		<button
-			type="button"
-			class="more"
-			class:on={open}
-			aria-expanded={open}
-			title={open ? c.app.catAddClose : c.app.catAdd}
-			aria-label={open ? c.app.catAddClose : c.app.catAdd}
-			onclick={() => (open = !open)}
-		>
-			<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-				<path
-					d={open ? 'M6 6 18 18M18 6 6 18' : 'M12 5v14M5 12h14'}
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2.2"
-					stroke-linecap="round"
-				/>
-			</svg>
-		</button>
-	</div>
-
-	{#if open}
-		<div class="picker material">
-			<p class="hint">{c.app.catAskInstead}</p>
-			<div class="grid" role="group" aria-label={c.app.categoryLabel}>
-				{#each CATEGORIES as def (def.key)}
-					{@const on = active.includes(def.key)}
-					<button
-						type="button"
-						class="opt"
-						class:on
-						aria-pressed={on}
-						disabled={on && !canDrop}
-						onclick={() => toggle(def.key)}
-					>
-						<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-							{#each ICONS[def.key] as d (d)}
-								<path
-									{d}
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.6"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								/>
-							{/each}
-						</svg>
-						<span>{c.category[def.key].name}</span>
-					</button>
+<ul class="cats material" bind:this={rail} aria-label={c.app.categoryLabel}>
+	{#each active as key (key)}
+		<li class="chip" data-key={key}>
+			<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+				{#each ICONS[key] as d (d)}
+					<path
+						{d}
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.6"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					/>
 				{/each}
-			</div>
-		</div>
-	{/if}
-</div>
+			</svg>
+			<span class="lbl">{c.category[key].short}</span>
+		</li>
+	{/each}
+</ul>
 
 <style>
-	.wrap {
+	.cats {
 		position: fixed;
 		top: 0.75rem;
 		left: 50%;
 		z-index: 8;
 		transform: translateX(-50%);
 		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.375rem;
-		max-width: calc(100vw - 16rem);
-	}
-
-	.cats {
-		display: flex;
 		align-items: center;
 		gap: 0.25rem;
-		max-width: 100%;
+		list-style: none;
+		margin: 0;
+		max-width: calc(100vw - 16rem);
 		padding: 0.25rem;
 		border-radius: 999px;
 		background: var(--mat-thick);
@@ -234,15 +132,16 @@
 		display: none;
 	}
 
-	/* A chip is a statement, not a button: the map IS scoring this. Only the cross
-	   inside it is pressable, which is why the chip itself carries no hover. */
+	/* A statement, not a button. No hover, no press, no cursor change: nothing about
+	   this should invite a click, because a click here does nothing and the way to
+	   change what it says is to ask. */
 	.chip {
 		flex: none;
 		display: flex;
 		align-items: center;
 		gap: 0.3125rem;
 		height: 1.875rem;
-		padding: 0 0.3125rem 0 0.5rem;
+		padding: 0 0.625rem 0 0.5rem;
 		border-radius: 999px;
 		background: var(--accent);
 		color: var(--accent-ink);
@@ -253,137 +152,12 @@
 		letter-spacing: -0.006em;
 		white-space: nowrap;
 	}
-	.x {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.125rem;
-		height: 1.125rem;
-		flex: none;
-		padding: 0;
-		border: 0;
-		border-radius: 999px;
-		background: none;
-		color: inherit;
-		opacity: 0.62;
-		cursor: pointer;
-		transition:
-			opacity 140ms ease-out,
-			background-color 140ms ease-out,
-			transform 100ms ease-out;
-	}
-	.x:hover:not(:disabled) {
-		opacity: 1;
-		background: color-mix(in srgb, var(--accent-ink) 20%, transparent);
-	}
-	/* Feedback on the press, not on the release. */
-	.x:active:not(:disabled) {
-		transform: scale(0.88);
-	}
-	/* The last one standing. Dimmed rather than removed, so the chip does not change
-	   shape as the set shrinks and the reason is in the tooltip. */
-	.x:disabled {
-		opacity: 0.25;
-		cursor: default;
-	}
-
-	.more {
-		flex: none;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.875rem;
-		height: 1.875rem;
-		padding: 0;
-		border: 0;
-		border-radius: 999px;
-		background: none;
-		color: var(--label-3);
-		cursor: pointer;
-		transition:
-			background-color 140ms ease-out,
-			color 140ms ease-out,
-			transform 100ms ease-out;
-	}
-	.more:hover,
-	.more.on {
-		color: var(--label-1);
-		background: var(--fill-1);
-	}
-	.more:active {
-		transform: scale(0.9);
-	}
-
-	.picker {
-		width: min(26rem, calc(100vw - 1.5rem));
-		max-height: min(24rem, calc(100vh - 6rem));
-		overflow-y: auto;
-		overscroll-behavior: contain;
-		padding: 0.75rem;
-		border-radius: var(--r-xl);
-		background: var(--mat-thick);
-		-webkit-backdrop-filter: var(--blur-thick);
-		backdrop-filter: var(--blur-thick);
-	}
-	/* Says what this list is second best to. The picker exists for a reader who already
-	   knows what they want to open; everyone else is better served by saying it. */
-	.hint {
-		margin: 0 0 0.625rem;
-		font-size: 0.6875rem;
-		line-height: 1.4;
-		color: var(--label-3);
-	}
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
-		gap: 0.25rem;
-	}
-	.opt {
-		display: flex;
-		align-items: center;
-		gap: 0.4375rem;
-		min-height: 2rem;
-		padding: 0.25rem 0.5rem;
-		border: 0;
-		border-radius: 0.5rem;
-		background: none;
-		color: var(--label-2);
-		font-size: 0.75rem;
-		font-weight: 500;
-		text-align: left;
-		cursor: pointer;
-		transition:
-			background-color 140ms ease-out,
-			color 140ms ease-out,
-			transform 100ms ease-out;
-	}
-	.opt svg {
-		flex: none;
-	}
-	.opt:hover:not(:disabled) {
-		color: var(--label-1);
-		background: var(--fill-1);
-	}
-	.opt:active:not(:disabled) {
-		transform: scale(0.97);
-	}
-	.opt.on {
-		color: var(--accent-ink);
-		background: var(--accent);
-	}
-	.opt.on:hover:not(:disabled) {
-		color: var(--accent-ink);
-		background: var(--accent);
-	}
-	.opt:disabled {
-		cursor: default;
-	}
 
 	/* Between the brand and the tools, which is all the room there is on a phone. A
 	   row of its own would land on the legend, and the map is what both are for.
 	   17rem is those two plus a gap either side, measured rather than guessed. */
 	@media (max-width: 1023px) {
-		.wrap {
+		.cats {
 			max-width: calc(100vw - 17rem);
 		}
 	}
