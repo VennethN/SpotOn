@@ -105,26 +105,28 @@ kept separate and never mixed into one score. Their densities differ enormously 
 across sources. The full comparison is in [`docs/04-data-mapid.md`](docs/04-data-mapid.md),
 and the dataset list in [`docs/mapid-layers.md`](docs/mapid-layers.md).
 
-**Sample (mock).** The attributes specific to the MAPID mission datasets (Struk Go, Menu Go,
-Properti Go), because those datasets have only just been opened to 50 curated teams. Their
-structure follows the real columns, and all data access goes through
-`src/lib/server/source.ts` — so switching to the MAPID API does not touch the UI.
-
-The reader for them is ready. None of the three are in the premium catalogue or the public
-layer index — that has been tested along every route the API key can reach, and the test is
-repeated every time the script below runs without arguments:
+**Field surveys (MAPID APPS).** The three competition missions — Struk Go, Menu Go,
+Properti Go — and the community notes filed beside them. They are not in the premium
+catalogue and not in the public layer index, which is where this project spent a long time
+looking for them. MAPID APPS serves them from its own public endpoints, and those need no
+key at all:
 
 ```bash
-node scripts/fetch-mission.mjs             # which routes are open yet?
-node scripts/fetch-mission.mjs --selftest  # exercise the column parser, no network
-MAPID_STRUK_LAYER=<id> MAPID_MENU_LAYER=<id> MAPID_PROP_LAYER=<id> \
-  node scripts/fetch-mission.mjs           # → src/lib/data/mission-poi.json
+node scripts/fetch-missions.mjs   # → src/lib/data/mission.json
+node scripts/join-missions.mjs    # → adds `field` to hexes.json
+node scripts/build-field.mjs      # → static/data/field.json
 ```
 
-All it needs is a `layer_id`, **not** ownership of a project: the `project_id` sent acts as
-your own read ticket, so anyone's public layer can be read. The reverse does not hold — the
-contents of someone else's project cannot be listed (403 `Not owner`), so pointing
-`MAPID_PROJECT_ID` at a shared project will not work. Details in
+1,027 records across the grid's extent: 195 receipts, 99 eateries, 141 property records
+and 592 community notes. **55 of the property records are offered for rent**, which is the
+only rental data in the product: the premium catalogue publishes none for Jakarta.
+
+They are used differently from everything else here, and the difference matters. The two
+catalogues claim completeness for the city they cover, so a zero from them is a finding.
+These are surveys somebody walked: 191 of the 562 catchments carry a record, and the rest
+are not quiet streets, they are streets nobody has been down. **So none of it enters the
+score.** It appears on the area card as evidence, every label says *recorded*, and the
+panel says outright that it is not a census. Details in
 [`docs/04-data-mapid.md`](docs/04-data-mapid.md) §4.
 
 A catchment with no data is shown as **"belum terdata"** (not yet surveyed) and is never
@@ -150,10 +152,10 @@ Copy `.env.example` to `.env`, then fill it in.
 |---|---|
 | `OPENROUTER_API_KEY` | OpenRouter key for the language-understanding layer. **May be left empty** — without a key, questions are parsed by the fallback rule parser and the application still runs. |
 | `OPENROUTER_MODEL` | Optional — any model name OpenRouter serves, e.g. `anthropic/claude-sonnet-5` or `openai/gpt-5`. Read at runtime, so changing it on Vercel needs no rebuild. Empty → defaults to `anthropic/claude-sonnet-5`. Whichever is active can be checked at `GET /api/meta` (the key itself is never included). |
-| `PUBLIC_MAPID_STYLE_URL` | The MAPID MAPS style URL. If empty, an open raster basemap is used (OpenStreetMap/CARTO) — **mandatory for the final product.** |
-| `MAPID_API_KEY` | The MAPID API key (read-only) — used by the **data scripts**, not by the application. It may also be supplied as an environment variable, and the environment wins over `.env`. Different from the Map Service key for `PUBLIC_MAPID_STYLE_URL`. See [`docs/04-data-mapid.md`](docs/04-data-mapid.md). |
+| `PUBLIC_MAPID_MAP_KEY` | The MAPID MAPS **Map Service key** from the MAPID Dashboard. The style URL is built from it and the light or dark style is picked to match the reader's theme. If empty, an open raster basemap is used (OpenStreetMap/CARTO) — **mandatory for the final product.** |
+| `PUBLIC_MAPID_STYLE_URL` | Optional — a full style **URL**, for a style the app does not know about. Wins over the key, and pins one style regardless of theme. |
+| `MAPID_API_KEY` | The MAPID API key (read-only) — used by the **data scripts**, not by the application. It may also be supplied as an environment variable, and the environment wins over `.env`. Different from the Map Service key in `PUBLIC_MAPID_MAP_KEY`. See [`docs/04-data-mapid.md`](docs/04-data-mapid.md). |
 | `MAPID_PROJECT_ID` | Optional — the GEO MAPID project the scripts read. Empty → the default project. |
-| `MAPID_STRUK_LAYER`, `MAPID_MENU_LAYER`, `MAPID_PROP_LAYER` | Optional — the layer ids of the mission datasets, read by `scripts/fetch-mission.mjs`. Empty → the script probes instead and reports which routes have opened up. |
 
 ### The division of labour between model and scoring engine
 
