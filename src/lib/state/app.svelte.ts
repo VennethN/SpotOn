@@ -7,6 +7,7 @@ import {
 	type Competitor
 } from '$lib/domain/competitors';
 import { priceLadder } from '$lib/domain/cost';
+import { parseField, type FieldRecord } from '$lib/domain/field';
 import { capturedListings, parseListings, type Listing } from '$lib/domain/premises';
 import {
 	DEFAULT_UNIT_METRIC,
@@ -110,7 +111,7 @@ async function readEvents(res: Response, on: (event: AiEvent) => void): Promise<
 	return answer;
 }
 
-export type LayerKey = 'score' | 'routes' | 'poi' | 'label' | 'stops' | 'property';
+export type LayerKey = 'score' | 'routes' | 'poi' | 'label' | 'stops' | 'property' | 'field';
 export type { Theme };
 
 const KEY = Symbol('spoton');
@@ -223,7 +224,17 @@ export class AppState {
 		 * the median tells the reader what a square metre costs around here, the marks
 		 * tell them which doorways that came from.
 		 */
-		property: true
+		property: true,
+		/**
+		 * The field records inside the SELECTED cell, at the spots they were filed from.
+		 *
+		 * On by default like the three above it, and for the same reason: it draws
+		 * nothing until a cell is picked, and once one is, "somebody stood here and
+		 * photographed a receipt" is the most concrete thing this map can say about a
+		 * street. Every other layer is a catalogue's account of the place; this one is
+		 * somebody's afternoon.
+		 */
+		field: true
 	});
 	/**
 	 * What the map is a list OF.
@@ -318,11 +329,45 @@ export class AppState {
 	    screen come from the grid and survive this, only the individual units are lost. */
 	listingsFailed = $state(false);
 
+	/**
+	 * The field records: what surveyors wrote down while standing in a catchment.
+	 *
+	 * 347 KB, and only ever needed once a cell is selected, so it is not in the page
+	 * load. Fetched on the first selection and kept, exactly like the listings.
+	 */
+	fieldRecords = $state<FieldRecord[] | null>(null);
+	/**
+	 * The same records, indexed by the catchment they belong to.
+	 *
+	 * Built here rather than re-matched per selection, and NOT re-matched against the
+	 * reader's walking radius the way the listings and the competitors are. Those are
+	 * catalogues, and a catchment is whatever falls inside the radius you chose. These
+	 * are individual records that get listed by name, each assigned exactly one cell at
+	 * build time by `scripts/lib/home-cell.mjs`, and re-matching them would put the same
+	 * receipt in five cards while the count above each list stayed right for none.
+	 */
+	fieldByCell = $derived.by(() => {
+		const all = this.fieldRecords;
+		if (!all) return null;
+		const out = new Map<string, FieldRecord[]>();
+		for (const r of all) {
+			const list = out.get(r.cell);
+			if (list) list.push(r);
+			else out.set(r.cell, [r]);
+		}
+		return out;
+	});
+	/** The field file could not be read. Apart from `fieldRecords` for the same reason
+	    `stopsFailed` is apart from `stops`: the counts on the card come from the grid
+	    and survive this, only the records themselves are lost. */
+	fieldFailed = $state(false);
+
 	/** In-flight requests, so two callers asking for the same category share one fetch. */
 	#inFlight = new Map<CategoryKey, Promise<void>>();
 	#stopsJob: Promise<void> | null = null;
 	#poiJobs = new Map<CategoryKey, Promise<void>>();
 	#listingsJob: Promise<void> | null = null;
+	#fieldJob: Promise<void> | null = null;
 
 	constructor(base: HexBase[], meta?: GridMeta) {
 		this.base = base;
@@ -653,6 +698,34 @@ export class AppState {
 	}
 
 	/**
+	 * Load the field records, once.
+	 *
+	 * Failure is quiet in the same way `loadStops` is: every count the card leads with
+	 * was written onto the grid by `join-missions.mjs` and is already here. Losing this
+	 * file costs the reader the RECORDS — the receipt, the price, the photograph — and
+	 * nothing else, and the panel says so rather than waiting on a request that is never
+	 * coming back.
+	 */
+	loadField(): Promise<void> {
+		if (this.fieldRecords || this.#fieldJob) return this.#fieldJob ?? Promise.resolve();
+		this.#fieldJob = (async () => {
+			try {
+				const res = await fetch(`${base}/data/field.json`);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				this.fieldRecords = parseField(await res.json());
+				this.fieldFailed = false;
+			} catch {
+				this.fieldFailed = true;
+			} finally {
+				// Cleared either way, so a failure can be retried by the next selection
+				// rather than every later one being answered by the request that failed.
+				this.#fieldJob = null;
+			}
+		})();
+		return this.#fieldJob;
+	}
+
+	/**
 	 * The selected cell as the GRID holds it.
 	 *
 	 * Not the same thing as `selected`, which is the scored row and stays null until
@@ -717,6 +790,18 @@ export class AppState {
 		const cell = this.selectedCell;
 		if (!cell || !this.listings) return [];
 		return capturedListings(cell, this.listings, this.weights.radius);
+	});
+
+	/**
+	 * The field records belonging to the selected cell, nearest first.
+	 *
+	 * A lookup rather than a distance test. Membership was decided once, at build time,
+	 * and these records keep it — see `domain/field`.
+	 */
+	selectedField = $derived.by(() => {
+		const id = this.selectedId;
+		if (!id || !this.fieldByCell) return [];
+		return this.fieldByCell.get(id) ?? [];
 	});
 
 	/**
@@ -826,6 +911,13 @@ export class AppState {
 		return this.listings === null;
 	});
 
+	/** The field records are on their way. The counts on the card are already here, so
+	    this only gates the records themselves. */
+	fieldLoading = $derived.by(() => {
+		if (!this.selectedCell || this.fieldFailed) return false;
+		return this.fieldRecords === null;
+	});
+
 	/**
 	 * The points are on their way and no conclusion can be drawn yet.
 	 *
@@ -863,6 +955,10 @@ export class AppState {
 			// …and for what is on the market in it. One file for every category, cached
 			// after the first selection, so this too is a cost paid once.
 			void this.loadListings();
+			// …and for what somebody wrote down while standing in it. Cached the same way,
+			// and most cells have nothing in it — which the card says, rather than
+			// leaving a section that never fills.
+			void this.loadField();
 		}
 	}
 

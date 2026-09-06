@@ -156,7 +156,11 @@ const METRIC_HELP: Record<MetricKey, string> = {
 		'median harga JUAL tempat usaha per m² tanah, rupiah, dari katalog properti MAPID. PENTING: katalog MAPID tidak punya listing SEWA untuk Jakarta sama sekali, jadi ini harga beli, bukan sewa bulanan. Tetap pakai ukuran ini kalau pengguna bertanya soal sewa atau biaya tempat, karena inilah data harga yang ada.',
 	unit_dipasarkan: 'jumlah unit komersial yang sedang dipasarkan dalam radius jalan kaki.',
 	akses_transit: 'indeks akses transit petak, 0-100.',
-	simpul_transit: 'jumlah simpul transit (stasiun/halte) dalam radius jalan kaki.'
+	simpul_transit: 'jumlah simpul transit (stasiun/halte) dalam radius jalan kaki.',
+	struk_dicatat:
+		'jumlah struk belanja yang TERCATAT di petak itu oleh surveyor MAPID Apps. Bukan jumlah transaksi yang terjadi: ini hitungan catatan lapangan. Cuma 191 dari 562 petak punya catatan sama sekali, dan petak tanpa catatan tidak masuk peringkat.',
+	sewa_ditawarkan:
+		'jumlah tempat yang TERCATAT sedang DISEWAKAN di petak itu, dari survei Properti Go. Ini satu-satunya data sewa yang dipunya, jadi pakai ukuran ini untuk "di mana ada tempat yang disewakan". Untuk pertanyaan soal HARGA sewa, tetap pakai harga_tempat: survei ini mencatat penawarannya, bukan harganya.'
 };
 
 /**
