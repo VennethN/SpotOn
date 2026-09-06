@@ -68,8 +68,24 @@
 	 * figure, and a panel that stays invisible until it has been scrolled past is a panel
 	 * that is missing for anybody who did not scroll. It already cost the top-ups their
 	 * whole section once.
+	 *
+	 * LEAVING IS A SECTION NOW, AND IT WAS NOT. Signing out was one bare button on the
+	 * floor of the page, under the small print, with nothing beside it saying what
+	 * pressing it would cost. It is the only control here that ENDS something, which is
+	 * exactly the sort of control that should not be the one thing on the page without a
+	 * frame around it. So it sits in a card like everything else that does something, in
+	 * a section of its own, with one line saying what signing out takes away, which is
+	 * the session and nothing else. The account, the plan and every credit on it survive
+	 * it, and somebody about to press it should not have to guess that.
+	 *
+	 * The press then hands over to one plain surface for the whole of the way out. Two
+	 * things happen after it and neither used to show anything at all: the request that
+	 * clears the session, and the full load of the landing page behind it. On a page this
+	 * long, pressed at the bottom, that is several seconds of a page that looks exactly
+	 * as it did before the press.
 	 */
 	import { untrack } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import { base } from '$app/paths';
 	import CatchmentField from '$lib/components/account/CatchmentField.svelte';
 	import GridDiorama from '$lib/components/account/GridDiorama.svelte';
@@ -77,6 +93,7 @@
 	import QuotaMeter from '$lib/components/account/QuotaMeter.svelte';
 	import WeekStrip from '$lib/components/account/WeekStrip.svelte';
 	import BrandMark from '$lib/components/ui/BrandMark.svelte';
+	import Dots from '$lib/components/ui/Dots.svelte';
 	import LangToggle from '$lib/components/ui/LangToggle.svelte';
 	import ThemeControl from '$lib/components/ui/ThemeControl.svelte';
 	import MeterMark from '$lib/components/ui/MeterMark.svelte';
@@ -112,10 +129,29 @@
 			? c.account.errors[code as keyof typeof c.account.errors]
 			: c.account.errors.unavailable;
 
+	/**
+	 * Leaving, and being told so while it happens.
+	 *
+	 * Signing out is two things end to end: a request that clears the session, and then
+	 * a full load of the landing page. Pressed on a page this long, neither of them used
+	 * to show anything at all, so the button went quiet and the page sat there until the
+	 * whole of it was over. That is the same silence the sign-in button used to leave,
+	 * and it reads the same way, which is as a control that did not take.
+	 *
+	 * So the page hands over to one plain surface for the whole of it, with Tapak on it
+	 * rather than a spinner, and the landing page arrives over the top when it is ready.
+	 * There is no second line and no farewell held on a timer: what would follow it is a
+	 * page load nobody can predict the length of, and a message timed to be read is a
+	 * message that is wrong whenever the load is quick.
+	 */
+	let leaving = $state(false);
+
 	/* A full page load rather than a client-side navigation. The cookie has just been
 	   taken away, and every server load that decided what this reader may see ran while
 	   it was still there. */
 	async function leave() {
+		if (leaving) return;
+		leaving = true;
 		await account.signOut();
 		location.href = `${base}/`;
 	}
@@ -127,10 +163,15 @@
 
 <div class="page">
 	<header>
+		<!-- The brand, then where this is. Said in the frame rather than as a heading
+		     over the head card: the card already opens on which plan this account is on,
+		     and a second title above it would push that down the page to make room for a
+		     word the tab already carries. -->
 		<a class="brand" href="{base}/app">
 			<BrandMark size={15} />
 			<span class="name">{c.brand.name}</span>
 		</a>
+		<span class="where" aria-hidden="true">{c.account.title}</span>
 		<div class="tools">
 			<LangToggle />
 			<ThemeControl />
@@ -277,14 +318,36 @@
 				<p class="error" role="alert">{said(account.failed)}</p>
 			{/if}
 
-			<div class="out">
-				<button type="button" class="btn" disabled={account.busy} onclick={leave}>
-					{c.account.signOut}
-				</button>
-			</div>
+			<!-- Signing out had been a bare button on the floor of the page, under the
+			     small print, with nothing saying what pressing it would cost. It is the
+			     one control here that ends something, so it is given the same frame as
+			     everything else that does something, and one line saying what it does and
+			     does not take away. -->
+			<section class="bay" style:--in="210ms">
+				<p class="eyebrow section-label">{c.account.sessionTitle}</p>
+				<div class="leave material">
+					<div class="leave-text">
+						<p class="leave-who">{account.account.email}</p>
+						<p class="note">{c.account.signOutNote}</p>
+					</div>
+					<button type="button" class="btn" disabled={account.busy || leaving} onclick={leave}>
+						{c.account.signOut}
+					</button>
+				</div>
+			</section>
 		{/if}
 	</main>
 </div>
+
+{#if leaving}
+	<!-- Over everything, because everything under it belongs to a session that is being
+	     closed. Tapak paces, the same waiting state the map and the front door both use,
+	     so the last thing seen on the way out is the thing that greeted you on the way in. -->
+	<div class="farewell" role="status" transition:fade={{ duration: 200 }}>
+		<TapakFigure size={44} pacing />
+		<p class="farewell-line">{c.account.signingOut}<Dots /></p>
+	</div>
+{/if}
 
 <style>
 	.page {
@@ -313,10 +376,21 @@
 		font-weight: 650;
 		letter-spacing: -0.018em;
 	}
+	/* Divided from the brand by a hairline rather than a slash, so the pair reads as
+	   one object with two parts and not as a path somebody could climb. */
+	.where {
+		padding-left: 0.625rem;
+		margin-left: -0.125rem;
+		border-left: 1px solid var(--separator);
+		font-size: 0.8125rem;
+		font-weight: 550;
+		color: var(--label-2);
+	}
 	.tools {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+		margin-left: auto;
 	}
 	.tools a {
 		text-decoration: none;
@@ -594,8 +668,48 @@
 		color: var(--warn);
 	}
 
-	.out {
-		margin-top: 0.5rem;
+	/* ── leaving ──────────────────────────────────────────────────────────────── */
+
+	.leave {
+		position: relative;
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		padding: 0.875rem 1rem;
+		border-radius: var(--r-lg);
+		background: var(--bg-elevated);
+	}
+	.leave-text {
+		min-width: 0;
+		flex: 1;
+	}
+	.leave-who {
+		font-size: 0.8125rem;
+		font-weight: 650;
+		letter-spacing: -0.01em;
+	}
+
+	/* One plain surface for the whole of the way out: the request that clears the
+	   session, and then the landing page loading over the top of it. Opaque rather than
+	   a material, because what is underneath belongs to a session that has ended and
+	   showing it through would be showing a page that is no longer true. */
+	.farewell {
+		position: fixed;
+		inset: 0;
+		z-index: 40;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.875rem;
+		background: var(--bg-base);
+	}
+	.farewell-line {
+		display: flex;
+		align-items: baseline;
+		font-size: 0.8125rem;
+		color: var(--label-2);
 	}
 
 	/* On a narrow screen the model drops under the plan rather than being squeezed
@@ -604,6 +718,15 @@
 	@media (max-width: 46rem) {
 		.hero {
 			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
+	/* On a phone the frame gives its width back to the controls. Where this is stays in
+	   the tab title, and a header wrapping onto two lines to keep one word is a header
+	   that has stopped being a frame. */
+	@media (max-width: 30rem) {
+		.where {
+			display: none;
 		}
 	}
 </style>
