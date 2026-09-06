@@ -927,7 +927,9 @@ export const en: Copy = {
 			harga_tempat: 'asking price to buy',
 			unit_dipasarkan: 'units on the market',
 			akses_transit: 'transit access',
-			simpul_transit: 'transit nodes'
+			simpul_transit: 'transit nodes',
+			struk_dicatat: 'receipts recorded',
+			sewa_ditawarkan: 'premises up for rent'
 		},
 		sortedBy: (ukuran: string, naik: boolean) =>
 			`sorted by ${ukuran}, ${naik ? 'lowest' : 'highest'} first`,
