@@ -11,6 +11,7 @@
  */
 
 import { formatHour, moneyScale, num } from '$lib/utils/format';
+import type { DayPart, Greetings } from '$lib/types';
 
 /**
  * Zona tempat batas minggunya berdiri.
@@ -52,6 +53,30 @@ const rp = (v: number): string => {
 	return `Rp ${n}${SCALE_ID[scale] ? ` ${SCALE_ID[scale]}` : ''}`;
 };
 
+/**
+ * Sapaan pembuka, mengikuti jam di perangkat si pembaca.
+ *
+ * Dipakai dua kali: berdiri sendiri di atas pertanyaan pada kartu pembuka, dan jadi
+ * kalimat pertama Tapak di panel. Karena itu tiap bunyi harus utuh sebagai kalimat
+ * DAN masih enak dibaca sebelum "Saya Tapak." menyusul di belakangnya.
+ *
+ * Yang boleh disebut cuma jamnya. Tidak ada yang tahu di sini apakah jalanan sedang
+ * ramai, cuacanya bagaimana, atau harinya sedang berat. Aturan yang melarang angka
+ * karangan muncul di layar adalah aturan yang sama, cuma tanpa angkanya, dan sapaan
+ * yang bilang "toko-toko baru buka" itu persis karangan yang dilarang.
+ *
+ * Tiga bunyi per bagian hari, digilir per hari oleh `domain/daypart`, bukan diacak:
+ * yang menekan muat ulang untuk mengecek sesuatu membaca kalimat yang sama, bukan
+ * menonton halaman berganti pikiran.
+ */
+const SAPAAN: Record<DayPart, Greetings> = {
+	dini_hari: ['Sudah lewat tengah malam.', 'Masih terjaga jam segini.', 'Selamat dini hari.'],
+	pagi: ['Selamat pagi.', 'Pagi. Harinya masih panjang.', 'Pagi-pagi sudah menimbang tempat.'],
+	siang: ['Selamat siang.', 'Siang. Waktunya rehat sebentar.', 'Sudah tengah hari.'],
+	sore: ['Selamat sore.', 'Sore, menjelang petang.', 'Sudah sore.'],
+	malam: ['Selamat malam.', 'Malam. Waktu yang tenang untuk menimbang.', 'Sudah malam.']
+};
+
 export const id = {
 	lang: { code: 'id', label: 'Bahasa Indonesia', short: 'ID', switchTo: 'Ganti ke Bahasa Inggris' },
 
@@ -61,6 +86,11 @@ export const id = {
 		appTagline: 'Cari lokasi usaha di kawasan transit Jakarta',
 		open: 'Buka SpotOn'
 	},
+
+	/* Sapaan menurut jam perangkat. Kartu pembuka memakainya sendirian, Tapak
+	   memakainya sebagai kalimat pertamanya, jadi keduanya menyapa dengan bunyi yang
+	   sama dalam satu kunjungan. */
+	greeting: SAPAAN,
 
 	/* `many` is used when the name is preceded by a number. Indonesian does not
 	   inflect the noun; English does, and without this field it would read
@@ -1028,8 +1058,11 @@ export const id = {
 		/* Dulu menyebut dua angka: berapa petak, lalu berapa yang sudah ada datanya.
 		   Sejak dua survei dibaca sekaligus, dua angka itu sama besar, dan kalimatnya
 		   jadi berbunyi "562 petak, 562 di antaranya sudah ada datanya". */
-		greet: (total: number) =>
-			`Halo, saya Tapak. Saya sudah keliling ${total} petak di sekitar MRT, KRL, LRT, dan koridor TransJakarta. Lagi kepikiran buka usaha apa?`,
+		/* Sapaannya ikut jam si pembaca, angkanya tetap dari kisi. Bagian hari dan
+		   pilihan bunyinya dikirim sebagai posisi, bukan sebagai kalimat jadi, supaya
+		   ganti bahasa mengganti kata-katanya dan bukan sapaannya. */
+		greet: (total: number, part: DayPart, wording: number) =>
+			`${SAPAAN[part][wording]} Saya Tapak. Saya sudah keliling ${total} petak di sekitar MRT, KRL, LRT, dan koridor TransJakarta. Lagi kepikiran buka usaha apa?`,
 		/* Pertanyaan ini dulu berbunyi "Modalnya kira-kira bagaimana?" dengan pilihan
 		   "Pas-pasan" dan "Agak longgar" — dua kata yang tidak memberi tahu apa pun
 		   soal apa yang akan berubah. Yang sebenarnya dipilih di sini cuma satu:
