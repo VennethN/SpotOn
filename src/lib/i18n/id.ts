@@ -654,6 +654,11 @@ export const id = {
 		   sedang dilewati pembaca. */
 		doors: (hari: string, h: number, n: number, dari: number) =>
 			`${hari} jam ${jam(h)}, ${n} dari ${dari} pintu yang terhitung sedang buka.`,
+		/* Sebelah kanan kalimat cacah pintunya, dan yang dibandingkan jam tersibuk
+		   jalan ini sendiri. Pembaca yang menggeser slider sedang bertanya "banyak
+		   tidak segini", dan cacah tanpa pembanding tidak menjawab itu. */
+		peakHour: 'Ini jam paling banyak pintu buka di sini.',
+		share: (persen: number) => `Sekitar ${persen}% dari jam paling banyak bukanya.`,
 		basis: (r: number) =>
 			`Ramainya naik turun mengikuti pintu itu, dan tidak pernah melewati banyaknya usaha yang berdiri di radius ${r} m sini. Orangnya gambaran, pintunya hitungan.`,
 		/* Empat macam diam, dan bedanya disebut. Tidak satu pun diselesaikan dengan
