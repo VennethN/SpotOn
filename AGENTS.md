@@ -106,9 +106,11 @@ src/lib/
   components/landing/    surfaces that only exist on the landing page
   components/ui/         shared between both
   domain/                scoring, natural-language query, categories, narration, markdown
-  state/                 app, tapak, lang, theme
+  state/                 app, tapak, lang, theme, account
   server/source.ts       the one place the data source is decided
   server/answer.ts       one question answered, in one place, for both reply shapes
+  server/mongo.ts        the one place "is there a database" is answered
+  server/accounts.ts     accounts, sessions and the meters, over Mongo or over memory
   i18n/                  id.ts defines the shape, en.ts fills it
   scene/                 three.js diorama and daylight
   utils/                 format, geo, motion (springs)
@@ -128,10 +130,92 @@ Copy `.env.example` to `.env` and fill it in.
 | `PUBLIC_MAPID_MAP_KEY` | the MAPID MAPS **Map Service key**. The style URL is built from it, and the light or dark style is picked to match the reader's theme. |
 | `PUBLIC_MAPID_STYLE_URL` | a full style **URL**, for a style the app does not know about. Wins over the key, and pins one style regardless of theme. A bare key left in here is read as a key, because this is where the key used to go. |
 | `MAPID_API_KEY` | read by the data scripts, not by the application |
+| `MONGODB_URI` | where accounts, sessions and quotas are stored. **Empty means demo mode**, which is a supported way to run this rather than a broken one: one account, one button to sign in, records in memory. See "Two metered actions" below. |
+| `MONGODB_DB` | optional database name inside that cluster. Empty means `spoton`. |
 
 The model only ever chooses an operation and fills in its arguments. Every
 number a user sees is computed by `domain/scoring.ts`, on data. That boundary is
 the product's whole claim to being trustworthy, so do not move work across it.
+
+## Two metered actions, and one of them is not the model
+
+There are exactly two things an account is charged for, and they were chosen the same
+way everything else here is: by what actually costs something to produce.
+
+- **One question to Tapak.** Understanding a sentence means a call out to a shared model,
+  which is the expensive half of this product and the half that can take ninety seconds.
+- **One area or one unit opened by hand.** That is the moment the whole apparatus around
+  one place runs: its competitors located and named, the stations it captures read, the
+  listings standing in it gathered, its timetables added up into a curve.
+
+What is deliberately NOT metered is the map. Panning it, colouring it, switching business
+type, moving the radius, reading the legend: all free, all of it computed in the browser
+from a grid it already has. A product that charged for looking at the map would be
+charging for the thing it is, and the reader would spend the whole session deciding
+whether to move.
+
+Three rules hold the second meter up, and they are the ones a reader would notice being
+broken:
+
+- **Closing costs nothing, and reopening what is already open costs nothing.** Two clicks
+  on one hexagon are one reading of it. Somebody who taps twice because the first tap did
+  not look like it registered must not pay twice for finding that out.
+- **Only what the reader did.** A catchment Tapak opens as part of an answer is not
+  charged. `select` and `selectUnit` are the only doors, and every programmatic move
+  inside `AppState` assigns the field directly rather than going through them.
+- **The server is the meter.** The browser keeps a copy so the figure on screen is right
+  before the network is, and it spends against that copy first so a card opens on the
+  frame it was clicked. What actually counts is `spendMeter`, and it guards its write on
+  the numbers it made the decision from, so two tabs cannot buy the same last reading
+  twice.
+
+The AI meter is spent inside `POST /api/ai/query`, before the model is called and not
+after it answers. A question that goes out and comes back empty was still asked, and
+charging only for the answers would let a question be re-asked for nothing until one came
+back. So the browser learns what a question cost by re-reading the balance once the turn
+is over: no figure is ever put into the answer stream, which is the same rule that keeps
+every other figure out of it.
+
+The allowances themselves live in `domain/plans` and NOWHERE else. Not one is typed into
+a sentence: every string in `i18n` takes them as arguments, so raising a tier changes the
+pricing page, the account card, and the sentence somebody reads when they run out, in one
+edit. It is the grid-metadata rule applied to prices, and for the same reason, since a
+pricing page carrying a stale figure is the worst place in the product for one to be.
+
+The week turns at midnight on Monday **in Jakarta**, fixed, because Western Indonesian
+Time has no daylight saving to move it and the server's own zone would move the boundary
+with whichever region a deploy landed in. An account that has been quiet for a month
+comes back to ONE week, not to the four it slept through: an allowance is a rate, not a
+debt somebody is owed. What was bought outright survives every Monday, which is the whole
+difference between a top-up and a plan. `selftest-plans.mjs` asserts all of it against the
+table actually in the repository, including that the ladder is monotonic in both price
+and allowance on every meter, because a tier that costs more and grants less on one of
+them is a pricing page arguing with itself.
+
+## No database is a way of running this, not a failure to configure it
+
+`MONGODB_URI` empty means demo mode. There is one account, signing in is a single button
+with no password, and the records live in a Map in the process until it restarts.
+
+Everything else is identical, and that is the rule this is held to: the same three tiers,
+the same weekly allowances, the same two meters counting down, the same session tokens,
+the same scrypt derivation on any password there is. `server/accounts.ts` branches on
+storage and on nothing else, because a branch that reached further would let the demo
+pass while the real thing was broken, which is the one failure a demo mode is worth least
+against.
+
+It exists because this has to be openable from a bare clone with no keys. The map already
+draws without a MAPID key and questions are still answered without a model key, and a
+login wall would have been the first thing in the product that stops working when a secret
+is missing.
+
+The interface says which mode it is in rather than leaving it to be found out: the
+sign-in page explains it before the button, and the account page repeats it beside the
+account itself. `AccountView.demo` carries it, so no surface has to infer it.
+
+One door is closed the moment a database appears: `signInDemo` refuses outright when
+`hasDatabase()` is true. It only exists because there is nothing behind it to protect, and
+it must not survive the moment there is.
 
 ## Regenerating the data
 
@@ -274,9 +358,11 @@ domain/         the engine. Pure functions over the types. No Svelte, no DOM, no
 map/            what the map is given to draw. Depends on domain + state, not on MapLibre.
 state/          the runes. Owns what the reader has chosen and what has been fetched.
 components/     the pixels.
-server/         the data source and the model layer. Never imported by the client.
-                `answer.ts` is the one place a question is answered; `llm.ts` understands
-                it; `stream.ts` reads a tool call while the model is still writing it.
+server/         the data source, the model layer and the accounts. Never imported by
+                the client. `answer.ts` is the one place a question is answered;
+                `llm.ts` understands it; `stream.ts` reads a tool call while the model
+                is still writing it; `mongo.ts` is the one place "is there a database"
+                is answered and `accounts.ts` is the only thing that asks.
 i18n/           every user-visible string, in both languages.
 ```
 
@@ -284,8 +370,18 @@ The rule is that the arrows only point downwards. `types.ts` in particular impor
 nothing from `src` — it briefly imported two key unions back from `domain/`, and a
 type-only cycle is still a cycle: the module everything depends on had come to depend on
 two modules that depend on it. Key unions (`CategoryKey`, `MetricKey`, `UnitMetricKey`,
-`PropertyType`, `ChatTopic`) are declared there; the tables that give them meaning live
-in the domain, as `Record<Key, …>` so a key without a definition is a compile error.
+`PropertyType`, `ChatTopic`, `PlanKey`, `MeterKey`, `PackKey`) are declared there; the
+tables that give them meaning live in the domain, as `Record<Key, …>` so a key without a
+definition is a compile error.
+
+The meters follow the same arrows and it is worth saying why, because a quota looks like
+a server concern. `domain/plans` holds the arithmetic and knows nothing about storage,
+which is what lets the browser spend against its own copy and the server spend against
+the stored record using the very same functions. `domain/account` holds what counts as a
+usable address and password, so the form and the endpoint enforce one rule rather than
+two that drift. The map never learns whose account it is: `AppState` takes a `Wallet`,
+which `AccountState` implements, so nothing in the map layer has ever seen an email
+address, a plan name or a price.
 
 Two shared pieces worth knowing before writing a third copy of either:
 
