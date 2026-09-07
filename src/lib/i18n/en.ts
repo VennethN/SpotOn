@@ -418,7 +418,7 @@ export const en: Copy = {
 		/* Led with, not tucked into a footnote. The reader came looking for rent,
 		   and rent is not what the catalogue holds. */
 		saleNote:
-			'This is an asking price to buy, not a rent. The MAPID catalogue carries no rental listings for Jakarta at all, so there is no monthly rent to show without inventing the assumption behind it.',
+			'This is an asking price to buy, not a rent. The MAPID catalogue carries no rental listings for Jakarta at all, so there is no monthly rent to show.',
 		perM2: 'per m² of land',
 		medianOf: (n: number, r: number) =>
 			`median of ${n} ${n === 1 ? 'unit' : 'units'} on the market within ${r} m`,
@@ -437,16 +437,16 @@ export const en: Copy = {
 			`That price takes ${poin} ${poin === 1 ? 'point' : 'points'} off this cell, a multiplier of ×${pengali.toFixed(2)}.`,
 		effectNone: 'The cost of space took nothing off this cell.',
 		floor: (pengali: number) =>
-			`The cost of space can take a cell down to ×${pengali.toFixed(2)} at most. It tilts the ranking rather than deciding it: an asking price is one negotiation away from being wrong, and it is a price to buy rather than to occupy.`,
+			`The cost of space can take a cell down to ×${pengali.toFixed(2)} at most, so it tilts the ranking without deciding it. An asking price is one negotiation away from being wrong, and it buys the place outright.`,
 
 		/* ── Four kinds of silence, kept apart ──────────────────────────────
 		   Only the first means nobody has looked. */
 		noneUncovered:
-			'The property catalogue has not been read for this city, so there is nothing to say yet about what space costs here. That is not the same as nothing being for sale.',
+			'The property catalogue has not been read for this city yet, so there is no price to give here.',
 		noneEmpty: (r: number) =>
-			`No commercial unit is on the market within ${r} m. That was checked, and there genuinely is none.`,
+			`Nothing commercial is on the market within ${r} m. The catalogue covers this city and lists none here.`,
 		noneUnpriced: (n: number) =>
-			`${n} ${n === 1 ? 'unit is' : 'units are'} on the market nearby, and not one carries a price. So the price is left empty rather than estimated.`,
+			`${n} ${n === 1 ? 'unit is' : 'units are'} on the market nearby, and not one carries a price.`,
 		noneThin: (n: number, min: number) =>
 			`Only ${n} ${n === 1 ? 'unit' : 'units'} nearby carry a price. A median needs at least ${min}, because a single misplaced decimal point is enough to move this whole cell to the expensive end.`,
 		noneUngraded:
@@ -509,7 +509,7 @@ export const en: Copy = {
 	field: {
 		title: 'Field notes',
 		notCensus:
-			'These are notes from people who went and stood there, not a census. An area with nothing recorded is not necessarily quiet, it may just be one nobody has walked yet.',
+			'These are notes from people who went and stood there, not a census. An area with nothing recorded is one nobody has walked yet.',
 		none: 'Nobody has recorded anything in this area yet.',
 		loading: 'Loading the records…',
 		failed: 'The records did not load. Every figure above is intact, only the list is missing.',
@@ -609,9 +609,9 @@ export const en: Copy = {
 
 		/* ── Two kinds of silence, kept apart ─────────────────────────────── */
 		thin: (terbaca: number, min: number, usaha: number, r: number) =>
-			`Only ${terbaca} of the ${usaha} businesses on record within ${r} m publish hours that can be read. A curve needs at least ${min}, because one 24-hour minimart among three shops draws a street that never sleeps.`,
+			`Only ${terbaca} of the ${usaha} businesses on record within ${r} m ${terbaca === 1 ? 'publishes' : 'publish'} hours that can be read. A curve needs at least ${min}, because one 24-hour minimart among three shops draws a street that never sleeps.`,
 		none: (usaha: number, r: number) =>
-			`Not one of the ${usaha} businesses on record within ${r} m publishes its opening hours. So the hours are left empty rather than guessed at.`,
+			`Not one of the ${usaha} ${usaha === 1 ? 'business' : 'businesses'} on record within ${r} m publishes its opening hours.`,
 
 		/* The count names OpenStreetMap on purpose. The sentence at the top of this panel
 		   counts the thirteen business types SpotOn scores, from OSM and MAPID together.
@@ -620,12 +620,12 @@ export const en: Copy = {
 		basis: (terbaca: number, usaha: number, r: number) =>
 			`${terbaca} of the ${usaha} businesses OpenStreetMap lists within ${r} m publish opening hours that can be read.`,
 		refused: (n: number) =>
-			`${n} more publish them in a form this reader will not guess at, a public holiday rule or "sunset" for instance. Those are left out rather than approximated.`,
+			`${n} more ${n === 1 ? 'publishes' : 'publish'} them in a form that could not be read, a public holiday rule or "sunset" for instance.`,
 		notFootfall:
 			'This counts doors open, not people walking past. The receipts surveyors logged are below, kept separate, because those carry a date and no hour.',
 		loading: 'Loading the opening hours…',
 		failed: (n: number) =>
-			`The opening hours could not be loaded, so no curve is drawn. The count of ${n} businesses below still holds, it is read from the grid rather than from that file.`
+			`The opening hours could not be loaded, so no curve is drawn. The count of ${n} businesses below comes from the grid and still holds.`
 	},
 
 	/* ── Stepping inside the model ────────────────────────────────────────────
@@ -662,14 +662,14 @@ export const en: Copy = {
 		/* Four kinds of silence, kept apart. Not one of them is settled by moving the
 		   figures around so the screen looks alive. */
 		still: (readable: number, min: number) =>
-			`Only the light moves. Just ${readable} businesses here publish hours that can be read, fewer than the ${min} a curve needs, so the crowd is held still rather than made up.`,
+			`Only the light moves. ${readable} ${readable === 1 ? 'business' : 'businesses'} here ${readable === 1 ? 'publishes' : 'publish'} readable opening hours, and ${min} are needed to draw the day.`,
 		stillNone:
-			'Only the light moves. Not one business here publishes its opening hours, so the crowd is held still rather than made up.',
+			'Only the light moves. Not one business here publishes its opening hours.',
 		stillLoading: 'Only the light moves until the opening hours have loaded.',
 		stillFailed:
-			'Only the light moves. The opening hours could not be loaded, so the crowd is held still.',
+			'Only the light moves. The opening hours could not be loaded.',
 		stillNodata:
-			'Only the light moves. This cell\'s city is not in the catalogue yet, so the street is left empty on purpose.',
+			'Only the light moves. This cell\'s city is not in the catalogue yet, so there is nothing here to draw.',
 		sceneLabel: (name: string, h: number, body: string) =>
 			`A model of ${name} at ${clockHour(h)}. ${body}`
 	},
@@ -682,7 +682,7 @@ export const en: Copy = {
 		quiet: 'a bit quiet',
 		empty: 'quiet',
 		nodata:
-			'This cell sits in a city the catalogue has not been read for, so the street is deliberately left empty. That does not mean it is actually deserted.',
+			'This cell sits in a city the catalogue has not been read for. Nothing around it has been counted yet.',
 		reading: (n: number, kata: string) =>
 			`There are ${n} businesses within walking range here, so it is ${kata}.`,
 		/* Labels for the three figures under the model. Deliberately short: these are
@@ -831,7 +831,7 @@ export const en: Copy = {
 		radiusValue: (m: number) => `${m} m`,
 		radiusAria: 'The walking range being scored',
 		radiusHint:
-			'How far from the centre counts, for areas and for places alike. Each range has its own price, measured rather than interpolated from another.',
+			'How far from the centre counts, for areas and for places alike. Each range carries its own measured price.',
 		/* ── flat or standing up ────────────────────────────────────────────────
 		   The button is short, the consequence is spelled out in the hint it carries,
 		   and the key repeats it once the mode is on. The button does not say "score",
@@ -888,7 +888,7 @@ export const en: Copy = {
 		sourceOsm: 'OpenStreetMap: even coverage, volunteered',
 		sourceMapid: 'MAPID: surveyed, all 5 Jakarta cities',
 		legendUncovered: (n: number, cat: string, src: string) =>
-			`${n} cells are not covered by ${src} data for ${cat}, so they are unscored. That is not the same as having no competitors`,
+			`${n} cells are not covered by ${src} data for ${cat}, so they are unscored. Nobody has counted the competitors there`,
 		legendUncoveredAll: (cat: string, src: string, other: string) =>
 			`${src} has no competitor data for ${cat}, so nothing can be scored. Try the ${other} source.`,
 		legendNodata: (n: number) => `${n} cells sit in an unsurveyed city, left unscored`,
@@ -1047,7 +1047,7 @@ export const en: Copy = {
 			'I have switched the map to read by place, so each row is one premises rather than an area.',
 		nowByCell: 'I have switched the map back to reading by area, so each row is an area again.',
 		remarkUncovered: (name: string, cat: string) =>
-			`${name} sits in a city the catalogue has not been read for, so the ${cat} around it have never been counted and I won't put a number on it. That does not mean it has no competitors.`,
+			`${name} sits in a city the catalogue has not been read for, so the ${cat} around it have never been counted. I have no figure to give you for it yet.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
 			`${name} is ${verdict} for a ${cat}, scoring ${nilai}. There are ${osm} similar businesses, and ${listing}.`,
 		verdictGood: 'one of the good ones',
