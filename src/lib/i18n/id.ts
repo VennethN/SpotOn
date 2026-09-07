@@ -619,6 +619,47 @@ export const id = {
 			`Jam bukanya tidak bisa dimuat, jadi kurvanya tidak digambar. Cacah ${n} usaha di bawah tetap berlaku, itu dibaca dari kisi, bukan dari berkas itu.`
 	},
 
+	/* ── Masuk ke dalam modelnya ──────────────────────────────────────────────
+	   Aturan yang sama dengan panel jam buka di atas, cuma bentuknya model. Yang
+	   berjalan sendiri cuma cahayanya, karena jam matahari Jakarta memang bisa
+	   dihitung. Ramainya cuma ikut bergerak kalau pintu yang bukanya terhitung, dan
+	   kalau tidak, itu dikatakan apa adanya, bukan digerakkan asal ada gerak. */
+	zoom: {
+		open: 'Masuk ke petak ini',
+		openHint: 'Lihat modelnya sepanjang hari',
+		title: (nama: string) => `Model kawasan ${nama} sepanjang hari`,
+		close: 'Keluar dari model',
+		hourAria: 'Jam yang ditampilkan',
+		hourValue: (h: number) => `Jam ${jam(h)}`,
+		/* Jamnya sendiri, tanpa kata apa pun, untuk angka besar di sudut layar. */
+		clock: (h: number) => jam(h),
+		hint: 'Geser untuk melihat jam lain',
+		play: 'Jalankan harinya',
+		pause: 'Hentikan',
+		now: 'Sekarang',
+		nowAria: 'Kembali ke jam Jakarta sekarang',
+		/* Yang dicetak selalu jam bulat yang dihitung, bukan posisi persis slidernya.
+		   Slider di 07.30 tetap bercerita tentang jam 07.00, jam yang dihitung dan
+		   sedang dilewati pembaca. */
+		doors: (hari: string, h: number, n: number, dari: number) =>
+			`${hari} jam ${jam(h)}, ${n} dari ${dari} pintu yang terhitung sedang buka.`,
+		basis: (r: number) =>
+			`Ramainya naik turun mengikuti pintu itu, dan tidak pernah melewati banyaknya usaha yang berdiri di radius ${r} m sini. Orangnya gambaran, pintunya hitungan.`,
+		/* Empat macam diam, dan bedanya disebut. Tidak satu pun diselesaikan dengan
+		   menggerakkan orang-orangnya supaya layarnya kelihatan hidup. */
+		still: (terbaca: number, min: number) =>
+			`Cuma cahayanya yang berjalan. Baru ${terbaca} usaha di sini yang jam bukanya terbaca, kurang dari ${min} yang dibutuhkan sebuah kurva, jadi ramainya dibiarkan tetap alih-alih dikarang.`,
+		stillNone:
+			'Cuma cahayanya yang berjalan. Tidak ada usaha di sini yang memasang jam buka, jadi ramainya dibiarkan tetap alih-alih dikarang.',
+		stillLoading: 'Cuma cahayanya yang berjalan sampai jam bukanya selesai dimuat.',
+		stillFailed:
+			'Cuma cahayanya yang berjalan. Jam bukanya gagal dimuat, jadi ramainya dibiarkan tetap.',
+		stillNodata:
+			'Cuma cahayanya yang berjalan. Kota petak ini belum ada di katalog, jadi jalannya sengaja dibiarkan kosong.',
+		sceneLabel: (nama: string, h: number, isi: string) =>
+			`Model kawasan ${nama} pada jam ${jam(h)}. ${isi}`
+	},
+
 
 
 	mood: {

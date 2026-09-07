@@ -47,6 +47,16 @@ const hour = (h: number): string => {
 	return `${clock % 12 === 0 ? 12 : clock % 12}${half}`;
 };
 
+/** An hour that can sit between two hours, English: 7.5 → "7.30am". A scrubbed clock
+    stops wherever it is dragged, and `hour` above has no minutes to write it with. */
+const clockHour = (h: number): string => {
+	const clock = ((h % 24) + 24) % 24;
+	const whole = Math.floor(clock);
+	const mins = Math.floor((clock - whole) * 60);
+	const half = whole < 12 ? 'am' : 'pm';
+	return `${whole % 12 === 0 ? 12 : whole % 12}.${String(mins).padStart(2, '0')}${half}`;
+};
+
 export const en: Copy = {
 	lang: { code: 'en', label: 'English', short: 'EN', switchTo: 'Switch to Indonesian' },
 
@@ -605,6 +615,47 @@ export const en: Copy = {
 		loading: 'Loading the opening hours…',
 		failed: (n: number) =>
 			`The opening hours could not be loaded, so no curve is drawn. The count of ${n} businesses below still holds, it is read from the grid rather than from that file.`
+	},
+
+	/* ── Stepping inside the model ────────────────────────────────────────────
+	   The same rules as the opening-hours panel above, in the shape of a model. The
+	   light runs on its own, because Jakarta's sun can be computed. The crowd only
+	   moves where the doors were counted, and where they were not that is said
+	   plainly rather than covered up with movement for the sake of movement. */
+	zoom: {
+		open: 'Step into this area',
+		openHint: 'See the model through the day',
+		title: (name: string) => `A model of ${name} through the day`,
+		close: 'Leave the model',
+		hourAria: 'The hour on show',
+		hourValue: (h: number) => clockHour(h),
+		/* The hour on its own, no words around it, for the numerals in the corner. */
+		clock: (h: number) => clockHour(h),
+		hint: 'Drag to move through the day',
+		play: 'Run the day',
+		pause: 'Stop',
+		now: 'Now',
+		nowAria: 'Back to the hour it is in Jakarta',
+		/* What is printed is always the counted whole hour, never the slider's exact
+		   position. Parked at 7.30 it still reports 7am, the counted hour the reader is
+		   standing inside. */
+		doors: (day: string, h: number, n: number, of: number) =>
+			`${day} at ${hour(h)}, ${n} of the ${of} doors counted here are open.`,
+		basis: (r: number) =>
+			`The crowd rises and falls with those doors, and never goes past the trade that actually stands within ${r} m of this centre. The people are drawn, the doors are counted.`,
+		/* Four kinds of silence, kept apart. Not one of them is settled by moving the
+		   figures around so the screen looks alive. */
+		still: (readable: number, min: number) =>
+			`Only the light moves. Just ${readable} businesses here publish hours that can be read, fewer than the ${min} a curve needs, so the crowd is held still rather than made up.`,
+		stillNone:
+			'Only the light moves. Not one business here publishes its opening hours, so the crowd is held still rather than made up.',
+		stillLoading: 'Only the light moves until the opening hours have loaded.',
+		stillFailed:
+			'Only the light moves. The opening hours could not be loaded, so the crowd is held still.',
+		stillNodata:
+			'Only the light moves. This cell\'s city is not in the catalogue yet, so the street is left empty on purpose.',
+		sceneLabel: (name: string, h: number, body: string) =>
+			`A model of ${name} at ${clockHour(h)}. ${body}`
 	},
 
 
