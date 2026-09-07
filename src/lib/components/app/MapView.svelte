@@ -215,6 +215,38 @@
 	 */
 	const ctx = (): MapCtx => ({ app, c, heat, cssVar });
 
+	/**
+	 * THE RAISED VIEW, and the two rules it is held to.
+	 *
+	 * A pitched camera and one extra layer. `catchment-extrusion` stands each cell up by
+	 * `height`, which `map/sources` computed from the very number the fill is coloured
+	 * by, so the skyline and the shading are two readings of one figure. Nothing here
+	 * decides what the reading IS.
+	 *
+	 * The second rule is what stays flat. Only a cell with a reading is raised: an idle
+	 * grid and an unsurveyed cell have no figure to stand for, so they keep the ground
+	 * and their existing marks. That is why the flat fill is not simply switched off in
+	 * this mode but has its filter narrowed to exactly the cells the solids do not
+	 * cover, which also means the mode degrades on its own into a plain pitched map when
+	 * the heatmap is off or the reader is in unit mode.
+	 */
+	const relief = $derived(app.view === 'relief');
+	/** How far the camera tips, and how far it turns, in the raised view. */
+	const RELIEF_PITCH = 54;
+	/* A turn as well as a tilt. Tipped forward with north still straight up, the grid
+	   reads as a flat map that has fallen over. Off-axis it reads as a solid you are
+	   walking around, which is the whole point of standing it up. Small enough that the
+	   coastline and the corridors are still recognisable. */
+	const RELIEF_BEARING = -22;
+	/** How far a hovered solid is picked up off the ground, in metres. */
+	const RELIEF_LIFT = 220;
+
+	/** The cells the FLAT fill still paints: everything not covered by a solid. */
+	const fillFilter = (): ExpressionSpecification =>
+		app.view === 'relief'
+			? ['all', ['!', ['get', 'uncovered']], ['!', ['get', 'scored']]]
+			: ['!', ['get', 'uncovered']];
+
 	function addLayers(m: MapLibreMap) {
 		if (!m.hasImage('hatch')) m.addImage('hatch', hatchImage(cssVar));
 		// Both of these bake a theme colour in, so a theme change has to redraw them.
@@ -247,7 +279,7 @@
 			id: 'catchment-fill',
 			type: 'fill',
 			source: 'catchments',
-			filter: ['!', ['get', 'uncovered']],
+			filter: fillFilter(),
 			paint: {
 				'fill-color': ['get', 'color'],
 				/**
@@ -341,6 +373,49 @@
 				}
 			});
 		}
+
+		/**
+		 * THE READING, STOOD UP. Above the route lines and below every point mark.
+		 *
+		 * The order is the whole of the decision. Below the corridors, a solid would be
+		 * criss-crossed by roads drawn on its roof. Above the marks, a column would
+		 * swallow the competitors and stations of the very cell the reader just picked,
+		 * which are the reason they picked it. So the ground infrastructure goes behind
+		 * the solids and the evidence stays in front of them.
+		 *
+		 * Hover LIFTS the solid rather than growing it. Base and top move together, so
+		 * the length of the column, which is the figure, is exactly what it was. Growing
+		 * it on hover would make the map briefly overstate the cell under the pointer.
+		 */
+		m.addLayer({
+			id: 'catchment-extrusion',
+			type: 'fill-extrusion',
+			source: 'catchments',
+			filter: ['all', ['!', ['get', 'uncovered']], ['get', 'scored']],
+			layout: { visibility: app.view === 'relief' ? 'visible' : 'none' },
+			paint: {
+				'fill-extrusion-color': ['get', 'color'],
+				'fill-extrusion-base': [
+					'case',
+					['boolean', ['feature-state', 'hover'], false],
+					RELIEF_LIFT,
+					0
+				],
+				'fill-extrusion-height': [
+					'case',
+					['boolean', ['feature-state', 'hover'], false],
+					['+', ['get', 'height'], RELIEF_LIFT],
+					['get', 'height']
+				],
+				// Applied to the whole pass rather than per solid, so the columns do not
+				// show through one another. Just short of opaque, which lets the coastline
+				// and the corridors stay faintly readable under a dense patch of grid.
+				'fill-extrusion-opacity': 0.9,
+				// Walls darker towards the ground. It is what tells a tall column from a
+				// short one of the same colour when both are seen end on.
+				'fill-extrusion-vertical-gradient': true
+			}
+		});
 
 		// Above the route lines, so a station sits on its own corridor rather than
 		// under it.
@@ -613,8 +688,14 @@
 			hovered = null;
 		});
 
+		/* Both the flat cells and the raised ones, because in the raised view a hexagon
+		   the reader can point at is drawn by whichever of the two layers has it: the
+		   solids carry every scored cell and the fill carries the rest. Registered as a
+		   pair rather than switched, so a mode change cannot leave the map unclickable. */
+		const CELL_LAYERS = ['catchment-fill', 'catchment-extrusion'] as const;
+
 		let hoverId: number | null = null;
-		m.on('mousemove', 'catchment-fill', (e) => {
+		const onCellMove = (e: MapLayerMouseEvent) => {
 			m.getCanvas().style.cursor = 'pointer';
 			const f = e.features?.[0];
 			if (!f) return;
@@ -642,13 +723,13 @@
 				? { kind: 'cell', name: (f.properties?.name as string) ?? '', row: app.rowById.get(id) ?? null }
 				: null;
 			positionTip(e.point.x, e.point.y);
-		});
-		m.on('mouseleave', 'catchment-fill', () => {
+		};
+		const onCellLeave = () => {
 			m.getCanvas().style.cursor = '';
 			if (hoverId !== null) m.setFeatureState({ source: 'catchments', id: hoverId }, { hover: false });
 			hoverId = null;
 			hovered = null;
-		});
+		};
 		/* A catchment is only selectable while catchments are what the map is a list of.
 		   In unit mode the selected cell is not something the reader picks: it is wherever
 		   the open unit stands, set by `selectUnit` and described by the card's lower half.
@@ -659,7 +740,11 @@
 			const id = e.features?.[0]?.properties?.id;
 			if (typeof id === 'string') app.select(id);
 		};
-		m.on('click', 'catchment-fill', pickCell);
+		for (const id of CELL_LAYERS) {
+			m.on('mousemove', id, onCellMove);
+			m.on('mouseleave', id, onCellLeave);
+			m.on('click', id, pickCell);
+		}
 		m.on('click', 'catchment-nodata', pickCell);
 	}
 
@@ -960,10 +1045,22 @@
 		return inner ? `<span class="stn-badges">${inner}</span>` : '';
 	}
 
+	/**
+	 * The camera attitude a `fitBounds` has to be told to keep.
+	 *
+	 * `fitBounds` defaults BOTH of these to zero rather than to what the map is
+	 * currently doing, so every fit was quietly standing the map back up: the reset
+	 * button and Tapak's fly-to each dropped the raised view flat while the switch on
+	 * the bar still read 3D. Fitting changes where the camera is, never what it is
+	 * doing, so both are handed back unchanged.
+	 */
+	const holdAttitude = (m: MapLibreMap) => ({ bearing: m.getBearing(), pitch: m.getPitch() });
+
 	function fitAll(animate = true) {
 		if (!map) return;
 		map.fitBounds(boundsOf(app.base), {
 			padding: { top: 90, bottom: 120, left: 60, right: 60 },
+			...holdAttitude(map),
 			animate: animate && !prefersReducedMotion(),
 			duration: 700
 		});
@@ -982,9 +1079,14 @@
 				bounds: boundsOf(app.base),
 				fitBoundsOptions: { padding: { top: 90, bottom: 120, left: 60, right: 60 } },
 				attributionControl: false,
-				// Gestures must feel direct; rotation adds no meaning to this map.
+				/* Off, not absent. On the flat map rotation adds no meaning and gestures
+				   must feel direct, so the handler starts disabled. It is enabled in the
+				   raised view, where turning the grid is the only way to see behind the
+				   front row. `pitchWithRotate` has to be settled here because the handler
+				   reads it once at construction, and in the raised view a drag that turns
+				   without tipping is a drag that cannot get you back to eye level. */
 				dragRotate: false,
-				pitchWithRotate: false,
+				pitchWithRotate: true,
 				touchZoomRotate: true
 			});
 			m.addControl(new gl.AttributionControl({ compact: true }), 'bottom-right');
@@ -1056,8 +1158,14 @@
 		void app.unitOrder;
 		void app.selectedUnitId;
 		void app.weights.radius;
+		void app.view;
 		const m = map;
 		if (!m || !ready) return;
+		/* Which of the two draws each cell. Set on every pass rather than only on a mode
+		   change: `scored` moves with the category and the heatmap switch, so the split
+		   between the flat fill and the solids has to be redrawn whenever the data does. */
+		m.setFilter('catchment-fill', fillFilter());
+		m.setLayoutProperty('catchment-extrusion', 'visibility', relief ? 'visible' : 'none');
 		(m.getSource('catchments') as GeoJSONSource | undefined)?.setData(catchmentFC(ctx()));
 		(m.getSource('poi') as GeoJSONSource | undefined)?.setData(poiFC(ctx()));
 		(m.getSource('property') as GeoJSONSource | undefined)?.setData(propertyFC(ctx()));
@@ -1084,6 +1192,45 @@
 		// are laid out together against one set of occupied rectangles.
 		syncUnitTags();
 		syncMarkers(app.base);
+	});
+
+	/**
+	 * Tipping the camera, and handing back the gesture that goes with it.
+	 *
+	 * The pitch is the mode, as far as the reader is concerned: the solids exist either
+	 * way, and at zero pitch they are hexagons seen from directly overhead, which is the
+	 * flat map with extra steps. So the two move together.
+	 *
+	 * Turning is enabled with it and taken away again on the way out. On the raised map
+	 * the front row hides the row behind, and rotating is the only answer to that. On the
+	 * flat map a bearing the reader set by accident leaves them holding a north that is
+	 * not up, with nothing on screen saying so, so the way back also squares the map up.
+	 *
+	 * `appliedView` is kept outside a rune for the reason `appliedTheme` is: the effect
+	 * writes to the map, and reading its own last write back would loop.
+	 */
+	let appliedView: 'flat' | 'relief' | null = null;
+	$effect(() => {
+		const view = app.view;
+		const m = map;
+		if (!m || !ready || appliedView === view) return;
+		const first = appliedView === null;
+		appliedView = view;
+		if (view === 'relief') {
+			m.dragRotate.enable();
+			m.touchZoomRotate.enableRotation();
+		} else {
+			m.dragRotate.disable();
+			m.touchZoomRotate.disableRotation();
+		}
+		// The opening state is already the camera's own, so there is nothing to move to.
+		if (first) return;
+		m.easeTo({
+			pitch: view === 'relief' ? RELIEF_PITCH : 0,
+			bearing: view === 'relief' ? RELIEF_BEARING : 0,
+			duration: prefersReducedMotion() ? 0 : 620,
+			essential: true
+		});
 	});
 
 	// Selecting a catchment pans the map to it — the spatial link between panel and map has to hold.
@@ -1161,6 +1308,7 @@
 
 		m.fitBounds(boundsOf(cells, 0.004), {
 			padding: answerPadding(),
+			...holdAttitude(m),
 			// Five adjacent hexes make very tight bounds. Without a ceiling the map
 			// drops to street level, where the ranking loses the context that makes it
 			// mean anything.

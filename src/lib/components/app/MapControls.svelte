@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * The two controls that belong to the MAP rather than to any panel on top of it.
+	 * The three controls that belong to the MAP rather than to any panel on top of it.
 	 *
 	 * WHY THEY LIVE OUT HERE
 	 *
@@ -14,6 +14,11 @@
 	 * The walking radius is out here for the plainer reason that it spans both pivots: it
 	 * decides what a catchment contains and which cell a unit belongs to, so it cannot
 	 * live inside a panel that only exists in one of the two modes.
+	 *
+	 * The flat-or-raised switch spans them the same way, and it changes nothing but the
+	 * map itself. It is emphatically not a legend entry: the legend says what a colour
+	 * means, and this does not touch that. It says whether the same figure is also drawn
+	 * as a height.
 	 *
 	 * WHY THE BOTTOM CENTRE
 	 *
@@ -29,7 +34,7 @@
 	 */
 	import Segmented from '$lib/components/ui/Segmented.svelte';
 	import { RADII } from '$lib/domain/weights';
-	import { getAppState, type Pivot } from '$lib/state/app.svelte';
+	import { getAppState, type Pivot, type ViewMode } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 
 	const app = getAppState();
@@ -51,6 +56,20 @@
 			options={[
 				{ value: 'cell', label: c.units.pivotCell },
 				{ value: 'unit', label: c.units.pivotUnit }
+			]}
+		/>
+
+		<span class="rule" aria-hidden="true"></span>
+
+		<!-- Out here for the same reason the other two are: it belongs to the map rather
+		     than to anything floating on top of it, and it spans both pivots. -->
+		<Segmented
+			label={c.app.viewLabel}
+			value={app.view}
+			onchange={(v: ViewMode) => (app.view = v)}
+			options={[
+				{ value: 'flat', label: c.app.viewFlat, hint: c.app.viewFlatHint },
+				{ value: 'relief', label: c.app.viewRelief, hint: c.app.viewReliefHint }
 			]}
 		/>
 

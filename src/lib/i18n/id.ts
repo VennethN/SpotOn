@@ -573,6 +573,17 @@ export const id = {
 			menu: 'Tempat makan',
 			properti: 'Properti',
 			catatan: 'Catatan warga'
+		},
+
+		/* Tampilan detail: satu catatan, ukuran penuh, dibuka dengan mengekliknya.
+		   Semua yang ada di sini fakta yang sudah tidak muat di kartu ringkas,
+		   bukan pertanyaan baru ke datanya. */
+		detail: {
+			close: 'Tutup',
+			paid: (metode: string) => `Dibayar pakai ${metode}.`,
+			cashlessYes: 'Dihitung sebagai pembayaran nontunai.',
+			cashlessNo: 'Dihitung sebagai pembayaran tunai.',
+			team: (nama: string) => `Dicatat oleh tim ${nama}.`
 		}
 	},
 
@@ -629,9 +640,14 @@ export const id = {
 		nodata:
 			'Kota petak ini belum ada di katalog, jadi jalannya sengaja dibiarkan kosong. Bukan berarti benar-benar sepi.',
 		reading: (n: number, kata: string) => `Ada ${n} usaha di radius jalan kaki sini, jadi ${kata}.`,
-		rivals: (n: number, cat: string) => `${n} di antaranya ${cat}`,
-		listings: (n: number) => `dan ${n} unit sedang dipasarkan.`,
-		noListings: 'dan tidak ada unit yang sedang dipasarkan.',
+		/* Label tiga angka di bawah maketnya. Sengaja pendek: ini nama kolom, bukan
+		   kalimat, dan di panel selebar 21 rem tiap kotak cuma dapat sekitar 105 px.
+		   Versi panjangnya tetap ada di `rows` di bawah, buat daftar angka lengkap. */
+		tiles: {
+			around: 'Usaha di sekitar',
+			rivals: 'Pesaing sejenis',
+			space: 'Unit dipasarkan'
+		},
 		rows: {
 			score: 'Skor peluang',
 			demand: 'Keramaian',
@@ -733,6 +749,21 @@ export const id = {
 		radiusAria: 'Jangkauan jalan kaki yang dinilai',
 		radiusHint:
 			'Sejauh apa dari titik tengah yang dihitung, untuk petak maupun tempat. Harga tiap jangkauan dihitung sendiri, bukan ditaksir dari jangkauan lain.',
+		/* ── datar atau berdiri ─────────────────────────────────────────────────
+		   Sebutan pendek di tombolnya, akibatnya ditulis lengkap di keterangan yang
+		   muncul saat disentuh, dan diulang lagi di keterangan warna begitu modenya
+		   nyala. Tombolnya tidak menyebut "skor" karena yang diwarnai belum tentu skor:
+		   sebelum ada jenis usaha yang disebut, yang dibaca peta ini keramaian. */
+		viewLabel: 'Tampilan peta',
+		viewFlat: 'Datar',
+		viewRelief: '3D',
+		viewFlatHint: 'Peta datar, dilihat lurus dari atas.',
+		viewReliefHint:
+			'Peta dimiringkan dan tiap petak berdiri setinggi angka yang jadi warnanya. Makin tinggi, makin besar angkanya. Petak yang kotanya belum disurvei tetap rata, tidak diberi tinggi apa pun.',
+		/* Dicetak di keterangan warna, bukan di tombolnya, karena di situlah tempat
+		   satu-satunya yang tugasnya menjelaskan angka ini. Tinggi dan warna membaca
+		   angka yang sama, jadi kalimatnya menunjuk balik ke sana. */
+		viewReliefNote: 'Tingginya ikut angka yang sama dengan warnanya.',
 		categoryLabel: 'Jenis usaha',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} petak disurvei · ${poi} pesaing terdata`,

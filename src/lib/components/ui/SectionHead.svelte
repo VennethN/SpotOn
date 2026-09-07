@@ -7,69 +7,41 @@
 	 * text with nothing to break it, and the sections stopped being findable: a reader
 	 * scrolling for the price passed it twice.
 	 *
-	 * An icon fixes that where a bigger heading would not. The eyebrows are deliberately
-	 * quiet, because they are labels rather than content, and making them loud enough to
-	 * scan would have them competing with the figures underneath. A glyph is scannable at
-	 * a size no wording can be, and it is the same shape every time — so the second visit
-	 * to this panel is navigation rather than reading.
+	 * An icon fixes that where a bigger heading would not. A glyph is scannable at a size
+	 * no wording can be, and it is the same shape every time, so the second visit to this
+	 * panel is navigation rather than reading. The drawing itself lives in `Glyph`, which
+	 * keeps every mark in the product on one grid at one stroke.
 	 *
-	 * The icons are drawn here rather than passed in, so that every section in the panel
-	 * is drawn on one grid at one stroke weight. Passed in as markup they drift: one
-	 * section ends up with a 16 px glyph at 1.2 stroke next to another at 14 and 2, and
-	 * the row stops reading as a set.
+	 * TWO RANKS, BECAUSE THE PANEL HAS TWO
+	 *
+	 * The price section carries headings of its own — what is on the market, and the
+	 * units themselves. Drawn identically to the section that contains them, they read as
+	 * three sections rather than one with two parts, and the card lost the one piece of
+	 * structure it had. So a heading now declares its rank: a `section` is announced by a
+	 * glyph in a tile and is preceded by a rule, a `sub` gets the bare glyph and no rule,
+	 * and the difference is legible without reading either label.
 	 */
+	import Glyph, { type GlyphName } from '$lib/components/ui/Glyph.svelte';
 	import type { Snippet } from 'svelte';
-
-	type Icon = 'price' | 'market' | 'units' | 'rivals' | 'transit' | 'field' | 'hours';
 
 	let {
 		icon,
+		level = 'section',
 		children,
 		action
 	}: {
-		icon: Icon;
+		icon: GlyphName;
+		/** `section` is a top part of the card. `sub` is a part of the part above it. */
+		level?: 'section' | 'sub';
 		children: Snippet;
 		/** Optional control on the right of the heading, e.g. a "show on map" switch. */
 		action?: Snippet;
 	} = $props();
 </script>
 
-<header class="head">
-	<span class="ico" aria-hidden="true">
-		<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-			{#if icon === 'price'}
-				<!-- A price tag: what the space costs. -->
-				<path d="M8.4 1.9H14v5.6l-6.5 6.5a1 1 0 0 1-1.4 0l-4.2-4.2a1 1 0 0 1 0-1.4Z" />
-				<circle cx="11.1" cy="4.9" r="1.05" />
-			{:else if icon === 'market'}
-				<!-- An awning over a shopfront: what is on the market. -->
-				<path d="M2 6.2h12v7.3H2Z" />
-				<path d="M1.4 3.1h13.2L14 6.2H2Z" />
-				<path d="M6.4 13.5V9.4h3.2v4.1" />
-			{:else if icon === 'hours'}
-				<!-- A clock: the hours the doors around here are open. -->
-				<circle cx="8" cy="8" r="6.1" />
-				<path d="M8 4.3V8l2.6 1.6" />
-			{:else if icon === 'units'}
-				<!-- A list of rows: the units, one by one. -->
-				<path d="M2.4 4.4h11.2M2.4 8h11.2M2.4 11.6h7.4" />
-			{:else if icon === 'field'}
-				<!-- A pinned note: somebody stood here and wrote this down. -->
-				<path d="M4.2 2.4h7.6v11.2H4.2Z" />
-				<path d="M6.3 5.6h3.4M6.3 8h3.4M6.3 10.4h2" />
-			{:else if icon === 'rivals'}
-				<!-- Two marks side by side: the competitors already there. -->
-				<rect x="2.2" y="2.2" width="5" height="5" rx="0.6" />
-				<rect x="8.8" y="8.8" width="5" height="5" rx="0.6" />
-				<path d="M8.8 4.7h5M2.2 11.3h5" />
-			{:else}
-				<!-- A carriage on a line: what is reachable from here. -->
-				<rect x="4" y="1.9" width="8" height="9.4" rx="2" />
-				<path d="M4 7.1h8M6.2 14.1l-1.4 0M11.2 14.1l-1.4 0M6.4 11.3 4.8 14.1M9.6 11.3l1.6 2.8" />
-				<circle cx="6.4" cy="9.2" r="0.5" fill="currentColor" stroke="none" />
-				<circle cx="9.6" cy="9.2" r="0.5" fill="currentColor" stroke="none" />
-			{/if}
-		</svg>
+<header class="head" class:sub={level === 'sub'}>
+	<span class="ico">
+		<Glyph {icon} size={level === 'sub' ? 12 : 13} />
 	</span>
 	<h3 class="eyebrow">{@render children()}</h3>
 	{#if action}
@@ -81,7 +53,7 @@
 	.head {
 		display: flex;
 		align-items: center;
-		gap: 0.375rem;
+		gap: 0.4375rem;
 		/* Air above, not below. The heading belongs to what follows it, and an even gap
 		   on both sides is what let five sections read as one undifferentiated column. */
 		margin-top: 0.125rem;
@@ -92,18 +64,42 @@
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 1.125rem;
-		height: 1.125rem;
-		border-radius: var(--r-sm, 6px);
+		width: 1.25rem;
+		height: 1.25rem;
+		border-radius: var(--r-xs);
 		background: var(--fill-1);
-		color: var(--label-2);
+		color: var(--label-1);
 	}
 	.eyebrow {
 		min-width: 0;
-		/* The rule the icon buys back: the label no longer has to shout to be found, so
-		   it can be set at a size that reads as a caption. */
+		/* Full strength, which for ten pixels of uppercase is not loud. The eyebrows
+		   were set in the quietest grey the palette has, and at this size that is not a
+		   quiet label, it is an unreadable one: a reader scrolling for the price could
+		   not pick the heading out of the paragraphs around it. Size and weight keep it
+		   subordinate to the figures. Contrast is what makes it findable. */
+		color: var(--label-1);
 		letter-spacing: 0.05em;
 	}
+
+	/* A part of the section above it. Same glyph, no tile and no box: the mark still
+	   says which part this is, and having no field behind it says it is not a new one. */
+	.head.sub {
+		gap: 0.375rem;
+		margin-top: 0.375rem;
+		padding-left: 0.125rem;
+	}
+	.head.sub .ico {
+		width: auto;
+		height: auto;
+		border-radius: 0;
+		background: none;
+		color: var(--label-2);
+	}
+	.head.sub .eyebrow {
+		color: var(--label-2);
+		letter-spacing: 0.06em;
+	}
+
 	/* Whatever the section put on the right of its heading is pushed there. */
 	.head > :global(:not(.ico):not(.eyebrow)) {
 		margin-left: auto;

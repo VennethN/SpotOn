@@ -35,6 +35,7 @@
 	 * one, so the curve and the count above it cannot come apart.
 	 */
 	import { HOURS_IN_DAY, jakartaNow, peakOf, readHours, weekProfile } from '$lib/domain/activity';
+	import Fineprint from '$lib/components/ui/Fineprint.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
@@ -106,6 +107,13 @@
 	/** The hours the axis is labelled at. Every sixth, so the row stays readable at the
 	    width of a panel. */
 	const TICKS = [0, 6, 12, 18];
+
+	/** Whether the curve is actually on screen. The denominator belongs to the curve, so
+	    it is only stated where there is one, and the two silences carry those same
+	    figures inside their own sentence instead. */
+	const drawn = $derived(
+		stat !== null && stat.h >= minReadable && !app.hoursLoading && !app.openPlacesFailed
+	);
 </script>
 
 <!-- Nothing at all on a grid that has never been through `join-hours.mjs`. That is a
@@ -167,24 +175,16 @@
 					</div>
 				</div>
 
-				<p class="read">
-					{#if today}
+				<!-- Two facts, on two lines. Run together in one paragraph the reader has
+				     to parse a sentence to find out whether the doors are open now, which
+				     is the question the chart was opened to answer. -->
+				{#if today}
+					<p class="read now">
+						<span class="mark" aria-hidden="true"></span>
 						{c.activity.nowOpen(now.hour, openNow, stat.h)}
-					{/if}
-					{c.activity.peak(peak.hour, peak.n, stat.h)}
-				</p>
-
-				<!-- The denominator, directly under the curve it belongs to. Fewer than one
-				     business in six publishes hours at all, and a chart with no count beside
-				     it reads as the whole street. The two silences below carry the same
-				     figures inside their own sentence, which is why this is not repeated
-				     there. -->
-				<p class="basis">
-					{c.activity.basis(stat.h, stat.n, radius)}
-					{#if stat.p > stat.h}
-						{c.activity.refused(stat.p - stat.h)}
-					{/if}
-				</p>
+					</p>
+				{/if}
+				<p class="read">{c.activity.peak(peak.hour, peak.n, stat.h)}</p>
 			{/if}
 		{:else if stat.p > 0}
 			<!-- Published, but too few to draw. Different from nobody publishing, and the
@@ -199,7 +199,21 @@
 			<p class="read">{c.activity.none(stat.n, radius)}</p>
 		{/if}
 
-		<p class="note">{c.activity.notFootfall}</p>
+		<!-- The denominator and the disclaimer, in the shape a reader can recognise as
+		     apparatus and skip. Neither is optional: fewer than one business in six
+		     publishes hours at all, so a chart with no count beside it reads as the whole
+		     street, and the second line is what stops the bars being read as a crowd. -->
+		<Fineprint>
+			{#if drawn}
+				<p>
+					{c.activity.basis(stat.h, stat.n, radius)}
+					{#if stat.p > stat.h}
+						{c.activity.refused(stat.p - stat.h)}
+					{/if}
+				</p>
+			{/if}
+			<p>{c.activity.notFootfall}</p>
+		</Fineprint>
 	</section>
 {/if}
 
@@ -305,10 +319,23 @@
 		line-height: 1.55;
 		color: var(--label-2);
 	}
-	.basis {
-		font-size: 0.75rem;
-		line-height: 1.5;
-		color: var(--label-3);
+	/* The one line here that is a claim about right now. It gets the accent the current
+	   column already wears, so the sentence and the bar it is about are visibly the same
+	   statement, and it is set at full strength because it is the line a reader who
+	   opened this section came for. */
+	.read.now {
+		display: flex;
+		align-items: baseline;
+		gap: 0.4375rem;
+		color: var(--label-1);
+	}
+	.read.now .mark {
+		flex: none;
+		align-self: center;
+		width: 0.4375rem;
+		height: 0.4375rem;
+		border-radius: 999px;
+		background: var(--accent);
 	}
 	.note {
 		font-size: 0.6875rem;
