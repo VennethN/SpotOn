@@ -232,6 +232,22 @@ export class Tapak {
 		if (idx === -1) return;
 
 		const c = copy();
+		/* The question was never sent, or was sent and refused. Handled BEFORE the answer
+		   is read, because `app.ai` still holds the answer to the PREVIOUS question: read
+		   in this order, a refused turn would come back carrying somebody else's places.
+
+		   No retry chip either, unlike a failure. Asking the same thing again is exactly
+		   what will not work, and the way on is a plan rather than a second attempt, which
+		   the notice over the map is already offering. */
+		if (this.#app.outOf === 'ai' || this.#app.signedOut) {
+			this.turns[idx] = {
+				id,
+				who: 'tapak',
+				text: this.#app.signedOut ? c.account.errors.signedout : c.tapak.outOfQuota
+			};
+			return;
+		}
+
 		if (this.#app.aiError) {
 			this.turns[idx] = {
 				id,
