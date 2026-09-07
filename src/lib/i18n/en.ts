@@ -1172,10 +1172,10 @@ export const en: Copy = {
 			`There are ${n} areas I have no data for at all. I'm not scoring them. Rather than make something up, I'd rather say I don't know.`,
 		saturatedNone: 'Nothing is genuinely crowded for this business.',
 		saturatedSome: (n: number, cat: string) =>
-			`These ${n} areas are the ones to avoid for now for a ${cat}. The competitors sit close together and most of them are busy.`,
+			`These ${n} areas are the ones to avoid for now for ${cat}. The competitors sit close together and most of them are busy.`,
 		compare: 'Side by side, here is how they compare.',
 		rankNone: (cat: string) =>
-			`Nothing fits a ${cat} under those conditions yet. Want me to loosen them?`,
+			`Nothing fits ${cat} under those conditions yet. Want me to loosen them?`,
 		rankBy: (name: string, ukuran: string, nilai: string, n: number) =>
 			`By ${ukuran}, ${name} comes top at ${nilai}. Here are the top ${n} from my notes.`,
 		rankTop: (name: string, nilai: string | null, n: number) =>
@@ -1259,7 +1259,7 @@ export const en: Copy = {
 		remarkUncovered: (name: string, cat: string) =>
 			`${name} has not been surveyed yet, so the ${cat} around it have never been counted. I have no figure to give you for it.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
-			`${name} is ${verdict} for a ${cat}, scoring ${nilai}. There are ${osm} similar businesses, and ${listing}.`,
+			`${name} is ${verdict} for ${cat}, scoring ${nilai}. There are ${osm} similar businesses, and ${listing}.`,
 		verdictGood: 'one of the good ones',
 		verdictMid: 'middling',
 		verdictLow: 'honestly not promising',
