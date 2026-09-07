@@ -15,6 +15,7 @@
 	import { base } from '$app/paths';
 	import BrandMark from '$lib/components/ui/BrandMark.svelte';
 	import LangToggle from '$lib/components/ui/LangToggle.svelte';
+	import ThemeControl from '$lib/components/ui/ThemeControl.svelte';
 	import { MIN_PASSWORD_LENGTH } from '$lib/domain/account';
 	import { copy } from '$lib/state/lang.svelte';
 	import type { PageData } from './$types';
@@ -77,7 +78,10 @@
 			<BrandMark size={15} />
 			<span class="name">{c.brand.name}</span>
 		</a>
-		<LangToggle />
+		<div class="tools">
+			<LangToggle />
+			<ThemeControl />
+		</div>
 	</header>
 
 	<main>
@@ -167,6 +171,11 @@
 		font-size: 1rem;
 		font-weight: 650;
 		letter-spacing: -0.018em;
+	}
+	.tools {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	main {
