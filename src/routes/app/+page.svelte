@@ -210,7 +210,7 @@
 		</aside>
 
 		{#if app.pivot === 'unit'}
-			<aside class="spot material" aria-label={c.units.title} transition:materialize data-panel-host>
+			<aside class="spot material" aria-label={c.units.title} transition:materialize>
 				<div class="spot-scroll">
 					{#if app.selectedUnitId}
 						<UnitCard />
@@ -220,7 +220,7 @@
 				</div>
 			</aside>
 		{:else if app.selectedId}
-			<aside class="spot material" aria-label={c.app.mood} transition:materialize data-panel-host>
+			<aside class="spot material" aria-label={c.app.mood} transition:materialize>
 				<div class="spot-scroll"><SpotCard /></div>
 			</aside>
 		{:else}
@@ -302,10 +302,9 @@
 	   They are shown one at a time rather than stacked: the legend explains the
 	   colours, and once a cell is picked the card is the more specific answer to the
 	   same question. */
-	/* The box, which does not scroll. Its one job besides holding the card is to be
-	   the thing a detail view can cover: `data-panel-host` marks it, and anything
-	   portalled here sits against the panel rather than against the scrolled
-	   content, which slides out from under an absolutely positioned child. */
+	/* The box, which does not scroll. Nothing is laid over it any more: a section of the
+	   card opens underneath the model rather than on top of the panel, so the card can go
+	   on saying which place this is while one part of it is being read. */
 	.spot {
 		position: fixed;
 		left: 0.75rem;
