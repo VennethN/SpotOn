@@ -63,6 +63,7 @@
 	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
 	import { num } from '$lib/utils/format';
+	import { scrollerOf } from '$lib/utils/dom';
 
 	/**
 	 * This panel is far smaller than the landing page's stage, so its camera is
@@ -283,6 +284,70 @@
 
 	/** The section standing under the model, or none. */
 	let opened = $state<SectionKey | null>(null);
+
+	/**
+	 * WHETHER THERE IS ROOM, not whether a section is open.
+	 *
+	 * The model gives ground for a section so the section does not start below the
+	 * fold. Tied to "a section is open" alone it gave ground on a tall panel too, where
+	 * the whole section already fitted underneath a full sized model, and every tap on
+	 * a row was answered by the picture jumping to a third of its height for no gain.
+	 *
+	 * So the panel is measured. The model letterboxes only when a 4:3 one would take
+	 * more of the visible panel than `MODEL_SHARE`, which is about where the rows below
+	 * it start being pushed out of sight.
+	 */
+	const MODEL_SHARE = 0.42;
+	let dio = $state<HTMLElement | null>(null);
+	let room = $state(0);
+	let stageWidth = $state(0);
+
+	/**
+	 * How much of the panel can actually be seen, which is not how tall it is.
+	 *
+	 * The sheet on a narrow screen is a full height box slid down the viewport, so its
+	 * own height is the whole screen at every detent and reads the same whether a
+	 * third of it is showing or all of it. What is left inside the viewport is the
+	 * figure that decides whether a section has room, so that is what is measured.
+	 */
+	function measure() {
+		const el = dio;
+		if (!el) return;
+		const box = scrollerOf(el);
+		const r = (box ?? el).getBoundingClientRect();
+		room = box
+			? Math.max(0, Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0))
+			: window.innerHeight;
+		stageWidth = el.clientWidth;
+	}
+
+	$effect(() => {
+		const el = dio;
+		if (!el) return;
+		measure();
+		/* `el` is observed for its width. Its height changes when the model resizes and
+		   nothing below reads that height, so this cannot chase its own tail. */
+		const ro = new ResizeObserver(measure);
+		ro.observe(el);
+		const box = scrollerOf(el);
+		if (box) ro.observe(box);
+		window.addEventListener('resize', measure);
+		return () => {
+			ro.disconnect();
+			window.removeEventListener('resize', measure);
+		};
+	});
+
+	/* The sheet moves by transform, and a transform is not a resize: dragging it to
+	   another detent tells the observer above nothing. Opening a section is the moment
+	   the figure is needed, so it is taken again then. */
+	$effect(() => {
+		void opened;
+		measure();
+	});
+
+	/** A full sized model would crowd the section standing under it. */
+	const cramped = $derived(room > 0 && stageWidth * 0.75 > room * MODEL_SHARE);
 	const openedTitle = $derived(rows.find((r) => r.key === opened)?.title ?? '');
 
 	/**
@@ -345,12 +410,18 @@
 		{/if}
 	</div>
 {:else}
-	<div class="dio">
-		<!-- The model stays put while a section is read, and gives ground for it. On a
-		     phone the sheet is about half the screen and a 4:3 model fills most of that,
-		     so a section opened underneath one would start below the fold. Letterboxed it
-		     is still the place, still tappable into, and no longer the whole panel. -->
-		<div class="stage" class:reading={opened !== null} style:--sky={day.skyHorizon}>
+	<div class="dio" bind:this={dio}>
+		<!-- The model stays put while a section is read, and gives ground for it WHEN the
+		     ground is needed. On a phone the sheet can be about half the screen and a 4:3
+		     model fills most of that, so a section opened underneath one would start below
+		     the fold. Letterboxed it is still the place, still tappable into, and no longer
+		     the whole panel. On a panel with the height to hold both it does not move at
+		     all: see `cramped`. -->
+		<div
+			class="stage"
+			class:reading={opened !== null && cramped}
+			style:--sky={day.skyHorizon}
+		>
 			<CatchmentScene
 				{hour}
 				density={busyness}
