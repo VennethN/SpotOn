@@ -341,6 +341,23 @@ const RANKING_ASK =
 const COMPARE_ASK = /\b(banding\w*|compare|vs|versus|lebih (?:bagus|baik|murah|mahal|ramai)\b)/i;
 
 /**
+ * The two shapes that are neither a ranking nor a question about one place.
+ *
+ * Both were matched in Indonesian only. "Which areas are saturated" and "which ones
+ * have no data" carried nothing this parser knew, so each fell through to a ranking by
+ * opportunity score, and the chip Tapak offers under every ranking came back as that
+ * same ranking read out a second time, with nothing on screen to say the question had
+ * not been read. It is the money words' gap over again, one table down: the unit
+ * registry and the model both knew the English, and this parser did not.
+ *
+ * The plain forms and no more, as everywhere in this file. The model reads the long
+ * tail, and a phrasebook grown here would only make the two halves disagree.
+ */
+const SATURATED_ASK = /jenuh|saturasi|penuh|hindari|jangan|saturated|saturation|avoid/i;
+const COVERAGE_ASK =
+	/belum terdata|belum ada data|tidak ada data|data\w*\s+kosong|cakupan data|cakupan|no data|without data|data coverage|unsurveyed|not (?:yet |been )*surveyed/i;
+
+/**
  * The catchment a question is about, read against what is on screen and on the grid.
  *
  * TWO WAYS IN, AND THE SECOND ONE WAS MISSING.
@@ -468,7 +485,7 @@ export function parseQuestion(
 		   foot of this function, which are guarded on `out.filter` for exactly this. */
 		delete out.filter;
 		delete out.filters;
-	} else if (/belum terdata|belum ada data|tidak ada data|data\w*\s+kosong|cakupan data|cakupan/i.test(q)) {
+	} else if (COVERAGE_ASK.test(q)) {
 		out.intent = 'COVERAGE';
 		out.metrik = 'N titik data misi per catchment';
 		out.ukuran = DEFAULT_METRIC;
@@ -476,7 +493,7 @@ export function parseQuestion(
 		out.limit = 99;
 		delete out.filter;
 		delete out.filters;
-	} else if (/jenuh|saturasi|penuh|hindari|jangan/i.test(q)) {
+	} else if (SATURATED_ASK.test(q)) {
 		out.intent = 'FLAG_SATURATED';
 		out.metrik = 'penawaran efektif (pesaing × keramaian)';
 	} else if (/banding|compare|\bvs\b|versus/i.test(q)) {

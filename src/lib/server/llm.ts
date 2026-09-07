@@ -322,9 +322,9 @@ DUA HAL YANG DIPILIH TERPISAH: bentuk pertanyaannya (intent) dan ukuran yang dit
 
 intent:
 - RANK — memeringkat petak. Ini yang paling umum, dan dipakai untuk SEMUA pertanyaan "di mana", "mana yang paling", "seberapa". Ukurannya yang membedakan.
-- FLAG_SATURATED — "mana yang sudah jenuh/penuh", "mana yang harus dihindari".
+- FLAG_SATURATED — "mana yang sudah jenuh/penuh", "mana yang harus dihindari", "which ones should I avoid".
 - COMPARE — membandingkan dua kawasan yang disebut namanya.
-- COVERAGE — "mana yang belum ada datanya", pertanyaan soal cakupan data.
+- COVERAGE — "mana yang belum ada datanya", "which areas have no data", pertanyaan soal cakupan data.
 - EXPLAIN — menjawab soal SATU kawasan yang namanya disebut atau ditunjuk, bukan memeringkat kisi. Isi target dengan nama kawasannya, dan kalau penggunanya cuma menunjuk ("kenapa itu", "yang pertama kenapa"), ambil namanya dari percakapan di atas.
   PENTING: EXPLAIN JUGA PUNYA ukuran, persis seperti RANK. Isi ukuran dengan yang benar-benar ditanyakan tentang kawasan itu.
   - "kenapa yang itu" / "kenapa Setiabudi Astra" → ukuran skor

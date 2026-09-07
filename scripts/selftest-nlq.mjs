@@ -251,6 +251,44 @@ check('coverage still reachable', nlq.parseQuestion('mana yang belum ada datanya
 check('saturation still reachable', nlq.parseQuestion('mana yang sudah jenuh', W, ['kopi']).intent === 'FLAG_SATURATED');
 check('compare still reachable', nlq.parseQuestion('bandingkan Blok M dan Dukuh Atas', W, ['kopi']).intent === 'COMPARE');
 
+/* ── the English half of the intent words ────────────────────────────────── */
+
+/* The same gap as the money words, in the two intents that are neither a ranking nor
+   a question about one place. Both patterns were Indonesian only, so "which areas are
+   saturated" and "which ones have no data" carried nothing this parser knew and fell
+   through to a ranking by opportunity score: the reader tapped "which ones should I
+   avoid" under a ranking and was handed the same five catchments again, under the same
+   sentence. The plain forms and no more. The model reads the long tail. */
+for (const [q, intent] of [
+	['which areas are saturated for coffee shops', 'FLAG_SATURATED'],
+	['which ones should I avoid', 'FLAG_SATURATED'],
+	['which areas have no data yet', 'COVERAGE'],
+	['which ones have no data', 'COVERAGE'],
+	['which areas have not been surveyed', 'COVERAGE'],
+	// A ranking asked in English is still a ranking.
+	['where should I open a coffee shop', 'RANK'],
+	['which area is busiest', 'RANK']
+]) {
+	const got = nlq.parseQuestion(q, W, ['kopi']).intent;
+	check(`"${q}" → ${intent}`, got === intent, `got ${got}`);
+}
+
+// And the way the chip is actually tapped: after a ranking, with its names in the
+// thread. The answer is the saturated catchments, not the ranking read out again.
+{
+	const rank = nlq.answer('where should I open a coffee shop', cells, W, ['kopi']);
+	const said = rank.items.map((i) => i.name);
+	const avoid = nlq.answer('which ones should I avoid', cells, W, ['kopi'], said);
+	const same =
+		avoid.items.length === rank.items.length &&
+		avoid.items.every((i) => rank.items.some((r) => r.id === i.id));
+	check(
+		'"which ones should I avoid" after a ranking is not the ranking read out again',
+		avoid.query.intent === 'FLAG_SATURATED' && avoid.items.length > 0 && !same,
+		`intent=${avoid.query.intent} items=${avoid.items.map((i) => i.name).join(', ')}`
+	);
+}
+
 /* ── a follow-up is read against what was just said ──────────────────────── */
 
 /* This is the whole of what "chat" means here, and the failure it replaced was total
