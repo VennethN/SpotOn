@@ -40,7 +40,7 @@
 	 * streets in general and not about this one.
 	 */
 	import { untrack } from 'svelte';
-	import StreetScene from '$lib/components/ui/StreetScene.svelte';
+	import CatchmentScene from '$lib/components/ui/CatchmentScene.svelte';
 	import { HOURS_IN_DAY, jakartaNow, openAt, readHours, weekProfile } from '$lib/domain/activity';
 	import { categoryNames } from '$lib/domain/narrate';
 	import { daylightAt } from '$lib/scene/daylight';
@@ -240,7 +240,7 @@
 		style:--ink={day.ink}
 		style:--ink-muted={day.inkMuted}
 	>
-		<StreetScene
+		<CatchmentScene
 			{hour}
 			{density}
 			category={app.categories[0]}
@@ -248,7 +248,6 @@
 			nodata={blank}
 			rivals={row.osm}
 			vacancies={row.units}
-			variant="catchment"
 			transit={cell?.transit}
 			label={c.zoom.sceneLabel(row.name, at, body)}
 		/>
