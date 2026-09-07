@@ -21,9 +21,22 @@
 		size?: number;
 	}
 	let { size = 13 }: Props = $props();
+
+	// The stroke and the corner ride the size rather than sitting at 1.5px and 3px
+	// forever. At 13px those constants are the mark; at 34px they are a hairline
+	// around a nearly square box, which is a different drawing. The ratios below are
+	// the 13px mark's own, so the header and the app keep exactly what they had.
+	const stroke = $derived(Math.max(1.5, size * 0.115));
+	const radius = $derived(Math.max(3, size * 0.23));
 </script>
 
-<span class="mark" style:--size={`${size}px`} aria-hidden="true"></span>
+<span
+	class="mark"
+	style:--size={`${size}px`}
+	style:--stroke={`${stroke}px`}
+	style:--radius={`${radius}px`}
+	aria-hidden="true"
+></span>
 
 <style>
 	.mark {
@@ -31,8 +44,8 @@
 		flex: none;
 		width: var(--size);
 		height: var(--size);
-		border: 1.5px solid currentColor;
-		border-radius: 3px;
+		border: var(--stroke) solid currentColor;
+		border-radius: var(--radius);
 		clip-path: polygon(0 0, 100% 0, 100% 62%, 62% 100%, 0 100%);
 	}
 </style>
