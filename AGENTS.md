@@ -195,26 +195,35 @@ them is a pricing page arguing with itself.
 
 ## Nothing on the account page is a picture of a legible number
 
-Four things are drawn there and each does something its own caption cannot. A meter
+Three things are drawn there and each does something its own caption cannot. A meter
 turns a remainder into a PROPORTION, because "1,480 left" is a quantity and the
 question a reader has is whether that is most of the week or the end of it. The week
 strip turns a refill date into a POSITION, because a date has to be held against
-today's date and seven cells with today marked do not. The comparison bars turn three
-tiers into an ORDER, because six numbers across three cards is arithmetic a reader has
-to do to see the ladder they are being sold. The crests turn a tier into a RANK at a
-size no wording is legible at, so the cards are told apart while they are scanned.
+today's date and seven cells with today marked do not. The crests turn a tier into a
+RANK at a size no wording is legible at, so the cards are told apart while they are
+scanned.
+
+There were four. Each tier card also carried a thin bar under its allowance, filled in
+proportion to the largest tier, so the ladder could be seen rather than worked out. The
+first person who saw it read it as USAGE, on three plans at once, which is impossible:
+an account holds one plan. **Do not put that back.** Two things went wrong and both are
+worth knowing before drawing anything else on this page. A bar chart needs its bars in
+one frame to read as a comparison, and split one per card there are no peers in view, so
+a lone bar in a track is a gauge. And the reader had learned that exact mark two sections
+above, where it genuinely is their balance, so the page taught one meaning and
+immediately reused it for another. The rank is carried by the crests and the size by the
+figures, and neither can be mistaken for a meter.
+
+**One mark, one meaning, per page.** A track with a fill means "what is left of your
+allowance" and it may not mean anything else here.
 
 The rules those drawings are held to are the rules the rest of the product already
 follows, applied to a page about money:
 
 - **Every figure comes from `domain/plans`.** Not one allowance and not one price is
   written into the copy or into a component. Even the crest counts its hexagons off the
-  tier's position in `PLAN_KEYS`, and the comparison bars scale against the largest
-  grant that exists rather than against Premier by name, so inserting a tier moves all
-  of it at once.
-- **The comparison scale is linear and the free tier looks as small as it is.** A scale
-  bent to flatter the bottom of the ladder would be a picture disagreeing with the
-  numbers printed beside it.
+  tier's position in `PLAN_KEYS` rather than off a number, so inserting a tier moves the
+  whole page at once.
 - **The one decoration is uniform.** The hexagon field behind the head is the grid this
   product is made of, drawn at one weight with no fill. One cell darker than another and
   it would be a map of something, which is the thing this product does not draw.
