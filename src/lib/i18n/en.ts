@@ -781,6 +781,40 @@ export const en: Copy = {
 		askForScore: 'Say what you want to open and I will work out this area\'s opportunity score.'
 	},
 
+	/* ── panel ────────────────────────────────────────────────────────────────
+	   The area card now leads with one figure per section, and the section in full
+	   opens over the panel. What lives here is the short line under each figure,
+	   plus the way back out.
+
+	   The row titles are NOT repeated here. Each row wears the title of the section
+	   it opens, so what a row promises and what it lands on cannot come apart. */
+
+	panel: {
+		back: 'Back',
+		backAria: 'Back to the area summary',
+		/* Names what is inside rather than saying "see details". A reader is entitled
+		   to know what they will find before they press the row. */
+		scoreCap: 'How busy, who is here, access, and price',
+		scoreAsk: 'Say what you want to open first',
+		rivalsCap: (cat: string) => `${cat} within walking range`,
+		/* The figure is how many doors are open RIGHT NOW, so the line under it has to
+		   say out of how many. Without the denominator that number reads as the whole
+		   street, and fewer than one business in six publishes hours at all. */
+		hoursNow: (dari: number) => `open now, of ${dari} with published hours`,
+		hoursThin: 'Too few published opening hours to read here',
+		/* This is an asking price to buy, per m², and this line is what stops the
+		   figure being read as the price of one unit. */
+		costCap: (unit: number) => `per m² of land · ${unit} units on the market`,
+		costUnits: (unit: number) => `${unit} on the market, no median price`,
+		/* Three different silences, and only this one means nobody has looked. */
+		costUnread: 'The price catalogue has not read this cell\'s city',
+		costNone: 'Nothing on the market here',
+		transitNone: 'None within walking range',
+		fieldNone: 'Nobody has recorded anything here',
+		loading: 'Loading…',
+		failed: 'Could not load'
+	},
+
 	/* ── app ──────────────────────────────────────────────────────────────── */
 
 	app: {
