@@ -429,7 +429,7 @@
 						class="row"
 						onclick={() => open(r.key)}
 					>
-							<span class="ico"><Glyph icon={r.icon} size={14} /></span>
+							<span class="ico"><Glyph icon={r.icon} size={17} /></span>
 							<span class="txt">
 								<!-- The name and the figure share the top line, and the line under
 								     them runs the full width of the row. The figure used to stand in
@@ -445,7 +445,7 @@
 								</span>
 								<span class="cap">{r.caption}</span>
 							</span>
-							<span class="chev" aria-hidden="true"><Glyph icon="chevron" size={12} /></span>
+							<span class="chev" aria-hidden="true"><Glyph icon="chevron" size={14} /></span>
 						</button>
 					</li>
 				{/each}
@@ -577,14 +577,18 @@
 		outline-offset: -2px;
 	}
 	/* The same tile the section headings wear, so the row and the heading it leads to
-	   are visibly one mark. */
+	   are visibly one mark.
+
+	   Drawn at a size that survives a glance. The whole point of a glyph here is that
+	   the second visit to this card is navigation rather than reading, and a mark small
+	   enough to have to be looked at is doing the job of a label without the words. */
 	.ico {
 		flex: none;
 		display: grid;
 		place-items: center;
-		width: 1.4375rem;
-		height: 1.4375rem;
-		border-radius: var(--r-xs);
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: var(--r-sm);
 		background: var(--fill-1);
 		color: var(--label-1);
 	}
