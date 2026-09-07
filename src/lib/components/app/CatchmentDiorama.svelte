@@ -359,6 +359,8 @@
 				nodata={blank}
 				rivals={row.osm}
 				vacancies={row.units}
+				variant="catchment"
+				transit={cell?.transit}
 				label={c.mood.sceneLabel(
 					row.name,
 					blank

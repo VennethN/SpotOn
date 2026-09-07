@@ -8,7 +8,10 @@
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
 	import { daylightAt } from '$lib/scene/daylight';
+	import type { SceneTransit, SceneVariant } from '$lib/scene/street';
 	import type { CategoryKey } from '$lib/types';
+
+	const NO_TRANSIT: SceneTransit = { mrt: 0, krl: 0, lrt: 0, brt: 0 };
 
 	interface Props {
 		hour?: number;
@@ -20,6 +23,13 @@
 		rivals?: number;
 		/** Commercial space currently up for rent. */
 		vacancies?: number;
+		/**
+		 * Which of the two scenes this is: the landing page's story, or a model of one
+		 * real catchment. See the note at the top of `scene/street`.
+		 */
+		variant?: SceneVariant;
+		/** Transit nodes in range, by mode. Only read by the catchment variant. */
+		transit?: SceneTransit;
 		/** A description of the scene for screen readers — required, this scene carries meaning. */
 		label: string;
 	}
@@ -32,6 +42,8 @@
 		nodata = false,
 		rivals = 0,
 		vacancies = 1,
+		variant = 'story' as SceneVariant,
+		transit = NO_TRANSIT,
 		label
 	}: Props = $props();
 
@@ -48,7 +60,7 @@
 	<SceneCanvas
 		{load}
 		{label}
-		state={{ hour, density, category, cameraT, nodata, rivals, vacancies }}
+		state={{ hour, density, category, cameraT, nodata, rivals, vacancies, variant, transit }}
 	>
 		{#snippet overlay()}
 			<!-- Tilt-shift: a narrow focal plane down the middle. This single cue is what
