@@ -45,6 +45,7 @@
 	} from '$lib/domain/field';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
+	import { tick } from 'svelte';
 	import { pct } from '$lib/utils/format';
 
 	/** How many rows of a survey get a line of their own before the rest become a count.
@@ -86,19 +87,29 @@
 	    cell changes, rather than left pointing at a record from a different area's
 	    list once the reader has moved on from it. */
 	let opened = $state<FieldRecord | null>(null);
-	/** Whichever row or thumbnail was clicked to open it, so closing can hand focus
-	    straight back rather than dropping it to the document. Losing focus to
-	    <body> is what was scrolling this list back to the top on every close. */
-	let openedFrom = $state<HTMLElement | null>(null);
+	/** The section's own box, for finding a row again by the record it stands for.
+	    The record now stands WHERE the list stood, so the button that was clicked is
+	    gone by the time there is anything to go back to, and focusing a detached
+	    element drops focus to the document instead. */
+	let section = $state<HTMLElement | null>(null);
 
-	function openDetail(record: FieldRecord, trigger: HTMLElement) {
-		openedFrom = trigger;
+	function openDetail(record: FieldRecord) {
 		opened = record;
 	}
-	function closeDetail() {
+	async function closeDetail() {
+		const was = opened?.id;
 		opened = null;
-		openedFrom?.focus({ preventScroll: true });
-		openedFrom = null;
+		await tick();
+		if (!was || !section) return;
+		/* Matched by reading the attribute rather than by building a selector out of it:
+		   these ids come from the survey files, and a selector is not the place to find
+		   out one of them carries a quote. */
+		for (const el of section.querySelectorAll<HTMLElement>('[data-record]')) {
+			if (el.dataset.record === was) {
+				el.focus({ preventScroll: true });
+				return;
+			}
+		}
 	}
 
 	$effect(() => {
@@ -112,9 +123,6 @@
 		records.filter((r) => r.photo && !broken.includes(r.id)).slice(0, PHOTOS)
 	);
 
-	/** How many readings a share or a median needs before the join writes one. Read from
-	    the grid's own metadata, so raising the rule moves the sentence explaining it. */
-	const minReadings = $derived(app.meta?.mission?.minReadings ?? 0);
 	const mission = $derived(app.meta?.mission ?? null);
 
 	/** Receipts whose payment method was recognised. The share is taken over these, so
@@ -132,7 +140,7 @@
      left as an absent section: "nothing was recorded here" is worth knowing, and a
      section that silently disappears reads as a panel that failed. -->
 {#if cell}
-	<section class="field">
+	<section class="field" bind:this={section}>
 		<SectionHead icon="field">
 			{c.field.title}
 			{#snippet action()}
@@ -150,7 +158,14 @@
 			{/snippet}
 		</SectionHead>
 
-		{#if !stats}
+		{#if opened}
+			<!-- One record, standing where its list stood. Inside the section rather than
+			     over the card, so the heading above it still says which section this is
+			     and the model of the place is still on screen behind the words. -->
+			{#key opened.id}
+				<FieldRecordDetail record={opened} onclose={closeDetail} />
+			{/key}
+		{:else if !stats}
 			<p class="note">{c.field.none}</p>
 		{:else if app.fieldFailed}
 			<!-- The records are gone, the counts are not: every figure the panel leads
@@ -176,7 +191,8 @@
 							<button
 								type="button"
 								class="phototrig"
-								onclick={(e) => openDetail(p, e.currentTarget)}
+								data-record={p.id}
+								onclick={() => openDetail(p)}
 							>
 								<img
 									src={p.photo}
@@ -199,7 +215,7 @@
 						{#if stats.nontunai !== null}
 							{c.field.cashless(Number(pct(stats.nontunai)))}
 						{:else}
-							{c.field.cashlessThin(paid, minReadings)}
+							{c.field.cashlessThin(paid)}
 						{/if}
 					</p>
 					{#if methods.length}
@@ -220,14 +236,14 @@
 						{#if stats.harga !== null}
 							{c.field.menuTypical(stats.harga)}
 						{:else}
-							{c.field.menuTypicalThin(menus.length, minReadings)}
+							{c.field.menuTypicalThin(menus.length)}
 						{/if}
 					</p>
 					{#if menus.length}
 						<ul class="rows">
 							{#each menus.slice(0, SHOWN) as m (m.id)}
 								<li>
-									<button type="button" class="rowtrig" onclick={(e) => openDetail(m, e.currentTarget)}>
+									<button type="button" class="rowtrig" data-record={m.id} onclick={() => openDetail(m)}>
 										<p class="top">
 											<span class="name">{m.place ?? c.field.kinds.menu}</span>
 											<span class="dist">{c.field.walk(m.distance)}</span>
@@ -262,7 +278,7 @@
 					<ul class="rows">
 						{#each premises.slice(0, SHOWN) as p (p.id)}
 							<li>
-								<button type="button" class="rowtrig" onclick={(e) => openDetail(p, e.currentTarget)}>
+								<button type="button" class="rowtrig" data-record={p.id} onclick={() => openDetail(p)}>
 									<p class="top">
 										{#if p.offer}
 											<span class="tag" class:rent={p.offer === 'sewa'}>{c.field.offer[p.offer]}</span>
@@ -291,7 +307,7 @@
 					<ul class="rows">
 						{#each notes.slice(0, 2) as n (n.id)}
 							<li>
-								<button type="button" class="rowtrig" onclick={(e) => openDetail(n, e.currentTarget)}>
+								<button type="button" class="rowtrig" data-record={n.id} onclick={() => openDetail(n)}>
 									<p class="top">
 										<span class="name">{n.title ?? c.field.kinds.catatan}</span>
 										<span class="dist">{c.field.walk(n.distance)}</span>
@@ -318,12 +334,6 @@
 			</Fineprint>
 		{/if}
 	</section>
-
-	{#if opened}
-		{#key opened.id}
-			<FieldRecordDetail record={opened} onclose={closeDetail} />
-		{/key}
-	{/if}
 {/if}
 
 <style>

@@ -1,13 +1,18 @@
 <script lang="ts">
 	/**
-	 * Where the selected area's competitors actually stand, and the switch for them.
+	 * Who is already here, where they stand, and the switch that puts them on the map.
 	 *
-	 * The sentence above this one already says how many there are. What it cannot say
-	 * is that eight of the nine sit on one street and the far side of the cell is
-	 * empty, which is a different business decision entirely. So this is deliberately
-	 * not another figure: it is a switch, and the answer is on the map.
+	 * The card's summary already says how many there are. What a count cannot say is
+	 * that eight of the nine sit on one street and the far side of the cell is empty,
+	 * which is a different business decision entirely, so the switch and the map answer
+	 * that half. The names answer the other half: "Kopi Kenangan at 140 m" is something
+	 * a reader can picture, walk to, and disagree with, and an index cannot.
 	 *
-	 * It is also the one place that can explain an empty map. The positions come from
+	 * The list is deliberately the NEAREST few and says so. It is not a second count:
+	 * the figure above is over every competitor captured, named or not, and outlets the
+	 * catalogue surveyed without a name cannot appear in a list of names.
+	 *
+	 * This is also the one place that can explain an empty map. The positions come from
 	 * MAPID and only from MAPID, so on the OSM source there is nothing to draw at all,
 	 * and a reader left staring at a cell with no dots would reasonably conclude there
 	 * were no competitors in it. That is the opposite of what the count beside it says.
@@ -20,7 +25,10 @@
 	const app = getAppState();
 	const c = $derived(copy());
 
+	/* Both forms, because one competitor is not "1 coffee shops". The count decides
+	   which one the sentence gets. */
 	const catMany = $derived(categoryNames(app.categories, c, 'many'));
+	const catOne = $derived(categoryNames(app.categories, c));
 	/* The dots actually drawn, not the scored row's figure. This panel is a caption
 	   for the map, so it counts what the map is showing. */
 	const drawn = $derived(app.selectedPois.length);
@@ -29,6 +37,21 @@
 	   labelled, so competitors drawn bare need a reason given rather than left to
 	   look like a label layer that failed. */
 	const named = $derived(app.selectedPois.filter((p) => p.name).length);
+
+	/** How many named outlets get a line before the rest become a count. Five, as the
+	    transit section shows five stations: enough to recognise the street, short
+	    enough that the section stays a section. */
+	const SHOWN = 5;
+	/**
+	 * The nearest competitors that carry a name.
+	 *
+	 * Already sorted nearest first by `capturedCompetitors`, and filtered rather than
+	 * padded: an outlet the catalogue surveyed without a name is a mark on the map and
+	 * nothing this list can call anything. The count above stays over ALL of them, named
+	 * or not, which is why the heading here says these are the nearest rather than the
+	 * whole set.
+	 */
+	const nearest = $derived(app.selectedPois.filter((p) => p.name));
 </script>
 
 <section class="rivals">
@@ -60,13 +83,33 @@
 		     the map stops showing it. The count is the same either way. -->
 		<p class="read">
 			<span class="dot" aria-hidden="true"></span>{app.layers.poi
-				? c.mood.rivalsCount(drawn, catMany)
-				: c.mood.rivalsHidden(drawn, catMany)}
+				? c.mood.rivalsCount(drawn, drawn === 1 ? catOne : catMany)
+				: c.mood.rivalsHidden(drawn, drawn === 1 ? catOne : catMany)}
 		</p>
 		{#if app.layers.poi && named === 0}
 			<!-- Every station on the map is named and not one competitor is, which
 			     reads as a broken label layer unless it is accounted for. -->
 			<p class="note">{c.mood.rivalsNoNames}</p>
+		{:else if nearest.length}
+			<!-- Who is already here, by name, the way the transit section names the
+			     stations rather than leaving the reader an index. These are the same
+			     marks the map is drawing, in the order they were drawn in, so pointing
+			     at one on the map and finding it in this list is the same walk. -->
+			<div class="nearest">
+				<h4 class="eyebrow sub">{c.mood.rivalsNearest}</h4>
+				<ul>
+					{#each nearest.slice(0, SHOWN) as p (`${p.lat},${p.lon},${p.name}`)}
+						<li>
+							<span class="dot" aria-hidden="true"></span>
+							<span class="nm">{p.name}</span>
+							<span class="dist">{c.mood.transitWalk(Math.round(p.distance))}</span>
+						</li>
+					{/each}
+				</ul>
+				{#if nearest.length > SHOWN}
+					<p class="note plain">{c.mood.rivalsMore(nearest.length - SHOWN)}</p>
+				{/if}
+			</div>
 		{/if}
 	{:else}
 		<!-- Zero really is zero here: the source covers this city, it was checked, and
@@ -129,5 +172,49 @@
 		color: var(--label-3);
 		border-left: 2px dashed var(--separator-strong);
 		padding-left: 0.5rem;
+	}
+	/* The tail of a list, not a caveat about the data. The dashed rule above marks a
+	   silence being explained, and a count of what did not fit is neither. */
+	.note.plain {
+		border-left: 0;
+		padding-left: 0;
+	}
+
+	/* ── who is already here ─────────────────────────────────────────────── */
+	.sub {
+		color: var(--label-3);
+	}
+	.nearest ul {
+		list-style: none;
+		margin: 0.25rem 0 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.1875rem;
+	}
+	.nearest li {
+		display: flex;
+		align-items: baseline;
+		gap: 0.4375rem;
+		font-size: 0.75rem;
+	}
+	.nearest .dot {
+		align-self: center;
+	}
+	.nearest .nm {
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-weight: 600;
+		letter-spacing: -0.005em;
+		color: var(--label-1);
+	}
+	.nearest .dist {
+		flex: none;
+		font-size: 0.6875rem;
+		color: var(--label-2);
+		font-variant-numeric: tabular-nums;
 	}
 </style>

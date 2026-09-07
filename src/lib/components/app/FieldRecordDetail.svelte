@@ -1,18 +1,22 @@
 <script lang="ts">
 	/**
-	 * One field record, filling the panel it was opened from.
+	 * One field record, in the place its list was.
 	 *
-	 * The list below shows a record the way a list has to: a name, a distance, one
-	 * line of traits. The photograph strip is worse off still, a row of thumbnails
-	 * with nothing beside them but alt text nobody can read without hovering. This
-	 * is the same record with room to breathe.
+	 * The list shows a record the way a list has to: a name, a distance, one line of
+	 * traits. The photograph strip is worse off still, a row of thumbnails with nothing
+	 * beside them but alt text nobody can read without hovering. This is the same record
+	 * with room to breathe.
 	 *
-	 * It covers the panel and nothing else. Not the whole screen, because the map
-	 * is the reason the panel is open and blacking it out to read one receipt loses
-	 * the place the receipt is evidence about. Not a section pushed in above the
-	 * list either: that moves everything the reader was looking at down the page,
-	 * which is the same as losing their place. `utils/portal` carries it up to the
-	 * panel box so it can sit over the scroller without joining it.
+	 * It REPLACES the list rather than covering the panel. It used to be lifted out to
+	 * the panel box and laid over the whole of it, which hid the model of the place and,
+	 * on a phone, the grip the sheet is dragged by, so reading one receipt cost the
+	 * reader the map that receipt is evidence about. Standing where the list stood keeps
+	 * the head, the model and the section's own heading on screen, and keeps this a step
+	 * further in rather than somewhere else entirely.
+	 *
+	 * It is not pushed in ABOVE the list either, which was the other thing it must not
+	 * do: that leaves the list underneath and moves everything the reader was looking at
+	 * down the page, which is the same as losing their place.
 	 *
 	 * It adds no field the record does not already carry. A detail view that asked
 	 * the data a new question would belong in `domain/field`, not here.
@@ -20,7 +24,6 @@
 	import Glyph from '$lib/components/ui/Glyph.svelte';
 	import type { FieldRecord } from '$lib/domain/field';
 	import { copy } from '$lib/state/lang.svelte';
-	import { portal } from '$lib/utils/portal';
 
 	let { record, onclose }: { record: FieldRecord; onclose: () => void } = $props();
 
@@ -35,26 +38,32 @@
 	const showSort = $derived(record.sort && record.sort !== headline);
 
 	let photoBroken = $state(false);
+	let box = $state<HTMLElement | null>(null);
 	let closeButton = $state<HTMLButtonElement | null>(null);
 
 	$effect(() => {
 		closeButton?.focus({ preventScroll: true });
 	});
 
+	/**
+	 * Escape puts THIS record down, and leaves the section it came out of open.
+	 *
+	 * The section around it is listening for the same key, and it is written outside
+	 * this, so the innermost view is the last one in the document. The same test lives
+	 * in `PanelDetail`, and it is the reason one press goes back one step rather than
+	 * two.
+	 */
 	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') onclose();
+		if (e.key !== 'Escape' || !box) return;
+		const open = document.querySelectorAll('[data-detail-view]');
+		if (open.length > 0 && open[open.length - 1] !== box) return;
+		onclose();
 	}
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
-<div
-	class="detail"
-	role="dialog"
-	aria-modal="true"
-	aria-labelledby="field-detail-title"
-	use:portal
->
+<div class="detail" bind:this={box} data-detail-view aria-labelledby="field-detail-title">
 	<button
 		bind:this={closeButton}
 		type="button"
@@ -65,78 +74,64 @@
 		<Glyph icon="close" size={13} />
 	</button>
 
-	<div class="scroll">
-		{#if record.photo && !photoBroken}
-			<img
-				class="photo"
-				src={record.photo}
-				alt={c.field.mapAria(c.field.kinds[record.kind], headline, record.distance)}
-				loading="lazy"
-				decoding="async"
-				onerror={() => (photoBroken = true)}
-			/>
-		{/if}
+	{#if record.photo && !photoBroken}
+		<img
+			class="photo"
+			src={record.photo}
+			alt={c.field.mapAria(c.field.kinds[record.kind], headline, record.distance)}
+			loading="lazy"
+			decoding="async"
+			onerror={() => (photoBroken = true)}
+		/>
+	{/if}
 
-		<div class="body">
-			<p class="kindtag">
-				{c.field.kinds[record.kind]}
-				{#if record.kind === 'properti' && record.offer}
-					<span class="tag" class:rent={record.offer === 'sewa'}>{c.field.offer[record.offer]}</span
-					>
-				{/if}
-			</p>
-			<h2 id="field-detail-title">{headline}</h2>
-			{#if showSort}<p class="sort">{record.sort}</p>{/if}
-			<p class="meta">
-				{c.field.walk(record.distance)}{#if record.date}
-					<span> · {c.field.day(record.date)}</span>
-				{/if}
-			</p>
-
-			{#if record.kind === 'struk'}
-				{#if record.pay}<p class="line">{c.field.detail.paid(record.pay)}</p>{/if}
-				{#if record.cashless !== null}
-					<p class="line">
-						{record.cashless ? c.field.detail.cashlessYes : c.field.detail.cashlessNo}
-					</p>
-				{/if}
-			{:else if record.kind === 'menu'}
-				{#if record.dish}<p class="line">{record.dish}</p>{/if}
-				{#if record.price !== null}<p class="line">{c.field.menuPrice(record.price)}</p>{/if}
-				{#if record.crowd}<p class="line">{c.field.crowdSeen(c.field.crowd[record.crowd])}</p>{/if}
-			{:else if record.kind === 'properti'}
-				{#if record.address}<p class="line">{record.address}</p>{/if}
-			{:else if record.kind === 'catatan'}
-				{#if record.body}<p class="line body">{record.body}</p>{/if}
-				{#if record.by}<p class="line">{c.field.noteBy(record.by)}</p>{/if}
-				{#if record.community}<p class="line">{c.field.detail.team(record.community)}</p>{/if}
+	<div class="body">
+		<p class="kindtag">
+			{c.field.kinds[record.kind]}
+			{#if record.kind === 'properti' && record.offer}
+				<span class="tag" class:rent={record.offer === 'sewa'}>{c.field.offer[record.offer]}</span
+				>
 			{/if}
-		</div>
+		</p>
+		<h2 id="field-detail-title">{headline}</h2>
+		{#if showSort}<p class="sort">{record.sort}</p>{/if}
+		<p class="meta">
+			{c.field.walk(record.distance)}{#if record.date}
+				<span> · {c.field.day(record.date)}</span>
+			{/if}
+		</p>
+
+		{#if record.kind === 'struk'}
+			{#if record.pay}<p class="line">{c.field.detail.paid(record.pay)}</p>{/if}
+			{#if record.cashless !== null}
+				<p class="line">
+					{record.cashless ? c.field.detail.cashlessYes : c.field.detail.cashlessNo}
+				</p>
+			{/if}
+		{:else if record.kind === 'menu'}
+			{#if record.dish}<p class="line">{record.dish}</p>{/if}
+			{#if record.price !== null}<p class="line">{c.field.menuPrice(record.price)}</p>{/if}
+			{#if record.crowd}<p class="line">{c.field.crowdSeen(c.field.crowd[record.crowd])}</p>{/if}
+		{:else if record.kind === 'properti'}
+			{#if record.address}<p class="line">{record.address}</p>{/if}
+		{:else if record.kind === 'catatan'}
+			{#if record.body}<p class="line body">{record.body}</p>{/if}
+			{#if record.by}<p class="line">{c.field.noteBy(record.by)}</p>{/if}
+			{#if record.community}<p class="line">{c.field.detail.team(record.community)}</p>{/if}
+		{/if}
 	</div>
 </div>
 
 <style>
-	/* Against the panel box, not the viewport and not the scrolled content. The
-	   background is opaque rather than a blur of what is behind: what is behind is
-	   the list this record came out of, and reading a note through its own list is
-	   not depth, it is noise. */
+	/* A card standing where the list stood, not a cover over the panel. It scrolls with
+	   the section around it, because it IS part of that section now rather than a sheet
+	   laid over the whole card. */
 	.detail {
-		position: absolute;
-		inset: 0;
-		z-index: 2;
-		display: flex;
-		flex-direction: column;
-		border-radius: inherit;
+		position: relative;
+		border-radius: var(--r-md);
 		overflow: hidden;
-		background: var(--bg-elevated);
-	}
-
-	.scroll {
-		flex: 1;
-		min-height: 0;
-		overflow-y: auto;
-		overscroll-behavior: contain;
-		-webkit-overflow-scrolling: touch;
+		background: var(--fill-1);
+		border: 1px solid var(--separator);
 	}
 
 	.close {
@@ -170,7 +165,7 @@
 	}
 
 	.body {
-		padding: 0.875rem 0.875rem 1.5rem;
+		padding: 0.875rem;
 	}
 
 	.kindtag {
