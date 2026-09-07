@@ -740,7 +740,7 @@ export const en: Copy = {
 		peakHour: 'This is the hour with the most doors open here.',
 		share: (persen: number) => `About ${persen}% of its busiest hour for open doors.`,
 		basis: () =>
-			'The crowd rises and falls with the doors open at that hour. The people are drawn, the doors are counted.',
+			"The lit marks are the doors counted open at this hour, each where it stands. The buildings and streets are the basemap's own.",
 		/* Four kinds of silence, kept apart. Not one of them is settled by moving the
 		   figures around so the screen looks alive. */
 		still: (readable: number) =>
@@ -756,7 +756,7 @@ export const en: Copy = {
 		stillFailed:
 			'Only the light moves. The opening hours could not be loaded.',
 		stillNodata:
-			'Only the light moves. This area has not been surveyed yet, so there is nothing here to draw.',
+			"Only the light moves. This area's city has not been surveyed, so no competitor or unit is marked on it.",
 		sceneLabel: (name: string, h: number, body: string) =>
 			`A model of ${name} at ${clockHour(h)}. ${body}`
 	},
@@ -888,8 +888,9 @@ export const en: Copy = {
 			'OSM gives competitor counts but not their positions, so there is nothing to draw. Switch the source to MAPID in the legend to see where they are.',
 		rivalsFailed: 'Could not load the competitor positions. The counts beside them are unaffected.',
 		prov: 'Business points & property: MAPID catalogue. Competitors & transit nodes: OSM.',
-		sceneLabel: (nama: string, isi: string) => `Schematic of ${nama}. ${isi}`,
-		sceneNodata: "This area's city has not been surveyed, so the street is shown empty.",
+		sceneLabel: (nama: string, isi: string) =>
+			`A model of ${nama}, built from the basemap. ${isi}`,
+		sceneNodata: "This area's city has not been surveyed, so no competitor or unit is marked.",
 		sceneBody: (n: number, osm: number, cat: string, unit: number) =>
 			`${n} businesses within walking range, ${osm} of them competing ${cat}, and ${unit} units on the market.`,
 		/* No business type has been named. The counts are still given because they were
@@ -1079,7 +1080,14 @@ export const en: Copy = {
 		home: 'Back to the SpotOn home page',
 		emptyMood: 'No area selected yet. Tap a cell on the map to see what it feels like.',
 		pickBest: (cat: string) => `Pick the best one for a ${cat}`,
-		schema: 'schematic, not an actual site plan',
+		/* The mark on the model: what it is built from, or why it is not here yet. Four
+		   states, one mark, so none of them has to be guessed from an empty disc. */
+		model: {
+			ready: 'buildings and streets from the basemap',
+			reading: 'reading the basemap…',
+			failed: 'the basemap could not be read',
+			none: 'this basemap has no geometry to model'
+		},
 		fullNumbers: 'See the full figures',
 		/* The map's own badge, pinned to the selected cell. Deliberately the count and
 		   nothing else: the breakdown is in the panel, what the map has to carry is
