@@ -1142,9 +1142,14 @@ export const id = {
 		restart: 'Mau lihat usaha apa sekarang?',
 		tryOther: 'Coba usaha lain',
 		avoid: 'Mana yang sebaiknya dihindari?',
-		avoidQ: (cat: string) => `Kawasan mana yang sudah jenuh untuk ${cat}?`,
+		/* Kalimat yang sebenarnya dikirim tombolnya, dengan jenis usahanya ditulis supaya
+		   punya subjek sendiri. Jangan dibuka "kawasan mana": bagi lapisan pemahaman, frasa
+		   itu menyebut MODE, jadi menekan tombolnya memindahkan peta ke per petak dan Tapak
+		   mengumumkan perubahan yang tidak diminta siapa pun. Labelnya tidak menyebut mode,
+		   dan kalimat yang dikirim atas namanya juga tidak boleh. */
+		avoidQ: (cat: string) => `Mana yang sudah jenuh untuk ${cat}?`,
 		coverage: 'Mana yang belum ada datanya?',
-		coverageQ: 'Kawasan mana yang belum terdata?',
+		coverageQ: 'Mana yang belum terdata?',
 		/* Pertanyaan lanjutan yang paling sering diketik orang, ditawarkan supaya
 		   kelihatan bahwa kolom di bawahnya memang bisa diajak bicara. Satu saja:
 		   sisanya diketik sendiri, dan yang membaca kalimatnya lapisan pemahaman,

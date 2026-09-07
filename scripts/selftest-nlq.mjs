@@ -43,11 +43,12 @@ async function load() {
 	const chat = await server.ssrLoadModule('/src/lib/domain/chat.ts');
 	const scoring = await server.ssrLoadModule('/src/lib/domain/scoring.ts');
 	const source = await server.ssrLoadModule('/src/lib/server/source.ts');
+	const i18n = await server.ssrLoadModule('/src/lib/i18n/index.ts');
 	await server.close();
-	return { nlq, metrics, chat, scoring, cells: source.loadHexes() };
+	return { nlq, metrics, chat, scoring, i18n, cells: source.loadHexes() };
 }
 
-const { nlq, metrics, chat, scoring, cells } = await load();
+const { nlq, metrics, chat, scoring, i18n, cells } = await load();
 const W = { wd: 0.5, ws: 0.5, gate: true, radius: 800, source: 'mapid' };
 
 let failures = 0;
@@ -287,6 +288,40 @@ for (const [q, intent] of [
 		avoid.query.intent === 'FLAG_SATURATED' && avoid.items.length > 0 && !same,
 		`intent=${avoid.query.intent} items=${avoid.items.map((i) => i.name).join(', ')}`
 	);
+}
+
+/* ── every question Tapak offers is one this parser keeps the promise of ── */
+
+/* The two chips under an answer each promise an intent: "which ones should I avoid" is
+   the saturated catchments and "which ones have no data" the unsurveyed ones. Each
+   sends a fuller sentence than its label, and that sentence is Tapak's own, so it has
+   to be one this parser reads right with no model key at all. Both English sentences
+   were not, which is the block above. And both, in both languages, opened "kawasan
+   mana" / "which areas", which names a MODE to this parser, so tapping either switched
+   the map to reading by area and Tapak announced a change the reader never asked for.
+   The label says nothing about the mode, and the sentence sent in its place may not
+   either.
+
+   Read off the dictionaries themselves, so a rewording that breaks the promise fails
+   here rather than in front of a reader, and through `answer` with the whole grid as
+   candidate names, which is the path a tapped chip actually takes. The labels are
+   checked too, because they are the words a reader who types instead of tapping will
+   use. */
+for (const lang of Object.keys(i18n.DICT)) {
+	const d = i18n.DICT[lang];
+	for (const [sentence, intent] of [
+		[d.tapak.avoidQ(d.category.kopi.many), 'FLAG_SATURATED'],
+		[d.tapak.avoid, 'FLAG_SATURATED'],
+		[d.tapak.coverageQ, 'COVERAGE'],
+		[d.tapak.coverage, 'COVERAGE']
+	]) {
+		const got = nlq.answer(sentence, cells, W, ['kopi']).query;
+		check(
+			`${lang}: "${sentence}" → ${intent}, mode left alone`,
+			got.intent === intent && got.pivot === undefined && got.kategori.join(',') === 'kopi',
+			`got ${got.intent} pivot=${got.pivot ?? '(left alone)'} kategori=${got.kategori.join(',')}`
+		);
+	}
 }
 
 /* ── a follow-up is read against what was just said ──────────────────────── */

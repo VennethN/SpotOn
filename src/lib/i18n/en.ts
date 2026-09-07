@@ -1139,9 +1139,14 @@ export const en: Copy = {
 		restart: 'What would you like to look at now?',
 		tryOther: 'Try another business',
 		avoid: 'Which ones should I avoid?',
-		avoidQ: (cat: string) => `Which areas are saturated for a ${cat}?`,
+		/* The sentence the chip actually sends, with the business type written in so it
+		   carries its own subject. It must not open "which areas": to the understanding
+		   layer that phrase names a MODE, so tapping the chip switched the map to reading
+		   by area and Tapak announced a change nobody had asked for. The label says
+		   nothing about the mode, and neither may the sentence sent in its place. */
+		avoidQ: (cat: string) => `Which ones are already saturated for ${cat}?`,
 		coverage: 'Which ones have no data?',
-		coverageQ: 'Which areas have no data yet?',
+		coverageQ: 'Which ones have no data yet?',
 		/* The follow-up people actually type, offered once so it is visible that the
 		   box below can be talked to. Only one: everything else is typed, and what
 		   reads it is the understanding layer rather than a list of phrasings here. */
