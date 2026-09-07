@@ -72,7 +72,7 @@ src/lib/
     lang.svelte.ts    Bahasa Indonesia / English
   i18n/          the bilingual script: id.ts defines the shape, en.ts fills it
   utils/         pure helpers: format.ts (numbers, hours, scale colours), geo.ts, motion.svelte.ts
-  scene/         the isometric maquette: street.ts (street block) + grid.ts (hexagon grid)
+  scene/         the isometric models: area.ts (a selected area, read off the basemap), street.ts (landing block), grid.ts (hexagon grid)
                  + daylight.ts (a 24-hour light model) + world.ts (the scene contract)
   components/
     app/           the WebGIS surface — components that read AppState
