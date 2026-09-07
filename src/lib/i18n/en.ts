@@ -213,6 +213,10 @@ export const en: Copy = {
 		p1: 'Say what you want to open and the whole city recolours for that business. No formula to fill in and no jargon to memorise.',
 		p2: 'Before answering, the map shows what it understood. If it picked something up wrong, you see it immediately.',
 		p3: 'The questions are samples. The numbers are not: every colour and value here comes from the same engine the app runs.',
+		meet: {
+			title: 'Meet Tapak, your guide.',
+			body: 'Tapak reads the question, works out what to look up, then answers with the reasons attached. Not one figure in that answer is written by the model. Every one is computed by the scoring engine on the data, and where a catchment has never been surveyed, Tapak says so rather than filling the gap.'
+		},
 		mapEmpty: 'Map of 562 catchments around Jakarta transit, waiting for the first question.',
 		mapLabel: (kind: string) =>
 			`Map of 562 catchments around Jakarta transit, coloured by opportunity score for ${kind}.`,
