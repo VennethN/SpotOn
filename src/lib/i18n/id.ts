@@ -379,7 +379,7 @@ export const id = {
 			cost: (pengali: number, peringkat: number) =>
 				`×${dec(pengali)} · lebih mahal dari ${peringkat}% petak lain`,
 			costCheapest: (pengali: number) => `×${dec(pengali)} · termurah sekisi, tidak dipotong`,
-			costUncovered: 'katalog properti kota ini belum dibaca, jadi tidak dipotong',
+			costUncovered: 'harga tempat di kota ini belum didata, jadi tidak dipotong',
 			costEmpty: 'tidak ada unit komersial dijual dalam radius ini, jadi tidak dipotong',
 			costUnpriced: (n: number) =>
 				`${n} unit dijual di sekitarnya tapi harganya tidak dipasang, jadi tidak dipotong`,
@@ -391,17 +391,17 @@ export const id = {
 		deltaAria: (poin: number) => (poin >= 0 ? `naik ${poin} poin` : `turun ${Math.abs(poin)} poin`),
 
 		accessTitle: 'Isi indeks aksesnya',
-		accessRow: (n: number, bobot: number) => `${n} simpul × bobot ${dec(bobot)}`,
+		accessRow: (n: number) => `${n} simpul`,
 		accessShare: (persen: number) => `${persen}% dari indeks`,
 		accessIndex: (akses: number, pengali: number) =>
 			`Indeks akses ${dec(akses)} → pengali skor ${dec(pengali)}`,
-		accessFormula: (pembagi: number) =>
-			`Indeks akses = √(jumlah simpul × bobot modanya) ÷ ${dec(pembagi, 1)}, dibatasi 1. Dihitung sekali waktu kisinya dibangun, dari OSM. Bobotnya beda karena daya angkutnya beda.`,
+		accessFormula:
+			'Makin banyak simpul yang terjangkau, makin tinggi angkanya. Rel dihitung lebih berat daripada bus karena daya angkutnya lebih besar. Dibaca dari OSM.',
 
 		stationsTitle: 'Simpul yang terjangkau, satu per satu',
 		stationsLoading: 'Memuat daftar simpulnya…',
 		stationsFailed:
-			'Daftar nama simpulnya tidak bisa dimuat. Cacah dan indeks aksesnya di atas tetap berlaku, keduanya dibaca dari kisi, bukan dari berkas itu.',
+			'Daftar nama simpulnya tidak bisa dimuat. Cacah dan indeks aksesnya di atas tidak terpengaruh.',
 		modeGroup: (moda: string, n: number) => `${moda} · ${n} simpul`,
 		unnamed: (n: number) =>
 			`+${n} simpul lagi tanpa nama sendiri: peron stasiun yang sama, atau halte yang belum dinamai di OSM`
@@ -436,22 +436,21 @@ export const id = {
 			`Median sekisi ${rp(v)} per m², jadi di sini ${dec(kali, 1)}×.`,
 		/* Apa yang dilakukan angka itu ke skor. Dibaca dari mesin skornya, bukan
 		   dihitung ulang di sini. */
-		effect: (poin: number, pengali: number) =>
-			`Harga segini memotong ${poin} poin dari skor petak ini, pengalinya ×${dec(pengali)}.`,
+		effect: (poin: number) => `Harga segini memotong ${poin} poin dari skor petak ini.`,
 		effectNone: 'Harga tempat tidak memotong skor petak ini.',
-		floor: (pengali: number) =>
-			`Paling banyak harga tempat bisa memotong sampai ×${dec(pengali)}, jadi ia menggeser urutan tanpa menentukannya. Harga yang diminta penjual masih bisa ditawar, dan itu harga untuk membeli tempatnya.`,
+		floor:
+			'Harga tempat menggeser urutan, tapi tidak menentukannya. Harga yang diminta penjual masih bisa ditawar, dan itu harga untuk membeli tempatnya.',
 
 		/* ── Empat macam diam, dibedakan ────────────────────────────────────
 		   Cuma yang pertama berarti belum ada yang melihat. */
 		noneUncovered:
-			'Katalog properti untuk kota ini belum dibaca, jadi belum ada harga yang bisa diberikan di sini.',
+			'Harga tempat di kota ini belum didata, jadi belum ada yang bisa ditampilkan.',
 		noneEmpty: (r: number) =>
-			`Tidak ada unit komersial yang dipasarkan dalam radius ${r} m. Katalognya mencakup kota ini dan tidak mencatat satu pun di sini.`,
+			`Tidak ada unit komersial yang dipasarkan dalam radius ${r} m. Kota ini sudah didata, dan memang tidak ada.`,
 		noneUnpriced: (n: number) =>
 			`Ada ${n} unit yang dipasarkan di sekitarnya, tapi tidak satu pun memasang harga.`,
-		noneThin: (n: number, min: number) =>
-			`Baru ${n} unit di sekitarnya yang memasang harga. Median butuh sedikitnya ${min}, karena satu salah ketik koma saja sudah cukup untuk memindahkan seluruh petak ini ke ujung mahal.`,
+		noneThin: (n: number) =>
+			`Baru ${n} unit di sekitarnya yang memasang harga. Terlalu sedikit untuk jadi harga kawasan.`,
 		noneUngraded:
 			'Harga di petak ini terbaca, tapi belum cukup banyak petak lain yang harganya terbaca untuk dibandingkan. Jadi belum bisa dibilang mahal atau murah, dan skornya tidak dipotong.',
 
@@ -526,15 +525,15 @@ export const id = {
 		strukTitle: 'Struk belanja',
 		strukCount: (n: number) => `${num(n)} struk difoto di sini`,
 		cashless: (persen: number) => `${persen}% di antaranya dibayar nontunai.`,
-		cashlessThin: (n: number, min: number) =>
-			`Baru ${n} struk yang metode bayarnya terbaca. Di bawah ${min}, pangsanya belum bisa dibilang apa-apa.`,
+		cashlessThin: (n: number) =>
+			`Baru ${n} struk yang metode bayarnya tercatat. Terlalu sedikit untuk jadi gambaran.`,
 
 		/* Menu Go */
 		menuTitle: 'Tempat makan',
 		menuCount: (n: number) => `${num(n)} tempat makan didatangi surveyor`,
 		menuTypical: (v: number) => `Sekali makan di sini rata-rata ${rp(v)}.`,
-		menuTypicalThin: (n: number, min: number) =>
-			`Baru ${n} tempat yang harganya tercatat. Di bawah ${min}, itu harga satu warung, bukan harga kawasan.`,
+		menuTypicalThin: (n: number) =>
+			`Baru ${n} tempat yang harganya tercatat. Itu harga satu warung, bukan harga kawasan.`,
 		menuPrice: (v: number) => `${rp(v)} rata-rata`,
 		menuNoPrice: (n: number) => `+${n} tempat lagi tanpa harga yang tertulis`,
 		crowd: { sepi: 'sepi', sedang: 'sedang', ramai: 'ramai' },
@@ -610,8 +609,8 @@ export const id = {
 			`Paling banyak buka mulai jam ${jam(h)}, ${n} dari ${dari}.`,
 
 		/* ── Dua macam diam, dibedakan ────────────────────────────────────── */
-		thin: (terbaca: number, min: number, usaha: number, r: number) =>
-			`Baru ${terbaca} tempat usaha di radius ${r} m yang jam bukanya terbaca, dari ${usaha} yang tercatat. Kurva butuh sedikitnya ${min}, karena satu minimarket 24 jam saja sudah cukup untuk membuat jalan ini terlihat tidak pernah tidur.`,
+		thin: (terbaca: number, usaha: number, r: number) =>
+			`Baru ${terbaca} dari ${usaha} tempat usaha di radius ${r} m yang mencantumkan jam buka. Terlalu sedikit untuk menggambarkan harinya.`,
 		none: (usaha: number, r: number) =>
 			`Dari ${usaha} tempat usaha di radius ${r} m, tidak ada satu pun yang memasang jam buka.`,
 
@@ -622,12 +621,12 @@ export const id = {
 		basis: (terbaca: number, usaha: number, r: number) =>
 			`${terbaca} dari ${usaha} tempat usaha yang tercatat OpenStreetMap di radius ${r} m memasang jam buka yang bisa dibaca.`,
 		refused: (n: number) =>
-			`${n} lagi memasangnya dalam bentuk yang tidak terbaca di sini, misalnya aturan hari libur atau "sunset".`,
+			`${n} lagi mencantumkannya dalam bentuk yang tidak bisa dibaca otomatis, misalnya aturan hari libur.`,
 		notFootfall:
 			'Yang dihitung pintu yang buka, bukan orang yang lewat. Struk yang dicatat surveyor ada di bawah, terpisah, karena catatannya cuma bertanggal dan tidak berjam.',
 		loading: 'Memuat jam bukanya…',
 		failed: (n: number) =>
-			`Jam bukanya tidak bisa dimuat, jadi kurvanya tidak digambar. Cacah ${n} usaha di bawah dibaca dari kisi, jadi tetap berlaku.`
+			`Jam bukanya tidak bisa dimuat, jadi grafiknya tidak digambar. Cacah ${n} usaha di bawah tidak terpengaruh.`
 	},
 
 	/* ── Masuk ke dalam modelnya ──────────────────────────────────────────────
@@ -659,19 +658,19 @@ export const id = {
 		   tidak segini", dan cacah tanpa pembanding tidak menjawab itu. */
 		peakHour: 'Ini jam paling banyak pintu buka di sini.',
 		share: (persen: number) => `Sekitar ${persen}% dari jam paling banyak bukanya.`,
-		basis: (r: number) =>
-			`Ramainya naik turun mengikuti pintu itu, dan tidak pernah melewati banyaknya usaha yang berdiri di radius ${r} m sini. Orangnya gambaran, pintunya hitungan.`,
+		basis: () =>
+			'Ramainya naik turun mengikuti pintu yang buka di jam itu. Orangnya gambaran, pintunya hitungan.',
 		/* Empat macam diam, dan bedanya disebut. Tidak satu pun diselesaikan dengan
 		   menggerakkan orang-orangnya supaya layarnya kelihatan hidup. */
-		still: (terbaca: number, min: number) =>
-			`Cuma cahayanya yang berjalan. Baru ${terbaca} usaha di sini yang jam bukanya terbaca, dan butuh ${min} untuk menggambar harinya.`,
+		still: (terbaca: number) =>
+			`Cuma cahayanya yang berjalan. Baru ${terbaca} usaha di sini yang mencantumkan jam buka, terlalu sedikit untuk menggambarkan harinya.`,
 		stillNone:
 			'Cuma cahayanya yang berjalan. Tidak ada usaha di sini yang memasang jam buka.',
 		stillLoading: 'Cuma cahayanya yang berjalan sampai jam bukanya selesai dimuat.',
 		stillFailed:
 			'Cuma cahayanya yang berjalan. Jam bukanya gagal dimuat.',
 		stillNodata:
-			'Cuma cahayanya yang berjalan. Kota petak ini belum ada di katalog, jadi belum ada isinya yang bisa digambar.',
+			'Cuma cahayanya yang berjalan. Kawasan ini belum didata, jadi belum ada isinya yang bisa digambar.',
 		sceneLabel: (nama: string, h: number, isi: string) =>
 			`Model kawasan ${nama} pada jam ${jam(h)}. ${isi}`
 	},
@@ -684,7 +683,7 @@ export const id = {
 		quiet: 'agak sepi',
 		empty: 'sepi',
 		nodata:
-			'Kota petak ini belum ada di katalog. Belum ada yang terhitung di sekitarnya.',
+			'Kawasan ini belum didata. Belum ada yang terhitung di sekitarnya.',
 		reading: (n: number, kata: string) => `Ada ${n} usaha di radius jalan kaki sini, jadi ${kata}.`,
 		/* Label tiga angka di bawah maketnya. Sengaja pendek: ini nama kolom, bukan
 		   kalimat, dan di panel selebar 21 rem tiap kotak cuma dapat sekitar 105 px.
@@ -771,7 +770,7 @@ export const id = {
 		/* Yang terdekat, bukan seluruhnya, dan judulnya menyebut itu. Cacah di atas
 		   dihitung atas semua pesaing yang tertangkap, bernama atau tidak. */
 		rivalsNearest: 'Yang terdekat dari sini',
-		rivalsMore: (n: number) => `+${n} lagi yang ada namanya`,
+		rivalsMore: (n: number) => `+${n} lagi di sekitar sini`,
 		/* Cuma MAPID yang punya koordinat. Menyebut sumber mana yang punya adalah beda
 		   antara jalan buntu dan sesuatu yang bisa dikerjakan pembaca. */
 		rivalsNoPositions:
@@ -818,7 +817,7 @@ export const id = {
 		costCap: (unit: number) => `per m² tanah · ${unit} unit dipasarkan`,
 		costUnits: (unit: number) => `${unit} unit dipasarkan, tanpa harga median`,
 		/* Tiga diam yang berbeda, dan cuma yang ini berarti belum ada yang melihat. */
-		costUnread: 'Katalog harga belum membaca kota petak ini',
+		costUnread: 'Harga di kota petak ini belum didata',
 		costNone: 'Belum ada yang dipasarkan di sini',
 		transitNone: 'Tidak ada dalam jarak jalan kaki',
 		fieldNone: 'Belum ada yang mencatat di sini',
@@ -1053,7 +1052,7 @@ export const id = {
 			'Petanya saya ganti ke per tempat, jadi yang jadi barisnya tempat usahanya sendiri, bukan kawasannya.',
 		nowByCell: 'Petanya saya balikkan ke per petak, jadi barisnya kawasan lagi.',
 		remarkUncovered: (name: string, cat: string) =>
-			`Kota ${name} belum ada di katalog, jadi ${cat} di sekitarnya belum pernah dihitung. Belum ada angka yang bisa saya berikan untuk petak ini.`,
+			`Kawasan ${name} belum didata, jadi ${cat} di sekitarnya belum pernah dihitung. Belum ada angka yang bisa saya berikan.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
 			`${name} ${verdict} untuk ${cat}, nilainya ${nilai}. Ada ${osm} pesaing sejenis, dan ${listing}.`,
 		verdictGood: 'termasuk bagus',

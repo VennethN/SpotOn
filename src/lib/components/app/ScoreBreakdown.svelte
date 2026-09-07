@@ -18,10 +18,8 @@
 	 * turning a share into a percentage.
 	 */
 	import {
-		ACCESS_DIVISOR,
 		ACCESS_FLOOR,
 		ACCESS_SPAN,
-		MODE_WEIGHT,
 		modeShares,
 		railTotal,
 		stopTotal,
@@ -242,7 +240,7 @@
 						<p class="top">
 							<span class="dot" aria-hidden="true"></span>
 							<span class="nm">{c.mood.transitModes[s.mode]}</span>
-							<span class="calc">{c.breakdown.accessRow(s.n, MODE_WEIGHT[s.mode])}</span>
+							<span class="calc">{c.breakdown.accessRow(s.n)}</span>
 							<span class="share">{c.breakdown.accessShare(Math.round(s.share * 100))}</span>
 						</p>
 						<span class="track" aria-hidden="true">
@@ -252,7 +250,7 @@
 				{/each}
 			</ul>
 			<p class="index">{c.breakdown.accessIndex(access, accessFactor)}</p>
-			<p class="formula">{c.breakdown.accessFormula(ACCESS_DIVISOR)}</p>
+			<p class="formula">{c.breakdown.accessFormula}</p>
 
 			<!-- ── Every node, named ────────────────────────────────────────── -->
 			<h4 class="eyebrow sub">{c.breakdown.stationsTitle}</h4>
