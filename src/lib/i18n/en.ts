@@ -949,6 +949,12 @@ export const en: Copy = {
 		tipBusy: (n: number) => `${n} businesses nearby`,
 		tipRivals: (n: number) => `${n} competitors`,
 		tipUnits: (n: number) => `${n} units listed`,
+		/* This line used to read "MAPID + OSM, r=800 m". Both halves were shorthand only
+		   somebody who already knew could read: `r` is the radius, and the source is
+		   already named in the legend open on the same screen. What is left is the one
+		   thing worth being reminded of while pointing at a cell, which is how far out
+		   the counting went. */
+		tipRadius: (m: number) => `within an ${m} m walk`,
 		sheet: 'Information panel',
 		sheetGrip: 'Resize panel'
 	},
