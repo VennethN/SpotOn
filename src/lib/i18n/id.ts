@@ -763,6 +763,10 @@ export const id = {
 		   dan sekali ambil ulang namanya masuk. */
 		rivalsNoNames: 'Belum ada namanya di data, jadi digambar sebagai tanda saja.',
 		rivalsNone: 'Tidak ada pesaing sejenis di dalam radius jalan kaki.',
+		/* Yang terdekat, bukan seluruhnya, dan judulnya menyebut itu. Cacah di atas
+		   dihitung atas semua pesaing yang tertangkap, bernama atau tidak. */
+		rivalsNearest: 'Yang terdekat dari sini',
+		rivalsMore: (n: number) => `+${n} lagi yang ada namanya`,
 		/* Cuma MAPID yang punya koordinat. Menyebut sumber mana yang punya adalah beda
 		   antara jalan buntu dan sesuatu yang bisa dikerjakan pembaca. */
 		rivalsNoPositions:
