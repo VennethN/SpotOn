@@ -159,7 +159,7 @@
 </svelte:head>
 
 <div class="app">
-	<MapView />
+	<MapView mapidKey={data.mapidKey} />
 	<MapChrome />
 	<!-- Both wait for the map to be reachable, and the chips wait for the same reason
 	     the controls do: until something has been asked there is no answer for them to
