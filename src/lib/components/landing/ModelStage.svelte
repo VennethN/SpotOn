@@ -4,10 +4,15 @@
 	 *
 	 * The two stages above it are composed. The street block at the top stands for the
 	 * product and the grid stands for how to read one, and each says so in its mark.
-	 * This one is a place: the busiest catchment on the grid, the very cell the top of
-	 * the page counts, drawn from the basemap's own tiles by the same reader the app
-	 * uses, with the stops it reaches standing on it where they stand. The mark on it
-	 * is the app's own, because the four things it can say are the same four.
+	 * This one is a place: a catchment in the business district, chosen for its towers
+	 * (`+page.server` says why), drawn from the basemap's own tiles by the same reader
+	 * the app uses, with the stops it reaches standing on it where they stand and the
+	 * point the range is measured from marked at its centre, as in the app. The mark on
+	 * it is the app's own, because the four things it can say are the same four.
+	 *
+	 * It is shown WHOLE: the round disc on its base, the page around it, and not a
+	 * window onto a block of it. A block cut square is a picture of a city, and a disc
+	 * with an edge is a thing, which is what this section says a catchment can be.
 	 *
 	 * It turns while it is looked at. The rate eases in when the section comes into view
 	 * and eases out when it leaves, and a hand on it turns it one to one and throws it,
