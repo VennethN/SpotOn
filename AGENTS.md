@@ -21,6 +21,16 @@ CI (`.github/workflows/ci.yml`) runs typecheck and build on every push and pull
 request, then deploys when it lands on `main`. There is no test runner, so those
 two commands are the whole safety net. Run both before you push.
 
+The build minifies the CSS, and the minifier keeps only the LAST of a prefixed and an
+unprefixed declaration of the same property. So a vendor-prefixed declaration goes
+FIRST and the standard one last, everywhere: `-webkit-backdrop-filter` above
+`backdrop-filter`, `-webkit-mask-image` above `mask-image`. Written the other way
+round, the standard one is dropped from the build and only the prefixed one ships,
+which Chrome does not read at all for `backdrop-filter`. That is how the tilt-shift
+blur on the models worked on every dev server and on no deployed page, for as long
+as it had been written that way. Nothing catches it: the dev server does not minify,
+and the check does not look at CSS.
+
 ## Commits and pushes
 
 Use [Conventional Commits](https://www.conventionalcommits.org/). The subject
@@ -107,14 +117,14 @@ src/lib/
   components/account/    surfaces that only exist on the account page
   components/ui/         shared between them
   domain/                scoring, natural-language query, categories, narration, markdown
-  state/                 app, tapak, lang, theme, account, clock
+  state/                 app, tapak, lang, theme, account, clock, and area: the tiles a model is read from
   server/source.ts       the one place the data source is decided
   server/gridmap.ts      where each cell is on the page, for every page that draws one
   server/answer.ts       one question answered, in one place, for both reply shapes
   server/mongo.ts        the one place "is there a database" is answered
   server/accounts.ts     accounts, sessions and the meters, over Mongo or over memory
   i18n/                  id.ts defines the shape, en.ts fills it
-  scene/                 three.js diorama and daylight
+  scene/                 three.js models and daylight: the area, the landing block, the grid
   utils/                 format, geo, motion (springs)
 ```
 
@@ -1089,6 +1099,136 @@ exact position. `openAt` in `domain/activity` eases between the two hours either
 that dragging across a boundary is not forty people appearing between two frames, and
 that eased value reaches the model and nothing else.
 
+
+### The model is the map, cut to the walking range
+
+The area card's model, and the full-screen one `CatchmentZoom` opens, used to be a
+schematic block: one composed street with a cafe, a stop and three lots, standing for
+every cell, with only the counts varying. They are now a recreation of the place.
+`domain/basemap` reads the basemap's own vector tiles, the building footprints, streets,
+water and parks the map draws, and cuts them to a disc of the walking radius around the
+point the range is measured from. `scene/area` stands the result up, and the map's own
+marks stand on it where the map draws them: stops in their mode's colour, competitors as
+the red square, units on the market as the amber diamond, field records as the hollow
+ring, the point itself as a beacon in the accent.
+
+**Whichever basemap the map is on is the one that is read.** `readBasemapTiles` in
+`map/basemap` takes the tile source off the style MapLibre actually loaded, so a MAPID
+key changes the model along with the map and the open basemap models exactly what it
+draws. The tiles are fetched by `AppState.loadArea` the way the stops and the listings
+are fetched, decoded once, and kept per TILE rather than per area, because a tile is a
+little wider than a walking range and neighbouring cells share most of theirs. `area` is
+`$state.raw`, and it has to be: it holds tens of thousands of coordinates the scene walks
+in one pass, and a deep proxy over them made that pass many times slower for a
+reactivity nobody reads.
+
+Four rules hold it up, and they are the product's own rules applied to geometry:
+
+- **Nothing is invented.** A building stands at the height the tile carries, which is
+  OpenStreetMap's figure where one was tagged and the schema's own default where not:
+  the same figure the map's raised view would give it. A street the tile does not draw
+  is not drawn. There is no typical block any more, anywhere in the product.
+- **The hour lights doors, not people.** The schematic sculpted a crowd and scaled it by
+  the doors counted open. At the scale of a real 800 m disc a person is one pixel, and a
+  crowd drawn ten times life size would be a claim about where people stand that nobody
+  counted. So the doors themselves are drawn: one mark per business with readable hours,
+  at the position OpenStreetMap holds for it, lit when its timetable says it is open in
+  the hour on the slider and dark when it does not. It is the very count the activity
+  chart draws, shown where it was counted. Where the doors were not counted, none is
+  drawn and the view says which silence it is, exactly as before.
+- **Every shape is cut to the disc, and every tile to its own square first.** A tile
+  carries a margin of its neighbours so a line can be drawn across the seam, and read
+  whole that margin put a second copy of every building along the seam on top of the
+  first. The cut to the disc follows the ARC of the circle where a shape leaves it and
+  comes back. A chord was the first attempt, and on a river covering half the disc it
+  cut the river in half. Which way round the arc goes is read from the path itself, the
+  angle the shape swept around the centre while it was outside, and NOT from the ring's
+  own orientation: a house bulging over the edge can sweep either way whatever way its
+  ring turns, and taking the direction from the ring sent one the long way round, a
+  roof the size of the disc at five metres with the whole street network hidden under
+  it. `utils/geo` says so above the function.
+- **The mark on the model says where it came from.** Four states, one mark, in both
+  languages: built from the basemap, still reading it, the read failed, or a basemap
+  that carries no geometry at all. That last one is the raster fallback and nothing
+  else. A blank disc never has to be interpreted.
+
+It is a MINIATURE, not a view. The disc stands on a base with a rim, a soft shadow
+under it, and nothing drawn outside it: the canvas is clear around the disc and the page
+shows through, so what stands on the page is a round object that can be turned, and
+never a window onto a sky. A block cut square was the first framing everywhere, with the
+hour's sky filling the rectangle behind it, and a block cut square is a picture of a
+city where a disc with an edge is a thing. There is no fog for the same reason. Fog is a
+claim about distance, and a model on a table is all at one distance. The framing is
+fitted to a BOX rather than to a width, and at the far end of the camera track the box
+is the whole miniature, base and shadow included, held whole on any screen shape: a
+phone at that end shows a smaller disc, never a cut one. The box is centred a little
+above the disc there, because a building only ever rises, so the room a miniature needs
+is above it and not below. The full-screen view lights the room for the hour, the sky's
+own two colours as a pool of light behind the object with no horizon in it. The card and
+the front page stand it on their own surface.
+
+The full-screen view OPENS CLOSE, on the block around the point, and steps out to the
+whole miniature on request. The whole disc was the first framing, and on a screen the
+whole disc is a texture: a house is four pixels, and a house is what the reader came in
+to see. The marks are sized in screen pixels for the same reason, placed again as the
+framing moves rather than rebuilt, so a stop is the same size at every distance.
+
+It can be TURNED. A drag across the full-screen model takes it round the point, one to
+one under the hand and thrown on release, and the sun stays where it is in the world, so
+turning the model turns the light on it the way turning a real one would. `Spinner` in
+`utils/motion` holds the one rule that makes a turn read as a mass rather than a switch:
+the RATE eases, never the angle. In from rest, out to rest, and down from a throw, by an
+exponential approach, which is what an ease in and an ease out are when the thing easing
+is a speed. The card's thumbnail does not turn, because a thumbnail is not a room.
+
+The landing page shows the same model of a few catchments, one at a time, paged with a
+pair of arrows. They are chosen by name in `+page.server`, and the one that opens is in
+the business district, for its towers: a height read off a tile is only visible where
+there are heights, and the busiest cell is a kampung, which at the size of a whole disc
+is a texture. The rest are parts of the city that look nothing like it or each other. Each
+stands whole, as the round object it is, with the point the range is measured from marked
+at its centre as in the app, turning on its own while it is in view and easing to rest
+when it is not. A hand on it wins, and the drift comes back when the hand lets go. Paging
+does not stop the turn: the next place arrives already turning, and each is read once
+and kept, with the one after it read in the background. The only words on it are the
+place's name, at the top left, and the arrow labels a screen reader hears. The mark the
+app's model wears saying where it came from is not on the front page's: the section's
+lead has already said so, and a sentence on the object would be read instead of it. It
+reads the basemap the PUBLIC configuration allows, MAPID's with a public key and the open
+one otherwise, because the Map Service key the app is handed on sign-in is not baked
+into a static page. `state/area` is the reader both of them fetch tiles through, kept
+out of `AppState` for exactly that second caller.
+
+The card's model runs on JAKARTA'S clock, not the reader's. It ran on the reader's own
+hour when all the hour lit was the sky, which was a fact about them. Now the lit doors on
+it are a claim about the place at this minute, the same claim the "open now" row under
+it makes, and a model lit by a reader's midnight in London would show a Jakarta lunch
+hour with the street dark around it.
+
+The marks follow the map's layer switches, for the reason the map's own marks do: a
+competitor the reader has switched off the map must not go on standing in the model of
+it. What does not follow anything is the geometry itself. The map is free, and a model of
+the map is the map looked at another way, so reading it is not metered.
+
+### The map itself can be looked at the same way
+
+`MapControls` carries a second switch beside flat or 3D: DRAWN, the basemap as its
+publisher draws it, or MODELLED, the same tiles drawn by MapLibre in the area model's
+palette. White masses raised to the height the tile carries, streets at their real widths
+from the same table the scene lays its ribbons by, water and green, and none of the
+publisher's cartography or lettering. `map/modelled` builds those layers off the very
+sources `readBasemapTiles` found, so the map's model and the area's model come from one
+reading of one style, and a basemap the area model can read is exactly the basemap the
+map can draw as one. The switch is absent when there is nothing to model from, which is
+the raster fallback and nothing else.
+
+It is a view, like the raised one, and is held to the same rule: it changes how the map
+is looked at and nothing about what is on it. The publisher's layers are put away with
+the visibility each was published with and brought back exactly, never removed, and the
+app's own layers, the catchments, the corridors and the marks, sit above both renditions
+untouched. In the dark theme the palette is taken down rather than kept white, because a
+white city under a dark interface would be the brightest thing on the screen, and unlike
+the model on the card there is no hour lighting it.
 
 ## One earth, and why it took three goes to get there
 

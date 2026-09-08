@@ -16,7 +16,8 @@
 	import { boundsOf, emptyFC, ringCoords } from '$lib/utils/geo';
 	import { countStops, railTotal, stopTotal } from '$lib/domain/transit';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
-	import { basemapStyle } from '$lib/map/basemap';
+	import { basemapStyle, readBasemapTiles } from '$lib/map/basemap';
+	import { modelledLayers } from '$lib/map/modelled';
 	import { hatchImage, rivalImage, unitImage } from '$lib/map/icons';
 	import {
 		catchmentFC,
@@ -38,7 +39,7 @@
 	import type { ScoredUnit } from '$lib/domain/units';
 	import { categoryNames } from '$lib/domain/narrate';
 	import { copy } from '$lib/state/lang.svelte';
-	import type { HexBase, ScoredHex } from '$lib/types';
+	import type { BasemapTiles, HexBase, ScoredHex } from '$lib/types';
 	import type { FeatureCollection } from 'geojson';
 
 	/** The MAPID Map Service key the `/app` layout read from `MAPID_MAPSERVICES_KEY`, or
@@ -752,6 +753,81 @@
 		m.on('click', 'catchment-nodata', pickCell);
 	}
 
+	/**
+	 * Tell the app which tiles the basemap on screen is drawn from, so the model of a
+	 * selected area can be built from the same geometry.
+	 *
+	 * Read off the loaded style rather than off configuration, because which basemap is
+	 * on screen is decided at runtime. A source declared by TileJSON URL does not know
+	 * its tile templates until that file arrives, so this is asked once the style is in
+	 * and then on each `sourcedata` until it is settled. True once it is: either the
+	 * source is known, or this style has no vector buildings at all, which is the
+	 * last-resort raster basemap and nothing else.
+	 */
+	function syncBasemap(m: MapLibreMap): boolean {
+		const found = readBasemapTiles(m);
+		if (found === 'pending') return false;
+		if (found === null) {
+			app.basemapNone = true;
+			return true;
+		}
+		app.basemapNone = false;
+		if (app.basemap?.key !== found.key) app.basemap = found;
+		mountModelled(m, found);
+		return true;
+	}
+
+	/**
+	 * THE MODELLED RENDITION of the basemap, and how it is switched.
+	 *
+	 * The publisher's own layers are remembered as they stood when the style arrived,
+	 * with the visibility each was published with, so they can be put away and brought
+	 * back exactly. Captured before `addLayers`, which is what tells the map's layers
+	 * apart from the app's. The modelled layers are mounted under the app's own, from the
+	 * very sources the area model reads, so the catchments, the corridors and the marks
+	 * stay where they are over either rendition.
+	 */
+	let styleLayers: Array<{ id: string; visibility: 'visible' | 'none' }> = [];
+	let modelledIds: string[] = [];
+
+	function rememberStyle(m: MapLibreMap) {
+		styleLayers = (m.getStyle()?.layers ?? []).map((l) => ({
+			id: l.id,
+			visibility: l.layout?.visibility === 'none' ? 'none' : 'visible'
+		}));
+		modelledIds = [];
+	}
+
+	function mountModelled(m: MapLibreMap, basemap: BasemapTiles) {
+		for (const id of modelledIds) if (m.getLayer(id)) m.removeLayer(id);
+		modelledIds = [];
+		const before = m.getLayer('catchment-fill') ? 'catchment-fill' : undefined;
+		for (const layer of modelledLayers(basemap, app.resolvedTheme)) {
+			m.addLayer(layer, before);
+			modelledIds.push(layer.id);
+		}
+		applyRender(m);
+	}
+
+	/** Which of the two renditions is on show. The other is put away, not removed. */
+	function applyRender(m: MapLibreMap) {
+		const modelled = app.render === 'modelled' && modelledIds.length > 0;
+		for (const l of styleLayers) {
+			if (m.getLayer(l.id)) m.setLayoutProperty(l.id, 'visibility', modelled ? 'none' : l.visibility);
+		}
+		for (const id of modelledIds) {
+			if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', modelled ? 'visible' : 'none');
+		}
+	}
+	/** Keeps asking until the source is settled, then stops listening. */
+	function watchBasemap(m: MapLibreMap) {
+		if (syncBasemap(m)) return;
+		const onSource = () => {
+			if (syncBasemap(m)) m.off('sourcedata', onSource);
+		};
+		m.on('sourcedata', onSource);
+	}
+
 	function positionTip(x: number, y: number) {
 		if (!tipEl) return;
 		const w = tipEl.offsetWidth;
@@ -1125,8 +1201,10 @@
 			// `styledata` fires as soon as the style spec is parsed, so the computed
 			// results still show even when the map itself is blank.
 			m.once('styledata', () => {
+				rememberStyle(m);
 				addLayers(m);
 				ready = true;
+				watchBasemap(m);
 			});
 			m.on('move', scheduleLabels);
 			m.on('zoom', scheduleLabels);
@@ -1159,8 +1237,10 @@
 			if (app.resolvedTheme !== theme) return;
 			m.setStyle(style);
 			m.once('styledata', () => {
+				rememberStyle(m);
 				addLayers(m);
 				ready = true;
+				watchBasemap(m);
 			});
 		})();
 	});
@@ -1267,6 +1347,15 @@
 			duration: prefersReducedMotion() ? 0 : 620,
 			essential: true
 		});
+	});
+
+	/* Drawn or modelled, applied whenever the choice changes. The style's own change
+	   goes through `mountModelled`, which applies it on the way. */
+	$effect(() => {
+		void app.render;
+		const m = map;
+		if (!m || !ready) return;
+		applyRender(m);
 	});
 
 	// Selecting a catchment pans the map to it — the spatial link between panel and map has to hold.
