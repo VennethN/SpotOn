@@ -47,7 +47,7 @@
 	import { daylightAt } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
-	import { SpringValue } from '$lib/utils/motion.svelte';
+	import { Spinner, SpringValue } from '$lib/utils/motion.svelte';
 
 	const app = getAppState();
 	const c = $derived(copy());
@@ -70,6 +70,12 @@
 	let level = $state(CLOSE);
 	const camera = new SpringValue(CLOSE, { damping: 1, response: 0.6 });
 	$effect(() => () => camera.destroy());
+
+	/* And it can be turned: a drag across the model takes it round the point, one to
+	   one under the hand and thrown on release. The sun stays put in the world, so
+	   turning the model turns the light on it the way turning a real one would. */
+	const spinner = new Spinner(0);
+	$effect(() => () => spinner.destroy());
 
 	function zoomTo(next: number) {
 		level = Math.max(WHOLE, Math.min(CLOSE, next));
@@ -290,6 +296,7 @@
 			geometry={app.areaReady}
 			marks={tally.counted ? app.areaMarks : bare}
 			label={c.zoom.sceneLabel(row.name, at, body)}
+			{spinner}
 		/>
 
 		<!-- The same treatment the landing stage uses: the text is always light, over a

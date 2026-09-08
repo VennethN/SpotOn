@@ -231,8 +231,14 @@ export const load: PageServerLoad = () => {
 		queryMaps,
 		spread,
 		field,
+		/* The same cell stands twice: on the composed street at the top, and as itself,
+		   modelled from the basemap, further down. Where it is and its own boundary go
+		   with it so the model can be read in the browser around the real point. */
 		stage: {
 			name: busiest.name,
+			lat: busiest.lat,
+			lon: busiest.lon,
+			boundary: busiest.boundary,
 			businesses: busiest.density,
 			rivals: busiest.osm,
 			units: busiest.units,

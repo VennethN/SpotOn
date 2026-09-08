@@ -6,6 +6,7 @@ import type {
 	BasemapTiles,
 	LocalPoint,
 	RoadKind,
+	TileAddress,
 	TransitCounts
 } from '$lib/types';
 import {
@@ -168,12 +169,6 @@ const lat2tile = (lat: number, z: number): number => {
 	const r = (lat * Math.PI) / 180;
 	return ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * 2 ** z;
 };
-
-export interface TileAddress {
-	z: number;
-	x: number;
-	y: number;
-}
 
 /** The zoom a source is read at: as deep as it goes, up to `MODEL_ZOOM`. */
 export const modelZoom = (source: BasemapSource): number =>

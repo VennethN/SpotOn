@@ -1065,6 +1065,13 @@ export interface AreaRoute {
 	mode: keyof TransitCounts;
 }
 
+/** One tile of a source, by the address every tile server understands. */
+export interface TileAddress {
+	z: number;
+	x: number;
+	y: number;
+}
+
 export interface AreaGeometry {
 	/** Which point, radius and basemap this was read for. The scene uses it to tell a
 	    finished reading from the previous cell's, still on screen while the next loads. */

@@ -235,6 +235,20 @@ export const id = {
 			'Maket kisi heksagon. Tinggi dan warnanya adalah skor peluang sungguhan, diambil merata dari seluruh kisi, pada skala yang sama dengan peta. Yang letaknya saja yang skema: yang tertinggi ditaruh di tengah. Petak yang kotanya belum disurvei dibiarkan cekung tanpa warna.'
 	},
 
+	/* ── kawasannya sendiri, sebagai maket ─────────────────────────────────
+	   Satu petak sungguhan di halaman depan, dibangun dari peta dasar seperti di
+	   dalam aplikasi, dan berputar pelan selama dilihat. Angkanya dari kisi. */
+	model: {
+		mark: 'Lihat kawasannya',
+		title: 'Setiap kawasan bisa dilihat sebagai maket.',
+		lead: 'Bangunan, jalan, dan haltenya diambil dari peta dasar yang sama, dipotong seradius jalan kaki, dan bisa diputar. Tiap bangunan berdiri setinggi yang tercatat di petanya.',
+		caption: (nama: string, n: number) =>
+			`${nama}, petak paling ramai di kisi: ${n} usaha dalam radius jalan kaki. Cahayanya mengikuti jam Jakarta saat halaman ini dibuka.`,
+		hint: 'Tarik untuk memutar',
+		label: (nama: string) =>
+			`Maket kawasan ${nama}, dibangun dari peta dasar, berputar perlahan.`
+	},
+
 	ai: {
 		mark: 'Tanya petanya',
 		title: 'Tanya pakai bahasa sehari-hari, petanya yang berubah.',
@@ -725,7 +739,7 @@ export const id = {
 		hourValue: (h: number) => `Jam ${jam(h)}`,
 		/* Jamnya sendiri, tanpa kata apa pun, untuk angka besar di sudut layar. */
 		clock: (h: number) => jam(h),
-		hint: 'Geser untuk melihat jam lain',
+		hint: 'Geser untuk melihat jam lain, tarik maketnya untuk memutar',
 		play: 'Jalankan harinya',
 		pause: 'Hentikan',
 		now: 'Sekarang',

@@ -265,8 +265,16 @@ const sourceLayerOf = (layer: LayerSpecification): string | null => {
 	return typeof named === 'string' ? named : null;
 };
 
+/** What a vector source says about its tiles, however it was declared. */
+interface TileSet {
+	tiles: string[];
+	minzoom?: number;
+	maxzoom?: number;
+	scheme?: string;
+}
+
 /**
- * Every vector source carrying buildings, as the live map holds them.
+ * Every source the style draws buildings from, with the layer names it draws from each.
  *
  * All of them, in the style's order, because a style can draw a city from more than
  * one: MAPID's lays an Indonesia set over a world set, and for Jakarta the world tiles
@@ -274,16 +282,11 @@ const sourceLayerOf = (layer: LayerSpecification): string | null => {
  * source found was how the model of a Jakarta cell once came back as a bare disc under
  * a mark saying it was built from the basemap.
  *
- * `'pending'` means a source is there but its tile templates are not known yet: a
- * source declared by TileJSON URL learns them when that file arrives, which is a
- * `sourcedata` event later. `null` means this style draws no vector buildings at all,
- * which is the last-resort raster basemap and nothing else, and then there is nothing
- * to model from and the interface says so.
+ * Read by name rather than assumed, so a style that calls its roads something else is
+ * read rather than ignored. What it cannot know is where the tiles are, which depends
+ * on how the source was declared, so the two callers below supply that.
  */
-export function readBasemapTiles(map: MapLibreMap): BasemapTiles | 'pending' | null {
-	const layers = map.getStyle()?.layers ?? [];
-
-	// Which source each building layer draws from, and what it calls the layer.
+function sourcesDrawn(layers: LayerSpecification[]): Array<{ id: string; layers: BasemapSource['layers'] }> {
 	const buildingLayers = new Map<string, string>();
 	for (const l of layers) {
 		const name = sourceLayerOf(l);
@@ -291,32 +294,18 @@ export function readBasemapTiles(map: MapLibreMap): BasemapTiles | 'pending' | n
 		const sourceId = 'source' in l ? l.source : null;
 		if (typeof sourceId === 'string' && !buildingLayers.has(sourceId)) buildingLayers.set(sourceId, name);
 	}
-	if (!buildingLayers.size) return null;
-
-	const sources: BasemapSource[] = [];
-	for (const [sourceId, building] of buildingLayers) {
-		const source = map.getSource(sourceId);
-		if (!source || source.type !== 'vector') continue;
-		const vector = source as VectorTileSource;
-		if (!vector.tiles?.length) return 'pending';
-
-		// Every source-layer this style draws from the same source, spelled as it
-		// spells them. Read by name rather than assumed, so a style that calls its roads
-		// something else is read rather than ignored.
+	const out: Array<{ id: string; layers: BasemapSource['layers'] }> = [];
+	for (const [id, building] of buildingLayers) {
 		const names = new Set<string>();
 		for (const l of layers) {
-			if ('source' in l && l.source === sourceId) {
+			if ('source' in l && l.source === id) {
 				const name = sourceLayerOf(l);
 				if (name) names.add(name);
 			}
 		}
 		const pick = (re: RegExp): string | undefined => [...names].find((n) => re.test(n));
-		sources.push({
-			id: sourceId,
-			tiles: vector.tiles,
-			minzoom: vector.minzoom ?? 0,
-			maxzoom: vector.maxzoom ?? 14,
-			scheme: vector.scheme === 'tms' ? 'tms' : 'xyz',
+		out.push({
+			id,
 			layers: {
 				building,
 				transportation: pick(/^transportation$|^road|^street|^highway/i),
@@ -328,6 +317,73 @@ export function readBasemapTiles(map: MapLibreMap): BasemapTiles | 'pending' | n
 			}
 		});
 	}
-	if (!sources.length) return null;
-	return { key: sources.map((s) => s.tiles[0]).join(' '), sources };
+	return out;
+}
+
+const asSource = (id: string, set: TileSet, layers: BasemapSource['layers']): BasemapSource => ({
+	id,
+	tiles: set.tiles,
+	minzoom: set.minzoom ?? 0,
+	maxzoom: set.maxzoom ?? 14,
+	scheme: set.scheme === 'tms' ? 'tms' : 'xyz',
+	layers
+});
+
+const asBasemap = (sources: BasemapSource[]): BasemapTiles | null =>
+	sources.length ? { key: sources.map((s) => s.tiles[0]).join(' '), sources } : null;
+
+/**
+ * Every vector source carrying buildings, as the live map holds them.
+ *
+ * `'pending'` means a source is there but its tile templates are not known yet: a
+ * source declared by TileJSON URL learns them when that file arrives, which is a
+ * `sourcedata` event later. `null` means this style draws no vector buildings at all,
+ * which is the last-resort raster basemap and nothing else, and then there is nothing
+ * to model from and the interface says so.
+ */
+export function readBasemapTiles(map: MapLibreMap): BasemapTiles | 'pending' | null {
+	const drawn = sourcesDrawn(map.getStyle()?.layers ?? []);
+	if (!drawn.length) return null;
+	const sources: BasemapSource[] = [];
+	for (const { id, layers } of drawn) {
+		const source = map.getSource(id);
+		if (!source || source.type !== 'vector') continue;
+		const vector = source as VectorTileSource;
+		if (!vector.tiles?.length) return 'pending';
+		sources.push(asSource(id, vector, layers));
+	}
+	return asBasemap(sources);
+}
+
+/**
+ * The same sources, read from the style itself rather than from a map drawing it.
+ *
+ * For the landing page, which has no map and no account: it models one catchment from
+ * the basemap the public configuration allows, which is MAPID's when a public key is
+ * set and the open one otherwise. The style and any TileJSON it points at are fetched
+ * here, once. Null where the style carries no vector buildings, or where nothing came
+ * back, and the caller says so rather than showing a model loading forever.
+ */
+export async function basemapTilesFor(theme: 'light' | 'dark'): Promise<BasemapTiles | null> {
+	const style = await basemapStyle(theme);
+	const spec: StyleSpecification | null =
+		typeof style === 'string'
+			? await fetch(style)
+					.then((res) => (res.ok ? (res.json() as Promise<StyleSpecification>) : null))
+					.catch(() => null)
+			: style;
+	if (!spec) return null;
+	const sources: BasemapSource[] = [];
+	for (const { id, layers } of sourcesDrawn(spec.layers ?? [])) {
+		const declared = spec.sources?.[id];
+		if (!declared || declared.type !== 'vector') continue;
+		let set: TileSet | null = declared.tiles?.length ? (declared as TileSet) : null;
+		if (!set && declared.url) {
+			set = await fetch(declared.url)
+				.then((res) => (res.ok ? (res.json() as Promise<TileSet>) : null))
+				.catch(() => null);
+		}
+		if (set?.tiles?.length) sources.push(asSource(id, set, layers));
+	}
+	return asBasemap(sources);
 }
