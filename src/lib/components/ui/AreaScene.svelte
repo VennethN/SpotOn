@@ -8,12 +8,12 @@
 	 * where it comes from. The chores they share, loading three.js, pausing off screen,
 	 * following the container, belong to `SceneCanvas` and are written once there.
 	 *
-	 * Only two things are specific to this scene: the sky at the same hour as a backdrop
-	 * before WebGL is ready (and if WebGL fails), and the narrow focal plane that makes
-	 * the eye read it as a model on a table rather than as a photograph of a city.
+	 * Only two things are specific to this scene: the hand that turns it, and the narrow
+	 * focal plane that makes the eye read it as a model on a table rather than as a
+	 * photograph of a city. There is no backdrop. The model is a round miniature with
+	 * nothing drawn outside it, and whatever it stands on shows through around it.
 	 */
 	import SceneCanvas from '$lib/components/ui/SceneCanvas.svelte';
-	import { daylightAt } from '$lib/scene/daylight';
 	import type { Spinner } from '$lib/utils/motion.svelte';
 	import type { AreaGeometry, AreaMarks } from '$lib/types';
 
@@ -56,7 +56,6 @@
 		spinner
 	}: Props = $props();
 
-	const light = $derived(daylightAt(hour));
 	const m = $derived(marks ?? NO_MARKS);
 
 	/* ── the hand on the model ───────────────────────────────────────────────
@@ -114,14 +113,7 @@
 	};
 </script>
 
-<div
-	class="area"
-	class:turnable={Boolean(spinner)}
-	class:held
-	bind:this={host}
-	style:--sky-top={light.skyTop}
-	style:--sky-horizon={light.skyHorizon}
->
+<div class="area" class:turnable={Boolean(spinner)} class:held bind:this={host}>
 	<SceneCanvas
 		{load}
 		{label}
@@ -153,8 +145,6 @@
 	.area {
 		position: absolute;
 		inset: 0;
-		/* The sky at the same hour, visible before WebGL is ready and if WebGL fails. */
-		background: linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-horizon) 78%);
 	}
 	/* A model that can be turned says so with the cursor, and keeps the browser's own
 	   gestures off the drag: a finger across it turns the model, not the page. */

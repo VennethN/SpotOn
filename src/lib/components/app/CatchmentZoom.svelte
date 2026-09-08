@@ -283,6 +283,8 @@
 		aria-label={c.zoom.title(row.name)}
 		style:--ink={day.ink}
 		style:--ink-muted={day.inkMuted}
+		style:--sky-top={day.skyTop}
+		style:--sky-horizon={day.skyHorizon}
 	>
 		<!-- The doors follow the timetables only where they were counted well enough to
 		     say anything: below the threshold, or with the file missing, no door is drawn
@@ -456,7 +458,15 @@
 		   itself at 20. */
 		z-index: 30;
 		overflow: hidden;
-		background: var(--bg-base);
+		/* The room the miniature stands in, lit for the hour: the sky's own two colours
+		   as a pool of light behind it, and no horizon, because there is no landscape
+		   here for one to belong to. Stepped out to the whole disc it is a round object
+		   in that light, and closed in the block fills the frame and the room is gone. */
+		background: radial-gradient(
+			ellipse 85% 75% at 50% 46%,
+			var(--sky-horizon) 0%,
+			var(--sky-top) 100%
+		);
 	}
 
 	.scrim {
