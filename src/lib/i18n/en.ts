@@ -253,15 +253,16 @@ export const en: Copy = {
 	},
 
 	/* ── the place itself, as a model ──────────────────────────────────────
-	   One real catchment on the front page, built from the basemap the way it is
-	   inside the app, turning slowly while it is looked at. Its figure is the grid's. */
+	   A few real catchments on the front page, built from the basemap the way it is
+	   inside the app, turning slowly while looked at, with arrows to the next. No
+	   sentence stands on it but the place's name: `prev` and `next` are for screen
+	   readers only. */
 	model: {
 		mark: 'See the place',
 		title: 'Any area can be seen as a model.',
 		lead: 'Its buildings, streets and stops are read off the same basemap, cut to the walking range, and can be turned by hand. Each building stands at the height the map records.',
-		caption: (name: string, n: number) =>
-			`${name}: ${n} businesses within walking range of its centre. The light follows Jakarta's clock at the moment this page opened.`,
-		hint: 'Drag to turn',
+		prev: 'Previous area',
+		next: 'Next area',
 		label: (name: string) => `A model of ${name}, built from the basemap, turning slowly.`
 	},
 
