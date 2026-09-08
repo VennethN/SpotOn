@@ -340,7 +340,15 @@ export class AppState {
 	highlight = $state<string[]>([]);
 	ai = $state<AiAnswer | null>(null);
 	aiLoading = $state(false);
-	aiError = $state<string | null>(null);
+	/**
+	 * The last question failed, as a flag and nothing more.
+	 *
+	 * It used to hold the error's own message, and that message went straight into
+	 * Tapak's bubble: a status code, a dropped connection, a stream that ended early.
+	 * None of that is something a reader can act on, so it goes to the console and the
+	 * bubble says only that the notes would not open and offers to ask again.
+	 */
+	aiError = $state(false);
 	/**
 	 * Categories with a request in the air, and categories whose request failed.
 	 *
@@ -1585,7 +1593,7 @@ export class AppState {
 		}
 		this.outOf = null;
 		this.aiLoading = true;
-		this.aiError = null;
+		this.aiError = false;
 		try {
 			const res = await fetch('/api/ai/query', {
 				method: 'POST',
@@ -1622,7 +1630,8 @@ export class AppState {
 			});
 			await this.#apply(data);
 		} catch (err) {
-			this.aiError = err instanceof Error ? err.message : 'Terjadi kesalahan.';
+			console.error('[SpotOn] Question failed:', err instanceof Error ? err.message : err);
+			this.aiError = true;
 		} finally {
 			this.aiLoading = false;
 			/* What the question actually cost is only knowable from the server: the credit

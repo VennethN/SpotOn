@@ -1190,7 +1190,10 @@ export const en: Copy = {
 		   question was never sent, so the turn still has to answer something rather than
 		   sitting on "one moment" for good. */
 		outOfQuota: 'There are no questions left this week, so I cannot answer this one.',
-		failed: (err: string) => `Sorry, my notes wouldn't open just now. ${err} Want to ask again?`,
+		/* No detail from the failure itself. What went wrong is a status code or a
+		   network error, which is something for the console and nothing the reader can
+		   act on beyond asking again. */
+		failed: "Sorry, my notes wouldn't open just now. Want to ask again?",
 		nothing: "I haven't found anything for that."
 	},
 
