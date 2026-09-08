@@ -34,6 +34,7 @@ import type {
 	GridMeta,
 	Hex,
 	HexBase,
+	MeterKey,
 	PoiSource,
 	ScoredHex,
 	UnitMetricKey,
@@ -128,6 +129,31 @@ async function readEvents(res: Response, on: (event: AiEvent) => void): Promise<
 
 export type LayerKey = 'score' | 'routes' | 'poi' | 'label' | 'stops' | 'property' | 'field';
 export type { Theme };
+
+/**
+ * What the map spends, without knowing whose account it is.
+ *
+ * `AccountState` implements this. The map is handed the interface rather than the
+ * account so that this class never learns an email address, a plan name or a price: it
+ * only ever asks whether there is one left and says when it has taken one.
+ *
+ * `take` and `settle` are separate because they answer at different speeds and the
+ * interface needs the first one now. `take` is the browser's own reading, which is
+ * instant and is what decides whether the card opens. `settle` is the server's, which
+ * is the one that counts, and it comes back afterwards to correct the figure or to take
+ * back a reading that two tabs bought with the same last credit.
+ */
+export interface Wallet {
+	/** What is left on one meter, as the browser last saw it. */
+	left(meter: MeterKey): number;
+	/** Take one off that reading, now. False when there was nothing to take. */
+	take(meter: MeterKey): boolean;
+	/** Spend one analysis on the server. False means the server refused it. */
+	settleAnalysis(): Promise<boolean>;
+	/** Re-read the balances. The only way the browser learns what a question cost,
+	    because that credit is spent inside the answer rather than beside it. */
+	refresh(): Promise<void>;
+}
 
 const KEY = Symbol('spoton');
 
@@ -418,10 +444,40 @@ export class AppState {
 	#fieldJob: Promise<void> | null = null;
 	#hoursJob: Promise<void> | null = null;
 
-	constructor(base: HexBase[], meta?: GridMeta) {
+	constructor(base: HexBase[], meta?: GridMeta, wallet?: Wallet) {
 		this.base = base;
 		this.meta = meta ?? null;
+		this.#wallet = wallet ?? null;
 	}
+
+	/**
+	 * What the two metered actions are charged against.
+	 *
+	 * Optional, and the absence means unmetered. That is not a way round the meter: the
+	 * app page will not render without an account, so the only callers that get here
+	 * without one are the parts of this class exercised outside the app. Written as an
+	 * absence rather than as a boolean so there is no `metered` flag anybody could set
+	 * to false and turn the whole thing off.
+	 */
+	#wallet: Wallet | null;
+
+	/**
+	 * The meter that just refused, so the interface can say which and offer the way out.
+	 *
+	 * Held here rather than thrown, because neither refusal is an error: an account that
+	 * has spent its week is working exactly as the tier it is on says it does. Cleared
+	 * by the reader, and by the next thing that successfully spends.
+	 */
+	outOf = $state<MeterKey | null>(null);
+
+	/**
+	 * The session went away while the page stayed open.
+	 *
+	 * Separate from `outOf`, because it is a different sentence with a different way
+	 * out: one is a balance and the other is a sign-in. Reported rather than acted on
+	 * here, so nothing in this class navigates.
+	 */
+	signedOut = $state(false);
 
 	/** The categories whose columns are loaded and therefore genuinely scoreable. */
 	loaded = $derived(Object.keys(this.slices) as CategoryKey[]);
@@ -991,11 +1047,18 @@ export class AppState {
 	 * rather than being told its name.
 	 */
 	selectUnit(id: string | null) {
+		// Charged on exactly the rule the catchment side is charged on, because it is the
+		// same reading: everything the card draws about the cell underneath a unit is what
+		// the area card draws, read from the same place at the same cost.
+		const charge = Boolean(id) && id !== this.selectedUnitId;
+		if (charge && !this.#takeReading()) return;
+
 		this.selectedUnitId = id;
 		const unit = id ? this.units.find((u) => u.id === id) : null;
 		this.selectedId = unit?.cellId ?? null;
 		this.zoomed = false;
 		if (id) {
+			if (charge) this.#settleReading('unit', id);
 			void this.loadCategories();
 			void this.loadStops();
 			void this.loadPoiSet();
@@ -1039,13 +1102,64 @@ export class AppState {
 		void this.loadCategories();
 	}
 
+	/**
+	 * One reading, taken off the account, before anything opens.
+	 *
+	 * The browser's own answer, so the card opens on the same frame the hexagon was
+	 * clicked. Opening an area already waits on its points, its listings and its
+	 * timetables and draws each as it lands, and a round trip in front of the card
+	 * itself would be the one part of that the reader waits through with nothing on
+	 * screen.
+	 */
+	#takeReading(): boolean {
+		if (!this.#wallet) return true;
+		if (!this.#wallet.take('analysis')) {
+			this.outOf = 'analysis';
+			return false;
+		}
+		this.outOf = null;
+		return true;
+	}
+
+	/**
+	 * The same reading, settled with the server, which is the one that counts.
+	 *
+	 * A refusal here can only be two tabs spending the same last credit, and the reading
+	 * has to come back off the screen: leaving it open would be one reading given away
+	 * every time somebody opens a second tab, which is the meter being wrong rather than
+	 * generous.
+	 *
+	 * It only undoes what it paid for. A reader who has moved on to another place in the
+	 * time the request took keeps what they are looking at now, because that one was
+	 * charged for separately and settled on its own.
+	 */
+	#settleReading(kind: 'cell' | 'unit', id: string): void {
+		if (!this.#wallet) return;
+		void this.#wallet.settleAnalysis().then((kept) => {
+			if (kept) return;
+			if ((kind === 'cell' ? this.selectedId : this.selectedUnitId) !== id) return;
+			this.outOf = 'analysis';
+			this.selectedUnitId = null;
+			this.selectedId = null;
+			this.zoomed = false;
+		});
+	}
+
 	select(id: string | null) {
+		/* Closing costs nothing, and neither does reopening whatever is already open.
+		   Two clicks on one hexagon are one reading of it, and a reader who taps twice
+		   because the first one did not look like it registered must not pay twice for
+		   finding that out. */
+		const charge = Boolean(id) && id !== this.selectedId;
+		if (charge && !this.#takeReading()) return;
+
 		this.selectedId = id;
 		// The model on screen is a model of this cell. Closing the card leaves nothing for
 		// it to be of, and picking another cell would leave the reader inside a block they
 		// did not ask to be standing in.
 		this.zoomed = false;
 		if (id) {
+			if (charge) this.#settleReading('cell', id);
 			// Picking a cell is a request for its figures, heatmap or no heatmap — the
 			// area panel and Tapak's remark both read the scored row.
 			void this.loadCategories();
@@ -1173,6 +1287,15 @@ export class AppState {
 	 * the map is repainted from it in one move — see `#apply`.
 	 */
 	async ask(question: string, watch?: AskWatcher) {
+		/* Refused here rather than after ninety seconds of streaming. The endpoint is the
+		   one that really spends the credit and the one that would refuse it, but the
+		   browser already knows the balance, and a wait that runs its full length and then
+		   says the question was never affordable is the worst reading of the same fact. */
+		if (this.#wallet && !this.#wallet.take('ai')) {
+			this.outOf = 'ai';
+			return;
+		}
+		this.outOf = null;
 		this.aiLoading = true;
 		this.aiError = null;
 		try {
@@ -1187,6 +1310,20 @@ export class AppState {
 					stream: true
 				})
 			});
+			/* Two refusals that are not failures, and must not be reported as one. 402 is
+			   the server's own count of the balance disagreeing with ours, which two tabs
+			   asking at once can do. 401 is a session that expired between the page loading
+			   and the question being asked. Both are answered by the notice over the map,
+			   which says what happened and offers the way on, rather than by an error
+			   bubble offering to try the same thing again. */
+			if (res.status === 402) {
+				this.outOf = 'ai';
+				return;
+			}
+			if (res.status === 401) {
+				this.signedOut = true;
+				return;
+			}
 			if (!res.ok) throw new Error(`Gagal memproses pertanyaan (${res.status}).`);
 
 			const data = await readEvents(res, (event) => {
@@ -1199,6 +1336,11 @@ export class AppState {
 			this.aiError = err instanceof Error ? err.message : 'Terjadi kesalahan.';
 		} finally {
 			this.aiLoading = false;
+			/* What the question actually cost is only knowable from the server: the credit
+			   is spent inside the answer, so it cannot ride back on an event without
+			   putting a figure in a stream that carries none. One small request once the
+			   turn is over, against a wait that can run to ninety seconds. */
+			void this.#wallet?.refresh();
 		}
 	}
 
@@ -1280,8 +1422,8 @@ export class AppState {
 	}
 }
 
-export function setAppState(base: HexBase[], meta?: GridMeta): AppState {
-	return setContext(KEY, new AppState(base, meta));
+export function setAppState(base: HexBase[], meta?: GridMeta, wallet?: Wallet): AppState {
+	return setContext(KEY, new AppState(base, meta, wallet));
 }
 
 export function getAppState(): AppState {

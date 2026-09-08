@@ -1,5 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import { resolveQuestion, type AskInput } from '$lib/server/answer';
+import { spendMeter } from '$lib/server/accounts';
 import type { AiEvent } from '$lib/types';
 import type { RequestHandler } from './$types';
 
@@ -21,13 +22,21 @@ const NDJSON = 'application/x-ndjson';
  *
  * NDJSON rather than server-sent events: this is a POST, so `EventSource` was never on
  * the table, and a line of JSON per line of output needs no framing rules to explain.
+ *
+ * IT NOW COSTS ONE CREDIT, and needs an account. That is the one thing about this
+ * endpoint that did change: understanding a question means a call out to a shared
+ * model, which is the expensive half of the product, so it is the half that is metered.
+ * The credit is spent here rather than trusted to the caller, and the reply says so with
+ * a status rather than in the answer object: a 401 with no session, a 402 with nothing
+ * left. The shape of an ANSWER is untouched, so anything already reading this as an API
+ * needs a cookie and nothing else.
  */
 interface Body extends Partial<AskInput> {
 	/** Reply as a stream of events instead of as one object. */
 	stream?: boolean;
 }
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	let body: Body;
 	try {
 		body = await request.json();
@@ -38,6 +47,26 @@ export const POST: RequestHandler = async ({ request }) => {
 	const question = (body.question ?? '').trim();
 	if (!question) throw error(400, 'Pertanyaan kosong.');
 	if (question.length > 500) throw error(413, 'Pertanyaan terlalu panjang.');
+
+	/* One question, one credit, and it is spent HERE rather than in the browser.
+	   A balance the browser is trusted to keep is a balance anybody can top up with a
+	   developer console, so the reading in the interface is a copy of this figure and
+	   never the figure itself.
+
+	   Spent BEFORE the model is called, not after it answers. The cost this meter is
+	   about is the call itself: a question that goes out to a shared model and comes
+	   back empty was still asked, and charging only for the answers would let a
+	   question be re-asked for nothing until one came back.
+
+	   The two checks are one line apart on purpose. Refusing a question this account
+	   cannot pay for has to happen before anything is understood, or the wait streams
+	   for ninety seconds and ends in a refusal that was knowable at the start. */
+	if (!locals.account) throw error(401, 'Masuk dulu untuk bertanya.');
+	const paid = await spendMeter(locals.account.id, 'ai');
+	if (!paid.ok) {
+		if (paid.reason === 'empty') throw error(402, 'Kuota pertanyaan minggu ini sudah habis.');
+		throw error(503, 'Kuota tidak bisa dibaca. Coba lagi sebentar lagi.');
+	}
 
 	const input: AskInput = {
 		question,
