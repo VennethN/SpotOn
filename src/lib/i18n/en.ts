@@ -729,6 +729,11 @@ export const en: Copy = {
 		pause: 'Stop',
 		now: 'Now',
 		nowAria: 'Back to the hour it is in Jakarta',
+		/* The model opens close, on the block around the point, and steps out to the
+		   whole range. Two steps rather than a free scale: there is close, there is the
+		   whole, and there is between. */
+		closer: 'Closer',
+		farther: 'Further out',
 		/* What is printed is always the counted whole hour, never the slider's exact
 		   position. Parked at 7.30 it still reports 7am, the counted hour the reader is
 		   standing inside. */

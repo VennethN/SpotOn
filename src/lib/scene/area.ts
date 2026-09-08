@@ -62,6 +62,15 @@ export interface AreaState {
 	doors: AreaDoor[];
 }
 
+/** Where each mark stands and how big it is, in screen pixels. */
+interface MarkLayout {
+	posts: Array<{ x: number; y: number; h: number }>;
+	discs: Array<{ x: number; y: number; r: number; h: number }>;
+	squares: Array<{ x: number; y: number; h: number }>;
+	diamonds: Array<{ x: number; y: number; h: number; stacked: number }>;
+	rings: Array<{ x: number; y: number; h: number }>;
+}
+
 const DEFAULT_STATE: AreaState = {
 	hour: 12,
 	day: 0,
@@ -467,10 +476,9 @@ export class AreaWorld {
 		geometry: AreaGeometry | null;
 		radius: number;
 		boundary: LocalPoint[];
-		marks: string;
 		doors: AreaDoor[];
 		doorHour: string;
-	} = { geometry: null, radius: -1, boundary: [], marks: '', doors: [], doorHour: '' };
+	} = { geometry: null, radius: -1, boundary: [], doors: [], doorHour: '' };
 
 	#raf = 0;
 	#running = false;
@@ -480,7 +488,6 @@ export class AreaWorld {
 	#viewWidth = 1800;
 	/** Metres per screen pixel at the current framing: what the marks are sized by. */
 	#mpp = 1;
-	#builtMpp = 0;
 	#dummy = new THREE.Object3D();
 	#colour = new THREE.Color();
 
@@ -704,127 +711,161 @@ export class AreaWorld {
 
 	/* ── the catalogue's marks ───────────────────────────────────────────── */
 
+	/** What stands where, sized in screen pixels: the unit every mark is drawn in. */
+	#layout: MarkLayout = { posts: [], discs: [], squares: [], diamonds: [], rings: [] };
+	#meshes: {
+		posts: THREE.InstancedMesh | null;
+		discs: THREE.InstancedMesh | null;
+		squares: THREE.InstancedMesh | null;
+		diamonds: THREE.InstancedMesh | null;
+		rings: THREE.InstancedMesh | null;
+		beacon: THREE.Group | null;
+	} = { posts: null, discs: null, squares: null, diamonds: null, rings: null, beacon: null };
+	#placedKey = '';
+
 	/**
 	 * One post per mark, with the map's own shape on top, turned to face the camera.
 	 *
-	 * Sized in SCREEN PIXELS, through the metres each pixel holds at the current
-	 * framing, the way the map's own marks are. A mark sized in metres reads at one
-	 * framing and vanishes at another: the card holds a third of the disc in 340 px and
-	 * the full-screen view holds all of it in 1,400, which is a factor of three between
-	 * them, and the radius slider adds a factor of two on top.
+	 * Built once per set of marks, and PLACED as often as the framing moves. The marks
+	 * are sized in screen pixels, through the metres each pixel holds, the way the map's
+	 * own marks are: a mark sized in metres reads at one framing and vanishes at
+	 * another, and the framing moves continuously while the reader zooms. Sizing is a
+	 * matrix per instance, so placing a hundred marks again is nothing, where rebuilding
+	 * them was a hundred geometries a frame.
 	 */
 	#buildMarks(): void {
 		this.#dispose(this.#marks);
 		const s = this.#state;
-		const k = this.#mpp;
-		this.#builtMpp = k;
-		const yaw = this.#cameraYaw();
-		const posts: Array<{ x: number; y: number; h: number }> = [];
-		const white = new THREE.MeshStandardMaterial({ color: 0xf4f2ee, roughness: 0.7 });
-		const flatMat = () => new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
+		const layout: MarkLayout = { posts: [], discs: [], squares: [], diamonds: [], rings: [] };
 
 		// Stops: a disc in the mode's colour, rail larger, as on the map.
-		if (s.stops.length) {
-			const discs = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 24), flatMat(), s.stops.length);
-			s.stops.forEach((st, i) => {
-				const rail = st.mode !== 'brt';
-				const r = (rail ? 8 : 5.5) * k;
-				const h = (rail ? 20 : 15) * k;
-				posts.push({ x: st.x, y: st.y, h });
-				this.#dummy.position.set(st.x, h + r, -st.y);
-				this.#dummy.rotation.set(Math.PI / 2, 0, 0);
-				this.#dummy.rotateOnWorldAxis(UP, yaw);
-				this.#dummy.scale.set(r, 0.9 * k, r);
-				this.#dummy.updateMatrix();
-				discs.setMatrixAt(i, this.#dummy.matrix);
-				discs.setColorAt(i, this.#colour.setHex(MODE_COLOUR[st.mode]));
-			});
-			this.#marks.add(discs);
+		for (const st of s.stops) {
+			const rail = st.mode !== 'brt';
+			const h = rail ? 20 : 15;
+			layout.posts.push({ x: st.x, y: st.y, h });
+			layout.discs.push({ x: st.x, y: st.y, r: rail ? 8 : 5.5, h });
 		}
-
 		// Competitors: the map's red square.
-		if (s.rivals.length) {
-			const squares = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), flatMat(), s.rivals.length);
-			s.rivals.forEach((p, i) => {
-				const h = 14 * k;
-				posts.push({ x: p.x, y: p.y, h });
-				this.#dummy.position.set(p.x, h + 4.5 * k, -p.y);
-				this.#dummy.rotation.set(0, yaw, 0);
-				this.#dummy.scale.set(9 * k, 9 * k, 0.9 * k);
-				this.#dummy.updateMatrix();
-				squares.setMatrixAt(i, this.#dummy.matrix);
-				squares.setColorAt(i, this.#colour.setHex(RIVAL_COLOUR));
-			});
-			this.#marks.add(squares);
+		for (const p of s.rivals) {
+			layout.posts.push({ x: p.x, y: p.y, h: 14 });
+			layout.squares.push({ x: p.x, y: p.y, h: 14 });
 		}
-
 		// Units on the market: the map's amber diamond. Several units share one
 		// coordinate whenever the catalogue geocoded them to the street, so the second
 		// and later ones stack up the same post rather than vanishing into the first.
-		if (s.units.length) {
-			const diamonds = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), flatMat(), s.units.length);
-			const seen = new Map<string, number>();
-			s.units.forEach((p, i) => {
-				const key = `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-				const stacked = seen.get(key) ?? 0;
-				seen.set(key, stacked + 1);
-				const h = 13 * k;
-				if (!stacked) posts.push({ x: p.x, y: p.y, h });
-				this.#dummy.position.set(p.x, h + 4.5 * k + stacked * 9 * k, -p.y);
-				this.#dummy.rotation.set(0, yaw, Math.PI / 4);
-				this.#dummy.scale.set(6.5 * k, 6.5 * k, 0.9 * k);
-				this.#dummy.updateMatrix();
-				diamonds.setMatrixAt(i, this.#dummy.matrix);
-				diamonds.setColorAt(i, this.#colour.setHex(UNIT_COLOUR));
-			});
-			this.#marks.add(diamonds);
+		const seen = new Map<string, number>();
+		for (const p of s.units) {
+			const key = `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+			const stacked = seen.get(key) ?? 0;
+			seen.set(key, stacked + 1);
+			if (!stacked) layout.posts.push({ x: p.x, y: p.y, h: 13 });
+			layout.diamonds.push({ x: p.x, y: p.y, h: 13, stacked });
 		}
-
 		// Field records: the map's hollow ring, filled only for a place offered for rent.
-		if (s.field.length) {
-			const rings = new THREE.InstancedMesh(new THREE.TorusGeometry(4, 1, 8, 24), flatMat(), s.field.length);
-			s.field.forEach((f, i) => {
-				const h = 12 * k;
-				posts.push({ x: f.x, y: f.y, h });
-				this.#dummy.position.set(f.x, h + 4.5 * k, -f.y);
-				this.#dummy.rotation.set(0, yaw, 0);
-				this.#dummy.scale.setScalar(k);
-				this.#dummy.updateMatrix();
-				rings.setMatrixAt(i, this.#dummy.matrix);
-				rings.setColorAt(i, this.#colour.setHex(f.rent ? ACCENT : FIELD_COLOUR));
-			});
-			this.#marks.add(rings);
+		for (const f of s.field) {
+			layout.posts.push({ x: f.x, y: f.y, h: 12 });
+			layout.rings.push({ x: f.x, y: f.y, h: 12 });
 		}
+		this.#layout = layout;
+
+		const instanced = (geometry: THREE.BufferGeometry, n: number, lit: boolean) => {
+			if (!n) return null;
+			const mesh = new THREE.InstancedMesh(
+				geometry,
+				lit
+					? new THREE.MeshStandardMaterial({ color: 0xf4f2ee, roughness: 0.7 })
+					: new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }),
+				n
+			);
+			mesh.castShadow = lit;
+			this.#marks.add(mesh);
+			return mesh;
+		};
+		const m = this.#meshes;
+		m.posts = instanced(new THREE.CylinderGeometry(0.45, 0.45, 1, 6), layout.posts.length, true);
+		m.discs = instanced(new THREE.CylinderGeometry(1, 1, 1, 24), layout.discs.length, false);
+		m.squares = instanced(new THREE.BoxGeometry(1, 1, 1), layout.squares.length, false);
+		m.diamonds = instanced(new THREE.BoxGeometry(1, 1, 1), layout.diamonds.length, false);
+		m.rings = instanced(new THREE.TorusGeometry(4, 1, 8, 24), layout.rings.length, false);
+		// The colours, which do not move with the framing.
+		s.stops.forEach((st, i) => m.discs?.setColorAt(i, this.#colour.setHex(MODE_COLOUR[st.mode])));
+		layout.squares.forEach((_, i) => m.squares?.setColorAt(i, this.#colour.setHex(RIVAL_COLOUR)));
+		layout.diamonds.forEach((_, i) => m.diamonds?.setColorAt(i, this.#colour.setHex(UNIT_COLOUR)));
+		s.field.forEach((f, i) =>
+			m.rings?.setColorAt(i, this.#colour.setHex(f.rent ? ACCENT : FIELD_COLOUR))
+		);
 
 		// The point the range is measured from: a beacon in the accent, unlit, so it
-		// reads the same at midnight as at noon. Everything else on the model is drawn
-		// around it.
+		// reads the same at midnight as at noon. Built at one pixel per unit and scaled
+		// with the rest.
 		const beacon = new THREE.Group();
 		const accent = new THREE.MeshBasicMaterial({ color: ACCENT, toneMapped: false });
-		const post = new THREE.Mesh(new THREE.CylinderGeometry(0.7 * k, 0.7 * k, 26 * k, 8), accent);
-		post.position.y = 13 * k;
-		beacon.add(post);
-		const head = new THREE.Mesh(new THREE.SphereGeometry(3.4 * k, 16, 12), accent);
-		head.position.y = 27 * k;
-		beacon.add(head);
-		const halo = new THREE.Mesh(new THREE.RingGeometry(7 * k, 8.4 * k, 48), accent);
+		const post = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 26, 8), accent);
+		post.position.y = 13;
+		const head = new THREE.Mesh(new THREE.SphereGeometry(3.4, 16, 12), accent);
+		head.position.y = 27;
+		const halo = new THREE.Mesh(new THREE.RingGeometry(7, 8.4, 48), accent);
 		halo.rotation.x = -Math.PI / 2;
 		halo.position.y = 0.7;
-		beacon.add(halo);
+		beacon.add(post, head, halo);
 		this.#marks.add(beacon);
+		m.beacon = beacon;
 
-		if (posts.length) {
-			const mesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.45, 0.45, 1, 6), white, posts.length);
-			posts.forEach((p, i) => {
-				this.#dummy.position.set(p.x, p.h / 2, -p.y);
-				this.#dummy.rotation.set(0, 0, 0);
-				this.#dummy.scale.set(k, p.h, k);
-				this.#dummy.updateMatrix();
-				mesh.setMatrixAt(i, this.#dummy.matrix);
-			});
-			mesh.castShadow = true;
-			this.#marks.add(mesh);
+		this.#placedKey = '';
+		this.#placeMarks();
+	}
+
+	/** Every mark sized for the metres a pixel holds right now, and turned to the camera. */
+	#placeMarks(): void {
+		const k = this.#mpp;
+		const yaw = this.#cameraYaw();
+		const key = `${k.toFixed(4)}|${yaw.toFixed(4)}`;
+		if (key === this.#placedKey) return;
+		this.#placedKey = key;
+		const m = this.#meshes;
+		const l = this.#layout;
+		const d = this.#dummy;
+		const set = (mesh: THREE.InstancedMesh | null, i: number) => {
+			if (!mesh) return;
+			d.updateMatrix();
+			mesh.setMatrixAt(i, d.matrix);
+		};
+		l.posts.forEach((p, i) => {
+			d.position.set(p.x, (p.h * k) / 2, -p.y);
+			d.rotation.set(0, 0, 0);
+			d.scale.set(k, p.h * k, k);
+			set(m.posts, i);
+		});
+		l.discs.forEach((p, i) => {
+			d.position.set(p.x, (p.h + p.r) * k, -p.y);
+			d.rotation.set(Math.PI / 2, 0, 0);
+			d.rotateOnWorldAxis(UP, yaw);
+			d.scale.set(p.r * k, 0.9 * k, p.r * k);
+			set(m.discs, i);
+		});
+		l.squares.forEach((p, i) => {
+			d.position.set(p.x, (p.h + 4.5) * k, -p.y);
+			d.rotation.set(0, yaw, 0);
+			d.scale.set(9 * k, 9 * k, 0.9 * k);
+			set(m.squares, i);
+		});
+		l.diamonds.forEach((p, i) => {
+			d.position.set(p.x, (p.h + 4.5 + p.stacked * 9) * k, -p.y);
+			d.rotation.set(0, yaw, Math.PI / 4);
+			d.scale.set(6.5 * k, 6.5 * k, 0.9 * k);
+			set(m.diamonds, i);
+		});
+		l.rings.forEach((p, i) => {
+			d.position.set(p.x, (p.h + 4.5) * k, -p.y);
+			d.rotation.set(0, yaw, 0);
+			d.scale.setScalar(k);
+			set(m.rings, i);
+		});
+		for (const mesh of [m.posts, m.discs, m.squares, m.diamonds, m.rings]) {
+			if (mesh) mesh.instanceMatrix.needsUpdate = true;
 		}
+		if (m.beacon) m.beacon.scale.setScalar(k);
+		this.#dirty = true;
 	}
 
 	/** One dot per counted door, where OpenStreetMap holds the business. */
@@ -849,6 +890,9 @@ export class AreaWorld {
 		const geo = new THREE.BufferGeometry();
 		geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 		geo.setAttribute('color', new THREE.BufferAttribute(this.#doorColours, 3));
+		// Drawn through whatever stands in front, like a pin on the map. A shop's node
+		// sits inside its own footprint more often than not, and a dot at door height
+		// inside a five-metre house is a dot under a roof.
 		const mat = new THREE.PointsMaterial({
 			size: 7,
 			sizeAttenuation: false,
@@ -856,6 +900,7 @@ export class AreaWorld {
 			map: this.#dot,
 			alphaTest: 0.4,
 			transparent: true,
+			depthTest: false,
 			depthWrite: false,
 			toneMapped: false
 		});
@@ -923,18 +968,16 @@ export class AreaWorld {
 		}
 		// The camera before the marks, because the marks are sized by its framing.
 		this.#updateCamera();
-		const marks = `${R}|${s.cameraT.toFixed(3)}`;
 		if (
-			marks !== this.#built.marks ||
-			this.#framingMoved() ||
 			s.stops !== (this.#marksOf?.stops ?? null) ||
 			s.rivals !== (this.#marksOf?.rivals ?? null) ||
 			s.units !== (this.#marksOf?.units ?? null) ||
 			s.field !== (this.#marksOf?.field ?? null)
 		) {
-			this.#built.marks = marks;
 			this.#marksOf = { stops: s.stops, rivals: s.rivals, units: s.units, field: s.field };
 			this.#buildMarks();
+		} else {
+			this.#placeMarks();
 		}
 		if (s.doors !== this.#built.doors) {
 			this.#built.doors = s.doors;
@@ -968,11 +1011,15 @@ export class AreaWorld {
 			Math.sin(d.sunAzimuth) * Math.cos(d.sunElevation) * r
 		);
 		this.#sun.target.position.set(0, 0, 0);
+		// The shadow map covers what is in frame rather than the whole disc, so that
+		// closed in on a block the shadows are drawn at the block's scale rather than at
+		// the disc's, where one texel is a metre wide.
+		const half = Math.min(R * 1.2, this.#viewWidth * 0.8);
 		const sc = this.#sun.shadow.camera;
-		sc.left = -R * 1.2;
-		sc.right = R * 1.2;
-		sc.top = R * 1.2;
-		sc.bottom = -R * 1.2;
+		sc.left = -half;
+		sc.right = half;
+		sc.top = half;
+		sc.bottom = -half;
 		sc.near = 1;
 		sc.far = R * 8;
 		sc.updateProjectionMatrix();
@@ -1001,11 +1048,6 @@ export class AreaWorld {
 
 	#marksOf: { stops: AreaStop[]; rivals: LocalPoint[]; units: LocalPoint[]; field: AreaFieldMark[] } | null =
 		null;
-
-	/** The marks were built for a framing this one is well away from. */
-	#framingMoved(): boolean {
-		return this.#builtMpp > 0 && Math.abs(this.#mpp - this.#builtMpp) / this.#builtMpp > 0.15;
-	}
 
 	/** Which way the camera stands, so the marks can turn to face it. */
 	#cameraYaw(): number {
@@ -1038,9 +1080,10 @@ export class AreaWorld {
 
 		// "Zoom" on an orthographic camera is the frustum width. Opened wide the whole
 		// disc fits, its edge is visible and the eye reads an object on a table. Closed
-		// in, the streets around the centre are the frame, which is what the card at
-		// 340 px needs to show anything at all.
-		this.#viewWidth = R * (2.35 - e * 1.45);
+		// in, the block around the point fills the frame and a house is a house, which
+		// is what the reader came in to see and what the card at 340 px needs to show
+		// anything at all.
+		this.#viewWidth = R * (2.35 - e * 1.8);
 		this.#applyFrustum();
 	}
 
@@ -1077,7 +1120,7 @@ export class AreaWorld {
 		this.#renderer.setSize(w, h, false);
 		this.#applyFrustum();
 		// A resize changes how many metres a pixel holds, and the marks are sized by that.
-		if (this.#framingMoved()) this.#buildMarks();
+		this.#placeMarks();
 		this.#dirty = true;
 		this.renderOnce();
 	}
