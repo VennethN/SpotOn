@@ -958,6 +958,17 @@ export const id = {
 		   satu-satunya yang tugasnya menjelaskan angka ini. Tinggi dan warna membaca
 		   angka yang sama, jadi kalimatnya menunjuk balik ke sana. */
 		viewReliefNote: 'Tingginya ikut angka yang sama dengan warnanya.',
+		/* ── digambar atau dimodelkan ─────────────────────────────────────────
+		   Peta dasar yang sama, dua cara memandangnya. Tombolnya pendek dan akibatnya
+		   dijelaskan di petunjuk yang dibawanya, seperti saklar datar atau 3D di
+		   sebelahnya. "Maket" karena itulah yang digambar: massa putih setinggi yang
+		   tercatat di petanya, jalan selebar aslinya, tanpa tulisan penerbitnya. */
+		renderLabel: 'Peta dasar',
+		renderDrawn: 'Gambar',
+		renderModelled: 'Maket',
+		renderDrawnHint: 'Peta dasar seperti digambar penerbitnya, lengkap dengan nama jalan dan tempatnya.',
+		renderModelledHint:
+			'Bangunan, jalan, air, dan taman dari peta dasar yang sama, dimodelkan seperti maket kawasan. Tiap bangunan berdiri setinggi yang tercatat di petanya, dan yang tidak tercatat berdiri setinggi satu ukuran yang sama.',
 		categoryLabel: 'Jenis usaha',
 		coverage: (terdata: number, total: number, poi: number) =>
 			`${terdata}/${total} petak disurvei · ${poi} pesaing terdata`,

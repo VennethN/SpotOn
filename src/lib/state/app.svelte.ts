@@ -78,6 +78,16 @@ export type Pivot = 'cell' | 'unit';
 export type ViewMode = 'flat' | 'relief';
 
 /**
+ * How the basemap is drawn: as its publisher draws it, or modelled.
+ *
+ * The second is the same tiles drawn in the area model's palette, white masses raised
+ * to the heights they carry, streets at their real widths, and none of the publisher's
+ * cartography: see `map/modelled`. A view, like `ViewMode`, and kept here for the same
+ * reason. It changes how the map is looked at and nothing about what is on it.
+ */
+export type MapRender = 'drawn' | 'modelled';
+
+/**
  * Somebody watching an answer being worked out.
  *
  * Every method is optional and none of them is told a figure. The stages say which of
@@ -246,6 +256,8 @@ export class AppState {
 	 * hexagon. The raised view is the one you choose.
 	 */
 	view = $state<ViewMode>('flat');
+	/** Drawn by default. A map opens as a map, and the model is the one you choose. */
+	render = $state<MapRender>('drawn');
 	layers = $state<Record<LayerKey, boolean>>({
 		/**
 		 * The opportunity heatmap is ON from the first frame.
