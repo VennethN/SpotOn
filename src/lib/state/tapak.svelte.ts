@@ -304,7 +304,7 @@ export class Tapak {
 			this.turns[idx] = {
 				id,
 				who: 'tapak',
-				text: c.tapak.failed(this.#app.aiError),
+				text: c.tapak.failed,
 				chips: [{ label: c.tapak.retry, action: { kind: 'ask', question } }]
 			};
 			return;
