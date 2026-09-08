@@ -107,7 +107,7 @@ src/lib/
   components/account/    surfaces that only exist on the account page
   components/ui/         shared between them
   domain/                scoring, natural-language query, categories, narration, markdown
-  state/                 app, tapak, lang, theme, account, clock
+  state/                 app, tapak, lang, theme, account, clock, and area: the tiles a model is read from
   server/source.ts       the one place the data source is decided
   server/gridmap.ts      where each cell is on the page, for every page that draws one
   server/answer.ts       one question answered, in one place, for both reply shapes
@@ -1147,6 +1147,22 @@ whole range on request. The whole disc was the first framing, and on a screen th
 disc is a texture: a house is four pixels, and a house is what the reader came in to
 see. The marks are sized in screen pixels for the same reason, placed again as the
 framing moves rather than rebuilt, so a stop is the same size at every distance.
+
+It can be TURNED. A drag across the full-screen model takes it round the point, one to
+one under the hand and thrown on release, and the sun stays where it is in the world, so
+turning the model turns the light on it the way turning a real one would. `Spinner` in
+`utils/motion` holds the one rule that makes a turn read as a mass rather than a switch:
+the RATE eases, never the angle. In from rest, out to rest, and down from a throw, by an
+exponential approach, which is what an ease in and an ease out are when the thing easing
+is a speed. The card's thumbnail does not turn, because a thumbnail is not a room.
+
+The landing page shows the same model of the busiest catchment, the cell the top of the
+page already counts, turning on its own while it is in view and easing to rest when it is
+not. A hand on it wins, and the drift comes back when the hand lets go. It reads the
+basemap the PUBLIC configuration allows, MAPID's with a public key and the open one
+otherwise, because the Map Service key the app is handed on sign-in is not baked into a
+static page. `state/area` is the reader both of them fetch tiles through, kept out of
+`AppState` for exactly that second caller.
 
 The card's model runs on JAKARTA'S clock, not the reader's. It ran on the reader's own
 hour when all the hour lit was the sky, which was a fact about them. Now the lit doors on
