@@ -880,10 +880,11 @@
 	 * Price tags on the units the selected cell captures.
 	 *
 	 * DOM markers rather than a symbol layer, and that is not a style preference. A
-	 * `text-field` needs a `glyphs` source, and the open raster basemap this falls back
-	 * to when `PUBLIC_MAPID_STYLE_URL` is unset has none — so every symbol label on this
-	 * map renders nothing today, silently, and the names the reader does see are these
-	 * markers. A price drawn the other way would be a feature that works on one
+	 * `text-field` needs a `glyphs` source, and the last-resort raster style in
+	 * `map/basemap.ts` has none — so a symbol label would render nothing there, silently,
+	 * on the one basemap nobody is watching. Markers do not read the style at all, so the
+	 * names the reader sees are the same over MAPID, over the open vector basemap and over
+	 * that one. A price drawn the other way would be a feature that works on one
 	 * developer's machine and nowhere else.
 	 *
 	 * The type leads and the price sits under it, because they answer two questions in
