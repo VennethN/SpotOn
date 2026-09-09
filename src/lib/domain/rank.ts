@@ -64,15 +64,51 @@ export interface Band<Key extends string> {
  */
 export const MIN_BAND = 6;
 
+/**
+ * Every reading of a measure across the rows, sorted, with the unmeasured left out.
+ *
+ * The scale one row's figure is read against: the bands below are cut from it, and so is
+ * a row's standing on the grid. One function, so the two cannot come to be cut from
+ * different sets.
+ */
+export function ladderOf<Row>(rows: readonly Row[], m: Measure<Row>): number[] {
+	return rows
+		.map((r) => m.read(r))
+		.filter((v): v is number => v !== null)
+		.sort((a, b) => a - b);
+}
+
+/**
+ * Where one value sits on a ladder, 0 at the bottom rung to 1 at the top.
+ *
+ * A RANK, not a ratio, and that is the whole reason it exists. An index of 65 means
+ * nothing on its own: it is out of 100, but whether that is a lot depends on what the
+ * rest of the grid scores, and a count of 207 businesses is at least a number anybody
+ * can picture. Set against every other reading it becomes "higher than 78% of areas",
+ * which is a claim about the city rather than about a scale.
+ *
+ * Ties land on the midpoint of their run, so two equal readings get one standing, and
+ * the division is by the last index rather than the length so the lowest reading lands
+ * on exactly 0 and the highest on exactly 1. Written here once and used for prices too:
+ * it used to live in `domain/cost` under the price's name, and the day a second figure
+ * needed it the arithmetic would have been written twice.
+ */
+export function levelOn(value: number | null, ladder: readonly number[]): number | null {
+	if (value === null || ladder.length < 2) return null;
+	let below = 0;
+	while (below < ladder.length && ladder[below] < value) below++;
+	let atOrBelow = below;
+	while (atOrBelow < ladder.length && ladder[atOrBelow] === value) atOrBelow++;
+	const mid = (below + atOrBelow - 1) / 2;
+	return Math.max(0, Math.min(1, mid / (ladder.length - 1)));
+}
+
 /** Where the bottom and top thirds of a measure fall, from the rows themselves. */
 export function tercile<Row>(
 	rows: readonly Row[],
 	m: Measure<Row>
 ): { low: number; high: number } | null {
-	const vals = rows
-		.map((r) => m.read(r))
-		.filter((v): v is number => v !== null)
-		.sort((a, b) => a - b);
+	const vals = ladderOf(rows, m);
 	if (vals.length < MIN_BAND) return null;
 	return {
 		low: vals[Math.floor(vals.length / 3)],

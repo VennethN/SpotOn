@@ -812,6 +812,17 @@ export const id = {
 			access: 'Akses transit',
 			space: 'Unit dipasarkan'
 		},
+		/* Pembanding di bawah tiap indeks. Cacah sudah jadi pembandingnya sendiri, 207
+		   usaha itu angka yang bisa dibayangkan siapa pun, sedangkan indeks tidak: 65
+		   dari 100 belum berarti apa-apa sebelum disandingkan dengan seluruh kisi. Jadi
+		   empat indeks menyebut posisinya di antara semua kawasan yang punya angka itu,
+		   seperti yang sudah dilakukan harga di panelnya sendiri, dan cacah dibiarkan. */
+		standing: (persen: number) => `lebih tinggi dari ${persen}% kawasan`,
+		standingLowest: 'paling rendah dari semua kawasan',
+		standingNearLowest: 'termasuk yang paling rendah dari semua kawasan',
+		standingHighest: 'paling tinggi dari semua kawasan',
+		standingNote:
+			'Tiap "lebih tinggi dari" menyandingkan kawasan ini dengan semua kawasan lain yang punya angka itu, untuk jenis usaha dan jarak jalan kaki yang sama.',
 		/* ── Akses transit ──────────────────────────────────────────────────
 		   Bagian ini ditulis untuk pembaca yang tidak membaca angka indeks. Yang
 		   dipimpin adalah nama stasiunnya — "Blok M" bisa dibayangkan, dicek, dan

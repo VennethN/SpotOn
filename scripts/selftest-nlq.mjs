@@ -845,5 +845,50 @@ check(
 	);
 }
 
+/* ── an index is set against the grid, a count is not ───────────────────── */
+
+/* "Busyness 65" is a number on a scale, and the scale is not the comparator a reader
+   needs: whether 65 is a lot depends on what the rest of the grid reads. The card says
+   where each index sits among every cell that has one. What is pinned here is that the
+   ladder is the scored cells and nothing else, that its two ends are exactly the best
+   and the worst cell, and that a cell nobody scored has no standing rather than the
+   lowest one. */
+{
+	const rows = scoring.scoreAll(cells, ['kopi'], W);
+	const ladder = metrics.ladderFor(rows, 'skor');
+	const scored = rows.filter((r) => r.score !== null);
+	check(
+		'the score ladder holds every scored cell and no other',
+		ladder.length === scored.length && ladder.length > 0,
+		`ladder ${ladder.length}, scored ${scored.length}`
+	);
+	const best = scored.reduce((a, r) => (r.score > a.score ? r : a));
+	const worst = scored.reduce((a, r) => (r.score < a.score ? r : a));
+	check('the best-scoring cell stands at the very top', metrics.standingOf(best, 'skor', ladder) === 1);
+	check('the worst-scoring cell stands at the very bottom', metrics.standingOf(worst, 'skor', ladder) === 0);
+	const unscored = rows.find((r) => r.score === null);
+	check(
+		'a cell nobody scored has no standing, not the lowest one',
+		unscored !== undefined && metrics.standingOf(unscored, 'skor', ladder) === null
+	);
+	check(
+		'every standing is a share of the grid',
+		scored.every((r) => {
+			const s = metrics.standingOf(r, 'skor', ladder);
+			return s !== null && s >= 0 && s <= 1;
+		})
+	);
+	// Transit access exists for every cell, surveyed or not, so its ladder is the grid.
+	check(
+		'transit access is ranked over the whole grid',
+		metrics.ladderFor(rows, 'akses_transit').length === rows.length
+	);
+	// Too few readings to rank against, and the answer is silence rather than a share.
+	check(
+		'a handful of readings ranks nothing',
+		metrics.standingOf(best, 'skor', ladder.slice(0, 3)) === null
+	);
+}
+
 console.log(failures ? `\n${failures} check(s) failed.` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
