@@ -750,5 +750,100 @@ check(
 	chat.ruleChatTopic('kenapa lokasi penting untuk usaha') === null
 );
 
+/* ── the rule parser does not guess ──────────────────────────────────────── */
+
+/* THE ONE THE SCREENSHOT SHOWED. Every sentence used to be read into a query, and a
+   sentence the parser could read nothing in was read into the DEFAULT one: a ranking by
+   the opportunity score for whatever business was active. So "what", typed by somebody
+   confused by the previous answer, came back as five catchments under "if it were up to
+   me", and "explain what do those numbers mean" came back as the same five. A confident
+   answer to a question nobody asked, which is the exact failure `tidak_dimengerti` exists
+   to prevent on the model path, and the rule path had no equivalent of. */
+{
+	const ranking = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']);
+	const SAID = ranking.items.map((i) => i.name);
+	const [first, second] = SAID;
+
+	for (const q of [
+		'what',
+		'hmm',
+		'explain what do those numbers mean (out of out of), is more business in the area good or bad',
+		'kenapa lokasi penting untuk usaha',
+		'thanks, that is all I needed',
+		'apa kabar dunia hari ini'
+	]) {
+		const ans = nlq.answer(q, cells, W, ['kopi'], SAID);
+		check(
+			`"${q.slice(0, 44)}" is not guessed at`,
+			ans.notUnderstood === true && ans.items.length === 0 && ans.highlight.length === 0,
+			`got ${ans.query.intent} notUnderstood=${ans.notUnderstood} items=${ans.items.length}`
+		);
+	}
+
+	// And the plain forms still answer, in both languages, with a type in force and without.
+	for (const [q, cats, want] of [
+		['di mana sebaiknya buka kedai kopi', ['kopi'], 'RANK'],
+		['where should I open', [], 'RANK'],
+		['mau buka usaha', [], 'RANK'],
+		['kopi', [], 'RANK'],
+		['mana yang paling murah', ['kopi'], 'RANK'],
+		['dalam 500 m', ['kopi'], 'RANK'],
+		['Kawasan mana yang sudah jenuh untuk kedai kopi?', ['kopi'], 'FLAG_SATURATED'],
+		['Which areas are saturated for a coffee shop?', ['kopi'], 'FLAG_SATURATED'],
+		['Kawasan mana yang belum terdata?', ['kopi'], 'COVERAGE'],
+		['Which areas have no data yet?', ['kopi'], 'COVERAGE'],
+		[`Why ${first}?`, ['kopi'], 'EXPLAIN'],
+		[`bandingkan ${first} dan ${second}`, ['kopi'], 'COMPARE']
+	]) {
+		const ans = nlq.answer(q, cells, W, cats, SAID);
+		check(
+			`"${q}" is still read as ${want}`,
+			ans.notUnderstood === undefined && ans.query.intent === want,
+			`got ${ans.query.intent} notUnderstood=${ans.notUnderstood}`
+		);
+	}
+
+	/* The two English chips. "Which areas are saturated" and "which areas have no data
+	   yet" matched no intent word, because every intent word was Indonesian, and both came
+	   back as a ranking by score whenever the model was away. The Indonesian chips had
+	   always worked, which is why nobody noticed. */
+	check(
+		'the English saturation chip lists the crowded places, not the best ones',
+		nlq.answer('Which areas are saturated for a coffee shop?', cells, W, ['kopi']).items[0]?.name ===
+			nlq.answer('Kawasan mana yang sudah jenuh untuk kedai kopi?', cells, W, ['kopi']).items[0]?.name
+	);
+	check(
+		'the English coverage chip lists the unsurveyed places',
+		nlq.answer('Which areas have no data yet?', cells, W, ['kopi']).items.length ===
+			nlq.answer('Kawasan mana yang belum terdata?', cells, W, ['kopi']).items.length
+	);
+
+	// "Mau buka usaha" is the opening question of the product one word short, and is
+	// answered by asking for the word, never refused as unreadable.
+	for (const q of ['mau buka usaha', 'where should I open', 'I want to start a business']) {
+		check(`"${q}" with no type in force asks for one`, nlq.answer(q, cells, W, [], []).needsCategory === true);
+	}
+}
+
+/* A pointer with nothing to point at. "Kenapa?" on a fresh thread used to be resolved
+   against the whole grid, because the grid's names were handed in as though the
+   conversation had said them, and it explained the first catchment in the file. */
+{
+	for (const q of ['kenapa?', 'why?', 'kenapa yang itu']) {
+		const fresh = nlq.answer(q, cells, W, ['kopi'], []);
+		check(
+			`"${q}" with nothing said explains no place`,
+			fresh.query.intent === 'EXPLAIN' && !fresh.explain && fresh.items.length === 0,
+			`got ${fresh.query.intent} explain=${fresh.explain?.name} items=${fresh.items.length}`
+		);
+	}
+	// Naming a place the conversation never mentioned still works, from the grid's own names.
+	const top = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']).items[0].name;
+	check(
+		'a place named outright is still found on the grid',
+		nlq.answer(`kenapa ${top}`, cells, W, ['kopi'], []).explain?.name === top
+	);
+}
+
 console.log(failures ? `\n${failures} check(s) failed.` : '\nall checks passed');
 process.exit(failures ? 1 : 0);

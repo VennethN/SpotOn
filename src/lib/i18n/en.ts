@@ -1209,6 +1209,12 @@ export const en: Copy = {
 			'Before I answer, what do you want to open? An opportunity score is always for one kind of business, because 83 for a coffee shop is not 83 for a laundry.',
 		notUnderstood: (why: string) =>
 			`${why} All I know is the areas around Jakarta transit, for a set of business types. Want me to look at one of those?`,
+		/* The rule parser read nothing it knows in the sentence, and there is no model
+		   sentence to quote. Said as what CAN be asked rather than as an apology: with no
+		   model only the plain forms work, and the reader is better off hearing what they
+		   are than being handed a ranking they never asked for. */
+		unclear:
+			'I could not read that one. Ask me where to open something, why an area is on the list, or what space costs there, and I will answer from the figures.',
 		coverageNone: 'Every area has data.',
 		coverageSome: (n: number) =>
 			`There are ${n} areas I have no data for at all. I'm not scoring them. Rather than make something up, I'd rather say I don't know.`,

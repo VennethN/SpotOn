@@ -1208,6 +1208,13 @@ export const id = {
 			'Sebelum saya jawab, mau buka usaha apa? Skor peluang selalu untuk satu jenis usaha, karena 83 untuk kedai kopi bukan 83 untuk laundry.',
 		notUnderstood: (why: string) =>
 			`${why} Yang saya hafal cuma kawasan di sekitar transit Jakarta, untuk sejumlah jenis usaha. Mau saya carikan salah satunya?`,
+		/* Pengurai aturan tidak menemukan satu pun kata yang dikenalnya, dan tidak ada
+		   kalimat model yang bisa dikutip. Disebutkan apa yang BISA ditanyakan, bukan
+		   permintaan maaf: tanpa model cuma bentuk yang lugas yang terbaca, dan pembaca
+		   lebih terbantu mendengar bentuknya daripada disodori peringkat yang tidak
+		   pernah dia minta. */
+		unclear:
+			'Yang itu belum saya tangkap. Coba tanya di mana sebaiknya buka usaha, kenapa satu kawasan masuk daftar, atau berapa harga tempat di sana, dan saya jawab dari angkanya.',
 		coverageNone: 'Semua kawasan sudah ada datanya.',
 		coverageSome: (n: number) =>
 			`Ada ${n} kawasan yang datanya belum saya punya sama sekali. Saya tidak menilainya. Daripada saya karang, lebih baik saya bilang belum tahu.`,
