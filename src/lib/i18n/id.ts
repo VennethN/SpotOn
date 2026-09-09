@@ -1169,18 +1169,16 @@ export const id = {
 		   ganti bahasa mengganti kata-katanya dan bukan sapaannya. */
 		greet: (total: number, part: DayPart, wording: number) =>
 			`${SAPAAN[part][wording]} Saya Tapak. Saya sudah keliling ${total} petak di sekitar MRT, KRL, LRT, dan koridor TransJakarta. Lagi kepikiran buka usaha apa?`,
-		/* Pertanyaan ini dulu berbunyi "Modalnya kira-kira bagaimana?" dengan pilihan
-		   "Pas-pasan" dan "Agak longgar" — dua kata yang tidak memberi tahu apa pun
-		   soal apa yang akan berubah. Yang sebenarnya dipilih di sini cuma satu:
-		   apakah hasilnya disaring ke kawasan yang tempatnya memang sedang
-		   disewakan, di kelas sewa bawah. Jadi itu yang ditanyakan, dan itu yang
-		   tertulis di tombolnya. */
-		budgetAsk: (cat: string) => `Oke, ${cat}. Sewa tempatnya bagaimana?`,
+		/* Saringan sewa, ditawarkan di atas sebuah peringkat dan bukan ditanyakan
+		   sebelum ada peringkat. Dulu keduanya jawaban untuk "Sewa tempatnya bagaimana?"
+		   yang berdiri di antara jenis usaha dan jawaban pertama, jadi pembaca menjawab
+		   dua pertanyaan dari naskah sebelum mendengar satu pun dari data. Dulu juga
+		   berbunyi "Pas-pasan" dan "Agak longgar", dua kata yang tidak memberi tahu apa
+		   pun soal apa yang akan berubah. Yang dipilih di sini cuma satu: apakah
+		   hasilnya disaring ke kawasan yang tempatnya memang sedang disewakan, di kelas
+		   sewa bawah. Jadi itu yang tertulis di tombolnya. */
 		budgetTight: 'Harus yang sewanya murah',
 		budgetLoose: 'Berapa pun, asal kawasannya bagus',
-		prefaceTight:
-			'Baik. Saya saring ke kawasan yang tempatnya memang sedang disewakan, di kelas sewa bawah.',
-		prefaceLoose: 'Baik, semua kawasan saya lihat, tanpa saringan sewa.',
 		restart: 'Mau lihat usaha apa sekarang?',
 		tryOther: 'Coba usaha lain',
 		avoid: 'Mana yang sebaiknya dihindari?',
