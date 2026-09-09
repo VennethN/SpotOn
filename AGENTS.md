@@ -723,11 +723,16 @@ Five things hold it up:
   through `utils/format`'s `moneyScale`, the same function both locale files round through.
   Divide by a million here instead and every catchment above a billion has its correct
   price rejected, with no symptom but Tapak sounding plainer there.
-- **A quantity spelled out is still a quantity.** "Balik modal dalam delapan bulan" carries
-  no digit and is the same fabrication as the one that does. Counts in words are refused
-  outright, and a scale word ("juta", "million") only passes with a grounded figure
+- **A quantity spelled out is still a quantity, and is held to the same rule.** "Balik
+  modal dalam delapan bulan" carries no digit and is the same fabrication as the one that
+  does, so a count in words passes only when the figure it spells is on the sheet: "the
+  five" on a list of five, "delapan bulan" never. Counts in words used to be refused
+  outright, and that threw away "out of a hundred" and "the strongest of the five", which
+  are how English says these things. A vague count ("belasan", "dozens") names no figure
+  and is refused. A scale word ("juta", "million") only passes with a grounded figure
   immediately in front of it, because "Rp 59,8 juta" is how a true figure is written and
-  "beberapa juta" is a claim about money nobody measured.
+  "beberapa juta" is a claim about money nobody measured. "A hundred" alone passes for the
+  reason 100 does: it is the ruler, not a reading.
 - **A name is checked too.** A right figure quoted against the wrong catchment is wrong in
   the one way a reader cannot catch, because the number checks out. The grid's names are a
   closed set, so a reply naming a catchment this answer did not name is refused. Lone short
@@ -744,6 +749,27 @@ A rejected reply is thrown away whole rather than repaired, and the composed sen
 stands in. So the worst a misbehaving model can do is cost the reader the plainer answer.
 The same is true of no key, a timeout, or a model that is busy: `reply` is absent and
 everything downstream behaves as it did before this existed.
+
+**But a rejection is never silent.** A reply dropped in silence has exactly one symptom,
+Tapak sounding plainer, and nobody reports that. It was the state of the deployment for a
+while: every answer came back as the template, and nothing said whether a reply had been
+written and refused or never written at all, which from the reader's side look the same
+and only one of which is a bug. So `groundingFault` says WHY, naming the figure or the
+place, and the reason goes into the server log with the sentence, and into the answer's
+provenance. Three things were found that way and are worth knowing:
+
+- **The leash was shorter than the product's own sentence.** 460 characters, and the
+  interface's composed explanation runs past that in English. A model saying the same
+  thing at the same length was thrown away for the length, on every explanation. It is
+  720 now, and a reply of five short sentences fits.
+- **The writing pass was cut off before free models answer.** Fifteen seconds an attempt,
+  thirty in all, which is the same mistake the understanding pass had already made and
+  fixed: a queued free model answers at second fourteen or twenty. It is thirty and sixty
+  now, so two full attempts fit.
+- **Reasoning models spend the answer's tokens on thinking.** The cap was half the fence's
+  length in tokens, and a model that reasons first spends that allowance before it writes
+  a word, then returns nothing. The writing pass now gets the same 1,024 the understanding
+  pass does.
 
 `selftest-grounded.mjs` holds it, and its last check is the load-bearing one. The composed
 sentences are built entirely from computed figures, so they are grounded by construction
@@ -876,6 +902,76 @@ same reason: "kenapa lokasi penting" is a question carrying its own subject, and
 answering it with one catchment's arithmetic would be answering something nobody asked.
 The long tail is not pinned in `selftest-nlq.mjs` and must not be grown there. With no
 key at all the plain forms work, and everything else is the model's job.
+
+### Two turns the prompt had to name
+
+Both were read as data requests, and both are follow-ups a reader types within a minute
+of being handed a list.
+
+- **"Explain what do those numbers mean, is more business in the area good or bad."** It
+  DOES need data, but the data of the place the numbers were about, so the reply can
+  explain them. The figures are deliberately not in the thread, so the model is told to
+  run EXPLAIN again on that place and let the writing pass say what each figure measures
+  and which way is good. It was answered with a fresh ranking of the whole grid, which
+  is a list nobody asked for, and the writing pass prompt now carries the three
+  measures and their directions so the explanation is in the reply rather than in the
+  reader's head.
+- **"What."** Somebody confused by the last answer. It needs no data, and the model is
+  told to say so and ask back rather than reach for EXPLAIN on whichever name happens to
+  sit in the thread. A name that only passed by in an earlier turn, without being pointed
+  at now, is not a reason to explain it.
+
+Neither is a phrasebook entry. The prompt names the two SHAPES and the model still
+decides each turn.
+
+### The rule parser does not guess
+
+Every sentence used to be read into a query, and a sentence the rule parser could read
+nothing in was read into the DEFAULT one: a ranking by the opportunity score for whatever
+business was active. So when the model chain was away, "what" came back as five
+catchments under "if it were up to me", and "explain what do those numbers mean" came
+back as the same five. A confident answer to a question nobody asked, which is exactly
+the failure `tidak_dimengerti` exists to prevent on the model path, and the rule path had
+no equivalent.
+
+`readQuestion` in `domain/nlq` now says whether anything in the sentence was read at all:
+a business type, a measure, a shape, a named or pointed-at place, a distance, a
+direction, a request for a list, or an intent to open something. Nothing read, and
+`answer` returns `notUnderstood: true` with no items, no highlight and no map change, and
+the interface says in its own words what CAN be asked. The query still travels beside it,
+because the response shape is a contract, and it is the default it always was. The line
+between "not understood" and "one word short" has not moved: "mau buka usaha" names no
+type, no measure and no place and is still answered by asking what kind, because it is
+the opening question of the product and a guide whose first line is "what are you
+thinking of opening" cannot fail to recognise the reply.
+
+Two more things were found on the way and are held by the same test:
+
+- **A pointer resolves against the conversation, never the grid.** `answer` handed the
+  grid's names in as though the conversation had said them, so "kenapa?" on a fresh
+  thread explained the first catchment in the file. Naming a place the conversation never
+  mentioned still works, from those same names. Pointing at nothing now comes back asking
+  which place was meant.
+- **The English chips reach their intents without a model.** "Which areas are saturated"
+  and "which areas have no data yet" matched no intent word, because every intent word
+  was Indonesian, and both came back as a ranking by score. The Indonesian chips had
+  always worked, which is why nobody noticed.
+
+## The opening is one scripted turn, and then the model
+
+Tapak greets, offers the business types, and the tap asks the engine. That is the whole of
+the script. There used to be a second scripted turn between the type and the first answer,
+"what about the rent?", with two chips under it, so the reader answered two questions from
+a script before hearing one thing from the data. Nothing in that turn came from the model
+or from the grid: it was a form with a face, and the reader could tell.
+
+The rent narrowing has not gone. It is offered on the answer instead, as the one filter it
+actually is: "only where the rent is cheap" under a ranking asks the same question again
+with the filter on, and "any rent" under a narrowed ranking asks it with the filter off.
+Read off the answer's own query rather than off a remembered choice, because a typed
+question can carry the filter too and the chip has to offer the opposite of what is on
+screen. The prefaces that announced the narrowing are gone with the turn: the reply says
+what it did, and where there is no model the chip row says so.
 
 ## The greeting knows the hour and nothing else
 
