@@ -12,9 +12,16 @@
 	 */
 	import CatchmentDiorama from '$lib/components/app/CatchmentDiorama.svelte';
 	import PivotMark from '$lib/components/ui/PivotMark.svelte';
+	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
+	import type { Tapak } from '$lib/state/tapak.svelte';
 	import { pct, rampIndex } from '$lib/utils/format';
+
+	/* The page's one conversation, handed in so the card can put this place into it.
+	   The card does not ask anything itself: it names the place and hands over the
+	   cursor, and what gets asked is typed. */
+	let { tapak }: { tapak: Tapak } = $props();
 
 	const app = getAppState();
 	const c = $derived(copy());
@@ -55,6 +62,15 @@
 			</svg>
 		</button>
 	</div>
+
+	<!-- Into the conversation, about this place, in the reader's own words. Not a list
+	     of questions: the box takes anything, and this only tells it which place the
+	     next one is about. On a line of its own under the head, because the name column
+	     is half the card and the label wrapped inside it. -->
+	<button type="button" class="ask" onclick={() => tapak.askAbout(row.name)}>
+		<TapakFigure size={14} />
+		<span>{c.tapak.askAbout}</span>
+	</button>
 
 	<CatchmentDiorama />
 {/if}
@@ -98,6 +114,29 @@
 		line-height: 1;
 		color: var(--label-1);
 		font-variant-numeric: tabular-nums;
+	}
+	.ask {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		margin: 0.5rem 0 0.625rem;
+		padding: 0.25rem 0.6875rem 0.25rem 0.5rem;
+		white-space: nowrap;
+		border: 1px solid var(--separator-strong);
+		border-radius: 999px;
+		background: transparent;
+		color: var(--label-1);
+		font-size: 0.75rem;
+		cursor: pointer;
+		transition:
+			background-color 140ms ease-out,
+			transform 100ms ease-out;
+	}
+	.ask:hover {
+		background: var(--fill-1);
+	}
+	.ask:active {
+		transform: scale(0.96);
 	}
 	.close {
 		flex: none;

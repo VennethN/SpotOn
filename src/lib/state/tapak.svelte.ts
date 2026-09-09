@@ -55,6 +55,15 @@ export interface Turn {
 	/** The scoring engine's result, shown as a list of places. */
 	answer?: AiAnswer;
 	/**
+	 * The places a turn is ABOUT when it carries no answer to read them off.
+	 *
+	 * An answer's places are its items. A scripted line has none, and the one scripted
+	 * line that needs some is the one the area card files, "Pondok Jati, then": what it
+	 * puts into the thread is the name, so that whatever is typed next is read about
+	 * that place. See `askAbout`.
+	 */
+	places?: string[];
+	/**
 	 * Marks a turn that is waiting with nothing to show yet. The panel says which
 	 * `stage` is running rather than one motionless line, because the wait runs to
 	 * ninety seconds at its longest and a line that never changes in that time is
@@ -96,6 +105,22 @@ export class Tapak {
 	remark = $state<{ id: number; text: string } | null>(null);
 	/** Small budget → results are filtered to areas where space is genuinely available. */
 	smallBudget = $state<boolean | null>(null);
+	/**
+	 * The place the next question is about, when a surface has said so.
+	 *
+	 * Only the box's placeholder reads it. The thread carries the name itself, on the
+	 * turn `askAbout` files, and that is what the understanding layer reads. Cleared
+	 * the moment a question goes out, so the hint never outlives the question it was
+	 * a hint for.
+	 */
+	subject = $state<string | null>(null);
+	/**
+	 * Bumped when a surface asks for the question box. The panel focuses its field
+	 * on every change, and the page raises the sheet on a compact screen so the field
+	 * is not under the keyboard that opens for it. A counter rather than a flag, so
+	 * two asks in a row are two focuses.
+	 */
+	focusRequest = $state(0);
 	#app: AppState;
 	#nextId = 0;
 	#greeted = false;
@@ -119,6 +144,7 @@ export class Tapak {
 		this.turns = [];
 		this.remark = null;
 		this.smallBudget = null;
+		this.subject = null;
 		this.#greeted = false;
 		this.#lastRemarked = null;
 		this.greet();
@@ -158,7 +184,41 @@ export class Tapak {
 		if (!q) return;
 		this.#consume();
 		this.turns.push({ id: this.#nextId++, who: 'user', text: q });
+		this.subject = null;
 		void this.#ask(q);
+	}
+
+	/**
+	 * The reader wants to ask about ONE place, in their own words.
+	 *
+	 * Offered from the area card, where the reader is already looking at the place.
+	 * Nothing is asked here. The thread is told which place is meant, by one short line
+	 * carrying the name, so the next question, whatever it is, is read about that place:
+	 * "is the rent any good", "why so low", "how busy is it" all resolve against it the
+	 * way a follow-up to a ranking does. Then the box is handed the focus with an empty
+	 * field. A menu of questions here would be the wrong shape twice over: wrong the
+	 * first time somebody wanted to ask something not on it, and redundant beside a box
+	 * that takes anything.
+	 *
+	 * Pressed twice for the same place it files nothing twice. The line is already the
+	 * last thing said, and saying it again would be Tapak repeating itself to a reader
+	 * who only wanted the cursor back.
+	 */
+	askAbout(name: string) {
+		const last = this.turns[this.turns.length - 1];
+		const already =
+			last?.who === 'tapak' && !last.answer && !last.pending && last.places?.[0] === name;
+		if (!already) {
+			this.#consume();
+			this.turns.push({
+				id: this.#nextId++,
+				who: 'tapak',
+				text: copy().tapak.aboutPlace(name),
+				places: [name]
+			});
+		}
+		this.subject = name;
+		this.focusRequest++;
 	}
 
 	#run(action: ChipAction) {
@@ -235,7 +295,8 @@ export class Tapak {
 			   catchments and nobody points at the seventy-first, so the rest is weight on
 			   every request from here on for nothing. The endpoint caps this too, because
 			   it is the one that has to survive a caller that did not. */
-			const places = (turn.answer?.items ?? []).slice(0, 8).map((i) => i.name);
+			const places =
+				turn.places ?? (turn.answer?.items ?? []).slice(0, 8).map((i) => i.name);
 			out.push(
 				places.length
 					? { who: 'tapak', text: turn.text, places }

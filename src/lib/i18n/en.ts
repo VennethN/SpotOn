@@ -1201,6 +1201,12 @@ export const en: Copy = {
 		   box below can be talked to. Only one: everything else is typed, and what
 		   reads it is the understanding layer rather than a list of phrasings here. */
 		why: (name: string) => `Why ${name}?`,
+		/* The way from the area card into the conversation, about the place on the card.
+		   A button and not a menu: what it opens is the box, which takes anything, and
+		   the place is put into the thread so whatever is typed next is read about it. */
+		askAbout: 'Ask Tapak about this area',
+		aboutPlace: (name: string) => `${name}, then. What do you want to know about it?`,
+		askAboutPlaceholder: (name: string) => `Ask anything about ${name}…`,
 		retry: 'Try again',
 		/* Said by Tapak inside the thread, separately from the notice over the map. The
 		   question was never sent, so the turn still has to answer something rather than
