@@ -32,7 +32,7 @@
  */
 
 import { moneyScale } from '$lib/utils/format';
-import { METRIC_MAP } from './metrics';
+import { METRIC_MAP, standingShare } from './metrics';
 import type { AiAnswer } from '$lib/types';
 
 /**
@@ -247,7 +247,7 @@ export function factSheet(ans: AiAnswer): string {
 							METRIC_MAP[e.measure.ukuran]?.kind === 'rupiah'
 								? rupiah(e.measure.value)
 								: e.measure.text
-						}`
+						}.${stand(e.standing.measure)}`
 			);
 		}
 		if (!e.covered) {
@@ -255,11 +255,11 @@ export function factSheet(ans: AiAnswer): string {
 				`- Kotanya belum disurvei untuk kategori ini, jadi tidak ada skor, tidak ada hitungan pesaing, dan tidak ada keramaian. Bukan nol: belum dihitung.`
 			);
 		} else {
-			lines.push(`- Skor peluang ${score(e.score)} dari 100.`);
-			lines.push(`- Keramaian ${score(e.demand)} dari 100, dari ${e.density} usaha lain dalam radius ${e.radius} m.`);
-			lines.push(`- Penawaran ${score(e.supply)} dari 100, dari ${e.rivals} pesaing sejenis dalam radius yang sama.`);
+			lines.push(`- Skor peluang ${score(e.score)} dari 100.${stand(e.standing.score)}`);
+			lines.push(`- Keramaian ${score(e.demand)} dari 100, dari ${e.density} usaha lain dalam radius ${e.radius} m.${stand(e.standing.demand)}`);
+			lines.push(`- Penawaran ${score(e.supply)} dari 100, dari ${e.rivals} pesaing sejenis dalam radius yang sama.${stand(e.standing.supply)}`);
 		}
-		lines.push(`- Akses transit ${score(e.access)} dari 100, dari ${e.stops} simpul transit dalam radius ${e.radius} m.`);
+		lines.push(`- Akses transit ${score(e.access)} dari 100, dari ${e.stops} simpul transit dalam radius ${e.radius} m.${stand(e.standing.access)}`);
 		lines.push(
 			e.units === 0
 				? '- Tidak ada unit komersial yang sedang dipasarkan dalam radius itu.'
@@ -300,6 +300,23 @@ export function factSheet(ans: AiAnswer): string {
 
 /** A 0..1 reading as the whole number the interface prints beside it. */
 const score = (v: number | null): string => (v === null ? 'tidak ada' : String(Math.round(v * 100)));
+
+/**
+ * Where a figure sits on the grid, for the sheet.
+ *
+ * The share is the same floored whole number the interface composes its own sentence
+ * with, through the same function, so a reply quoting "higher than 78% of areas" is
+ * quoting a figure that is on the sheet. Rounded here and floored there, the composed
+ * sentence would fail its own fence on every explanation, and the only symptom would be
+ * the template standing in. Nothing at all when there is no standing, which is how a
+ * cell nobody scored reads: an absence, not a bottom rung.
+ */
+function stand(level: number | null): string {
+	if (level === null) return '';
+	if (level === 1) return ' Paling tinggi dari semua petak yang punya angka ini.';
+	if (level === 0) return ' Paling rendah dari semua petak yang punya angka ini.';
+	return ` Lebih tinggi dari ${standingShare(level)}% petak lain yang punya angka ini.`;
+}
 
 /**
  * A price in both shapes the reader might see it in.

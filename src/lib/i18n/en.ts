@@ -888,6 +888,9 @@ export const en: Copy = {
 		transitRail: 'Rail stations in range',
 		transitBus: (n: number) => `${n} TransJakarta stops within walking range`,
 		transitWalk: (m: number) => `${m} m`,
+		/* The index against the grid, after the band. "Strong" is a fixed scale, and
+		   this is where strong sits among the rest. */
+		transitStanding: (posisi: string) => `Its access index is ${posisi}.`,
 		transitUplift: (persen: number) =>
 			`This access lifts the cell's opportunity score by roughly ${persen}% against a cell with no transit at all.`,
 		transitWhyRail:
@@ -1285,6 +1288,10 @@ export const en: Copy = {
 				`Its opportunity score is ${nilai} out of 100 for ${cat}.`,
 			lead: (name: string, cat: string, nilai: string) =>
 				`${name} scores ${nilai} out of 100 for ${cat}, and here is what that is made of.`,
+			/* The figure against the grid, in the same fragment the card prints under it.
+			   Said for the score and for whatever measure was asked about, because "is
+			   that a lot" is the question every one of those figures raises. */
+			standing: (posisi: string) => `That is ${posisi}.`,
 			/* Every count here has to agree with the noun beside it, which is this
 			   language's job and not the engine's. Indonesian does not inflect and its
 			   version of these is one sentence each. A catchment with one rival in range
@@ -1323,8 +1330,16 @@ export const en: Copy = {
 		},
 		remarkUncovered: (name: string, cat: string) =>
 			`${name} has not been surveyed yet, so the ${cat} around it have never been counted. I have no figure to give you for it.`,
-		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
-			`${name} is ${verdict} for a ${cat}, scoring ${nilai}. There are ${osm} similar businesses, and ${listing}.`,
+		remark: (
+			name: string,
+			verdict: string,
+			cat: string,
+			nilai: string,
+			osm: number,
+			listing: string,
+			posisi: string
+		) =>
+			`${name} is ${verdict} for a ${cat}, scoring ${nilai}${posisi ? `, ${posisi}` : ''}. There are ${osm} similar businesses, and ${listing}.`,
 		verdictGood: 'one of the good ones',
 		verdictMid: 'middling',
 		verdictLow: 'honestly not promising',
@@ -1408,6 +1423,13 @@ export const en: Copy = {
 		cardIn: (petak: string) => `in ${petak}`,
 		cardWalk: (m: number) => `${num(m)} m from the cell centre`,
 		cardAbout: 'About the place',
+		/* The price per m² against every other unit on the market with one. Said as
+		   "dearer than", the way the area's price rank is, and not as "higher than":
+		   nobody reads a price as high. */
+		standing: (persen: number) => `dearer than ${persen}% of the units on the market`,
+		standingCheapest: 'the cheapest unit on the market',
+		standingNearCheapest: 'among the cheapest units on the market',
+		standingDearest: 'the dearest unit on the market',
 		/* This read "About the area", which was right while everything under it was
 		   measured from the cell centre. The walking range is measured from this front
 		   door now, so the heading names the point it is measured from and the line under

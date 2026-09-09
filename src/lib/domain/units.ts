@@ -1,5 +1,5 @@
 import { isPremises, type Listing } from './premises';
-import { applyBands, rankRows, type Band, type Measure } from './rank';
+import { MIN_BAND, applyBands, levelOn, rankRows, type Band, type Measure } from './rank';
 import { stopTotal } from './transit';
 import { haversine } from '$lib/utils/geo';
 import type { HexBase, ScoredHex, UnitMetricKey } from '$lib/types';
@@ -143,6 +143,23 @@ export const UNIT_METRIC_MAP: Record<UnitMetricKey, UnitMetricDef> = {
 };
 
 export const UNIT_METRIC_KEYS = Object.keys(UNIT_METRIC_MAP) as UnitMetricKey[];
+
+/**
+ * Where one unit's figure sits among every unit that has one, 0 lowest to 1 highest.
+ *
+ * The unit pivot's half of `standingOf` in `domain/metrics`, through the same
+ * arithmetic in `domain/rank` and under the same gate: below `MIN_BAND` readings a
+ * standing is a fact about the sample, and a unit with no reading has none rather than
+ * the lowest one.
+ */
+export function unitStanding(
+	unit: ScoredUnit,
+	key: UnitMetricKey,
+	ladder: readonly number[]
+): number | null {
+	if (ladder.length < MIN_BAND) return null;
+	return levelOn(UNIT_METRIC_MAP[key].read(unit), ladder);
+}
 
 export const isUnitMetric = (v: unknown): v is UnitMetricKey =>
 	typeof v === 'string' && (UNIT_METRIC_KEYS as readonly string[]).includes(v);

@@ -13,6 +13,8 @@
 	import CatchmentDiorama from '$lib/components/app/CatchmentDiorama.svelte';
 	import PivotMark from '$lib/components/ui/PivotMark.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
+	import { standingOf } from '$lib/domain/metrics';
+	import { standingPhrase } from '$lib/domain/narrate';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import type { Tapak } from '$lib/state/tapak.svelte';
@@ -26,6 +28,10 @@
 	const app = getAppState();
 	const c = $derived(copy());
 	const row = $derived(app.selected);
+	/* The one number the card leads with, set against the grid. 65 is out of 100 and
+	   that is not the comparator: whether 65 is a lot depends on what the rest of the
+	   grid scores, and this is the first figure the reader sees. */
+	const standing = $derived(row ? standingPhrase(standingOf(row, 'skor', app.ladders.skor), c) : '');
 </script>
 
 {#if row}
@@ -42,6 +48,10 @@
 				{/if}
 				{c.typology[row.typology]}
 			</p>
+			<!-- The score against the grid, on a line of its own under the typology, which
+			     is the other word for the same verdict. Not under the number: stacked
+			     there it widened that column until "Kalibata City 2" broke in two. -->
+			{#if standing}<p class="standing">{standing}</p>{/if}
 		</div>
 		{#if row.score !== null}
 			<span class="score">{pct(row.score)}</span>
@@ -98,6 +108,12 @@
 		gap: 0.375rem;
 		margin-top: 0.1875rem;
 		font-size: 0.75rem;
+		color: var(--label-3);
+	}
+	.standing {
+		margin-top: 0.125rem;
+		font-size: 0.75rem;
+		line-height: 1.35;
 		color: var(--label-3);
 	}
 	.dot {

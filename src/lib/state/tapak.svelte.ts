@@ -1,5 +1,6 @@
 import { CATEGORIES } from '$lib/domain/categories';
-import { categoryNames, narrate } from '$lib/domain/narrate';
+import { standingOf } from '$lib/domain/metrics';
+import { categoryNames, narrate, standingPhrase } from '$lib/domain/narrate';
 import { greetingNow } from '$lib/state/clock';
 import { copy } from '$lib/state/lang.svelte';
 import { pct } from '$lib/utils/format';
@@ -489,10 +490,18 @@ export class Tapak {
 			this.#note(c.narrate.remarkUncovered(row.name, cat));
 			return;
 		}
+		/* The verdict follows the standing where there is one: the top third of scored
+		   cells is "one of the good ones", the bottom third "not promising". It used to be
+		   cut at fixed points on the score, and no coffee catchment on the grid reaches
+		   the upper one, so the remark called the fourth-best cell in the city "middling"
+		   in the same breath as "higher than 99% of areas". The fixed cut stays only for a
+		   cell with no standing, which is a cell with too few peers to rank against. */
+		const standing = standingOf(row, 'skor', this.#app.ladders.skor);
+		const level = standing ?? row.score ?? 0;
 		const verdict =
-			(row.score ?? 0) >= 0.66
+			level >= 0.66
 				? c.narrate.verdictGood
-				: (row.score ?? 0) >= 0.4
+				: level >= 0.4
 					? c.narrate.verdictMid
 					: c.narrate.verdictLow;
 		this.#note(
@@ -502,7 +511,10 @@ export class Tapak {
 				cat,
 				pct(row.score),
 				row.osm,
-				row.units > 0 ? c.narrate.listingSome(row.units) : c.narrate.listingNone
+				row.units > 0 ? c.narrate.listingSome(row.units) : c.narrate.listingNone,
+				// The score against the grid, in the same words the card under the toast
+				// prints it in.
+				standingPhrase(standing, c)
 			)
 		);
 	}

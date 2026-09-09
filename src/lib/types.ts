@@ -779,6 +779,26 @@ export interface Explanation {
 	 */
 	priceLevel: number | null;
 	costFactor: number;
+	/**
+	 * Where each index sits among every catchment that has one, 0 lowest to 1 highest.
+	 *
+	 * The comparator an index needs and a count does not: "busyness 65" is out of 100,
+	 * and whether 65 is a lot depends on what the rest of the grid reads. Cut from the
+	 * same scored rows every ranking is cut from, so the reply and the score panel say
+	 * the same share. Null where too few cells carry the figure to rank against, or this
+	 * cell has no reading for it, which is never the bottom of the ladder.
+	 *
+	 * `measure` is the figure the question asked about, when it was not the score, and
+	 * it is here for counts too: "how busy is Tosari" is answered by a count, and "is
+	 * that busy" by where the count sits.
+	 */
+	standing: {
+		score: number | null;
+		demand: number | null;
+		supply: number | null;
+		access: number | null;
+		measure: number | null;
+	};
 }
 
 /* NOTHING FROM `field` IS IN HERE, and the omission is deliberate. The surveys are
