@@ -10,7 +10,8 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"selftest": "node scripts/selftest-plans.mjs && node scripts/selftest-composition.mjs && node scripts/selftest-pois.mjs && node scripts/selftest-property.mjs && node scripts/selftest-hours.mjs && node scripts/selftest-nlq.mjs && node scripts/selftest-grounded.mjs && node scripts/selftest-units.mjs && node scripts/selftest-field.mjs && node scripts/selftest-markdown.mjs && node scripts/selftest-daypart.mjs",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"deck": "node docs/deck/build.mjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.1",

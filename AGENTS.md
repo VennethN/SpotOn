@@ -15,6 +15,7 @@ repository. `CLAUDE.md` points here so there is only one copy to keep true.
 npm run check    # svelte-kit sync + svelte-check. Must be clean before pushing.
 npm run build    # production build. CI runs this after check, and blocks deploy on failure.
 npm run dev      # local dev server
+npm run deck     # the demo deck, docs/deck/spoton-deck.pdf. Every figure on it is computed, so rebuild it with the grid.
 ```
 
 CI (`.github/workflows/ci.yml`) runs typecheck and build on every push and pull

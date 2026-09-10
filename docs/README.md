@@ -21,6 +21,13 @@ proposal-drafting repository (`MapID/`) so that the context lives alongside the 
 | `assets/fig1_peta.png` … `fig4_pipeline.png` | The figures used in the proposal (map, AI panel, detail panel, end-to-end flow). |
 | `assets/mockup-proposal.html` | The single-file mockup built for the proposal. This application's scoring engine and sample dataset originate here. |
 
+## The demo deck
+
+| File | Contents |
+|---|---|
+| [`deck/spoton-deck.pdf`](deck/spoton-deck.pdf) | The presentation, 16:9, one page per slide: the problem, the data, the grid, how the score is made, how a question is answered, the interface, the demo script, and how it runs. |
+| `deck/build.mjs`, `deck/slides.mjs`, `deck/deck.css` | What builds it. `npm run deck` reads the grid and runs the scoring engine, so every figure on every slide is computed rather than typed, then prints the PDF with headless Chromium. Rebuild it whenever the grid is. |
+
 ## Deliberately not copied
 
 - **`datas.txt`** — contains team members' national ID numbers, phone numbers, and home addresses.
