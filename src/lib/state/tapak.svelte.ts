@@ -1,5 +1,6 @@
 import { CATEGORIES } from '$lib/domain/categories';
 import { categoryNames, narrate } from '$lib/domain/narrate';
+import { greetingNow } from '$lib/state/clock';
 import { copy } from '$lib/state/lang.svelte';
 import { pct } from '$lib/utils/format';
 import type { AppState } from '$lib/state/app.svelte';
@@ -128,7 +129,10 @@ export class Tapak {
 		// The figures are read from the data, not written by hand — once the grid is
 		// rebuilt, Tapak's greeting stays correct without anyone remembering to update it.
 		const { total } = this.#app.coverage;
-		this.#say(copy().tapak.greet(total), categoryChips());
+		// And the salutation is read from the reader's own clock, so Tapak opens with
+		// the same words the card outside greeted them with a moment ago.
+		const { part, wording } = greetingNow();
+		this.#say(copy().tapak.greet(total, part, wording), categoryChips());
 	}
 
 	/** Closes the chips on the last turn so stale options cannot be tapped again. */

@@ -21,6 +21,7 @@
 	import AskGlow from '$lib/components/ui/AskGlow.svelte';
 	import TapakFigure from '$lib/components/ui/TapakFigure.svelte';
 	import { CATEGORIES } from '$lib/domain/categories';
+	import { greetingNow } from '$lib/state/clock';
 	import { copy, lang } from '$lib/state/lang.svelte';
 	import type { Tapak } from '$lib/state/tapak.svelte';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
@@ -46,6 +47,20 @@
 		{ v: n(Math.max(meta.mapid?.points ?? 0, meta.pois)), l: c.app.launchStats.pois },
 		{ v: String(CATEGORIES.length), l: c.app.launchStats.cats }
 	]);
+
+	/**
+	 * The greeting above the question, by the clock on this device.
+	 *
+	 * Read once rather than watched. The card is on screen for as long as it takes to
+	 * ask one question, and a heading that changed its mind at six in the evening
+	 * while somebody was typing would be the interface talking about itself.
+	 *
+	 * It sits above the question rather than replacing it. The question is what the
+	 * reader is here to answer and it does not change with the hour; the greeting is
+	 * the part that knows who is reading and when.
+	 */
+	const { part, wording } = greetingNow();
+	const salute = $derived(c.greeting[part][wording]);
 
 	let draft = $state('');
 	let field = $state<HTMLInputElement | null>(null);
@@ -139,6 +154,7 @@
 	     the wait is Tapak thinking rather than a machine being busy. -->
 	<span class="face" aria-hidden="true"><TapakFigure size={40} pacing={tapak.busy} /></span>
 
+	<p class="salute">{salute}</p>
 	<h1>{c.app.launchTitle}</h1>
 
 	<form onsubmit={send} class:inviting>
@@ -218,6 +234,16 @@
 		display: flex;
 		justify-content: center;
 		margin-bottom: 0.75rem;
+	}
+
+	/* Quiet, and one step down from the question under it. It greets, it does not ask,
+	   and a greeting set at the size of the question would compete with it. */
+	.salute {
+		margin: 0 0 0.3125rem;
+		font-size: 0.8125rem;
+		letter-spacing: -0.004em;
+		line-height: 1.2;
+		color: var(--label-3);
 	}
 
 	h1 {
