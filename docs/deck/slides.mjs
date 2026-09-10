@@ -203,10 +203,10 @@ function ringArea(ring) {
  */
 function miniModel(mini, name, area, roadWidth) {
 	const W = 880;
-	const H = 720;
+	const H = 640;
 	const cx = 440;
-	const cy = 372;
-	const rx = 352;
+	const cy = 322;
+	const rx = 396;
 	const tilt = 0.6;
 	const shear = 0.22;
 	const lift = 0.95;
@@ -299,8 +299,8 @@ function miniModel(mini, name, area, roadWidth) {
 
 	return `<svg class="mini" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
 <defs><filter id="soft" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="14"/></filter><clipPath id="disc"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath></defs>
-<ellipse class="shade" cx="${cx}" cy="${cy + 46}" rx="${rx + 18}" ry="${ry + 10}" filter="url(#soft)"/>
-<ellipse class="rim" cx="${cx}" cy="${cy + 17}" rx="${rx}" ry="${ry}"/>
+<ellipse class="shade" cx="${cx}" cy="${cy + 50}" rx="${rx + 18}" ry="${ry + 10}" filter="url(#soft)"/>
+<ellipse class="rim" cx="${cx}" cy="${cy + 20}" rx="${rx}" ry="${ry}"/>
 <ellipse class="ground" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>
 <g clip-path="url(#disc)">${ground}</g>
 ${blocks}
