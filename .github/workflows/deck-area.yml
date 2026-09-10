@@ -3,13 +3,23 @@
 # `npm run deck` models one catchment the way the app does, from the basemap's own
 # vector tiles, and keeps that reading in `docs/deck/area.json` so the deck builds
 # again without the network. This job refreshes that file from a machine that has
-# the network, on request only, and pushes the result to the branch it was run on.
+# the network and pushes the result to the branch it ran on. It runs when the reader
+# itself changes on a branch, and on request. Never on `main`: nothing pushes there
+# but a pull request, and a commit from here would be a push straight to it.
 # Nothing else is built here: the deck itself is printed wherever `npm run deck` runs.
 
 name: Deck area
 
 on:
   workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths:
+      - .github/workflows/deck-area.yml
+      - docs/deck/build.mjs
+      - src/lib/domain/basemap.ts
+      - src/lib/map/basemap.ts
+      - src/lib/state/area.ts
 
 permissions:
   contents: write
