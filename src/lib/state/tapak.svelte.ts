@@ -1,5 +1,6 @@
 import { CATEGORIES } from '$lib/domain/categories';
-import { categoryNames, narrate } from '$lib/domain/narrate';
+import { standingOf } from '$lib/domain/metrics';
+import { categoryNames, narrate, standingPhrase } from '$lib/domain/narrate';
 import { greetingNow } from '$lib/state/clock';
 import { copy } from '$lib/state/lang.svelte';
 import { pct } from '$lib/utils/format';
@@ -55,6 +56,15 @@ export interface Turn {
 	/** The scoring engine's result, shown as a list of places. */
 	answer?: AiAnswer;
 	/**
+	 * The places a turn is ABOUT when it carries no answer to read them off.
+	 *
+	 * An answer's places are its items. A scripted line has none, and the one scripted
+	 * line that needs some is the one the area card files, "Pondok Jati, then": what it
+	 * puts into the thread is the name, so that whatever is typed next is read about
+	 * that place. See `askAbout`.
+	 */
+	places?: string[];
+	/**
 	 * Marks a turn that is waiting with nothing to show yet. The panel says which
 	 * `stage` is running rather than one motionless line, because the wait runs to
 	 * ninety seconds at its longest and a line that never changes in that time is
@@ -96,6 +106,22 @@ export class Tapak {
 	remark = $state<{ id: number; text: string } | null>(null);
 	/** Small budget → results are filtered to areas where space is genuinely available. */
 	smallBudget = $state<boolean | null>(null);
+	/**
+	 * The place the next question is about, when a surface has said so.
+	 *
+	 * Only the box's placeholder reads it. The thread carries the name itself, on the
+	 * turn `askAbout` files, and that is what the understanding layer reads. Cleared
+	 * the moment a question goes out, so the hint never outlives the question it was
+	 * a hint for.
+	 */
+	subject = $state<string | null>(null);
+	/**
+	 * Bumped when a surface asks for the question box. The panel focuses its field
+	 * on every change, and the page raises the sheet on a compact screen so the field
+	 * is not under the keyboard that opens for it. A counter rather than a flag, so
+	 * two asks in a row are two focuses.
+	 */
+	focusRequest = $state(0);
 	#app: AppState;
 	#nextId = 0;
 	#greeted = false;
@@ -119,6 +145,7 @@ export class Tapak {
 		this.turns = [];
 		this.remark = null;
 		this.smallBudget = null;
+		this.subject = null;
 		this.#greeted = false;
 		this.#lastRemarked = null;
 		this.greet();
@@ -158,7 +185,41 @@ export class Tapak {
 		if (!q) return;
 		this.#consume();
 		this.turns.push({ id: this.#nextId++, who: 'user', text: q });
+		this.subject = null;
 		void this.#ask(q);
+	}
+
+	/**
+	 * The reader wants to ask about ONE place, in their own words.
+	 *
+	 * Offered from the area card, where the reader is already looking at the place.
+	 * Nothing is asked here. The thread is told which place is meant, by one short line
+	 * carrying the name, so the next question, whatever it is, is read about that place:
+	 * "is the rent any good", "why so low", "how busy is it" all resolve against it the
+	 * way a follow-up to a ranking does. Then the box is handed the focus with an empty
+	 * field. A menu of questions here would be the wrong shape twice over: wrong the
+	 * first time somebody wanted to ask something not on it, and redundant beside a box
+	 * that takes anything.
+	 *
+	 * Pressed twice for the same place it files nothing twice. The line is already the
+	 * last thing said, and saying it again would be Tapak repeating itself to a reader
+	 * who only wanted the cursor back.
+	 */
+	askAbout(name: string) {
+		const last = this.turns[this.turns.length - 1];
+		const already =
+			last?.who === 'tapak' && !last.answer && !last.pending && last.places?.[0] === name;
+		if (!already) {
+			this.#consume();
+			this.turns.push({
+				id: this.#nextId++,
+				who: 'tapak',
+				text: copy().tapak.aboutPlace(name),
+				places: [name]
+			});
+		}
+		this.subject = name;
+		this.focusRequest++;
 	}
 
 	#run(action: ChipAction) {
@@ -172,27 +233,39 @@ export class Tapak {
 
 		if (action.kind === 'category') {
 			this.#app.setCategory(action.value);
-			const name = c.category[action.value].name.toLowerCase();
-			this.#say(c.tapak.budgetAsk(name), [
-				{ label: c.tapak.budgetTight, action: { kind: 'budget', small: true } },
-				{ label: c.tapak.budgetLoose, action: { kind: 'budget', small: false } }
-			]);
+			/* ONE TAP, ONE QUESTION, and the model takes over from here. There used to be a
+			   second scripted turn in between, asking about the rent, so the reader answered
+			   two questions from a script before hearing one thing from the data. Nothing in
+			   that turn came from the model or from the grid: it was a form with a face. The
+			   rent narrowing is offered on the answer instead, see `#followUps`, where it is
+			   what it actually is, one filter on a result the reader has already seen. */
+			void this.#ask(this.#openingQuestion());
 			return;
 		}
 
 		if (action.kind === 'budget') {
 			this.smallBudget = action.small;
-			const cat = categoryNames(this.#app.categories, c, 'many');
-			// It is the phrase "modal kecil" (small budget) that makes the engine filter
-			// down to areas where commercial space is genuinely available — not small talk.
-			const q = action.small
-				? `Di mana buka ${cat} modal kecil dekat MRT?`
-				: `Di mana buka ${cat} dekat MRT?`;
-			void this.#ask(q, action.small ? c.tapak.prefaceTight : c.tapak.prefaceLoose);
+			void this.#ask(this.#openingQuestion());
 			return;
 		}
 
 		void this.#ask(action.question);
+	}
+
+	/**
+	 * The question a tapped business type asks, and the one the rent chip asks again.
+	 *
+	 * Indonesian whatever the reader's language, because it is a question for the engine:
+	 * "modal kecil" is the phrase that narrows the result to areas where space is genuinely
+	 * on the market in the lower price band, and "dekat MRT" is what puts the transit
+	 * filter on. The business type is written in the reader's language, which both the
+	 * model and the rule parser read.
+	 */
+	#openingQuestion(): string {
+		const cat = categoryNames(this.#app.categories, copy(), 'many');
+		return this.smallBudget
+			? `Di mana buka ${cat} modal kecil dekat MRT?`
+			: `Di mana buka ${cat} dekat MRT?`;
 	}
 
 	/**
@@ -223,7 +296,8 @@ export class Tapak {
 			   catchments and nobody points at the seventy-first, so the rest is weight on
 			   every request from here on for nothing. The endpoint caps this too, because
 			   it is the one that has to survive a caller that did not. */
-			const places = (turn.answer?.items ?? []).slice(0, 8).map((i) => i.name);
+			const places =
+				turn.places ?? (turn.answer?.items ?? []).slice(0, 8).map((i) => i.name);
 			out.push(
 				places.length
 					? { who: 'tapak', text: turn.text, places }
@@ -246,8 +320,7 @@ export class Tapak {
 		return idx === -1 ? null : this.turns[idx];
 	}
 
-	async #ask(question: string, preface?: string) {
-		if (preface) this.#say(preface);
+	async #ask(question: string) {
 		// Read before the waiting bubble goes in, so the thread is what was actually
 		// said rather than what is about to be.
 		const history = this.#thread();
@@ -358,6 +431,19 @@ export class Tapak {
 			chips.push({ label: why, action: { kind: 'ask', question: why } });
 		}
 
+		/* The rent question, which used to be asked before anything had been answered. It
+		   is offered here instead, on a ranking, as the narrowing it is: one tap asks the
+		   same question again with the filter on, or with it off again. Read off the
+		   answer's own query rather than off `smallBudget`, because a typed question can
+		   carry the filter too and the chip has to offer the opposite of what is on screen. */
+		if (ans.query.intent === 'RANK' && ans.items.length) {
+			const tight = ans.query.filter?.tier_harga === 'rendah';
+			chips.push({
+				label: tight ? c.tapak.budgetLoose : c.tapak.budgetTight,
+				action: { kind: 'budget', small: !tight }
+			});
+		}
+
 		if (ans.query.intent !== 'FLAG_SATURATED') {
 			chips.push({ label: c.tapak.avoid, action: { kind: 'ask', question: c.tapak.avoidQ(cat) } });
 		}
@@ -404,10 +490,18 @@ export class Tapak {
 			this.#note(c.narrate.remarkUncovered(row.name, cat));
 			return;
 		}
+		/* The verdict follows the standing where there is one: the top third of scored
+		   cells is "one of the good ones", the bottom third "not promising". It used to be
+		   cut at fixed points on the score, and no coffee catchment on the grid reaches
+		   the upper one, so the remark called the fourth-best cell in the city "middling"
+		   in the same breath as "higher than 99% of areas". The fixed cut stays only for a
+		   cell with no standing, which is a cell with too few peers to rank against. */
+		const standing = standingOf(row, 'skor', this.#app.ladders.skor);
+		const level = standing ?? row.score ?? 0;
 		const verdict =
-			(row.score ?? 0) >= 0.66
+			level >= 0.66
 				? c.narrate.verdictGood
-				: (row.score ?? 0) >= 0.4
+				: level >= 0.4
 					? c.narrate.verdictMid
 					: c.narrate.verdictLow;
 		this.#note(
@@ -417,7 +511,10 @@ export class Tapak {
 				cat,
 				pct(row.score),
 				row.osm,
-				row.units > 0 ? c.narrate.listingSome(row.units) : c.narrate.listingNone
+				row.units > 0 ? c.narrate.listingSome(row.units) : c.narrate.listingNone,
+				// The score against the grid, in the same words the card under the toast
+				// prints it in.
+				standingPhrase(standing, c)
 			)
 		);
 	}

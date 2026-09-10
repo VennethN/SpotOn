@@ -750,5 +750,168 @@ check(
 	chat.ruleChatTopic('kenapa lokasi penting untuk usaha') === null
 );
 
+/* ── the rule parser does not guess ──────────────────────────────────────── */
+
+/* THE ONE THE SCREENSHOT SHOWED. Every sentence used to be read into a query, and a
+   sentence the parser could read nothing in was read into the DEFAULT one: a ranking by
+   the opportunity score for whatever business was active. So "what", typed by somebody
+   confused by the previous answer, came back as five catchments under "if it were up to
+   me", and "explain what do those numbers mean" came back as the same five. A confident
+   answer to a question nobody asked, which is the exact failure `tidak_dimengerti` exists
+   to prevent on the model path, and the rule path had no equivalent of. */
+{
+	const ranking = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']);
+	const SAID = ranking.items.map((i) => i.name);
+	const [first, second] = SAID;
+
+	for (const q of [
+		'what',
+		'hmm',
+		'explain what do those numbers mean (out of out of), is more business in the area good or bad',
+		'kenapa lokasi penting untuk usaha',
+		'thanks, that is all I needed',
+		'apa kabar dunia hari ini'
+	]) {
+		const ans = nlq.answer(q, cells, W, ['kopi'], SAID);
+		check(
+			`"${q.slice(0, 44)}" is not guessed at`,
+			ans.notUnderstood === true && ans.items.length === 0 && ans.highlight.length === 0,
+			`got ${ans.query.intent} notUnderstood=${ans.notUnderstood} items=${ans.items.length}`
+		);
+	}
+
+	// And the plain forms still answer, in both languages, with a type in force and without.
+	for (const [q, cats, want] of [
+		['di mana sebaiknya buka kedai kopi', ['kopi'], 'RANK'],
+		['where should I open', [], 'RANK'],
+		['mau buka usaha', [], 'RANK'],
+		['kopi', [], 'RANK'],
+		['mana yang paling murah', ['kopi'], 'RANK'],
+		['dalam 500 m', ['kopi'], 'RANK'],
+		['Kawasan mana yang sudah jenuh untuk kedai kopi?', ['kopi'], 'FLAG_SATURATED'],
+		['Which areas are saturated for a coffee shop?', ['kopi'], 'FLAG_SATURATED'],
+		['Kawasan mana yang belum terdata?', ['kopi'], 'COVERAGE'],
+		['Which areas have no data yet?', ['kopi'], 'COVERAGE'],
+		[`Why ${first}?`, ['kopi'], 'EXPLAIN'],
+		[`bandingkan ${first} dan ${second}`, ['kopi'], 'COMPARE']
+	]) {
+		const ans = nlq.answer(q, cells, W, cats, SAID);
+		check(
+			`"${q}" is still read as ${want}`,
+			ans.notUnderstood === undefined && ans.query.intent === want,
+			`got ${ans.query.intent} notUnderstood=${ans.notUnderstood}`
+		);
+	}
+
+	/* The two English chips. "Which areas are saturated" and "which areas have no data
+	   yet" matched no intent word, because every intent word was Indonesian, and both came
+	   back as a ranking by score whenever the model was away. The Indonesian chips had
+	   always worked, which is why nobody noticed. */
+	check(
+		'the English saturation chip lists the crowded places, not the best ones',
+		nlq.answer('Which areas are saturated for a coffee shop?', cells, W, ['kopi']).items[0]?.name ===
+			nlq.answer('Kawasan mana yang sudah jenuh untuk kedai kopi?', cells, W, ['kopi']).items[0]?.name
+	);
+	check(
+		'the English coverage chip lists the unsurveyed places',
+		nlq.answer('Which areas have no data yet?', cells, W, ['kopi']).items.length ===
+			nlq.answer('Kawasan mana yang belum terdata?', cells, W, ['kopi']).items.length
+	);
+
+	// "Mau buka usaha" is the opening question of the product one word short, and is
+	// answered by asking for the word, never refused as unreadable.
+	for (const q of ['mau buka usaha', 'where should I open', 'I want to start a business']) {
+		check(`"${q}" with no type in force asks for one`, nlq.answer(q, cells, W, [], []).needsCategory === true);
+	}
+}
+
+/* A pointer with nothing to point at. "Kenapa?" on a fresh thread used to be resolved
+   against the whole grid, because the grid's names were handed in as though the
+   conversation had said them, and it explained the first catchment in the file. */
+{
+	for (const q of ['kenapa?', 'why?', 'kenapa yang itu']) {
+		const fresh = nlq.answer(q, cells, W, ['kopi'], []);
+		check(
+			`"${q}" with nothing said explains no place`,
+			fresh.query.intent === 'EXPLAIN' && !fresh.explain && fresh.items.length === 0,
+			`got ${fresh.query.intent} explain=${fresh.explain?.name} items=${fresh.items.length}`
+		);
+	}
+	// Naming a place the conversation never mentioned still works, from the grid's own names.
+	const top = nlq.answer('di mana sebaiknya buka kedai kopi', cells, W, ['kopi']).items[0].name;
+	check(
+		'a place named outright is still found on the grid',
+		nlq.answer(`kenapa ${top}`, cells, W, ['kopi'], []).explain?.name === top
+	);
+}
+
+/* ── an index is set against the grid, a count is not ───────────────────── */
+
+/* "Busyness 65" is a number on a scale, and the scale is not the comparator a reader
+   needs: whether 65 is a lot depends on what the rest of the grid reads. The card says
+   where each index sits among every cell that has one. What is pinned here is that the
+   ladder is the scored cells and nothing else, that its two ends are exactly the best
+   and the worst cell, and that a cell nobody scored has no standing rather than the
+   lowest one. */
+{
+	const rows = scoring.scoreAll(cells, ['kopi'], W);
+	const ladder = metrics.ladderFor(rows, 'skor');
+	const scored = rows.filter((r) => r.score !== null);
+	check(
+		'the score ladder holds every scored cell and no other',
+		ladder.length === scored.length && ladder.length > 0,
+		`ladder ${ladder.length}, scored ${scored.length}`
+	);
+	const best = scored.reduce((a, r) => (r.score > a.score ? r : a));
+	const worst = scored.reduce((a, r) => (r.score < a.score ? r : a));
+	check('the best-scoring cell stands at the very top', metrics.standingOf(best, 'skor', ladder) === 1);
+	check('the worst-scoring cell stands at the very bottom', metrics.standingOf(worst, 'skor', ladder) === 0);
+	const unscored = rows.find((r) => r.score === null);
+	check(
+		'a cell nobody scored has no standing, not the lowest one',
+		unscored !== undefined && metrics.standingOf(unscored, 'skor', ladder) === null
+	);
+	check(
+		'every standing is a share of the grid',
+		scored.every((r) => {
+			const s = metrics.standingOf(r, 'skor', ladder);
+			return s !== null && s >= 0 && s <= 1;
+		})
+	);
+	// Transit access exists for every cell, surveyed or not, so its ladder is the grid.
+	check(
+		'transit access is ranked over the whole grid',
+		metrics.ladderFor(rows, 'akses_transit').length === rows.length
+	);
+	// Too few readings to rank against, and the answer is silence rather than a share.
+	check(
+		'a handful of readings ranks nothing',
+		metrics.standingOf(best, 'skor', ladder.slice(0, 3)) === null
+	);
+
+	/* And the explanation carries the same standing, so Tapak can say "that is the
+	   highest of all areas" about the very cell the card says it of. The measure asked
+	   about carries its own, counts included: "how busy" is answered by a count and "is
+	   that busy" by where the count sits. */
+	const why = nlq.answer(`kenapa ${best.name}`, cells, W, ['kopi'], [best.name]);
+	check(
+		'an explanation of the best cell stands it at the top',
+		why.explain?.standing.score === 1 && why.explain?.standing.measure === null,
+		`got ${JSON.stringify(why.explain?.standing)}`
+	);
+	const busy = nlq.answer(`seberapa ramai ${best.name}`, cells, W, ['kopi'], [best.name]);
+	const s = busy.explain?.standing.measure;
+	check(
+		'an explanation about busyness carries where the count stands',
+		busy.explain?.measure?.ukuran === 'keramaian' && typeof s === 'number' && s >= 0 && s <= 1,
+		`got ukuran=${busy.explain?.measure?.ukuran} standing=${s}`
+	);
+	check(
+		'a cell nobody scored is explained with no standing',
+		unscored === undefined ||
+			nlq.answer(`kenapa ${unscored.name}`, cells, W, ['kopi'], [unscored.name]).explain?.standing.score === null
+	);
+}
+
 console.log(failures ? `\n${failures} check(s) failed.` : '\nall checks passed');
 process.exit(failures ? 1 : 0);
