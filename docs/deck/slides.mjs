@@ -207,14 +207,29 @@ function miniModel(mini, name, area, roadWidth) {
 	const cx = 440;
 	const cy = 342;
 	const rx = 396;
+	/* An orthographic view from above, the way a model on a table is looked at. The
+	   disc is turned a little about its centre so that two faces of every block show,
+	   and tilted so that its depth is foreshortened to `tilt` of its width. A height
+	   then rises straight up the page by the cosine of that same elevation, which is
+	   what keeps the verticals vertical: a shear would lean every tower like italic
+	   type, and the app's own model leans nothing. */
+	const turn = (28 * Math.PI) / 180;
 	const tilt = 0.6;
-	const shear = 0.22;
-	const lift = 0.95;
+	const lift = Math.sqrt(1 - tilt * tilt);
 	const ry = rx * tilt;
 	const s = rx / mini.radius;
-	const X = (x, h = 0) => cx + x * s + h * s * shear;
-	const Y = (y, h = 0) => cy - y * s * tilt - h * s * lift;
-	const pt = (p, h = 0) => `${X(p.x, h).toFixed(1)},${Y(p.y, h).toFixed(1)}`;
+	const rot = (p) => ({
+		x: p.x * Math.cos(turn) + p.y * Math.sin(turn),
+		y: -p.x * Math.sin(turn) + p.y * Math.cos(turn)
+	});
+	const P = (p, h = 0) => {
+		const r = rot(p);
+		return [cx + r.x * s, cy - r.y * s * tilt - h * s * lift];
+	};
+	const pt = (p, h = 0) => {
+		const [x, y] = P(p, h);
+		return `${x.toFixed(1)},${y.toFixed(1)}`;
+	};
 	const ring = (r, h = 0) => 'M' + r.map((p) => pt(p, h)).join('L') + 'Z';
 	const line = (p) => 'M' + p.map((q) => pt(q)).join('L');
 
@@ -236,25 +251,26 @@ function miniModel(mini, name, area, roadWidth) {
 			ground += `<path class="corridor" d="${line(r.path)}" style="stroke:var(--route-${r.mode});stroke-width:${Math.max(1.2, ROUTE_WIDTH[r.mode] * s).toFixed(2)}"/>`;
 		}
 
-		const eye = { x: -shear, y: -lift / tilt };
+		/* The eye is above and, in the turned frame, due south: the walls that show are
+		   the ones facing down the page, and the blocks are laid down far to near, which
+		   in that frame is north to south. Rings are turned first and kept
+		   counter-clockwise, so each wall's outward side is known. */
+		const eye = { x: 0, y: -lift / tilt };
 		const oriented = (r) => (ringArea(r) < 0 ? [...r].reverse() : r);
 		const items = area.buildings
 			.map((b) => {
-				const outer = oriented(b.rings[0]);
-				let sx = 0;
+				const outer = oriented(b.rings[0].map(rot));
 				let sy = 0;
-				for (const p of outer) {
-					sx += p.x;
-					sy += p.y;
-				}
-				const n = outer.length || 1;
-				return { ...b, outer, depth: (sx / n) * eye.x + (sy / n) * eye.y };
+				for (const p of outer) sy += p.y;
+				return { ...b, outer, depth: (sy / (outer.length || 1)) * eye.y };
 			})
 			.sort((a, b) => a.depth - b.depth);
 		let lowS = '';
 		let lowW = '';
 		let lowRoof = '';
 		let tall = '';
+		/* Turned points are projected without turning again. */
+		const tp = (r, h = 0) => `${(cx + r.x * s).toFixed(1)},${(cy - r.y * s * tilt - h * s * lift).toFixed(1)}`;
 		for (const b of items) {
 			let south = '';
 			let west = '';
@@ -265,8 +281,9 @@ function miniModel(mini, name, area, roadWidth) {
 				const nx = q.y - p.y;
 				const ny = -(q.x - p.x);
 				if (nx * eye.x + ny * eye.y <= 0) continue;
-				const face = `M${pt(p, b.base)}L${pt(q, b.base)}L${pt(q, b.height)}L${pt(p, b.height)}Z`;
-				if (ny < 0 && Math.abs(ny) >= Math.abs(nx)) south += face;
+				const face = `M${tp(p, b.base)}L${tp(q, b.base)}L${tp(q, b.height)}L${tp(p, b.height)}Z`;
+				// The face turned toward the eye takes the lighter grey, one seen aslant the darker.
+				if (Math.abs(ny) >= Math.abs(nx)) south += face;
 				else west += face;
 			}
 			const roof = b.rings.map((rr) => ring(rr, b.height)).join('');
@@ -281,20 +298,36 @@ function miniModel(mini, name, area, roadWidth) {
 		blocks = `<path class="wall w" d="${lowW}"/><path class="wall s" d="${lowS}"/><path class="roof" d="${lowRoof}"/>${tall}`;
 	}
 
+	const at = (d) => P(d).map((v) => v.toFixed(1));
 	const doors = mini.doors
-		.map((d) => `<circle class="door${d.open ? ' lit' : ''}" cx="${X(d.x).toFixed(1)}" cy="${Y(d.y).toFixed(1)}" r="${d.open ? 2.8 : 2.2}"/>`)
+		.map((d) => {
+			const [x, y] = at(d);
+			return `<circle class="door${d.open ? ' lit' : ''}" cx="${x}" cy="${y}" r="${d.open ? 2.8 : 2.2}"/>`;
+		})
 		.join('');
 	const rivals = mini.rivals
-		.map((d) => `<rect class="rival" x="${(X(d.x) - 4).toFixed(1)}" y="${(Y(d.y) - 4).toFixed(1)}" width="8" height="8" rx="1.2"/>`)
+		.map((d) => {
+			const [x, y] = P(d);
+			return `<rect class="rival" x="${(x - 4).toFixed(1)}" y="${(y - 4).toFixed(1)}" width="8" height="8" rx="1.2"/>`;
+		})
 		.join('');
 	const units = mini.units
-		.map((d) => `<rect class="unit" x="${(X(d.x) - 4.5).toFixed(1)}" y="${(Y(d.y) - 4.5).toFixed(1)}" width="9" height="9" rx="1" transform="rotate(45 ${X(d.x).toFixed(1)} ${Y(d.y).toFixed(1)})"/>`)
+		.map((d) => {
+			const [x, y] = P(d);
+			return `<rect class="unit" x="${(x - 4.5).toFixed(1)}" y="${(y - 4.5).toFixed(1)}" width="9" height="9" rx="1" transform="rotate(45 ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+		})
 		.join('');
 	const recs = mini.field
-		.map((d) => `<circle class="rec" cx="${X(d.x).toFixed(1)}" cy="${Y(d.y).toFixed(1)}" r="6"/>`)
+		.map((d) => {
+			const [x, y] = at(d);
+			return `<circle class="rec" cx="${x}" cy="${y}" r="6"/>`;
+		})
 		.join('');
 	const stops = mini.stops
-		.map((d) => `<circle class="stop" cx="${X(d.x).toFixed(1)}" cy="${Y(d.y).toFixed(1)}" r="${d.mode === 'brt' ? 5 : 6.5}" style="fill:var(--route-${d.mode})"/>`)
+		.map((d) => {
+			const [x, y] = at(d);
+			return `<circle class="stop" cx="${x}" cy="${y}" r="${d.mode === 'brt' ? 5 : 6.5}" style="fill:var(--route-${d.mode})"/>`;
+		})
 		.join('');
 
 	return `<svg class="mini" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
