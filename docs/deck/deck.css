@@ -1594,6 +1594,9 @@ table.tiers tr.pack td {
    Tapak is shaded, and the two colours a door has. */
 .mini {
 	display: block;
+	/* A tower at the far edge rises past the top of the drawing, as it would past the
+	   rim of a real base, so the drawing does not cut it off. */
+	overflow: visible;
 }
 .mini .ground {
 	fill: #d6d2cb;

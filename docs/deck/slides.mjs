@@ -203,9 +203,9 @@ function ringArea(ring) {
  */
 function miniModel(mini, name, area, roadWidth) {
 	const W = 880;
-	const H = 640;
+	const H = 660;
 	const cx = 440;
-	const cy = 322;
+	const cy = 342;
 	const rx = 396;
 	const tilt = 0.6;
 	const shear = 0.22;
