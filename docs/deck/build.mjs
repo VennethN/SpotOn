@@ -175,10 +175,29 @@ async function build() {
 	const top = demo.results[0];
 	const hex = hexes.find((h) => h.id === top.id);
 	const row = rows.find((r) => r.id === top.id);
-	const centre = { lat: hex.lat, lon: hex.lon };
 	const routesFile = readJson('static/data/routes.json');
 
 	/* ── the place itself, read off the basemap ───────────────────────────── */
+
+	/*
+	 * The area the model slide stands up is chosen by name, not by score, exactly as
+	 * the front page chooses the first area it models, and for the same reason: a height
+	 * read off a tile is only visible where there are heights, and the business district
+	 * has them, where the demo's own top catchment is a kampung that at the size of a
+	 * whole disc is a texture. The name is read from the landing page's own list so the
+	 * deck and the front page cannot come to model different places. A name the grid no
+	 * longer carries falls back to the demo's top catchment rather than to nothing.
+	 */
+	const landing = readText('src/routes/+page.server.ts');
+	const showcase =
+		landing
+			.match(/const SHOWCASE = \[([^\]]*)\]/)?.[1]
+			.match(/'([^']+)'/g)
+			?.map((n) => n.slice(1, -1)) ?? [];
+	const modelHex = hexes.find((h) => h.name === showcase[0]) ?? hex;
+	const modelRow = rows.find((r) => r.id === modelHex.id);
+	const modelName = modelRow.name;
+	const modelCentre = { lat: modelHex.lat, lon: modelHex.lon };
 
 	/**
 	 * The basemap around the point, through the app's own reader: the style the public
@@ -191,8 +210,8 @@ async function build() {
 		if (!tiles) throw new Error('the basemap style could not be fetched');
 		const reader = new areaState.AreaReader();
 		const routes = basemap.parseRoutes(routesFile);
-		const key = basemap.areaKeyOf(centre, R, tiles);
-		const g = await reader.read(tiles, centre, R, routes, key);
+		const key = basemap.areaKeyOf(modelCentre, R, tiles);
+		const g = await reader.read(tiles, modelCentre, R, routes, key);
 		const round = (p) => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
 		const rings = (rs) => rs.map((r) => r.map(round));
 		const host = tiles.key;
@@ -202,8 +221,8 @@ async function build() {
 				? 'OpenStreetMap data, CARTO cartography'
 				: host;
 		return {
-			cell: hex.id,
-			name: row.name,
+			cell: modelHex.id,
+			name: modelName,
 			radius: R,
 			basemap: host,
 			source: from,
@@ -224,7 +243,7 @@ async function build() {
 	async function areaFor(refresh) {
 		if (!refresh && existsSync(AREA_FILE)) {
 			const cached = JSON.parse(readFileSync(AREA_FILE, 'utf8'));
-			if (cached.cell === hex.id && cached.radius === R) return cached;
+			if (cached.cell === modelHex.id && cached.radius === R) return cached;
 		}
 		try {
 			const fresh = await readAreaFromBasemap();
@@ -236,7 +255,7 @@ async function build() {
 		} catch (err) {
 			if (READ_AREA_ONLY) throw err;
 			console.log(
-				`the basemap could not be read (${err.message}) and no reading of ${row.name} is on disk, so the model will say so`
+				`the basemap could not be read (${err.message}) and no reading of ${modelName} is on disk, so the model will say so`
 			);
 			return null;
 		}
@@ -296,11 +315,25 @@ async function build() {
 	const fieldFile = readJson('static/data/field.json');
 	const fieldHere = fieldFile.records.filter((r) => r.cell === hex.id);
 
-	// Metres from the point the range is measured from, x east and y north, through
-	// the very projection the area model converts its own marks with.
+	/* The marks that stand on the model: what the modelled area captures, converted to
+	   metres from its own centre, x east and y north, through the very projection the
+	   area model converts its marks with. */
 	const local = (lat, lon) => {
-		const p = geo.localMetres(lat, lon, centre);
+		const p = geo.localMetres(lat, lon, modelCentre);
 		return { x: Math.round(p.x), y: Math.round(p.y) };
+	};
+	const modelOpen = activity.capturedOpen(modelHex, places, R);
+	const marks = {
+		radius: R,
+		stops: transit.capturedStops(modelHex, stops, R).map((s) => ({ ...local(s.lat, s.lon), mode: s.mode })),
+		rivals: competitors
+			.capturedCompetitors(modelHex, competitors.parseCompetitors(poiFile), R)
+			.map((p) => local(p.lat, p.lon)),
+		units: premises.capturedListings(modelHex, listings, R).map((l) => local(l.lat, l.lon)),
+		field: fieldFile.records.filter((r) => r.cell === modelHex.id).map((r) => local(r.lat, r.lon)),
+		doors: modelOpen.map((p) => ({ ...local(p.lat, p.lon), open: Boolean(p.week[DAY] & (1 << HOUR)) })),
+		hour: c.activity.hourShort(HOUR),
+		day: c.activity.dayFull[DAY]
 	};
 
 	const example = {
@@ -374,20 +407,6 @@ async function build() {
 			transitCeiling: comp.transitCeiling,
 			contributes: c.breakdown.contributes(comp.transitPoints, comp.score),
 			total: c.breakdown.total
-		},
-		area,
-		mini: {
-			radius: R,
-			stops: caughtStops.map((s) => ({ ...local(s.lat, s.lon), mode: s.mode })),
-			rivals: rivals.map((p) => local(p.lat, p.lon)),
-			units: caughtListings.map((l) => local(l.lat, l.lon)),
-			field: fieldHere.map((r) => local(r.lat, r.lon)),
-			doors: caughtOpen.map((p) => ({
-				...local(p.lat, p.lon),
-				open: Boolean(p.week[DAY] & (1 << HOUR))
-			})),
-			hour: c.activity.hourShort(HOUR),
-			day: c.activity.dayFull[DAY]
 		}
 	};
 
@@ -499,11 +518,16 @@ async function build() {
 			minLadder: cost.MIN_LADDER,
 			minBand: rank.MIN_BAND
 		},
-		/* The miniature's own constants: how wide each class of street is drawn, from
-		   the one table the area model and the modelled map share, the height a building
-		   stands at when the tile gives none, and the four things the app's model says
-		   about where its geometry came from. */
+		/* The miniature: which area, its reading off the basemap and the marks on it,
+		   how wide each class of street is drawn, from the one table the area model and
+		   the modelled map share, the height a building stands at when the tile gives
+		   none, and the four things the app's model says about where its geometry came
+		   from. */
 		model: {
+			name: modelName,
+			city: modelHex.city,
+			area,
+			marks,
 			roadWidth: basemap.ROAD_WIDTH,
 			defaultHeight: basemap.DEFAULT_HEIGHT,
 			states: c.app.model

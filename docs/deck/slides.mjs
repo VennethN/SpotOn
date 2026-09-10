@@ -702,30 +702,32 @@ ${areaCard(f)}
 	);
 
 	/* 13 · the place as a model */
-	const mini = f.example.mini;
-	const area = f.example.area;
-	const states = f.model.states;
+	const model = f.model;
+	const marks = model.marks;
+	const area = model.area;
+	const states = model.states;
 	const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 	const areaLine = area
-		? `${cap(states.ready)}: ${num(area.buildings.length)} buildings and ${num(area.roads.length)} street pieces within ${g.walkRadius} m of ${esc(area.name)}, each building at the height the tile carries and one the tile gives no height at ${f.model.defaultHeight} m. Read from ${esc(area.source)} on ${esc(area.read)}, cut to the disc by the app's own reader.`
+		? `${cap(states.ready)}: ${num(area.buildings.length)} buildings and ${num(area.roads.length)} street pieces within ${g.walkRadius} m of ${esc(area.name)}, each building at the height the tile carries and one the tile gives no height at ${model.defaultHeight} m. Read from ${esc(area.source)} on ${esc(area.read)}, cut to the disc by the app's own reader.`
 		: `${cap(states.failed)} when this copy was built, so the disc stands empty rather than showing a place that was not read. Rebuilt where the tiles can be fetched, the same slide draws the place.`;
 	pages.push((pg) =>
 		slide(
 			'',
 			`${sectionMark('12', cp.model.mark)}
 <div style="display:grid;grid-template-columns:1fr 880px;gap:56px;flex:1;min-height:0;align-items:start">
-<div style="display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;flex-direction:column;gap:26px">
 <h1 style="font-size:64px">${esc(cp.model.title)}</h1>
 <p class="lead">${esc(cp.model.lead)}</p>
-<ul class="notes" style="gap:20px">
-<li class="accent"><h3>Read, not composed.</h3><p>The basemap's own vector tiles, cut to a disc of the walking range around the point the range is measured from. A street the tile does not draw is not drawn.</p></li>
+<ul class="notes" style="gap:18px">
+<li class="accent"><h3>${esc(model.name)}, as on the front page.</h3><p>The business district, chosen by name rather than by score. A height read off a tile is only visible where there are heights, and the towers are what a reader can see the model doing.</p></li>
+<li><h3>Read, not composed.</h3><p>The basemap's own vector tiles, cut to a disc of the walking range around the point the range is measured from. A street the tile does not draw is not drawn.</p></li>
 <li><h3>Doors light by the hour.</h3><p>One mark per business with readable hours, lit when its timetable says it is open in the hour on the slider. Where the doors were not counted, none is drawn and the view says so.</p></li>
 <li><h3>A miniature, not a view.</h3><p>A disc on a base with a rim, turned by hand, with the sun staying where it is in the world. The map itself can be looked at the same way, drawn or modelled.</p></li>
 </ul>
 </div>
 <figure class="panel" style="padding:16px 26px 22px;display:flex;flex-direction:column;gap:10px">
-<div style="display:flex;justify-content:center">${miniModel(mini, f.example.name, area, f.model.roadWidth)}</div>
-<div class="keyrow"><span><i class="be"></i>the point the range is measured from</span><span><i class="st"></i>transit nodes, ${mini.stops.length}</span><span><i class="sq"></i>${esc(f.demo.choice.toLowerCase())} rivals, ${mini.rivals.length}</span><span><i class="di"></i>units on the market, ${mini.units.length}</span><span><i class="ri"></i>field records, ${mini.field.length}</span><span><i class="lit"></i>doors open at ${esc(mini.hour)} on a ${esc(mini.day)}, ${mini.doors.filter((d) => d.open).length} of ${mini.doors.length}</span></div>
+<div style="display:flex;justify-content:center">${miniModel(marks, model.name, area, model.roadWidth)}</div>
+<div class="keyrow"><span><i class="be"></i>the point the range is measured from</span><span><i class="st"></i>transit nodes, ${marks.stops.length}</span><span><i class="sq"></i>${esc(f.demo.choice.toLowerCase())} rivals, ${marks.rivals.length}</span><span><i class="di"></i>units on the market, ${marks.units.length}</span><span><i class="ri"></i>field records, ${marks.field.length}</span><span><i class="lit"></i>doors open at ${esc(marks.hour)} on a ${esc(marks.day)}, ${marks.doors.filter((d) => d.open).length} of ${marks.doors.length}</span></div>
 <figcaption class="small">${areaLine}</figcaption>
 </figure>
 </div>`,
