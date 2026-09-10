@@ -578,7 +578,7 @@ export function runQuery(
 	const rows = scoreAll(catchments, cats, w);
 	const provenance = [
 		`Alur: pertanyaan → parsing niat → function-calling ke daftar operasi spasial terbatas → PostGIS mengeksekusi → peta & panel diperbarui.`,
-		`Angka tidak dikarang model. LLM cuma memilih operasi dan mengisi argumen, dan seluruh nilai dihitung basis data lalu ditautkan ke titik sumbernya.`,
+		`Angka tidak dikarang model. Model memilih operasinya, dan boleh menuliskan kalimat jawabannya, tapi seluruh nilai dihitung basis data lalu ditautkan ke titik sumbernya, dan angka di kalimat itu wajib berasal dari nilai-nilai ini.`,
 		w.source === 'mapid'
 			? `Sumber pesaing: MAPID Data Premium, ${defs.map((d) => d.mapidSet).join(' + ')}, around:${w.radius}.`
 			: w.source === 'osm'

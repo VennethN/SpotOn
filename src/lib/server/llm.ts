@@ -155,6 +155,66 @@ export function llmEnabled(): boolean {
 	return Boolean(env.OPENROUTER_API_KEY?.trim());
 }
 
+/**
+ * One plain completion, no tools, tried down the same chain until one answers.
+ *
+ * Here rather than in the caller because this is the file that knows where OpenRouter is,
+ * which key opens it, which models are worth asking and how long to wait. A second module
+ * making its own request would be a second copy of all four, and the day somebody pins a
+ * model the two would answer from different ones.
+ *
+ * Returns null when nothing came back, which every caller has to be able to live with:
+ * this layer is allowed to be unavailable, and nothing in the product may depend on it
+ * having spoken.
+ */
+export async function completeText(
+	messages: Array<{ role: string; content: string }>,
+	budgetMs: number,
+	attemptMs: number,
+	maxTokens = 400
+): Promise<string | null> {
+	const key = env.OPENROUTER_API_KEY?.trim();
+	if (!key) return null;
+
+	const deadline = Date.now() + budgetMs;
+	for (const model of modelChain()) {
+		const left = deadline - Date.now();
+		if (left <= 0) break;
+		const controller = new AbortController();
+		/* Capped per attempt as well as in total, the same way the understanding layer
+		   caps its own. Given only the total, one model that hangs spends all of it and
+		   the rest of the chain never gets asked, which is the shape of a fallback that
+		   silently is not one. */
+		const timer = setTimeout(() => controller.abort(), Math.min(attemptMs, left));
+		try {
+			const res = await fetch(ENDPOINT, {
+				method: 'POST',
+				signal: controller.signal,
+				headers: {
+					authorization: `Bearer ${key}`,
+					'content-type': 'application/json',
+					'x-title': 'SpotOn'
+				},
+				body: JSON.stringify({ model, messages, max_tokens: maxTokens })
+			});
+			if (!res.ok) {
+				console.error(
+					`[SpotOn] ${model} rejected the writing pass (${res.status}):`,
+					(await res.text()).slice(0, 200)
+				);
+				continue;
+			}
+			const content = (await res.json())?.choices?.[0]?.message?.content;
+			if (typeof content === 'string' && content.trim()) return content;
+		} catch (err) {
+			console.error(`[SpotOn] ${model} failed the writing pass:`, (err as Error).message);
+		} finally {
+			clearTimeout(timer);
+		}
+	}
+	return null;
+}
+
 export type ParseResult =
 	| { ok: true; query: StructuredQuery }
 	/**
