@@ -40,6 +40,27 @@ export type UnitMetricKey =
 /** What a casual turn is allowed to be about — see `domain/chat`. */
 export type ChatTopic = 'sapaan' | 'tentang' | 'usaha';
 
+/**
+ * One turn of the conversation, as the understanding layer is told about it.
+ *
+ * THE THREAD IS PART OF THE QUESTION. Without it every message was read from a blank
+ * slate, and a follow-up is by definition a sentence that does not carry its own
+ * subject: "kenapa yang itu", "yang kedua gimana", "kalau apotek". Each of those parsed
+ * as a whole new question and came back as the previous answer all over again.
+ *
+ * `places` is the names an answer put on screen, and nothing else about it. NO FIGURES
+ * TRAVEL BACK. A number that went out and came back would be a number the model has
+ * seen written down and could repeat in a sentence of its own, which is the one thing
+ * the fence in `domain/chat` exists to prevent. Names are what a follow-up points at,
+ * and names are all that is needed to resolve one.
+ */
+export interface ChatTurn {
+	who: 'user' | 'tapak';
+	text: string;
+	/** The catchments this turn named, when it was an answer that named any. */
+	places?: string[];
+}
+
 /** The commercial property families the catalogue publishes — see `domain/premises`. */
 export type PropertyType =
 	| 'ruko'
@@ -465,7 +486,16 @@ export interface ScoredHex {
 	typology: Typology;
 }
 
-export type Intent = 'RANK' | 'FLAG_SATURATED' | 'COMPARE' | 'COVERAGE';
+/**
+ * The shapes a question can have.
+ *
+ * `EXPLAIN` is the one that is not about a list. Every other intent answers "which
+ * places", and a reader who has just been handed five of them asks the obvious next
+ * thing: why that one. Answered without it, "kenapa Setiabudi Astra" parsed as a fresh
+ * ranking and came back as the very same five names, which reads as a guide that is
+ * not listening.
+ */
+export type Intent = 'RANK' | 'FLAG_SATURATED' | 'COMPARE' | 'COVERAGE' | 'EXPLAIN';
 
 /**
  * The structured query a question parses into — shown verbatim so it can be
@@ -660,6 +690,68 @@ export interface GridMeta {
 	};
 }
 
+/**
+ * One catchment, taken apart into the figures its score is made of.
+ *
+ * WHY THIS IS STRUCTURED AND NOT A SENTENCE
+ *
+ * The engine already writes a `why` line for every row it ranks, and that line is API
+ * output: Indonesian, fixed, a contract for anything reading the endpoint directly. What
+ * the reader sees has to be rebuilt in their own language, which means the reply that
+ * EXPLAINS a place needs its parts rather than its prose. Same rule as `measure` on a
+ * recommendation, applied to a whole answer.
+ *
+ * Every field here is read off the scored row. Not one of them is written by the model,
+ * which is what keeps "why is it good" a question about the data rather than an
+ * invitation to be told a story.
+ */
+export interface Explanation {
+	id: string;
+	name: string;
+	/** The walking radius every count below was measured at. */
+	radius: number;
+	/**
+	 * False when the active source has never surveyed this cell's city. Everything that
+	 * depends on counting competitors is then null, and the reply says so rather than
+	 * reading an unread street as an empty one.
+	 */
+	covered: boolean;
+	/** The opportunity score, 0..1. Null on an unsurveyed cell. */
+	score: number | null;
+	/** Trade around the cell other than the types asked about, 0..1. */
+	demand: number | null;
+	/** How tightly the same types are already packed in, 0..1. */
+	supply: number | null;
+	/** Businesses of every kind in range, the count `demand` is scaled from. */
+	density: number;
+	/** Competitors of the types asked about, from the active source. */
+	rivals: number;
+	/** Transit nodes in range, and the access index they add up to, 0..1. */
+	stops: number;
+	access: number;
+	/** Premises on the market in range, and the median asking price per m² among them. */
+	units: number;
+	price: number | null;
+	/**
+	 * Where that price ranks on the grid, 0 cheapest to 1 dearest, and what the cost of
+	 * space therefore multiplied the score by.
+	 *
+	 * Both, because the multiplier alone cannot be said out loud. It is below 1 for
+	 * everything except the cheapest catchment on the grid, so a sentence reading it as
+	 * "space here is expensive" would say that of a catchment in the cheapest tenth. The
+	 * level is the figure the score panel already prints, and it is true at any point on
+	 * the ladder. Null is nothing listed in range, or too few prices across the grid to
+	 * rank against, and both of those are a multiplier of exactly 1.
+	 */
+	priceLevel: number | null;
+	costFactor: number;
+}
+
+/* NOTHING FROM `field` IS IN HERE, and the omission is deliberate. The surveys are
+   evidence that rides beside a score, never a term in it, so a shape whose whole job is
+   to say what a score is MADE OF is the last place they belong: listed among the parts,
+   "nobody has been down this street" would read as one of the reasons for the number. */
+
 export interface AiAnswer {
 	query: StructuredQuery;
 	/** Who translated the question — the model, or the fallback rule parser. */
@@ -686,6 +778,15 @@ export interface AiAnswer {
 	 * rather than apologising for a limitation that is not there.
 	 */
 	needsCategory?: true;
+	/**
+	 * Filled in when the question was "why that one" rather than "which ones".
+	 *
+	 * The place is still in `items` as a single row, so the map can be pointed at it the
+	 * same way every other answer's places are. What this adds is the arithmetic behind
+	 * it, taken apart, so the reply can say what the score is MADE OF instead of quoting
+	 * it back. Absent on every other shape of answer.
+	 */
+	explain?: Explanation;
 	headline: string;
 	items: Recommendation[];
 	/** Ids of the catchments highlighted on the map. */

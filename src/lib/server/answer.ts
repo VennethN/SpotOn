@@ -4,7 +4,7 @@ import { answer, parseQuestion, runQuery } from '$lib/domain/nlq';
 import { normalizeWeights } from '$lib/domain/weights';
 import { parseWithLLM } from '$lib/server/llm';
 import { loadHexes } from '$lib/server/source';
-import type { AiAnswer, AiEvent, CategoryKey, ChatTopic, Weights } from '$lib/types';
+import type { AiAnswer, AiEvent, CategoryKey, ChatTopic, ChatTurn, Weights } from '$lib/types';
 
 /**
  * One question, answered, with the working shown as it happens.
@@ -56,10 +56,11 @@ function chatAnswer(
 	question: string,
 	weights: Weights,
 	fallback: readonly CategoryKey[],
-	parsedBy: 'model' | 'rules'
+	parsedBy: 'model' | 'rules',
+	said: readonly string[]
 ): AiAnswer {
 	return {
-		query: parseQuestion(question, weights, fallback),
+		query: parseQuestion(question, weights, fallback, said),
 		parsedBy,
 		chat: text ? { topik, text } : { topik },
 		// The headline is what an API consumer reads. Empty would make this turn look
@@ -81,6 +82,34 @@ export interface AskInput {
 	weights?: Partial<Weights>;
 	/** The reader's language; only affects the model's "I don't understand" sentence. */
 	lang?: string;
+	/**
+	 * The turns before this one, oldest first.
+	 *
+	 * Optional, and everything works without it exactly as it did before it existed:
+	 * a question with no thread behind it is a first question. What it buys is the whole
+	 * difference between a form and a conversation, because a follow-up does not carry
+	 * its own subject and used to be parsed as though it did.
+	 */
+	history?: ChatTurn[];
+}
+
+/**
+ * The catchments the conversation has named, newest first and without repeats.
+ *
+ * This is the only thing the ENGINE is told about the thread, as opposed to the model,
+ * and it is deliberately just a list of names. It settles what "that one" refers to when
+ * a question points instead of naming, which is the one thing the scoring engine cannot
+ * work out for itself: it knows the whole grid and has no idea which of it was on screen
+ * a moment ago.
+ */
+function spokenPlaces(history: readonly ChatTurn[] | undefined): string[] {
+	const out: string[] = [];
+	for (let i = (history?.length ?? 0) - 1; i >= 0; i--) {
+		for (const place of history![i].places ?? []) {
+			if (typeof place === 'string' && place && !out.includes(place)) out.push(place);
+		}
+	}
+	return out;
 }
 
 /**
@@ -123,6 +152,10 @@ export async function resolveQuestion(
 	const weights: Weights = normalizeWeights(input.weights);
 
 	const catchments = loadHexes();
+	/* What the conversation has already named. The model gets the whole thread; the
+	   engine gets only this, because the only thing it cannot work out for itself is
+	   which of the 562 catchments were on screen a moment ago. */
+	const said = spokenPlaces(input.history);
 
 	emit?.({ kind: 'stage', stage: 'reading' });
 	/* No sink when nobody is listening, and that is not just tidiness. A sink is what
@@ -146,21 +179,30 @@ export async function resolveQuestion(
 				if (tool === 'jalankan_query') emit({ kind: 'stage', stage: 'choosing' });
 			},
 			retrying: () => emit({ kind: 'stage', stage: 'retrying' })
-		}
+		},
+		input.history ?? []
 	);
 
 	// A greeting, a question about SpotOn itself, or general talk about running a small
 	// business. No operation runs and nothing is computed, which is exactly right: there
 	// was no question about the data to compute an answer to.
 	if (parsed && !parsed.ok && 'chat' in parsed) {
-		return chatAnswer(parsed.chat, parsed.text ?? undefined, question, weights, fallback, 'model');
+		return chatAnswer(
+			parsed.chat,
+			parsed.text ?? undefined,
+			question,
+			weights,
+			fallback,
+			'model',
+			said
+		);
 	}
 
 	// The model admits it did not understand. That is a legitimate result, not a
 	// failure — and far better than answering a misinterpreted question.
 	if (parsed && !parsed.ok) {
 		return {
-			query: parseQuestion(question, weights, fallback),
+			query: parseQuestion(question, weights, fallback, said),
 			parsedBy: 'model',
 			notUnderstood: parsed.reason,
 			headline: parsed.reason,
@@ -177,14 +219,27 @@ export async function resolveQuestion(
 	// for why only the narrow half of chat is reachable without a model.
 	if (!parsed) {
 		const topic = ruleChatTopic(question);
-		if (topic) return chatAnswer(topic, undefined, question, weights, fallback, 'rules');
+		if (topic) return chatAnswer(topic, undefined, question, weights, fallback, 'rules', said);
 	}
 
 	// Said before the engine runs rather than after, which is the only way round that
 	// means anything: a stage announced once its work is done is a caption, not a state.
 	emit?.({ kind: 'stage', stage: 'computing' });
 
+	/* A shape that is ABOUT a named place, asked without naming one. "Kenapa yang itu"
+	   and "bandingkan dua teratas" are ordinary things to say and neither carries a name,
+	   so a model that reads the intent correctly and leaves `target` empty is not wrong,
+	   it is pointing. The conversation is what it points at, and this is the one place
+	   that knows what the conversation said.
+
+	   Filled in only when the model left it empty. A name the model DID write is the one
+	   it meant, even when it is not the newest thing on screen. */
+	if (parsed?.ok && !parsed.query.target?.length && said.length) {
+		if (parsed.query.intent === 'EXPLAIN') parsed.query.target = said.slice(0, 1);
+		if (parsed.query.intent === 'COMPARE') parsed.query.target = said.slice(0, 2);
+	}
+
 	return parsed
 		? { ...runQuery(parsed.query, question, catchments, weights), parsedBy: 'model' }
-		: { ...answer(question, catchments, weights, fallback), parsedBy: 'rules' };
+		: { ...answer(question, catchments, weights, fallback, said), parsedBy: 'rules' };
 }

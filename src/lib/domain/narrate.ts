@@ -5,6 +5,7 @@ import { DEFAULT_WEIGHTS } from './weights';
 import type {
 	AiAnswer,
 	CategoryKey,
+	Explanation,
 	MetricKey,
 	Recommendation,
 	ScoredHex,
@@ -78,6 +79,14 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 	if (ans.needsCategory) return c.narrate.needsCategory;
 
 	const cat = categoryNames(ans.query.kategori, c, 'many');
+
+	/* "Why that one." Read before the intents below, because this answer carries one
+	   item like a ranking of one and would otherwise be narrated as a list. */
+	if (ans.explain) return explainSentence(ans.explain, cat, c);
+	// The intent was understood as a why-question and no catchment in it could be
+	// matched. Asking which one is the honest move; guessing at the top of the last
+	// ranking would explain a place nobody asked about.
+	if (ans.query.intent === 'EXPLAIN') return n$.explainWhich;
 	const n = ans.items.length;
 
 	/**
@@ -124,6 +133,47 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 }
 
 /**
+ * One catchment's score, said out loud in the reader's language.
+ *
+ * Assembled from the parts rather than from the engine's own `why` line, which is
+ * Indonesian API output — the same split every other sentence here is built on. Every
+ * figure in it was computed by the scoring engine on the grid, and there is no branch
+ * in which one is guessed at: an unsurveyed catchment says it is unsurveyed and stops.
+ *
+ * The clauses are separate strings and not one long template because the two languages
+ * put them in different orders, and because most of them are conditional. A catchment
+ * with nothing on the market must not say "0 units are on the market, median price ·".
+ */
+function explainSentence(e: Explanation, cat: string, c: Copy): string {
+	const n$ = c.narrate.explain;
+	// Nobody has read this street. Everything below depends on a competitor count, so
+	// there is nothing to take apart, and saying so is the whole answer.
+	if (!e.covered || e.score === null) return n$.unscored(e.name, cat, e.stops, e.radius);
+
+	const parts = [n$.lead(e.name, cat, pct(e.score))];
+	parts.push(n$.crowd(e.density, e.radius, pct(e.demand)));
+	parts.push(
+		e.rivals === 0 ? n$.rivalsNone(cat) : n$.rivals(e.rivals, cat, pct(e.supply))
+	);
+	parts.push(
+		e.units === 0
+			? n$.spaceNone
+			: e.price === null
+				? n$.spaceUnpriced(e.units)
+				: n$.space(e.units, c.query.perM2(e.price))
+	);
+	/* Only when it actually moved the score, and said as a POSITION on the ladder rather
+	   than as a verdict. The multiplier is below 1 for everything except the cheapest
+	   catchment on the grid, so "space here is expensive" would be said of a catchment in
+	   the cheapest tenth. It is exactly 1 where nothing was priced, and a deduction
+	   reported there would be one that never happened. */
+	const dearer = e.priceLevel === null ? 0 : Math.round(e.priceLevel * 100);
+	if (e.costFactor < 1 && dearer >= 1) parts.push(n$.costHeld(dearer));
+	if (e.stops > 0) parts.push(n$.transit(e.stops));
+	return parts.join(' ');
+}
+
+/**
  * The structured query rewritten as ordinary word fragments.
  *
  * The content is exactly the query object the engine ran — the user can still
@@ -133,6 +183,10 @@ export function describeQuery(q: StructuredQuery, c: Copy): string[] {
 	const out = [categoryNames(q.kategori, c, 'many')];
 	if (q.intent === 'FLAG_SATURATED') out.push(c.query.saturated);
 	if (q.intent === 'COVERAGE') out.push(c.query.coverage);
+	// Named, because the reader has to be able to see that the map answered about ONE
+	// place rather than ranking the grid again — which is precisely what it used to do
+	// with this question.
+	if (q.intent === 'EXPLAIN') out.push(c.query.explain);
 	// Which figure, and which end of it. Only when it is not the opportunity score,
 	// which is what the whole map is about anyway and would be noise on every chip row.
 	if (q.intent === 'RANK' && q.ukuran && q.ukuran !== 'skor') {

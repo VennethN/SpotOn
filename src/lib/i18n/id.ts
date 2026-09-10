@@ -1048,6 +1048,11 @@ export const id = {
 		avoidQ: (cat: string) => `Kawasan mana yang sudah jenuh untuk ${cat}?`,
 		coverage: 'Mana yang belum ada datanya?',
 		coverageQ: 'Kawasan mana yang belum terdata?',
+		/* Pertanyaan lanjutan yang paling sering diketik orang, ditawarkan supaya
+		   kelihatan bahwa kolom di bawahnya memang bisa diajak bicara. Satu saja:
+		   sisanya diketik sendiri, dan yang membaca kalimatnya lapisan pemahaman,
+		   bukan daftar frasa di sini. */
+		why: (name: string) => `Kenapa ${name}?`,
 		retry: 'Coba lagi',
 		/* Diucapkan Tapak sendiri di dalam percakapannya, terpisah dari pemberitahuan yang
 		   muncul di atas peta. Pertanyaannya memang tidak pernah dikirim, jadi giliran itu
@@ -1084,6 +1089,38 @@ export const id = {
 		nowByUnit:
 			'Petanya saya ganti ke per tempat, jadi yang jadi barisnya tempat usahanya sendiri, bukan kawasannya.',
 		nowByCell: 'Petanya saya balikkan ke per petak, jadi barisnya kawasan lagi.',
+		/* ── Kenapa yang itu ───────────────────────────────────────────────
+		   Pertanyaan lanjutan yang paling sering muncul, dan dulu dijawab dengan
+		   daftar yang sama persis diulang. Kalimatnya disusun dari potongan,
+		   bukan satu template, karena separuhnya bersyarat: kawasan tanpa unit
+		   dipasarkan tidak boleh berbunyi "0 unit dipasarkan, mediannya ·".
+
+		   Semua angkanya dihitung mesin skor. Tidak satu pun ditulis model. */
+		explainWhich:
+			'Kawasan yang mana? Sebut namanya, nanti saya rinci skornya dari angka yang saya punya.',
+		explain: {
+			unscored: (name: string, cat: string, simpul: number, radius: number) =>
+				`${name} belum disurvei untuk ${cat}, jadi saya tidak memberinya nilai sama sekali. Yang terukur di sana cuma aksesnya: ${simpul} simpul transit dalam radius ${radius} m.`,
+			lead: (name: string, cat: string, nilai: string) =>
+				`${name} dapat ${nilai} dari 100 untuk ${cat}, dan ini yang menyusunnya.`,
+			crowd: (usaha: number, radius: number, nilai: string) =>
+				`Ada ${num(usaha)} usaha lain dalam radius ${radius} m, jadi keramaiannya ${nilai} dari 100.`,
+			rivals: (n: number, cat: string, nilai: string) =>
+				`${num(n)} ${cat} sudah berdiri di radius yang sama, jadi persaingannya ${nilai} dari 100.`,
+			rivalsNone: (cat: string) =>
+				`Belum ada ${cat} sama sekali dalam radius itu, jadi tidak ada persaingan yang memotongnya.`,
+			space: (n: number, harga: string) =>
+				`${num(n)} unit komersial sedang dipasarkan di sekitarnya, mediannya ${harga}.`,
+			spaceUnpriced: (n: number) =>
+				`${num(n)} unit komersial sedang dipasarkan di sekitarnya, tapi tidak satu pun memasang harga.`,
+			spaceNone: 'Tidak ada unit komersial yang sedang dipasarkan di sekitarnya.',
+			/* Posisinya di tangga harga, bukan vonis. Angkanya sama dengan yang dicetak
+			   rincian skor, karena dua tempat yang menyebut hal yang sama harus
+			   menyebutnya dengan angka yang sama. */
+			costHeld: (peringkat: number) =>
+				`Harga tempatnya lebih mahal dari ${peringkat}% petak lain, dan itu ikut menahan skornya.`,
+			transit: (n: number) => `${num(n)} simpul transit terjangkau jalan kaki dari sana.`
+		},
 		remarkUncovered: (name: string, cat: string) =>
 			`Kawasan ${name} belum didata, jadi ${cat} di sekitarnya belum pernah dihitung. Belum ada angka yang bisa saya berikan.`,
 		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
@@ -1202,6 +1239,9 @@ export const id = {
 		and: 'dan',
 		saturated: 'yang sudah sesak',
 		coverage: 'yang belum ada datanya',
+		/* Dibaca pembaca waktu jawabannya cuma satu kawasan. Tanpa ini, jawaban
+		   "kenapa yang itu" kelihatan persis seperti peringkat yang cuma pendek. */
+		explain: 'satu kawasan, dirinci',
 		within: (r: number) => `dalam ${r} m jalan kaki dari titik transit`,
 		hasSpace: 'ada tempat yang disewakan',
 		cheap: 'sewa kelas bawah',
