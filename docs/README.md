@@ -25,7 +25,7 @@ proposal-drafting repository (`MapID/`) so that the context lives alongside the 
 
 | File | Contents |
 |---|---|
-| [`deck/spoton-deck.pdf`](deck/spoton-deck.pdf) | The presentation, 16:9, one page per slide: the problem, the data, the grid, how the score is made, how a question is answered, the interface, the demo script, and how it runs. |
+| [`deck/spoton-deck.pdf`](deck/spoton-deck.pdf) | The presentation, 16:9, one page per slide, written for a non-technical audience: the problem, the idea, the map, the evidence, what the score is made of, Tapak, the interface, one area, the model, the honesty promises, who it is for, and the demo script. |
 | `deck/build.mjs`, `deck/slides.mjs`, `deck/deck.css` | What builds it. `npm run deck` reads the grid and runs the scoring engine, so every figure on every slide is computed rather than typed, then prints the PDF with headless Chromium. Rebuild it whenever the grid is. |
 | `deck/area.json` | The basemap around the area the model slide stands up, the first area the front page models, read through the app's own reader and cut to the walking range, so that slide builds without the network. `node docs/deck/build.mjs --read-area` refreshes it, and `.github/workflows/deck-area.yml` does the same from a machine with the network whenever the reader changes on a branch. |
 

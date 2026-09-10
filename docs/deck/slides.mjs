@@ -9,6 +9,7 @@
  * are new: no em dash, no semicolon, say what a thing does.
  */
 
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const esc = (s) =>
 	String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const num = (v) => Number(v).toLocaleString('en-US');
@@ -96,8 +97,6 @@ const rampStrip = () =>
 
 const sectionMark = (n, label) =>
 	`<div class="mark"><span class="tick"></span><span class="n">${n}</span><span class="l">${esc(label)}</span><span class="rule"></span></div>`;
-
-const MODE_NAME = { mrt: 'MRT', krl: 'KRL', lrt: 'LRT', brt: 'TransJakarta' };
 
 /* ── the maps ──────────────────────────────────────────────────────────── */
 
@@ -343,26 +342,6 @@ ${doors}${rivals}${units}${recs}${stops}
 </svg>`;
 }
 
-/** Cells by how many businesses stand in walking range, as the landing page draws it. */
-function spreadChart(spread, copy) {
-	const W = 1000;
-	const H = 250;
-	const top = Math.max(1, ...spread.map((b) => b.cells));
-	const gap = 10;
-	const bw = (W - gap * (spread.length - 1)) / spread.length;
-	const bars = spread
-		.map((b, i) => {
-			const h = Math.max(2, ((H - 70) * b.cells) / top);
-			const x = i * (bw + gap);
-			const y = H - 40 - h;
-			return `<rect class="bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="4"/>
-<text class="val" x="${(x + bw / 2).toFixed(1)}" y="${(y - 8).toFixed(1)}" text-anchor="middle">${b.cells}</text>
-<text class="axis" x="${(x + bw / 2).toFixed(1)}" y="${H - 16}" text-anchor="middle">${num(b.upTo)}</text>`;
-		})
-		.join('');
-	return `<svg class="spread" viewBox="0 0 ${W} ${H}" aria-hidden="true"><line class="base" x1="0" x2="${W}" y1="${H - 40}" y2="${H - 40}"/>${bars}</svg>`;
-}
-
 /** Doors open per hour on one day, for the card. */
 function hourCurve(hours) {
 	const W = 600;
@@ -380,33 +359,6 @@ function hourCurve(hours) {
 		.map((h) => `<text class="axis" x="${(h * bw + 2).toFixed(1)}" y="${H - 6}">${esc(hours.hourLabel(h))}</text>`)
 		.join('');
 	return `<svg class="curve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${bars}${axis}</svg>`;
-}
-
-/** The score taken apart, step by step, on the 0 to 100 scale the card prints. */
-function waterfall(comp) {
-	const rows = comp.steps
-		.map((s) => {
-			const before = s.after - s.delta;
-			const lo = Math.min(before, s.after);
-			const hi = Math.max(before, s.after);
-			const dir = s.key === 'start' ? 'start' : s.delta > 0 ? 'up' : s.delta < 0 ? 'down' : 'same';
-			const delta =
-				s.key === 'start'
-					? String(s.after)
-					: s.factor !== null && s.delta === 0
-						? `×${s.factor.toFixed(2)}`
-						: `${s.delta > 0 ? '+' : ''}${s.delta}`;
-			const factor = s.factor !== null && s.delta !== 0 ? ` <span class="note">×${s.factor.toFixed(2)}</span>` : '';
-			return `<div class="step">
-<div class="k">${esc(s.label)}<span class="note">${esc(s.note)}</span></div>
-<div class="track"><span class="keep" style="width:${lo}%"></span><span class="move ${dir}" style="left:${lo}%;width:${Math.max(0.4, hi - lo)}%"></span></div>
-<div class="d ${dir}">${delta}${factor}</div>
-</div>`;
-		})
-		.join('');
-	return `<div class="wf">${rows}
-<div class="step total"><div class="k">${esc(comp.total)}</div><div class="track"><span class="keep sum" style="width:${comp.score}%"></span></div><div class="d">${comp.score}</div></div>
-</div>`;
 }
 
 /* ── the interface, drawn in its own materials ─────────────────────────── */
@@ -457,20 +409,30 @@ function mapKey(f) {
 function areaCard(f) {
 	const e = f.example;
 	const c = f.copy;
+	const busy = e.rows.find((r) => r.key === 'demand');
+	const rows = [
+		{ label: 'How busy it is', value: busy.value, sub: busy.sub },
+		{ label: `${cap(f.demo.many)} already here`, value: e.rows.find((r) => r.key === 'rivals').value, sub: '' },
+		{ label: 'Other businesses nearby', value: e.rows.find((r) => r.key === 'around').value, sub: '' },
+		{ label: 'Premises on the market', value: e.rows.find((r) => r.key === 'space').value, sub: '' }
+	];
 	const hours = e.hours.thin
-		? `<p class="line">${esc(e.hours.thinNote)}</p>`
+		? `<p class="line">Too few businesses here publish their opening hours to show how the day goes.</p>`
 		: `${hourCurve(e.hours)}<p class="line">${esc(e.hours.day)}. ${esc(e.hours.peak)}</p>`;
+	const notes = e.field.total
+		? `${e.field.total} ${e.field.total === 1 ? 'note' : 'notes'} from people who went there, with photographs.`
+		: 'Nobody has recorded anything here yet.';
 	return `<div class="card">
 <div class="chead"><span class="pivot">${glyph('cell', 18)}</span><div class="who"><h2>${esc(e.name)}</h2><p class="sub"><span class="dot" style="background:var(--ramp-${e.rampIndex})"></span>${esc(e.typology)}</p><p class="standing">${esc(e.standing)}</p></div><span class="score">${e.score}</span></div>
 <span class="askbtn">${tapak(14)}${esc(f.tapakCopy.askAbout)}</span>
-<div class="sec"><div class="sh"><span class="ico">${glyph('score', 16)}</span><span class="eyebrow">${esc(c.breakdown.title)}</span><span class="aside">${esc(f.demo.choice)}</span></div>
-<div class="rows">${e.rows.map((r) => `<div class="r"><span class="k">${esc(r.label)}${r.sub ? `<span class="st">${esc(r.sub)}</span>` : ''}</span><span class="v">${esc(r.value)}</span></div>`).join('')}</div></div>
+<div class="sec"><div class="sh"><span class="ico">${glyph('score', 16)}</span><span class="eyebrow">What the score is made of</span><span class="aside">${esc(f.demo.choice)}</span></div>
+<div class="rows">${rows.map((r) => `<div class="r"><span class="k">${esc(r.label)}${r.sub ? `<span class="st">${esc(r.sub)}</span>` : ''}</span><span class="v">${esc(r.value)}</span></div>`).join('')}</div></div>
 <div class="sec"><div class="sh"><span class="ico">${glyph('transit', 16)}</span><span class="eyebrow">${esc(c.mood.transit)}</span></div>
-<div class="big"><span class="v">${e.transit.total}</span><span class="k">${esc(e.transit.count)}</span></div><p class="line">${esc(e.transit.split)}. ${esc(e.transit.band)}</p></div>
+<div class="big"><span class="v">${e.transit.total}</span><span class="k">stations and stops within a short walk</span></div><p class="line">${esc(e.transit.split)}. ${esc(e.transit.band)}</p></div>
 <div class="sec"><div class="sh"><span class="ico">${glyph('price', 16)}</span><span class="eyebrow">${esc(c.property.title)}</span></div>
-<div class="big"><span class="v">${e.cost.price === null ? '·' : esc(rp(e.cost.price))}</span><span class="k">${esc(e.cost.cap)}</span></div><p class="line">${e.cost.rank ? esc(e.cost.rank) + ' ' : ''}${esc(e.cost.effect)}</p></div>
-<div class="sec"><div class="sh"><span class="ico">${glyph('hours', 16)}</span><span class="eyebrow">${esc(c.activity.title)}</span><span class="aside">${esc(e.hours.denominator)}</span></div>${hours}</div>
-<div class="sec"><div class="sh"><span class="ico">${glyph('field', 16)}</span><span class="eyebrow">${esc(c.field.title)}</span></div><p class="line">${esc(e.field.count)}. ${esc(c.field.notCensus)}</p></div>
+<div class="big"><span class="v">${e.cost.price === null ? '·' : esc(rp(e.cost.price))}</span><span class="k">${esc(e.cost.cap)}</span></div>${e.cost.rankPct === null ? '' : `<p class="line">${e.cost.rankPct === 0 ? 'The cheapest of the areas with a known price.' : e.cost.rankPct === 100 ? 'The dearest of the areas with a known price.' : `Dearer than ${e.cost.rankPct}% of the areas with a known price.`}</p>`}</div>
+<div class="sec"><div class="sh"><span class="ico">${glyph('hours', 16)}</span><span class="eyebrow">${esc(c.activity.title)}</span></div>${hours}</div>
+<div class="sec"><div class="sh"><span class="ico">${glyph('field', 16)}</span><span class="eyebrow">${esc(c.field.title)}</span></div><p class="line">${esc(notes)}</p></div>
 </div>`;
 }
 
@@ -487,6 +449,10 @@ export function renderDeck(f, assets) {
 	const e = f.engine;
 	const cp = f.copy;
 	const pages = [];
+
+	/* Section numbers, in the order the slides run. */
+	let section = 0;
+	const mark = (label) => sectionMark(String(++section).padStart(2, '0'), label);
 
 	/* 1 · cover */
 	pages.push((pg) =>
@@ -507,13 +473,10 @@ export function renderDeck(f, assets) {
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('01', cp.problem.mark)}
+			`${mark(cp.problem.mark)}
 <div class="head"><h1>${esc(cp.problem.title)}</h1><p class="lead">${esc(cp.problem.statement)}</p></div>
-<ul class="tri">${cp.problem.rows.map((r) => `<li><h3>${esc(r.t)}</h3><p>${esc(r.d)}</p></li>`).join('')}</ul>
-<figure class="panel" style="padding:32px 40px 28px;margin-top:auto;display:grid;grid-template-columns:440px 1fr;gap:48px;align-items:center">
-<figcaption><h3>${esc(cp.problem.chartTitle)}</h3><p class="body" style="margin-top:10px;font-size:19px">${esc(cp.problem.chartBody)}</p><p class="small" style="margin-top:14px">${esc(cp.spread.caption)} Each column is a band, up to that many businesses, and the figure above it is how many cells fall in the band.</p></figcaption>
-<div style="height:300px">${spreadChart(f.spread, cp.spread)}</div>
-</figure>`,
+<ul class="tri big" style="margin-top:32px">${cp.problem.rows.map((r) => `<li><h3>${esc(r.t)}</h3><p>${esc(r.d)}</p></li>`).join('')}</ul>
+<div class="band" style="margin-top:56px"><h3>${esc(cp.problem.chartTitle)}</h3><p>Some streets around a station are full of trade and some are quiet, and from the pavement they look the same. SpotOn counts the difference, so the choice does not have to be a guess.</p></div>`,
 			{ num: pg }
 		)
 	);
@@ -522,138 +485,108 @@ export function renderDeck(f, assets) {
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('02', cp.how.mark)}
+			`${mark(cp.how.mark)}
 <div class="head solo"><h1>${esc(cp.how.plain)}</h1></div>
 <ul class="quad" style="margin-top:14px">
-<li><span class="ico">${glyph('market', 24)}</span><h3>Demand</h3><p>The trade already standing around the cell, other than your kind. If a block supports dozens of businesses, people plainly come past.</p></li>
-<li><span class="ico">${glyph('rivals', 24)}</span><h3>Competition</h3><p>Rivals of your kind within walking range, counted from two surveys. The fuller one speaks for a cell, and the two are never added.</p></li>
-<li><span class="ico">${glyph('sign', 24)}</span><h3>Space</h3><p>Premises actually on the market. A requirement rather than a bonus: a good area with nothing to take is not an opportunity.</p></li>
-<li><span class="ico accent">${glyph('transit', 24)}</span><h3>Transit access</h3><p>The multiplier, and what decides it most. How many stops a cell reaches within ${g.walkRadius} m, with rail worth more than a bus.</p></li>
+<li><span class="ico">${glyph('market', 24)}</span><h3>How busy it is</h3><p>The shops and cafés already trading around a spot are the surest sign that people come past. That is what SpotOn counts first.</p></li>
+<li><span class="ico">${glyph('rivals', 24)}</span><h3>Who is already there</h3><p>The businesses of your own kind within a short walk. A street full of them is a street with less room for one more.</p></li>
+<li><span class="ico">${glyph('sign', 24)}</span><h3>Whether there is space</h3><p>Premises actually on the market. A good area with nothing to take is not an opportunity, however busy it looks.</p></li>
+<li><span class="ico accent">${glyph('transit', 24)}</span><h3>How well it is connected</h3><p>The stations and stops within a walk, with a train station counting for more than a bus stop.</p></li>
 </ul>
-<div class="band" style="margin-top:auto"><h3>${esc(cp.how.title)}</h3><p>${esc(cp.how.steps[3].d)} A ranking comes back with its reasons attached, and a place can be taken apart term by term.</p>
+<div class="band" style="margin-top:auto"><h3>One score per area, per kind of business.</h3><p>Each area gets a score out of 100 for the business you have in mind, a label that says what kind of place it is, and the reasons behind both.</p>
 <ul class="chips" style="margin-left:auto;flex:none">${['underserved', 'competitive', 'saturated', 'busy-limited-space'].map((k) => `<li class="chip soft">${esc(cp.typology[k])}</li>`).join('')}</ul></div>`,
 			{ num: pg }
 		)
 	);
 
-	/* 4 · the evidence */
+	/* 4 · the map */
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('03', cp.data.mark)}
-<div class="head"><h1>${esc(cp.data.title)}</h1><p class="lead">${esc(cp.data.body)}</p></div>
-<ul class="stats" style="margin-top:20px">
-<li class="stat"><span class="v">${num(g.hexes)}</span><span class="l">${esc(cp.stats.hexes.label)}</span><span class="s">${esc(cp.stats.hexes.sub(g.walkRadius))}</span></li>
-<li class="stat"><span class="v">${num(g.stops)}</span><span class="l">${esc(cp.stats.stops.label)}</span><span class="s">${esc(cp.stats.stops.sub)}</span></li>
-<li class="stat"><span class="v">${num(g.mapidPoints)}</span><span class="l">${esc(cp.stats.pois.label)}</span><span class="s">MAPID catalogue, ${f.categories.length} business types, five DKI cities</span></li>
-<li class="stat"><span class="v">${f.categories.length}</span><span class="l">${esc(cp.stats.cats.label)}</span><span class="s">${esc(cp.stats.cats.sub)}</span></li>
-</ul>
-<ul class="stats minor" style="margin-top:auto">
-<li class="stat"><span class="v">${num(g.pois)}</span><span class="l">competitor points from OpenStreetMap</span><span class="s">${g.osmCategories} business types, all of Jakarta</span></li>
-<li class="stat"><span class="v">${num(g.listings)}</span><span class="l">premises on the market</span><span class="s">asking prices for sale, ${num(g.cellsPriced)} cells with a median</span></li>
-<li class="stat"><span class="v">${num(f.missions.placed)}</span><span class="l">field notes that landed in a cell</span><span class="s">Struk Go, Menu Go, Properti Go and community notes, ${num(f.missions.cells)} cells</span></li>
-<li class="stat"><span class="v">${num(f.hours.readable)}</span><span class="l">readable opening timetables</span><span class="s">of ${num(f.hours.businesses)} businesses counted, ${num(f.hours.published)} publishing hours</span></li>
-</ul>`,
-			{ num: pg }
-		)
-	);
-
-	/* 5 · the grid */
-	pages.push((pg) =>
-		slide(
-			'',
-			`${sectionMark('04', 'The grid')}
+			`${mark('The map')}
 <div style="display:grid;grid-template-columns:600px 1fr;gap:64px;flex:1;min-height:0;align-items:start">
 <div style="display:flex;flex-direction:column;gap:28px">
-<h1 style="font-size:64px">${esc(cp.how.steps[0].t)}, one hexagon per cell.</h1>
-<p class="body">Jakarta is covered with an H3 grid at resolution ${g.resolution}, about ${num(g.edgeM)} m to a side. Only the <strong>${num(g.hexes)} cells</strong> with a transit stop within ${g.walkRadius} m are scored, and the score reads everything within that walk of the cell centre.</p>
-<p class="body">Not one catchment per stop, on purpose. TransJakarta stops sit a few hundred metres apart while the walking range is ${g.walkRadius} m, so per-stop catchments overlap and count the same shoppers over and over. On a grid each cell is counted once, and transit access becomes a property of the cell: a place served by both the MRT and TransJakarta really is worth more.</p>
-<div class="legend hair" style="padding-top:22px">${['mrt', 'krl', 'lrt', 'brt'].map((m) => `<div class="row"><span class="dot" style="background:var(--route-${m})"></span>${MODE_NAME[m]}<span class="n">${num(g.stopsByMode[m])}</span></div>`).join('')}<div class="row" style="color:var(--label-3);font-size:16px">${num(g.stops)} transit nodes and the corridor geometry, from OpenStreetMap</div></div>
+<h1 style="font-size:64px">Jakarta, in areas you can walk across.</h1>
+<p class="lead">Every hexagon is a small area with a station or a stop within a short walk. Each one is counted and scored on its own, never from a city average.</p>
+<ul class="stats" style="grid-template-columns:1fr;gap:22px;margin-top:6px">
+<li class="stat"><span class="v" style="font-size:68px">${num(g.hexes)}</span><span class="l" style="margin-top:10px">walkable areas around transit</span></li>
+<li class="stat"><span class="v" style="font-size:68px">${num(g.stops)}</span><span class="l" style="margin-top:10px">stations and stops of the MRT, KRL, LRT and TransJakarta</span></li>
+<li class="stat"><span class="v" style="font-size:68px">${num(g.mapidPoints)}</span><span class="l" style="margin-top:10px">businesses on the map, of ${f.categories.length} kinds</span></li>
+</ul>
 </div>
-<figure class="panel" style="padding:22px;height:846px;display:flex;flex-direction:column;gap:12px"><div style="flex:1;min-height:0">${hexMap(f.maps, { paint: 'none' })}</div><figcaption class="small" style="text-align:center">Every hexagon at its real place. Corridors and stops in their mode's colour, the grid drawn by its edges as it is before a question is asked.</figcaption></figure>
+<figure class="panel" style="padding:22px;height:846px;display:flex;flex-direction:column;gap:12px"><div style="flex:1;min-height:0">${hexMap(f.maps, { paint: 'none' })}</div><figcaption class="small" style="text-align:center">Every hexagon at its real place, with the four transit networks in their own colours.</figcaption></figure>
 </div>`,
 			{ num: pg }
 		)
 	);
 
-	/* 6 · three kinds of data */
-	const m = f.missions;
+	/* 5 · the evidence */
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('05', 'Sources')}
-<div class="head"><h1>Three kinds of data, kept apart.</h1><p class="lead">Two of them claim completeness for the city they cover, so a zero from them is a finding. The third is streets somebody walked, and an empty cell there only means nobody has been.</p></div>
+			`${mark('The evidence')}
+<div class="head"><h1>Three kinds of evidence, all of it real.</h1><p class="lead">Real places, counted one by one. Where nothing has been counted yet, the map says so instead of guessing.</p></div>
 <ul class="tri" style="margin-top:8px">
-<li><p class="eyebrow">OpenStreetMap · ODbL</p><h3 style="margin-top:10px">Transit, competitors, hours</h3><p>${num(g.stops)} transit nodes in four modes and the corridor geometry. ${num(g.pois)} competitor points in ${g.osmCategories} business types. ${num(f.hours.readable)} readable opening timetables, read as doors open per hour.</p></li>
-<li><p class="eyebrow">MAPID premium catalogue</p><h3 style="margin-top:10px">Businesses and premises</h3><p>${num(g.mapidPoints)} business points in all ${f.categories.length} types across the five DKI cities, every one carrying its name. ${num(g.listings)} premises on the market, as asking prices to buy. Coverage is decided per administrative city.</p></li>
-<li><p class="eyebrow">MAPID APPS field missions</p><h3 style="margin-top:10px">Struk Go, Menu Go, Properti Go</h3><p>${num(m.records)} records read, ${num(m.placed)} landed in ${num(m.cells)} catchments: ${num(m.byMission.struk)} receipts, ${num(m.byMission.menu)} eateries, ${num(m.byMission.properti)} premises and ${num(m.byMission.catatan)} community notes. Evidence beside the score, never a term in it.</p></li>
+<li><p class="eyebrow">The city as mapped</p><h3 style="margin-top:10px">Stations, streets and shops</h3><p>The stations and stops of all four transit networks, the businesses along the streets, and the hours they say they are open, from OpenStreetMap.</p></li>
+<li><p class="eyebrow">MAPID's catalogue</p><h3 style="margin-top:10px">Businesses and premises</h3><p>Businesses of every kind across Jakarta, each with its name, and the premises currently on the market with their asking prices.</p></li>
+<li><p class="eyebrow">People on the street</p><h3 style="margin-top:10px">Field notes</h3><p>Receipts, menus and shopfronts recorded by surveyors who went there, with photographs. Shown beside an area as notes, never mixed into its score.</p></li>
 </ul>
 <div class="panel" style="margin-top:auto;padding:24px 36px;display:grid;grid-template-columns:1fr 400px;gap:40px;align-items:center">
-<div><h3>${esc(cp.data.gridLabel(g.hexes, g.surveyed, g.unsurveyed).replace(/\.$/, ''))}.</h3><p class="body" style="margin-top:10px;font-size:20px">A cell whose city the catalogue has never read is drawn hatched and left unscored. It is never interpolated, never rounded to zero, and never quietly dropped from a ranking. The five cities: ${g.dki.map((d) => `${esc(d.name)} ${num(d.n)}`).join(', ')}.</p>
-<div class="legend" style="flex-direction:row;gap:28px;margin-top:14px"><div class="row" style="font-size:16px"><span class="dot" style="background:var(--ramp-3)"></span>${esc(cp.data.gridWithData)}<span class="n">${num(g.surveyed)}</span></div><div class="row" style="font-size:16px"><span class="hatchkey"></span>${esc(cp.data.gridEmpty)}<span class="n">${num(g.unsurveyed)}</span></div></div></div>
+<div><h3>Where nobody has counted, nothing is claimed.</h3><p class="body" style="margin-top:10px;font-size:20px">Areas the catalogue has not covered yet are drawn hatched and left unscored. They are never filled in with an estimate, and never quietly dropped from a ranking.</p>
+<div class="legend" style="flex-direction:row;gap:28px;margin-top:14px"><div class="row" style="font-size:16px"><span class="dot" style="background:var(--ramp-3)"></span>areas that have been counted</div><div class="row" style="font-size:16px"><span class="hatchkey"></span>not surveyed yet</div></div></div>
 <div style="height:250px">${hexMap(f.maps, { paint: 'trade', routes: false, stops: false })}</div>
 </div>`,
 			{ num: pg }
 		)
 	);
 
-	/* 7 · how the score is made */
+	/* 6 · what the score is made of */
+	const ex = f.example;
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('06', 'The score')}
-<div style="display:grid;grid-template-columns:760px 1fr;gap:64px;flex:1;min-height:0;align-items:start">
+			`${mark('The score')}
+<div style="display:grid;grid-template-columns:1fr 620px;gap:72px;flex:1;min-height:0;align-items:start">
 <div style="display:flex;flex-direction:column;gap:26px">
-<h1 style="font-size:60px">${esc(cp.breakdown.title)}</h1>
-<div class="formula">Gap <span class="op">=</span> (<span class="v">w<sub>d</sub></span>·demand <span class="op">−</span> <span class="v">w<sub>s</sub></span>·supply) <span class="op">/</span> (<span class="v">w<sub>d</sub></span> <span class="op">+</span> <span class="v">w<sub>s</sub></span>)<br>Score <span class="op">=</span> clamp(Gap <span class="op">+</span> ${e.balance}) <span class="op">×</span> gate <span class="op">×</span> access <span class="op">×</span> cost</div>
-<ul class="terms">
-<li><b>Demand</b><span>the trade around the cell other than your kind, as a share of the busiest cell on the grid</span></li>
-<li><b>Competition</b><span>rivals of your kind, as a share of the densest street for them. Weighted ${e.wd} and ${e.ws} by default, and the reader can move both</span></li>
-<li><b>Space gate</b><span>×1 where premises are on the market, ×${e.gateBlocked} where none are. Pushed to the bottom of the ranking, not struck off it</span></li>
-<li><b>Transit access</b><span>×${e.accessFloor} with no stop in range, up to ×${(e.accessFloor + e.accessSpan).toFixed(1)}. MRT ${e.modeWeight.mrt}, KRL ${e.modeWeight.krl}, LRT ${e.modeWeight.lrt}, TransJakarta ${e.modeWeight.brt} per stop</span></li>
-<li><b>Cost of space</b><span>×1 down to ×${e.costFloor}, a rank among the catchments that carry a price. Never above 1, so an unpriced place is never handed a price to be judged on</span></li>
-</ul>
-<p class="small">${esc(cp.breakdown.lead)} Every term is counted, none is generated.</p>
+<h1 style="font-size:60px">What the score is made of.</h1>
+<p class="lead">One score per area, per kind of business, out of 100. Every part of it is something that was counted.</p>
+<ol class="script" style="grid-template-columns:minmax(0, 1fr);gap:14px;margin-top:4px">
+<li><span class="n">1</span><div><h3>Start with how busy the area is.</h3><p>The trade already standing within a walk, other than your own kind.</p></div></li>
+<li><span class="n">2</span><div><h3>Take away the competition.</h3><p>The more of your kind already there, the smaller the gap left for you.</p></div></li>
+<li><span class="n">3</span><div><h3>Check there is somewhere to rent.</h3><p>An area with nothing on the market drops to the bottom, however busy it is.</p></div></li>
+<li><span class="n">4</span><div><h3>Weigh the transit and the price.</h3><p>More stations within a walk count for more. Dearer space counts against, a little.</p></div></li>
+</ol>
 </div>
-<figure class="panel" style="padding:28px 32px 20px;display:flex;flex-direction:column;gap:14px"><div><p class="eyebrow">${esc(f.example.name)} · ${esc(f.demo.choice.toLowerCase())} · ${g.walkRadius} m</p><h3 style="margin-top:6px">${esc(cp.breakdown.transitLead)}</h3></div>${waterfall(f.example.composition)}<p class="small" style="margin-top:4px">${esc(f.example.composition.contributes)} ${esc(cp.breakdown.lead)}</p></figure>
+<figure class="panel" style="padding:30px 34px 26px;display:flex;flex-direction:column;gap:16px">
+<div><p class="eyebrow">One area, one business</p><h2 style="margin-top:8px">${esc(ex.name)}</h2><p class="body" style="margin-top:2px">for a ${esc(f.demo.choice.toLowerCase())}</p></div>
+<div style="display:flex;align-items:baseline;gap:20px"><span style="font-family:var(--font-display);font-size:124px;font-weight:300;letter-spacing:-0.05em;line-height:1;color:var(--accent)">${ex.score}</span><span class="body" style="line-height:1.4">out of 100<br><strong>${esc(ex.typology)}</strong>, ${esc(ex.standing)}</span></div>
+<ul class="kv" style="margin-top:4px">
+<li><span>How busy it is</span><span>${esc(ex.rows[1].value)} of 100, ${esc(ex.rows[1].sub)}</span></li>
+<li><span>${esc(cap(f.demo.many))} already here</span><span>${esc(ex.rows[4].value)}</span></li>
+<li><span>Stations and stops within a walk</span><span>${ex.transit.total}</span></li>
+<li><span>Premises on the market</span><span>${esc(ex.rows[6].value)}</span></li>
+</ul>
+<p class="small">Worked out by SpotOn from the counted data, exactly as it is in the app.</p>
+</figure>
 </div>`,
 			{ num: pg }
 		)
 	);
 
-	/* 8 · ask the map */
+	/* 7 · Tapak */
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('07', cp.ai.mark)}
-<div class="head"><h1>The answer is computed, and then it is said.</h1><p class="lead">${esc(cp.ai.p1)}</p></div>
-<div class="pipe" style="margin-top:10px">
-<div class="box"><p class="eyebrow">The question</p><h3>Asked in plain language</h3><p>Indonesian or English, typed or tapped. The turns before it travel with it, so a follow-up that only points, why that one, is read in context.</p></div>
-<div class="box"><p class="eyebrow">Understanding</p><h3>The model picks an operation</h3><p>Through function calling it names a shape, a measure and the arguments, never a value. A question outside the data comes back as not understood. Without a key, or after ${f.llm.totalS} seconds, the rule parser takes over.</p></div>
-<div class="box engine"><p class="eyebrow">Computing</p><h3>The scoring engine on the grid</h3><p>Every figure a reader sees, score, demand, rivals, price, standing, is computed on the data in one go. No figure is ever streamed a digit at a time.</p></div>
-<div class="box"><p class="eyebrow">Writing</p><h3>The model writes the sentence</h3><p>From a fact sheet of the figures this turn produced. A reply carrying a figure or a place not on the sheet is thrown away whole, and the composed sentence stands in.</p></div>
-<div class="box"><p class="eyebrow">The screen</p><h3>The map repaints</h3><p>The answer names places, the whole city recolours for the business type, and every reply says which path read it, the model or the rules.</p></div>
-</div>
-<div class="band"><h3>No figure a reader sees came from the model.</h3><p>The model decides what to look up and how to say it. The arithmetic is the engine's alone, and the fence checks every sentence against the figures it was handed. Five shapes of question, rank, flag the saturated, compare, coverage and explain, across ${f.measures} measures, chosen separately.</p></div>
-<div style="margin-top:auto"><p class="eyebrow" style="margin-bottom:12px">What streams while the reader waits: the stage, never a figure</p><div class="stages">${['reading', 'retrying', 'choosing', 'computing', 'writing'].map((k) => `<span class="st"><span class="k">${k}</span><span>${esc(f.stages[k])}</span></span>`).join('')}</div><p class="small" style="margin-top:12px">Reported from where the work actually is, never on a timer and never as a percentage. Up to ${f.llm.totalS} seconds for understanding across a chain of ${f.llm.chain} free models, ${f.llm.writeS} for the written reply.</p></div>`,
-			{ num: pg, frameStyle: 'gap:26px' }
-		)
-	);
-
-	/* 9 · Tapak */
-	pages.push((pg) =>
-		slide(
-			'',
-			`${sectionMark('08', 'Tapak')}
+			`${mark(cp.ai.mark)}
 <div style="display:grid;grid-template-columns:1fr 700px;gap:72px;flex:1;min-height:0;align-items:start">
-<div style="display:flex;flex-direction:column;gap:30px">
+<div style="display:flex;flex-direction:column;gap:28px">
 <span class="plinth" style="width:120px;height:120px">${tapak(68, true)}</span>
-<h1 style="font-size:66px">${esc(cp.ai.meet.title)}</h1>
-<p class="body" style="max-width:52ch">${esc(cp.ai.meet.body)}</p>
-<ul class="notes" style="gap:18px;margin-top:6px">
-<li class="accent"><h3>The waiting state is the figure.</h3><p>A spinner says the machine is busy. Tapak pacing says somebody is looking it up, and it is the same figure that answers.</p></li>
-<li><h3>Small talk is allowed, and fenced.</h3><p>Hello, what SpotOn is, and general business talk. Any digit in such a reply and it is thrown away, because nothing was computed behind it.</p></li>
-<li><h3>The map never moves on a casual turn.</h3><p>No items, no highlight, no change of business type. Only an answer computed from the data can repaint the city.</p></li>
+<h1 style="font-size:64px">${esc(cp.ai.title)}</h1>
+<p class="body" style="max-width:52ch">${esc(cp.ai.p1)}</p>
+<ul class="notes" style="gap:18px;margin-top:4px">
+<li class="accent"><h3>${esc(cp.ai.meet.title)}</h3><p>Tapak reads your question, works out what to look up, and answers with the reasons attached, in Indonesian or English.</p></li>
+<li><h3>The numbers are counted, never invented.</h3><p>Tapak writes the sentence. Every figure in it comes from the map's own counting, and one that does not is thrown out before you see it.</p></li>
+<li><h3>It says when it cannot tell.</h3><p>A question the data cannot answer gets an honest answer, not a confident guess.</p></li>
 </ul>
 </div>
 <div class="panel" style="padding:26px;display:flex;flex-direction:column;gap:16px;background:var(--mat-thick)">
@@ -663,27 +596,26 @@ export function renderDeck(f, assets) {
 <div class="row mine"><div class="bubble said">${esc(f.demo.choice)}</div></div>
 <div class="row">${tapak(24, true)}<div class="bubble" style="color:var(--label-3)">${esc(f.stages.computing)} <span style="letter-spacing:2px">···</span></div></div>
 </div>
-<p class="small" style="border-top:1px solid var(--separator);padding-top:14px">The greeting follows the clock on the reader's own device and knows nothing else: not the weather, not whether the street is busy. Both surfaces that say hello read one table, so they cannot disagree about the hour.</p>
+<p class="small" style="border-top:1px solid var(--separator);padding-top:14px">Tapak greets by the time of day, offers the kinds of business the map can score, and paces while it looks the answer up.</p>
 </div>
 </div>`,
 			{ num: pg }
 		)
 	);
 
-	/* 10 · the interface, act one */
+	/* 8 · the interface, act one */
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('09', 'The interface')}
+			`${mark('The interface')}
 <div style="display:grid;grid-template-columns:1210px 1fr;gap:56px;flex:1;min-height:0;align-items:start">
 <div class="app" style="height:846px">${hexMap(f.maps, { paint: 'trade', par: 'xMidYMid slice', routeWidth: 1.4 })}<div class="scrim"></div>${chrome(f)}${launcher(f)}</div>
 <div style="display:flex;flex-direction:column;gap:28px">
 <h2>Act one. One question, where the eye already is.</h2>
 <ul class="notes">
-<li class="accent"><h3>Nothing to fill in.</h3><p>No rail of thirteen buttons, no sliders, no table. A greeting by the hour, the one question the reader is here to answer, and a field that takes anything.</p></li>
-<li><h3>The examples teach the shape.</h3><p>They type themselves into the field and clear again, and the same four sit under it as buttons, so nobody has to type to get started.</p></li>
-<li><h3>The evidence is on the card.</h3><p>Four counts at the foot, read from the grid file's own metadata. Rebuild the grid and they follow.</p></li>
-<li><h3>The map is free.</h3><p>Panning, colouring, switching business type, moving the range: none of it is metered. Behind the box the city is already painted by the trade around each cell.</p></li>
+<li class="accent"><h3>Nothing to fill in.</h3><p>No menus, no sliders, no tables. A greeting, one question, and a box that takes anything you type.</p></li>
+<li><h3>Examples show the way.</h3><p>They type themselves into the box and clear again, and the same four sit under it as buttons, so nobody has to type to get started.</p></li>
+<li><h3>Or just open the map.</h3><p>The city behind the box is already coloured by how busy each area is. Looking around is always free.</p></li>
 </ul>
 </div>
 </div>`,
@@ -691,20 +623,20 @@ export function renderDeck(f, assets) {
 		)
 	);
 
-	/* 11 · act two */
+	/* 9 · act two */
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('10', 'The interface')}
+			`${mark('The interface')}
 <div style="display:grid;grid-template-columns:1210px 1fr;gap:56px;flex:1;min-height:0;align-items:start">
 <div class="app" style="height:846px">${hexMap(f.maps, { paint: 'score', par: 'xMidYMid slice', marks: true, routeWidth: 1.4 })}${chrome(f)}<div class="mcat"><span class="chip on">${catGlyph(f.categories[0].key, 15)}${esc(f.demo.choice)}</span></div>${mapKey(f)}<div class="mctl"><span class="seg"><span class="on">Flat</span><span>3D</span></span><span class="seg"><span class="on">Drawn</span><span>Modelled</span></span></div>${tapakPanel(f)}</div>
 <div style="display:flex;flex-direction:column;gap:28px">
 <h2>Act two. Ask, and the whole city recolours.</h2>
 <ul class="notes">
-<li class="accent"><h3>The box flies right and becomes the thread.</h3><p>The map takes over. Every place the answer names is marked on it, and tapping one opens its card.</p></li>
-<li><h3>What the map understood comes first.</h3><p>${esc(cp.ai.p2)}</p></li>
-<li><h3>Every figure in the list is the engine's.</h3><p>${esc(f.demo.results[0].name)} leads at ${f.demo.results[0].pct} out of 100, computed on the grid just now, with ${esc(f.demo.chips[3])} as the only narrowing.</p></li>
-<li><h3>The follow-ups are real follow-ups.</h3><p>Why that one, any rent, which ones to avoid. Each is read against the thread, and the reply says which path read it.</p></li>
+<li class="accent"><h3>The question becomes a conversation.</h3><p>The box moves to the side and the map takes over. Every area the answer names is marked, and tapping one opens it.</p></li>
+<li><h3>You see what was understood.</h3><p>${esc(cp.ai.p2)}</p></li>
+<li><h3>Places, with scores out of 100.</h3><p>${esc(f.demo.results[0].name)} leads at ${f.demo.results[0].pct}. Each place can be opened to see why.</p></li>
+<li><h3>Follow-up questions work.</h3><p>Why that one, which ones to avoid, any rent. Tapak remembers what was just said.</p></li>
 </ul>
 </div>
 </div>`,
@@ -712,55 +644,51 @@ export function renderDeck(f, assets) {
 		)
 	);
 
-	/* 12 · the area card */
+	/* 10 · the area card */
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('11', 'One area')}
+			`${mark('One area')}
 <div style="display:grid;grid-template-columns:660px 1fr;gap:72px;flex:1;min-height:0;align-items:start">
 ${areaCard(f)}
 <div style="display:flex;flex-direction:column;gap:28px">
-<h2>Tap a cell, and it is taken apart.</h2>
+<h2>Tap an area, and see what it is made of.</h2>
 <ul class="notes">
-<li class="accent"><h3>An index says where it sits.</h3><p>${esc(cp.mood.standingNote)} A count is its own comparator, so the counts say nothing extra.</p></li>
-<li><h3>The price is a price to buy.</h3><p>${esc(cp.property.saleNote)}</p></li>
-<li><h3>The curve counts doors, not people.</h3><p>For each hour, how many businesses within walking range publish a timetable that says they are open. The denominator travels with it, because fewer than one business in six publishes hours at all.</p></li>
-<li><h3>Field notes are recorded, not counted.</h3><p>Receipts, what a meal costs, how busy the place looked, space being offered. Photographed, so the street can be seen first, and kept out of the score.</p></li>
+<li class="accent"><h3>Everything about one place.</h3><p>How busy it is, who is already trading there, the stations and stops it reaches, what space costs, when the street is open, and what people recorded on the ground.</p></li>
+<li><h3>Every figure is set in context.</h3><p>A score on its own means little. The card says where each figure stands against every other area, so a good number reads as good.</p></li>
+<li><h3>Ask Tapak about it.</h3><p>One tap puts the area into the conversation, and the next question you type is read about that place.</p></li>
 </ul>
-<p class="small">Figures for ${esc(f.example.name)}, ${esc(f.demo.choice.toLowerCase())}, ${g.walkRadius} m walking range, computed by the engine on the grid at build time.</p>
 </div>
 </div>`,
 			{ num: pg }
 		)
 	);
 
-	/* 13 · the place as a model */
+	/* 11 · the place as a model */
 	const model = f.model;
 	const marks = model.marks;
 	const area = model.area;
 	const states = model.states;
-	const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 	const areaLine = area
-		? `${cap(states.ready)}: ${num(area.buildings.length)} buildings and ${num(area.roads.length)} street pieces within ${g.walkRadius} m of ${esc(area.name)}, each building at the height the tile carries and one the tile gives no height at ${model.defaultHeight} m. Read from ${esc(area.source)} on ${esc(area.read)}, cut to the disc by the app's own reader.`
-		: `${cap(states.failed)} when this copy was built, so the disc stands empty rather than showing a place that was not read. Rebuilt where the tiles can be fetched, the same slide draws the place.`;
+		? `${esc(area.name)}, everything within ${g.walkRadius} m of the point in the middle, built from ${esc(area.source)}.`
+		: `${cap(states.failed)} when this copy was built, so the disc stands empty rather than showing a place that was not read. Rebuilt where the map can be reached, the same slide draws the place.`;
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('12', cp.model.mark)}
+			`${mark(cp.model.mark)}
 <div style="display:grid;grid-template-columns:1fr 880px;gap:56px;flex:1;min-height:0;align-items:start">
 <div style="display:flex;flex-direction:column;gap:26px">
 <h1 style="font-size:64px">${esc(cp.model.title)}</h1>
 <p class="lead">${esc(cp.model.lead)}</p>
 <ul class="notes" style="gap:18px">
-<li class="accent"><h3>${esc(model.name)}, as on the front page.</h3><p>The business district, chosen by name rather than by score. A height read off a tile is only visible where there are heights, and the towers are what a reader can see the model doing.</p></li>
-<li><h3>Read, not composed.</h3><p>The basemap's own vector tiles, cut to a disc of the walking range around the point the range is measured from. A street the tile does not draw is not drawn.</p></li>
-<li><h3>Doors light by the hour.</h3><p>One mark per business with readable hours, lit when its timetable says it is open in the hour on the slider. Where the doors were not counted, none is drawn and the view says so.</p></li>
-<li><h3>A miniature, not a view.</h3><p>A disc on a base with a rim, turned by hand, with the sun staying where it is in the world. The map itself can be looked at the same way, drawn or modelled.</p></li>
+<li class="accent"><h3>${esc(model.name)}, the business district.</h3><p>The same area the front page shows, chosen because its towers show what the model can do.</p></li>
+<li><h3>Built from the map itself.</h3><p>Buildings, streets, water and parks come straight from the map, and every building stands at its recorded height. Nothing is drawn that the map does not have.</p></li>
+<li><h3>Turn it, and move through the day.</h3><p>Drag to turn the model. Slide the hour, and the doors that are open at that time light up, from the hours each business publishes.</p></li>
 </ul>
 </div>
 <figure class="panel" style="padding:16px 26px 22px;display:flex;flex-direction:column;gap:10px">
 <div style="display:flex;justify-content:center">${miniModel(marks, model.name, area, model.roadWidth)}</div>
-<div class="keyrow"><span><i class="be"></i>the point the range is measured from</span><span><i class="st"></i>transit nodes, ${marks.stops.length}</span><span><i class="sq"></i>${esc(f.demo.choice.toLowerCase())} rivals, ${marks.rivals.length}</span><span><i class="di"></i>units on the market, ${marks.units.length}</span><span><i class="ri"></i>field records, ${marks.field.length}</span><span><i class="lit"></i>doors open at ${esc(marks.hour)} on a ${esc(marks.day)}, ${marks.doors.filter((d) => d.open).length} of ${marks.doors.length}</span></div>
+<div class="keyrow"><span><i class="be"></i>the middle of the area</span><span><i class="st"></i>stations and stops</span><span><i class="sq"></i>${esc(f.demo.many)}</span><span><i class="di"></i>premises on the market</span><span><i class="ri"></i>field notes</span><span><i class="lit"></i>doors open at ${esc(marks.hour)} on a ${esc(marks.day)}</span></div>
 <figcaption class="small">${areaLine}</figcaption>
 </figure>
 </div>`,
@@ -768,118 +696,68 @@ ${areaCard(f)}
 		)
 	);
 
-	/* 14 · what it refuses to do */
+	/* 12 · honest by design */
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('13', 'Honesty')}
-<div class="head"><h1>What it refuses to do.</h1><p class="lead">The product's whole claim is that its figures do not come from anybody's memory. These are the rules that keep it true, and each of them cost something to learn.</p></div>
-<ol class="rules" style="margin-top:8px">
-<li><span class="n">1</span><span><strong>Read a null as a zero.</strong> An unsurveyed city is not an empty one. It is dropped from a ranking rather than sorted to the bottom, where it would crown the least examined streets the best opportunities.</span></li>
-<li><span class="n">2</span><span><strong>Invent a threshold.</strong> A filter names a band, the cheapest third or the busiest, cut from the grid's own distribution at query time. There is no way to say under thirty million, because that figure would come from nobody's data.</span></li>
-<li><span class="n">3</span><span><strong>Type a figure into copy.</strong> Every count on every page, this deck included, is read from the grid's metadata or computed from it. A number written by hand once went stale in silence.</span></li>
-<li><span class="n">4</span><span><strong>Call a sale price a rent.</strong> The catalogue publishes no rent for Jakarta, re-checked on every fetch. So the cost of space is an asking price to buy, named as such wherever it travels, and it only ever deducts.</span></li>
-<li><span class="n">5</span><span><strong>Count people.</strong> Nobody has counted a person for this product. The activity chart counts doors open per hour from published timetables, and refuses a timetable it can only half read.</span></li>
-<li><span class="n">6</span><span><strong>Let a survey into the score.</strong> Field notes ride beside the figures as evidence. Folded into the arithmetic, nobody went here would be identical to nothing happens here.</span></li>
-<li><span class="n">7</span><span><strong>Let the model write a number.</strong> A written reply may carry only figures and places it was handed, and one that does not is thrown away whole. A rejection is logged with its reason, never silent.</span></li>
-<li><span class="n">8</span><span><strong>Guess.</strong> A question the data cannot answer comes back as not understood, and a sentence the rule parser reads nothing in is answered by saying what can be asked, never by the default ranking.</span></li>
+			`${mark('Honesty')}
+<div class="head"><h1>Honest by design.</h1><p class="lead">A recommendation is only worth following if you can trust where its numbers came from. Four promises hold that up, everywhere in SpotOn.</p></div>
+<ol class="rules" style="margin-top:8px;gap:40px 72px">
+<li><span class="n">1</span><span><strong>No invented numbers.</strong> Every figure on screen was counted from real data. Tapak can phrase an answer, but it cannot make a number up.</span></li>
+<li><span class="n">2</span><span><strong>Missing is not zero.</strong> An area nobody has surveyed is shown as unknown, not as empty, and is left out of a ranking rather than ranked as quiet.</span></li>
+<li><span class="n">3</span><span><strong>It says what it does not know.</strong> A question the data cannot answer gets a plain answer to that effect, never a confident guess.</span></li>
+<li><span class="n">4</span><span><strong>Reasons attached.</strong> Every score can be taken apart to see what it is made of, and every claim points back to something that was counted.</span></li>
 </ol>`,
 			{ num: pg }
 		)
 	);
 
-	/* 15 · the demo */
+	/* 13 · who it is for */
 	pages.push((pg) =>
 		slide(
 			'',
-			`${sectionMark('14', 'The demo')}
-<div class="head"><h1>Six minutes, from the front page to a shortlist.</h1><p class="lead">What to click, and the one sentence to say at each step. Every figure that appears on screen is the engine's, so nothing has to be rehearsed except the order.</p></div>
+			`${mark(cp.audience.mark)}
+<div class="head"><h1>${esc(cp.audience.title)}</h1><p class="lead">From a first warung to a chain's next ten branches. Free to try, and looking at the map is never charged for.</p></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-top:6px">
+<div><p class="eyebrow" style="margin-bottom:12px">Who asks</p><ul class="chips">${cp.audience.rows.map((r) => `<li class="chip">${esc(r)}</li>`).join('')}</ul></div>
+<div><p class="eyebrow" style="margin-bottom:12px">${esc(cp.audience.typesLabel)}</p><ul class="chips">${f.categories.map((c) => `<li class="chip" style="gap:8px">${catGlyph(c.key, 15)}${esc(c.name)}</li>`).join('')}</ul></div>
+</div>
+<ul class="tri" style="margin-top:auto;gap:40px">${f.plans
+				.map(
+					(p) => `<li><p class="eyebrow">${esc(p.name)}</p><h3 style="margin-top:10px">${p.price ? `Rp ${num(p.price)} a month` : 'Free, no card needed'}</h3><p>${esc(p.blurb)} ${num(p.week.ai)} questions and ${num(p.week.analysis)} areas a week.</p></li>`
+				)
+				.join('')}</ul>`,
+			{ num: pg }
+		)
+	);
+
+	/* 14 · the demo */
+	pages.push((pg) =>
+		slide(
+			'',
+			`${mark('The demo')}
+<div class="head"><h1>Six minutes, from the front page to a shortlist.</h1><p class="lead">What to show, and the one sentence to say at each step. Nothing on screen is staged: every figure is worked out live from the data.</p></div>
 <ol class="script" style="margin-top:6px">
-<li><span class="n">1</span><div><h3>Open the front page and scroll one block.</h3><p>The street model walks through a day as the page scrolls. <span class="say">Say:</span> busy is something you can count. The four figures above are read from the grid file, not typed.</p></div></li>
-<li><span class="n">2</span><div><h3>Let the conversation play.</h3><p>The map beside it recolours for each business type. <span class="say">Say:</span> the questions are samples, the answers are computed by the same engine the app runs.</p></div></li>
-<li><span class="n">3</span><div><h3>Sign in and open the app.</h3><p>One button in demo mode, no password. Tapak greets by the hour. <span class="say">Say:</span> ${esc(f.launch.title.toLowerCase())}</p></div></li>
-<li><span class="n">4</span><div><h3>Tap “${esc(f.demo.choice)}”, then “${esc(f.tapakCopy.budgetTight)}”.</h3><p>The city recolours, the top three arrive, the chips show what was understood. <span class="say">Say:</span> the filter is a band from the grid's own thirds, never a number the model chose.</p></div></li>
-<li><span class="n">5</span><div><h3>Ask “${esc(f.tapakCopy.why)}”</h3><p>Typed or tapped. The score comes back taken apart, transit first. <span class="say">Say:</span> the model wrote this sentence, the engine wrote every figure in it.</p></div></li>
-<li><span class="n">6</span><div><h3>Tap the top cell and walk the card.</h3><p>Standing against the grid, the nodes it reaches, what space costs, when the doors are open, what somebody recorded there. <span class="say">Say:</span> each index says where it sits among every area that has one.</p></div></li>
-<li><span class="n">7</span><div><h3>Open the model, turn it, drag the hour.</h3><p>Then switch the map to 3D and to Modelled. <span class="say">Say:</span> a building stands at the height the map records. Nothing on this disc was composed.</p></div></li>
-<li><span class="n">8</span><div><h3>Switch language mid-answer, then open the account page.</h3><p>Indonesian and English are one dictionary in two shapes. The account page shows the two meters. <span class="say">Say:</span> the map is never metered, only a question and an opened place are.</p></div></li>
+<li><span class="n">1</span><div><h3>Open the front page and scroll one block.</h3><p>The street model walks through a whole day as the page scrolls. <span class="say">Say:</span> busy is something you can count.</p></div></li>
+<li><span class="n">2</span><div><h3>Sign in with one tap and meet Tapak.</h3><p>Tapak greets by the time of day and asks the one question that matters. <span class="say">Say:</span> ${esc(f.launch.title.toLowerCase())}</p></div></li>
+<li><span class="n">3</span><div><h3>Tap “${esc(f.demo.choice)}”, then “${esc(f.tapakCopy.budgetTight)}”.</h3><p>The whole city recolours and the top three arrive. <span class="say">Say:</span> the map shows how it understood you before it answers.</p></div></li>
+<li><span class="n">4</span><div><h3>Ask “${esc(f.tapakCopy.why)}”</h3><p>Typed or tapped. The answer comes back with its reasons. <span class="say">Say:</span> Tapak wrote the sentence, the counting wrote every number.</p></div></li>
+<li><span class="n">5</span><div><h3>Tap the top area and walk the card.</h3><p>How busy, who is here, how to get here, what space costs, when the street opens, what people noted. <span class="say">Say:</span> every figure says where it stands against the rest of the city.</p></div></li>
+<li><span class="n">6</span><div><h3>Open the model, turn it, slide the hour.</h3><p>The place itself, built from the map, with its doors lighting up. <span class="say">Say:</span> this is where you would actually be standing.</p></div></li>
 </ol>
-<div class="band" style="margin-top:auto"><h3>Have ready</h3><p>A Map Service key for the MAPID basemap, or the open one stands in. A model key on OpenRouter, or the rule parser answers the plain forms and says so. An empty database address, which is demo mode. If the network is slow, the stages on screen say where the wait is.</p></div>`,
+<div class="band" style="margin-top:auto"><h3>Nothing to set up</h3><p>The demo sign-in is one button, and the map keeps working even without an AI key or a database, so nothing can stop the demo on the day.</p></div>`,
 			{ num: pg }
 		)
 	);
 
-	/* 16 · running it */
-	pages.push((pg) =>
-		slide(
-			'',
-			`${sectionMark('15', 'Running it')}
-<div class="head"><h1>No key is a way of running this.</h1><p class="lead">Openable from a bare clone with nothing filled in. Each missing secret costs exactly the thing it unlocks and nothing else, and the interface says which mode it is in.</p></div>
-<ul class="tri" style="margin-top:8px">
-<li><p class="eyebrow">No database</p><h3 style="margin-top:10px">Demo mode</h3><p>One account, one button to sign in, records in memory until the process restarts. The same tiers, the same allowances, the same meters and session tokens as with a cluster behind it.</p></li>
-<li><p class="eyebrow">No model key</p><h3 style="margin-top:10px">The rule parser</h3><p>It reads the plain forms: a business type, a measure, a named place, a why. Every figure is still the engine's, and every reply says which path read it rather than glossing over it.</p></li>
-<li><p class="eyebrow">No Map Service key</p><h3 style="margin-top:10px">An open basemap</h3><p>OpenStreetMap data with CARTO cartography stands in, in the reader's theme. The MAPID basemap is drawn the moment a key is present, and is what the final product ships on.</p></li>
-</ul>
-<div class="panel" style="margin-top:auto;padding:26px 36px;display:grid;grid-template-columns:1fr 760px;gap:56px;align-items:start">
-<div><h3>Two metered actions, and the map is never one of them.</h3><p class="body" style="margin-top:12px;font-size:19px">One question to Tapak, because understanding a sentence is a call out to a shared model. One area or place opened by hand, because that is when its competitors, stations, listings and timetables are all read and drawn. Closing costs nothing and reopening what is open costs nothing. The week turns at midnight on Monday in Jakarta, and what was bought outright survives every Monday.</p></div>
-<table class="tiers"><thead><tr><th>Plan</th><th class="num">Questions a week</th><th class="num">Areas or places a week</th><th class="num">Rp a month</th></tr></thead><tbody>
-${f.plans.map((p) => `<tr><td class="name">${esc(p.name)}</td><td class="num">${num(p.week.ai)}</td><td class="num">${num(p.week.analysis)}</td><td class="num">${p.price ? num(p.price) : '0'}</td></tr>`).join('')}
-${f.packs.map((p) => `<tr class="pack"><td class="name">${p.meter === 'ai' ? 'Top-up, questions' : 'Top-up, areas or places'}</td><td class="num">${p.meter === 'ai' ? num(p.amount) : '·'}</td><td class="num">${p.meter === 'analysis' ? num(p.amount) : '·'}</td><td class="num">${num(p.price)} once</td></tr>`).join('')}
-</tbody></table>
-</div>`,
-			{ num: pg }
-		)
-	);
-
-	/* 17 · under the hood */
-	const s = f.stack;
-	pages.push((pg) =>
-		slide(
-			'',
-			`${sectionMark('16', 'Under the hood')}
-<div style="display:grid;grid-template-columns:1fr 640px;gap:72px;flex:1;min-height:0;align-items:start">
-<div style="display:flex;flex-direction:column;gap:24px">
-<h1 style="font-size:60px">Arrows only point downwards.</h1>
-<p class="body" style="max-width:54ch">Every layer imports only from the layers beneath it, so the engine can be run on the server, in the browser and in a build script alike. This deck is built by loading the same modules and asking them.</p>
-<div class="layers">
-<div class="lay"><span class="k">types.ts</span><span class="d">The shapes and the key unions. The leaf: imports nothing from src.</span></div>
-<span class="down">↓</span>
-<div class="lay"><span class="k">utils/</span><span class="d">Format, geo, motion. One earth radius, shared with the data scripts.</span></div>
-<span class="down">↓</span>
-<div class="lay"><span class="k">domain/</span><span class="d">The engine. Pure functions over the types: scoring, ranking, the query reader, the grounding fence, the plans. No Svelte, no DOM, no fetch.</span></div>
-<span class="down">↓</span>
-<div class="lay"><span class="k">map/ state/</span><span class="d">What the map is given to draw, and the runes that own what the reader chose and what has been fetched.</span></div>
-<span class="down">↓</span>
-<div class="lay"><span class="k">components/</span><span class="d">The pixels. App, landing, account, and the shared surfaces between them.</span></div>
-<div class="lay" style="margin-top:8px;border-style:dashed"><span class="k">server/</span><span class="d">The one data source, the model layer, the accounts. Never imported by the client.</span></div>
-</div>
-</div>
-<div style="display:flex;flex-direction:column;gap:26px">
-<div><p class="eyebrow" style="margin-bottom:8px">Stack</p><ul class="kv">
-<li><span>SvelteKit, Svelte with runes</span><span>${esc(s.kit)} · ${esc(s.svelte)}</span></li>
-<li><span>TypeScript, Vite</span><span>${esc(s.typescript)} · ${esc(s.vite)}</span></li>
-<li><span>MapLibre GL, the map and the modelled basemap</span><span>${esc(s.maplibre)}</span></li>
-<li><span>three.js, the miniatures and the street model</span><span>${esc(s.three)}</span></li>
-<li><span>H3, the grid</span><span>${esc(s.h3)}</span></li>
-<li><span>MongoDB, optional, accounts and meters</span><span>${esc(s.mongodb)}</span></li>
-<li><span>OpenRouter, function calling, a chain of free models</span><span>${f.llm.chain}</span></li>
-</ul></div>
-<div><p class="eyebrow" style="margin-bottom:8px">Data</p><p class="body" style="font-size:19px">Built by scripts over Overpass and the MAPID catalogue and missions, in an order each file records in its own metadata under a regenerate field. Every distance is measured with one earth, the one the browser measures with.</p></div>
-<div><p class="eyebrow" style="margin-bottom:8px">Checks</p><p class="body" style="font-size:19px">Typecheck, then eleven self-tests that hold the pieces against each other, the breakdown against the engine, the two hour passes against every cell, the fence against the composed sentences, then the production build. Green on every push, deployed to Vercel from main.</p></div>
-</div>
-</div>`,
-			{ num: pg }
-		)
-	);
-
-	/* 18 · closing */
+	/* 15 · closing */
 	pages.push((pg) =>
 		slide(
 			'dark closing',
 			`<span class="sign">${brandMark(72)}</span>
 <h1>${esc(cp.closing.title)}</h1>
 <p class="team"><b>${esc(cp.footer.teamLabel)}</b> · ${esc(cp.footer.team)}<br>${esc(cp.footer.campus)}</p>
-<p class="data">${esc(cp.footer.dataNote)} Built on ${esc(f.built)} from the grid in the repository. Rebuild with npm run deck.</p>`,
+<p class="data">${esc(cp.footer.dataNote)}</p>`,
 			{ num: pg, foot: false }
 		)
 	);

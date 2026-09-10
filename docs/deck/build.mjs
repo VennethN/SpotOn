@@ -42,13 +42,6 @@ const READ_AREA_ONLY = process.argv.includes('--read-area');
 const readJson = (rel) => JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
 const readText = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
-/** A code constant read off the source it lives in, so it cannot drift from it. */
-function constantIn(source, name) {
-	const m = source.match(new RegExp(`const ${name} = ([0-9_]+)`));
-	if (!m) throw new Error(`${name} not found`);
-	return Number(m[1].replace(/_/g, ''));
-}
-
 const vite = await createServer({
 	configFile: join(ROOT, 'vite.config.ts'),
 	root: ROOT,
@@ -78,7 +71,6 @@ async function build() {
 		composition,
 		transit,
 		cost,
-		rank,
 		activity,
 		premises,
 		competitors,
@@ -101,7 +93,6 @@ async function build() {
 		load('/src/lib/domain/composition.ts'),
 		load('/src/lib/domain/transit.ts'),
 		load('/src/lib/domain/cost.ts'),
-		load('/src/lib/domain/rank.ts'),
 		load('/src/lib/domain/activity.ts'),
 		load('/src/lib/domain/premises.ts'),
 		load('/src/lib/domain/competitors.ts'),
@@ -122,25 +113,6 @@ async function build() {
 	/* ── the grid ─────────────────────────────────────────────────────────── */
 
 	const surveyed = hexes.filter((h) => h.dens.mapid !== null).length;
-
-	// The side of a cell, measured on the grid itself: the mean distance from each
-	// centre to its own six vertices, which for a regular hexagon is the edge.
-	let edgeSum = 0;
-	let edgeN = 0;
-	for (const h of hexes) {
-		for (const [lon, lat] of h.boundary) {
-			edgeSum += geo.haversine(h.lat, h.lon, lat, lon);
-			edgeN++;
-		}
-	}
-	const edgeM = Math.round(edgeSum / edgeN);
-
-	const cityCounts = new Map();
-	for (const h of hexes) cityCounts.set(h.city ?? null, (cityCounts.get(h.city ?? null) ?? 0) + 1);
-	const dki = [...cityCounts]
-		.filter(([name]) => name && name.startsWith('Jakarta'))
-		.sort((a, b) => b[1] - a[1])
-		.map(([name, n]) => ({ name, n }));
 
 	/* ── the engine on the grid ───────────────────────────────────────────── */
 
@@ -163,6 +135,7 @@ async function build() {
 	const demo = {
 		question: c.demo.askCheap(catName.many),
 		choice: catName.name,
+		many: catName.many,
 		chips: narrate.describeQuery(ans.query, c),
 		sentence: narrate.narrate(ans, c),
 		results: ans.items.slice(0, 3).map((i) => ({ id: i.id, name: i.name, pct: format.pct(i.value) })),
@@ -268,24 +241,6 @@ async function build() {
 	const standing = (key) => narrate.standingPhrase(metrics.standingOf(row, key, ladder(key)), c);
 
 	const comp = composition.composeScore(row, W);
-	const stepNotes = {
-		start: c.breakdown.notes.start,
-		demand: c.breakdown.notes.demand(format.pct(row.demand)),
-		supply: c.breakdown.notes.supply(format.pct(row.supply)),
-		clamp: c.breakdown.notes.clamp,
-		gate: !W.gate
-			? c.breakdown.notes.gateOff
-			: row.units > 0
-				? c.breakdown.notes.gatePass(row.units)
-				: c.breakdown.notes.gateBlock(),
-		access: c.breakdown.notes.access(),
-		cost:
-			row.priceLevel === null
-				? c.breakdown.notes.costUncovered
-				: row.priceLevel === 0
-					? c.breakdown.notes.costCheapest()
-					: c.breakdown.notes.cost(Math.round(row.priceLevel * 100))
-	};
 
 	const stopsFile = readJson('static/data/stops.json');
 	const stops = transit.parseStops(stopsFile);
@@ -364,6 +319,7 @@ async function build() {
 		cost: {
 			price: row.price,
 			priced,
+			rankPct,
 			units: row.units,
 			cap: row.price === null ? c.panel.costUnits(row.units) : c.panel.costCap(row.units),
 			rank:
@@ -394,19 +350,6 @@ async function build() {
 		field: {
 			total: fieldHere.length,
 			count: fieldHere.length ? c.field.count(fieldHere.length) : c.panel.fieldNone
-		},
-		composition: {
-			steps: comp.steps.map((s) => ({
-				...s,
-				label: c.breakdown.rows[s.key],
-				note: stepNotes[s.key]
-			})),
-			score: comp.score,
-			transitPoints: comp.transitPoints,
-			withoutTransit: comp.withoutTransit,
-			transitCeiling: comp.transitCeiling,
-			contributes: c.breakdown.contributes(comp.transitPoints, comp.score),
-			total: c.breakdown.total
 		}
 	};
 
@@ -459,65 +402,19 @@ async function build() {
 		routes
 	};
 
-	/* ── the spread of trade across the grid, as the landing page draws it ── */
-
-	const counts = hexes.map((h) => h.dens.mapid).filter((n) => n !== null);
-	const topCount = Math.max(1, ...counts);
-	const bands = 12;
-	const bandWidth = Math.ceil(topCount / bands);
-	const spread = Array.from({ length: bands }, (_, i) => ({ upTo: bandWidth * (i + 1), cells: 0 }));
-	for (const n of counts) spread[Math.min(bands - 1, Math.floor(n / bandWidth))].cells++;
-
-	/* ── constants, versions, plans ───────────────────────────────────────── */
-
-	const llmSource = readText('src/lib/server/llm.ts');
-	const replySource = readText('src/lib/server/reply.ts');
-	const chain = llmSource.match(/const MODEL_CHAIN = \[([\s\S]*?)\]/)[1].match(/'/g).length / 2;
-	const pkg = readJson('package.json');
-	const version = (name) => (pkg.dependencies[name] ?? pkg.devDependencies[name]).replace(/^[^0-9]*/, '');
-
 	const facts = {
 		built: new Date().toISOString().slice(0, 10),
 		brand: c.brand,
 		grid: {
 			hexes: meta.hexes,
-			resolution: meta.resolution,
-			edgeM,
 			walkRadius: R,
-			radii: weights.RADII,
 			stops: meta.stops,
-			stopsByMode: meta.stopsByMode,
 			pois: meta.pois,
-			osmCategories: Object.keys(meta.poisByCategory).length,
 			mapidPoints: meta.mapid.points,
-			listings: meta.property.listings,
-			cellsPriced: meta.property.cellsPriced,
-			medianPrice: meta.property.medianPrice,
 			surveyed,
-			unsurveyed: meta.hexes - surveyed,
-			dki
-		},
-		hours: meta.hours,
-		missions: {
-			...meta.mission,
-			offeredForRent: meta.mission.vocab.offer.sewa
+			unsurveyed: meta.hexes - surveyed
 		},
 		categories: categories.CATEGORY_KEYS.map((key) => ({ key, ...c.category[key] })),
-		measures: metrics.METRIC_KEYS.length,
-		engine: {
-			wd: W.wd,
-			ws: W.ws,
-			gate: W.gate,
-			source: W.source,
-			balance: scoring.BALANCE_POINT,
-			gateBlocked: scoring.GATE_BLOCKED,
-			accessFloor: transit.ACCESS_FLOOR,
-			accessSpan: transit.ACCESS_SPAN,
-			modeWeight: transit.MODE_WEIGHT,
-			costFloor: cost.COST_FLOOR,
-			minLadder: cost.MIN_LADDER,
-			minBand: rank.MIN_BAND
-		},
 		/* The miniature: which area, its reading off the basemap and the marks on it,
 		   how wide each class of street is drawn, from the one table the area model and
 		   the modelled map share, the height a building stands at when the tile gives
@@ -532,15 +429,8 @@ async function build() {
 			defaultHeight: basemap.DEFAULT_HEIGHT,
 			states: c.app.model
 		},
-		llm: {
-			chain,
-			attemptS: constantIn(llmSource, 'ATTEMPT_MS') / 1000,
-			totalS: constantIn(llmSource, 'TOTAL_MS') / 1000,
-			writeS: constantIn(replySource, 'WRITE_MS') / 1000
-		},
 		stages: c.ai.stage,
-		plans: plans.PLAN_KEYS.map((key) => ({ key, name: c.account.plan[key].name, ...plans.PLANS[key] })),
-		packs: plans.PACK_KEYS.map((key) => plans.PACKS[key]),
+		plans: plans.PLAN_KEYS.map((key) => ({ key, ...c.account.plan[key], ...plans.PLANS[key] })),
 		greeting: c.tapak.greet(meta.hexes, 'pagi', 0),
 		launch: {
 			title: c.app.launchTitle,
@@ -568,9 +458,9 @@ async function build() {
 			closing: c.closing,
 			footer: c.footer,
 			typology: c.typology,
+			audience: c.audience,
 			stats: c.stats,
 			scale: c.scale,
-			spread: c.spreadChart,
 			mood: { tiles: c.mood.tiles, transit: c.mood.transit, standingNote: c.mood.standingNote },
 			property: { title: c.property.title, saleNote: c.property.saleNote, perM2: c.property.perM2 },
 			activity: { title: c.activity.title },
@@ -579,18 +469,7 @@ async function build() {
 		},
 		demo,
 		example,
-		maps,
-		spread,
-		stack: {
-			kit: version('@sveltejs/kit'),
-			svelte: version('svelte'),
-			typescript: version('typescript'),
-			maplibre: version('maplibre-gl'),
-			three: version('three'),
-			h3: version('h3-js'),
-			mongodb: version('mongodb'),
-			vite: version('vite')
-		}
+		maps
 	};
 
 	const assets = {
