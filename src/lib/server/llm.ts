@@ -5,6 +5,7 @@ import {
 	cleanChatReply,
 	isChatTopic,
 	ruleChatTopic,
+	withinFence,
 	type ChatTopic
 } from '$lib/domain/chat';
 import { DEFAULT_METRIC, METRIC_KEYS, isMetric, resolveOrder } from '$lib/domain/metrics';
@@ -19,6 +20,7 @@ import {
 } from '$lib/server/stream';
 import type {
 	CategoryKey,
+	ChatTurn,
 	MetricKey,
 	StructuredQuery,
 	UnitMetricKey,
@@ -68,8 +70,6 @@ const MODEL_CHAIN = [
 	'openai/gpt-oss-20b:free'
 ];
 
-const DEFAULT_MODEL = MODEL_CHAIN[0];
-
 /**
  * The time budget for one attempt, and the budget for the whole chain.
  *
@@ -88,15 +88,43 @@ const ATTEMPT_MS = 60_000;
 const TOTAL_MS = 90_000;
 
 /**
- * The model this understanding layer uses, from `OPENROUTER_MODEL`.
+ * The models named in `OPENROUTER_MODEL`, in the order they were written.
+ *
+ * One slug pins one model. Several of them, separated by commas, pin a chain of
+ * that same shape as `MODEL_CHAIN` above but chosen by hand — which is what a
+ * deployment wants when it has a paid model to fall back to, or when the free
+ * models named here have been retired and the chain needs replacing without a
+ * code change.
  *
  * Read through `$env/dynamic/private`, so switching models on Vercel is just an
- * Environment Variable change — no rebuild needed. An empty or whitespace-only
- * value is treated as "not set", rather than as an empty model name that
- * OpenRouter would reject with a confusing 400.
+ * Environment Variable change — no rebuild needed. Blank entries are dropped, so
+ * a stray trailing comma or a whitespace-only value reads as "not set" rather
+ * than as an empty model name that OpenRouter would reject with a confusing 400.
+ *
+ * QUOTES ARE TAKEN OFF, because half the ways this value gets set do not take
+ * them off for you. A `.env` file goes through dotenv, which strips a pair
+ * wrapping the whole value, so quoting there was always harmless. Every other
+ * route — the Vercel Environment Variables field, `export`, a CI secret, docker
+ * `-e` — hands the value over exactly as typed, quotes and all, and a slug with a
+ * `"` stuck to it is not a model OpenRouter serves.
+ *
+ * Stripping per entry rather than once around the whole value is what makes the
+ * list survive: `"a/b, c/d"` splits into `"a/b` and `c/d"`, each carrying one half
+ * of the pair, and `"a/b", "c/d"` gives both entries a pair of their own. Taking a
+ * leading and a trailing quote off each entry covers all of them, and costs
+ * nothing on a value that was never quoted. No model slug contains a quote, so
+ * there is nothing here to lose.
+ *
+ * One case is beyond reach from here: quoting the entries individually *inside a
+ * `.env` file* (`OPENROUTER_MODEL="a/b", "c/d"`). dotenv reads that as ending at
+ * the second quote and drops the rest, so only `a/b` ever arrives. `.env.example`
+ * says not to write it that way.
  */
-export function activeModel(): string {
-	return env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
+function pinnedModels(): string[] {
+	return (env.OPENROUTER_MODEL ?? '')
+		.split(',')
+		.map((slug) => slug.trim().replace(/^["']|["']$/g, '').trim())
+		.filter(Boolean);
 }
 
 /**
@@ -105,8 +133,21 @@ export function activeModel(): string {
  * fallbacks they never asked for.
  */
 function modelChain(): string[] {
-	const pinned = env.OPENROUTER_MODEL?.trim();
-	return pinned ? [pinned] : MODEL_CHAIN;
+	const pinned = pinnedModels();
+	return pinned.length ? pinned : MODEL_CHAIN;
+}
+
+/** The whole chain this understanding layer will try, in order. */
+export function activeModels(): string[] {
+	return modelChain();
+}
+
+/**
+ * The main model: the first one tried, and the one that answers most of the time.
+ * The rest of the chain only gets a turn when it is busy or too slow.
+ */
+export function activeModel(): string {
+	return modelChain()[0];
 }
 
 /** Whether the model layer is actually usable (the key is configured). */
@@ -207,7 +248,9 @@ for (const k of UNIT_METRIC_KEYS) {
 
 const SYSTEM = `Kamu lapisan pemahaman untuk SpotOn, peta data lokasi usaha di kawasan stasiun transit Jakarta. Di depan pengguna kamu tampil sebagai Tapak, pemandu di dalam SpotOn.
 
-Tugasmu HANYA menerjemahkan pertanyaan pengguna menjadi satu pemanggilan alat. Kamu tidak menghitung apa pun dan tidak menulis jawaban — mesin skor yang melakukannya dari data asli.
+Tugasmu HANYA menerjemahkan giliran pengguna menjadi satu pemanggilan alat. Kamu tidak menghitung apa pun dan tidak menulis jawaban — mesin skor yang melakukannya dari data asli.
+
+SATU KEPUTUSAN TIAP GILIRAN: giliran ini perlu data atau tidak. Perlu angka, nama tempat, peringkat, atau rincian satu kawasan → panggil jalankan_query, dan isi argumennya dari seluruh percakapan, bukan cuma dari kalimat terakhir. Tidak perlu angka → ngobrol saja. Kamu yang memutuskan tiap giliran, bukan daftar kalimat yang dihafal: pertanyaan lanjutan bisa berbentuk apa saja, dan yang menentukan cuma apakah menjawabnya butuh membaca data.
 
 Data yang tersedia, dan hanya ini:
 - 562 petak heksagon H3 yang menutupi kawasan berjalan kaki (800 m) di sekitar simpul transit Jakarta — MRT, KRL, LRT, dan koridor TransJakarta. 90 di antaranya belum ada datanya.
@@ -222,6 +265,7 @@ intent:
 - FLAG_SATURATED — "mana yang sudah jenuh/penuh", "mana yang harus dihindari".
 - COMPARE — membandingkan dua kawasan yang disebut namanya.
 - COVERAGE — "mana yang belum ada datanya", pertanyaan soal cakupan data.
+- EXPLAIN — merinci SATU kawasan yang sudah ada di layar: "kenapa yang itu", "kenapa Setiabudi Astra", "jelaskan kawasan tadi", "kok bisa segitu". Isi target dengan nama kawasannya. Kalau penggunanya cuma menunjuk ("kenapa itu", "yang pertama kenapa"), ambil namanya dari percakapan di atas lalu tulis di target.
 
 ukuran: pilih dari daftar di atas sesuai apa yang benar-benar ditanyakan.
 - "di mana sebaiknya buka kedai kopi" → skor
@@ -250,6 +294,10 @@ radius_m: radius jalan kaki yang dipakai menghitung. Isi hanya kalau pengguna me
 
 filters: dipakai untuk menyaring, bukan memeringkat. Tiap filter menyebut satu ukuran dan satu pita: 'rendah' (sepertiga terbawah), 'tinggi' (sepertiga teratas), atau 'ada' (ada isinya, lebih dari nol). JANGAN pernah mengarang angka ambang — kamu tidak bisa, dan memang tidak boleh.
 Contoh: "kedai kopi di tempat yang sewanya murah dan dekat transit" → intent RANK, ukuran skor, filters [{ukuran: harga_tempat, arah: rendah}, {ukuran: akses_transit, arah: tinggi}].
+
+PERCAKAPANNYA BERLANJUT, DAN GILIRAN SEBELUMNYA ADA DI ATAS. Pertanyaan lanjutan hampir tidak pernah menyebut subjeknya sendiri: "kenapa yang itu", "yang kedua gimana", "kalau apotek", "coba yang 500 m". Baca maksudnya dari percakapannya dan isi argumennya sendiri. JANGAN meminta pengguna mengulang apa yang sudah dia sebut.
+
+Yang kamu lihat dari giliranmu sendiri cuma nama kawasan yang tadi disebut. Angkanya sengaja tidak dibawa kembali, jadi jangan mengingat-ingat angka dan jangan menuliskannya lagi: kalau pertanyaannya butuh angka, panggil alat, biar mesin skornya yang menghitung ulang.
 
 NGOBROL SECUKUPNYA. Panggil ngobrol untuk kalimat yang memang bukan permintaan data:
 - sapaan: "halo", "makasih", "kamu siapa", "sampai jumpa".
@@ -286,8 +334,9 @@ const TOOLS = [
 				properties: {
 					intent: {
 						type: 'string',
-						enum: ['RANK', 'FLAG_SATURATED', 'COMPARE', 'COVERAGE'],
-						description: 'Jenis pertanyaan.'
+						enum: ['RANK', 'FLAG_SATURATED', 'COMPARE', 'COVERAGE', 'EXPLAIN'],
+						description:
+							'Jenis pertanyaan. EXPLAIN untuk pertanyaan lanjutan soal SATU kawasan yang sudah disebut, misalnya "kenapa yang itu".'
 					},
 					kategori: {
 						type: 'array',
@@ -337,7 +386,8 @@ const TOOLS = [
 					target: {
 						type: 'array',
 						items: { type: 'string' },
-						description: 'Untuk COMPARE: nama kawasan yang disebut pengguna.'
+						description:
+							'Nama kawasan yang dimaksud. Untuk COMPARE: dua nama yang mau dibandingkan. Untuk EXPLAIN: satu nama, dan kalau pengguna cuma menunjuk ("yang itu", "yang pertama"), ambil namanya dari percakapan di atas.'
 					},
 					pivot: {
 						type: 'string',
@@ -411,6 +461,48 @@ const TOOLS = [
 ];
 
 /**
+ * The conversation so far, as messages the model can read.
+ *
+ * WHY THE THREAD IS SENT AT ALL
+ *
+ * Because a follow-up is, by definition, a sentence that does not carry its own
+ * subject. "Kenapa yang itu", "yang kedua gimana", "kalau apotek", "coba yang 500 m":
+ * read alone every one of them is a different question from the one that was asked, and
+ * every one of them used to be parsed alone. The reader typed a follow-up and got the
+ * previous answer back verbatim, which is the behaviour of a form, not of a guide.
+ *
+ * WHY TAPAK'S OWN TURNS COME BACK STRIPPED
+ *
+ * The reader's words travel exactly as they were typed. Tapak's do not. An answer is
+ * mostly figures, and figures the model has seen written down are figures it can write
+ * down again — in a casual reply, where nothing recomputes them. So an answer comes back
+ * as the NAMES it put on screen and nothing else, and any sentence riding along has to
+ * clear the same fence a casual reply does, which is `domain/chat`'s and which no figure
+ * clears. What a follow-up points at is a name, and a name is all this has to carry.
+ */
+function threadMessages(history: readonly ChatTurn[]): Array<{ role: string; content: string }> {
+	const out: Array<{ role: string; content: string }> = [];
+	for (const turn of history) {
+		const text = typeof turn.text === 'string' ? turn.text.trim() : '';
+		if (turn.who === 'user') {
+			if (text) out.push({ role: 'user', content: text });
+			continue;
+		}
+		const parts: string[] = [];
+		// Only a sentence with no figure in it, by exactly the rule that governs the one
+		// sentence the model is allowed to write. A narration full of scores is dropped
+		// whole rather than trimmed, because half a sentence about a ranking is worse
+		// context than none.
+		if (text && withinFence(text)) parts.push(text);
+		if (turn.places?.length) {
+			parts.push(`(Kawasan yang saya sebut: ${turn.places.join(', ')}.)`);
+		}
+		if (parts.length) out.push({ role: 'assistant', content: parts.join(' ') });
+	}
+	return out;
+}
+
+/**
  * Returns `null` when the model layer cannot be used — the caller must treat that
  * as "use the rule-based parser", not as a failure.
  *
@@ -425,7 +517,10 @@ export async function parseWithLLM(
 	w: Weights,
 	fallbackCategory: readonly CategoryKey[],
 	lang = 'id',
-	sink?: ModelSink
+	sink?: ModelSink,
+	/** The turns before this one. Empty on a first question, and on any caller with no
+	    conversation to speak of, in which case this behaves exactly as it always did. */
+	history: readonly ChatTurn[] = []
 ): Promise<ParseResult> {
 	const key = env.OPENROUTER_API_KEY?.trim();
 	if (!key) return null;
@@ -435,6 +530,11 @@ export async function parseWithLLM(
 	const body = {
 		messages: [
 			{ role: 'system', content: `${SYSTEM}\n\n${LANG_RULE[lang] ?? LANG_RULE.id}` },
+			// Everything said before this turn, oldest first. The state line below stays
+			// on the CURRENT question rather than being repeated on every past one: it
+			// describes what is on screen now, and a stale copy of it beside an old
+			// question would be telling the model something that has since changed.
+			...threadMessages(history),
 			{
 				role: 'user',
 				content:
@@ -612,7 +712,13 @@ export async function parseWithLLM(
 		if (name !== 'jalankan_query') return null;
 
 		const intent = args.intent;
-		if (intent !== 'RANK' && intent !== 'FLAG_SATURATED' && intent !== 'COMPARE' && intent !== 'COVERAGE') {
+		if (
+			intent !== 'RANK' &&
+			intent !== 'FLAG_SATURATED' &&
+			intent !== 'COMPARE' &&
+			intent !== 'COVERAGE' &&
+			intent !== 'EXPLAIN'
+		) {
 			return null;
 		}
 
@@ -653,12 +759,14 @@ export async function parseWithLLM(
 						? 'penawaran efektif (pesaing × keramaian)'
 						: intent === 'COMPARE'
 							? 'profil lengkap 2 catchment'
-							: `peringkat menurut ${ukuran}`,
+							: intent === 'EXPLAIN'
+								? 'rincian skor satu catchment'
+								: `peringkat menurut ${ukuran}`,
 			kategori,
 			ukuran: intent === 'RANK' ? ukuran : DEFAULT_METRIC,
 			radius_m: radius,
 			urut: intent === 'COVERAGE' ? 'asc' : intent === 'RANK' ? urut : 'desc',
-			limit: intent === 'COMPARE' ? 2 : intent === 'COVERAGE' ? 99 : 5
+			limit: intent === 'COMPARE' ? 2 : intent === 'EXPLAIN' ? 1 : intent === 'COVERAGE' ? 99 : 5
 		};
 
 		if (pivot) query.pivot = pivot;
@@ -676,7 +784,10 @@ export async function parseWithLLM(
 			);
 		}
 
-		if (intent !== 'COVERAGE') {
+		/* Neither of these two shapes ranks a pool, so neither has anything to narrow.
+		   Filters on them would show up as chips claiming the map was cut down to a third
+		   of itself for an answer about one named place. */
+		if (intent !== 'COVERAGE' && intent !== 'EXPLAIN') {
 			const filter: NonNullable<StructuredQuery['filter']> = {};
 			const filters: NonNullable<StructuredQuery['filters']> = [];
 			// Read before the booleans below, so a model that used both does not get its
@@ -718,8 +829,18 @@ export async function parseWithLLM(
 			query.filters = filters;
 		}
 
-		if (intent === 'COMPARE' && Array.isArray(args.target)) {
-			query.target = args.target.filter((t): t is string => typeof t === 'string').slice(0, 2);
+		/* The names the question was about, for the two shapes that are about named places
+		   rather than about a ranking.
+
+		   This is the argument the thread pays for. "Bandingkan dua teratas" and "kenapa
+		   yang itu" carry no name at all, and the engine used to read names out of the
+		   sentence alone — so both came back empty and were answered as if nobody had
+		   named anything. The model reads the names off the conversation above and writes
+		   them here, which is the whole of how a follow-up gets its subject. */
+		if ((intent === 'COMPARE' || intent === 'EXPLAIN') && Array.isArray(args.target)) {
+			query.target = args.target
+				.filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
+				.slice(0, intent === 'COMPARE' ? 2 : 1);
 		}
 
 		return { ok: true, query };

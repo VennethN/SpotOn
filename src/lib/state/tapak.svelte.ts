@@ -4,7 +4,7 @@ import { greetingNow } from '$lib/state/clock';
 import { copy } from '$lib/state/lang.svelte';
 import { pct } from '$lib/utils/format';
 import type { AppState } from '$lib/state/app.svelte';
-import type { AiAnswer, AiStage, CategoryKey } from '$lib/types';
+import type { AiAnswer, AiStage, CategoryKey, ChatTurn } from '$lib/types';
 
 /**
  * Tapak — the guide inside SpotOn.
@@ -18,8 +18,14 @@ import type { AiAnswer, AiStage, CategoryKey } from '$lib/types';
  * `/api/ai/query` — the same scoring engine the whole app uses. Tapak only chooses
  * which question gets asked and translates the result into plain language. That is
  * why every question offered always maps to one of the intents the engine actually
- * understands (RANK, FLAG_SATURATED, COMPARE, COVERAGE) — Tapak must never promise
- * something that cannot be answered.
+ * understands (RANK, FLAG_SATURATED, COMPARE, COVERAGE, EXPLAIN) — Tapak must never
+ * promise something that cannot be answered.
+ *
+ * IT IS A THREAD, NOT A ROW OF FORMS. Every turn goes out with the ones before it, so a
+ * follow-up is understood as a follow-up: "why that one", "compare the top two", "what
+ * about pharmacies instead". Whether a turn needs data at all is decided per turn by the
+ * understanding layer rather than by a list of recognised phrasings kept here, which is
+ * why this class knows about the thread and nothing about what may be said into it.
  */
 
 export type ChipAction =
@@ -189,6 +195,44 @@ export class Tapak {
 	}
 
 	/**
+	 * The conversation so far, in the shape the engine is given it.
+	 *
+	 * THIS IS WHAT MAKES IT A CONVERSATION. Every question used to go out on its own,
+	 * so "kenapa yang itu" was read as a brand new question about nothing in particular
+	 * and came back as the previous answer all over again. A follow-up does not carry
+	 * its own subject; the thread is where the subject is.
+	 *
+	 * An answer contributes the NAMES it put on screen. Not its figures: those were
+	 * computed here from the grid, and a figure sent back to the model is a figure the
+	 * model has read and could write out again in a sentence of its own. The names are
+	 * what "that one" points at, and they are all this has to carry.
+	 *
+	 * Turns still being waited on are left out. A bubble with nothing in it yet is not
+	 * something that was said.
+	 */
+	#thread(): ChatTurn[] {
+		const out: ChatTurn[] = [];
+		for (const turn of this.turns) {
+			if (turn.pending || !turn.text.trim()) continue;
+			if (turn.who === 'user') {
+				out.push({ who: 'user', text: turn.text });
+				continue;
+			}
+			/* The head of the list and no more. A coverage answer names ninety-nine
+			   catchments and nobody points at the seventy-first, so the rest is weight on
+			   every request from here on for nothing. The endpoint caps this too, because
+			   it is the one that has to survive a caller that did not. */
+			const places = (turn.answer?.items ?? []).slice(0, 8).map((i) => i.name);
+			out.push(
+				places.length
+					? { who: 'tapak', text: turn.text, places }
+					: { who: 'tapak', text: turn.text }
+			);
+		}
+		return out;
+	}
+
+	/**
 	 * The turn being waited on, by id.
 	 *
 	 * Found by id, not by object identity: `turns` is a proxy, so `indexOf` on the raw
@@ -203,10 +247,13 @@ export class Tapak {
 
 	async #ask(question: string, preface?: string) {
 		if (preface) this.#say(preface);
+		// Read before the waiting bubble goes in, so the thread is what was actually
+		// said rather than what is about to be.
+		const history = this.#thread();
 		const id = this.#nextId++;
 		this.turns.push({ id, who: 'tapak', text: '', pending: true, stage: 'reading' });
 
-		await this.#app.ask(question, {
+		await this.#app.ask(question, history, {
 			// Which half of the engine is running. No figures, and no percentage of
 			// anything: there is nothing here that could honestly be a fraction.
 			stage: (stage) => {
@@ -297,6 +344,18 @@ export class Tapak {
 		const c = copy();
 		const cat = categoryNames(this.#app.categories, c, 'many');
 		const chips: Chip[] = [];
+
+		/* The question a reader handed a ranking actually asks next, offered rather than
+		   left to be discovered. One chip, not a menu of phrasings: the box below takes
+		   anything, and the point of this one is to show that it does.
+
+		   Never on an answer that is already about one place, where it would offer to
+		   explain what was just explained. */
+		const top = ans.items[0];
+		if (top && !ans.explain) {
+			const why = c.tapak.why(top.name);
+			chips.push({ label: why, action: { kind: 'ask', question: why } });
+		}
 
 		if (ans.query.intent !== 'FLAG_SATURATED') {
 			chips.push({ label: c.tapak.avoid, action: { kind: 'ask', question: c.tapak.avoidQ(cat) } });
