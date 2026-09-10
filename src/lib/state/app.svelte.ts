@@ -31,6 +31,7 @@ import type {
 	AiStage,
 	CategoryKey,
 	CategorySlice,
+	ChatTurn,
 	GridMeta,
 	Hex,
 	HexBase,
@@ -1286,7 +1287,19 @@ export class AppState {
 	 * What is NOT streamed is every figure on the screen. The answer arrives whole, and
 	 * the map is repainted from it in one move — see `#apply`.
 	 */
-	async ask(question: string, watch?: AskWatcher) {
+	async ask(
+		question: string,
+		/**
+		 * The turns before this one, oldest first.
+		 *
+		 * Part of the question rather than part of watching it answered: a follow-up does
+		 * not carry its own subject, and reading one means reading what it points back
+		 * at. The map layer keeps no thread of its own and must not start. The
+		 * conversation belongs to `Tapak`, so whoever holds it hands it over here.
+		 */
+		history: readonly ChatTurn[] = [],
+		watch?: AskWatcher
+	) {
 		/* Refused here rather than after ninety seconds of streaming. The endpoint is the
 		   one that really spends the credit and the one that would refuse it, but the
 		   browser already knows the balance, and a wait that runs its full length and then
@@ -1307,6 +1320,7 @@ export class AppState {
 					kategori: this.categories,
 					weights: this.weights,
 					lang: lang(),
+					history,
 					stream: true
 				})
 			});
