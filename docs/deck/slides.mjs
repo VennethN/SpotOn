@@ -140,55 +140,173 @@ function hexMap(maps, { paint = 'none', routes = true, stops = true, marks = fal
 ${lines}${cells}${dots}${rings}</svg>`;
 }
 
-/** The miniature: a disc of the walking range with the map's own marks on it. */
-function miniModel(mini, name) {
-	const W = 820;
-	const H = 700;
-	const cx = 410;
-	const cy = 330;
-	const rx = 335;
-	const tilt = 0.62;
+/* ── the miniature ─────────────────────────────────────────────────────── */
+
+/* The scene's own palette for the model, from `scene/area`: which grey each class of
+   street is laid in and how high above the ground, which is the order they are drawn
+   in, and how wide a transit corridor is laid over the street. */
+const ROAD_COLOUR = {
+	motorway: '#b2aea7',
+	trunk: '#b2aea7',
+	primary: '#b6b2ab',
+	secondary: '#b6b2ab',
+	tertiary: '#bbb7b0',
+	minor: '#c0bcb5',
+	service: '#c5c1ba',
+	track: '#cbc7c0',
+	path: '#cfcbc4',
+	busway: '#aca8a1',
+	rail: '#8f8d88',
+	transit: '#8f8d88'
+};
+const ROAD_LEVEL = {
+	path: 0.08,
+	track: 0.09,
+	service: 0.1,
+	minor: 0.12,
+	tertiary: 0.14,
+	secondary: 0.16,
+	primary: 0.18,
+	busway: 0.19,
+	trunk: 0.2,
+	motorway: 0.22,
+	rail: 0.24,
+	transit: 0.24
+};
+const ROUTE_WIDTH = { mrt: 6, krl: 6, lrt: 5, brt: 5 };
+
+/** Twice the signed area of a ring, positive counter-clockwise with x east and y north. */
+function ringArea(ring) {
+	let a = 0;
+	for (let i = 0, n = ring.length; i < n; i++) {
+		const p = ring[i];
+		const q = ring[(i + 1) % n];
+		a += p.x * q.y - q.x * p.y;
+	}
+	return a;
+}
+
+/**
+ * The miniature: the basemap around the point, cut to the walking range and stood up
+ * on a base, the way `scene/area` stands it up, drawn here in an oblique projection.
+ *
+ * Every building is the tile's footprint raised to the tile's height, the streets are
+ * laid at the widths the area model and the modelled map share, and the marks stand
+ * where the app stands them. The eye is above and to the south-west, so the walls
+ * that show are the ones facing south and west, and the blocks are laid down far to
+ * near. Buildings up to a few storeys are drawn as three shared paths, since at this
+ * size no two of them overlap by more than a pixel, and the towers are drawn one by
+ * one in order so that each stands in front of what is behind it.
+ *
+ * With no reading of the basemap the disc stands empty, and the caption beside it says
+ * so in the app's own words: an empty disc must never pass for a finished one.
+ */
+function miniModel(mini, name, area, roadWidth) {
+	const W = 880;
+	const H = 720;
+	const cx = 440;
+	const cy = 372;
+	const rx = 352;
+	const tilt = 0.6;
+	const shear = 0.22;
+	const lift = 0.95;
+	const ry = rx * tilt;
 	const s = rx / mini.radius;
-	const at = (p) => `${(cx + p.x * s).toFixed(1)},${(cy + p.y * s * tilt).toFixed(1)}`;
-	const pt = (p) => ({ x: cx + p.x * s, y: cy + p.y * s * tilt });
+	const X = (x, h = 0) => cx + x * s + h * s * shear;
+	const Y = (y, h = 0) => cy - y * s * tilt - h * s * lift;
+	const pt = (p, h = 0) => `${X(p.x, h).toFixed(1)},${Y(p.y, h).toFixed(1)}`;
+	const ring = (r, h = 0) => 'M' + r.map((p) => pt(p, h)).join('L') + 'Z';
+	const line = (p) => 'M' + p.map((q) => pt(q)).join('L');
+
+	let ground = '';
+	let blocks = '';
+	if (area) {
+		for (const g of area.green) ground += `<path class="green" d="${g.rings.map((r) => ring(r)).join('')}"/>`;
+		for (const w of area.water) ground += `<path class="water" d="${w.rings.map((r) => ring(r)).join('')}"/>`;
+		for (const w of area.waterways) {
+			ground += `<path class="stream" d="${line(w.path)}" style="stroke-width:${Math.max(0.8, w.width * s).toFixed(2)}"/>`;
+		}
+		const roads = [...area.roads].sort(
+			(a, b) => ROAD_LEVEL[a.kind] - ROAD_LEVEL[b.kind] || Number(a.bridge) - Number(b.bridge)
+		);
+		for (const r of roads) {
+			ground += `<path class="road" d="${line(r.path)}" style="stroke:${ROAD_COLOUR[r.kind]};stroke-width:${Math.max(0.7, roadWidth[r.kind] * s).toFixed(2)}"/>`;
+		}
+		for (const r of area.routes) {
+			ground += `<path class="corridor" d="${line(r.path)}" style="stroke:var(--route-${r.mode});stroke-width:${Math.max(1.2, ROUTE_WIDTH[r.mode] * s).toFixed(2)}"/>`;
+		}
+
+		const eye = { x: -shear, y: -lift / tilt };
+		const oriented = (r) => (ringArea(r) < 0 ? [...r].reverse() : r);
+		const items = area.buildings
+			.map((b) => {
+				const outer = oriented(b.rings[0]);
+				let sx = 0;
+				let sy = 0;
+				for (const p of outer) {
+					sx += p.x;
+					sy += p.y;
+				}
+				const n = outer.length || 1;
+				return { ...b, outer, depth: (sx / n) * eye.x + (sy / n) * eye.y };
+			})
+			.sort((a, b) => a.depth - b.depth);
+		let lowS = '';
+		let lowW = '';
+		let lowRoof = '';
+		let tall = '';
+		for (const b of items) {
+			let south = '';
+			let west = '';
+			const r = b.outer;
+			for (let i = 0; i < r.length; i++) {
+				const p = r[i];
+				const q = r[(i + 1) % r.length];
+				const nx = q.y - p.y;
+				const ny = -(q.x - p.x);
+				if (nx * eye.x + ny * eye.y <= 0) continue;
+				const face = `M${pt(p, b.base)}L${pt(q, b.base)}L${pt(q, b.height)}L${pt(p, b.height)}Z`;
+				if (ny < 0 && Math.abs(ny) >= Math.abs(nx)) south += face;
+				else west += face;
+			}
+			const roof = b.rings.map((rr) => ring(rr, b.height)).join('');
+			if (b.height - b.base > 12) {
+				tall += `<g>${west ? `<path class="wall w" d="${west}"/>` : ''}${south ? `<path class="wall s" d="${south}"/>` : ''}<path class="roof" d="${roof}"/></g>`;
+			} else {
+				lowS += south;
+				lowW += west;
+				lowRoof += roof;
+			}
+		}
+		blocks = `<path class="wall w" d="${lowW}"/><path class="wall s" d="${lowS}"/><path class="roof" d="${lowRoof}"/>${tall}`;
+	}
+
 	const doors = mini.doors
-		.map((d) => {
-			const q = pt(d);
-			return `<circle class="door${d.open ? ' lit' : ''}" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="${d.open ? 2.6 : 2}"/>`;
-		})
+		.map((d) => `<circle class="door${d.open ? ' lit' : ''}" cx="${X(d.x).toFixed(1)}" cy="${Y(d.y).toFixed(1)}" r="${d.open ? 2.8 : 2.2}"/>`)
 		.join('');
 	const rivals = mini.rivals
-		.map((d) => {
-			const q = pt(d);
-			return `<rect class="rival" x="${(q.x - 4).toFixed(1)}" y="${(q.y - 4).toFixed(1)}" width="8" height="8" rx="1.2"/>`;
-		})
+		.map((d) => `<rect class="rival" x="${(X(d.x) - 4).toFixed(1)}" y="${(Y(d.y) - 4).toFixed(1)}" width="8" height="8" rx="1.2"/>`)
 		.join('');
 	const units = mini.units
-		.map((d) => {
-			const q = pt(d);
-			return `<rect class="unit" x="${(q.x - 4.5).toFixed(1)}" y="${(q.y - 4.5).toFixed(1)}" width="9" height="9" rx="1" transform="rotate(45 ${q.x.toFixed(1)} ${q.y.toFixed(1)})"/>`;
-		})
+		.map((d) => `<rect class="unit" x="${(X(d.x) - 4.5).toFixed(1)}" y="${(Y(d.y) - 4.5).toFixed(1)}" width="9" height="9" rx="1" transform="rotate(45 ${X(d.x).toFixed(1)} ${Y(d.y).toFixed(1)})"/>`)
 		.join('');
 	const recs = mini.field
-		.map((d) => {
-			const q = pt(d);
-			return `<circle class="rec" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="6"/>`;
-		})
+		.map((d) => `<circle class="rec" cx="${X(d.x).toFixed(1)}" cy="${Y(d.y).toFixed(1)}" r="6"/>`)
 		.join('');
 	const stops = mini.stops
-		.map((d) => {
-			const q = pt(d);
-			return `<circle class="stop" cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="${d.mode === 'brt' ? 5 : 6.5}" style="fill:var(--route-${d.mode})"/>`;
-		})
+		.map((d) => `<circle class="stop" cx="${X(d.x).toFixed(1)}" cy="${Y(d.y).toFixed(1)}" r="${d.mode === 'brt' ? 5 : 6.5}" style="fill:var(--route-${d.mode})"/>`)
 		.join('');
+
 	return `<svg class="mini" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">
-<defs><filter id="soft" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="14"/></filter></defs>
-<ellipse class="shade" cx="${cx}" cy="${cy + 44}" rx="${rx + 18}" ry="${rx * tilt + 10}" filter="url(#soft)"/>
-<ellipse class="rim" cx="${cx}" cy="${cy + 16}" rx="${rx}" ry="${rx * tilt}"/>
-<ellipse class="base" cx="${cx}" cy="${cy}" rx="${rx}" ry="${rx * tilt}"/>
+<defs><filter id="soft" x="-20%" y="-40%" width="140%" height="180%"><feGaussianBlur stdDeviation="14"/></filter><clipPath id="disc"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/></clipPath></defs>
+<ellipse class="shade" cx="${cx}" cy="${cy + 46}" rx="${rx + 18}" ry="${ry + 10}" filter="url(#soft)"/>
+<ellipse class="rim" cx="${cx}" cy="${cy + 17}" rx="${rx}" ry="${ry}"/>
+<ellipse class="ground" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"/>
+<g clip-path="url(#disc)">${ground}</g>
+${blocks}
 ${doors}${rivals}${units}${recs}${stops}
 <circle class="halo" cx="${cx}" cy="${cy}" r="18"/><circle class="beacon" cx="${cx}" cy="${cy}" r="6"/>
-<text x="26" y="44" font-family="var(--font-display)" font-size="26" font-weight="600" letter-spacing="-0.02em" fill="var(--label-1)">${esc(name)}</text>
+<text x="26" y="44" style="font-family:var(--font-display);font-size:26px;font-weight:600;letter-spacing:-0.02em" fill="var(--label-1)">${esc(name)}</text>
 </svg>`;
 }
 
@@ -585,11 +703,17 @@ ${areaCard(f)}
 
 	/* 13 · the place as a model */
 	const mini = f.example.mini;
+	const area = f.example.area;
+	const states = f.model.states;
+	const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+	const areaLine = area
+		? `${cap(states.ready)}: ${num(area.buildings.length)} buildings and ${num(area.roads.length)} street pieces within ${g.walkRadius} m of ${esc(area.name)}, each building at the height the tile carries and one the tile gives no height at ${f.model.defaultHeight} m. Read from ${esc(area.source)} on ${esc(area.read)}, cut to the disc by the app's own reader.`
+		: `${cap(states.failed)} when this copy was built, so the disc stands empty rather than showing a place that was not read. Rebuilt where the tiles can be fetched, the same slide draws the place.`;
 	pages.push((pg) =>
 		slide(
 			'',
 			`${sectionMark('12', cp.model.mark)}
-<div style="display:grid;grid-template-columns:1fr 860px;gap:64px;flex:1;min-height:0;align-items:start">
+<div style="display:grid;grid-template-columns:1fr 880px;gap:56px;flex:1;min-height:0;align-items:start">
 <div style="display:flex;flex-direction:column;gap:28px">
 <h1 style="font-size:64px">${esc(cp.model.title)}</h1>
 <p class="lead">${esc(cp.model.lead)}</p>
@@ -599,10 +723,10 @@ ${areaCard(f)}
 <li><h3>A miniature, not a view.</h3><p>A disc on a base with a rim, turned by hand, with the sun staying where it is in the world. The map itself can be looked at the same way, drawn or modelled.</p></li>
 </ul>
 </div>
-<figure class="panel" style="padding:20px 26px 22px;display:flex;flex-direction:column;gap:10px">
-<div style="display:flex;justify-content:center">${miniModel(mini, f.example.name)}</div>
+<figure class="panel" style="padding:16px 26px 22px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:center">${miniModel(mini, f.example.name, area, f.model.roadWidth)}</div>
 <div class="keyrow"><span><i class="be"></i>the point the range is measured from</span><span><i class="st"></i>transit nodes, ${mini.stops.length}</span><span><i class="sq"></i>${esc(f.demo.choice.toLowerCase())} rivals, ${mini.rivals.length}</span><span><i class="di"></i>units on the market, ${mini.units.length}</span><span><i class="ri"></i>field records, ${mini.field.length}</span><span><i class="lit"></i>doors open at ${esc(mini.hour)} on a ${esc(mini.day)}, ${mini.doors.filter((d) => d.open).length} of ${mini.doors.length}</span></div>
-<figcaption class="small">Every mark at its real position within ${g.walkRadius} m of ${esc(f.example.name)}. The buildings, streets, water and parks are read from the basemap tiles the moment an area is opened, so they are not drawn here.</figcaption>
+<figcaption class="small">${areaLine}</figcaption>
 </figure>
 </div>`,
 			{ num: pg }

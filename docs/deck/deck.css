@@ -1589,17 +1589,61 @@ table.tiers tr.pack td {
 }
 
 /* ── the miniature ─────────────────────────────────────────────────────── */
+/* The scene's own colours: the ground and the rim of the base, water and green, the
+   white the buildings are cast in with its walls a step down each, as the figure of
+   Tapak is shaded, and the two colours a door has. */
 .mini {
 	display: block;
 }
-.mini .base {
-	fill: var(--model-white);
+.mini .ground {
+	fill: #d6d2cb;
 }
 .mini .rim {
-	fill: color-mix(in srgb, var(--model-white) 84%, black);
+	fill: #bfbab2;
 }
 .mini .shade {
-	fill: rgba(15, 20, 30, 0.16);
+	fill: rgba(15, 20, 30, 0.18);
+}
+.mini .green {
+	fill: #c4cfb7;
+}
+.mini .water {
+	fill: #b3c3cd;
+}
+.mini .stream {
+	fill: none;
+	stroke: #b3c3cd;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.mini .road {
+	fill: none;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.mini .corridor {
+	fill: none;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	opacity: 0.9;
+}
+.mini .roof {
+	fill: #f4f2ee;
+	fill-rule: evenodd;
+	stroke: rgba(20, 24, 32, 0.16);
+	stroke-width: 0.3;
+	stroke-linejoin: round;
+}
+.mini .wall {
+	stroke: rgba(20, 24, 32, 0.14);
+	stroke-width: 0.3;
+	stroke-linejoin: round;
+}
+.mini .wall.s {
+	fill: #e4e1db;
+}
+.mini .wall.w {
+	fill: #d3d0ca;
 }
 .mini .rival {
 	fill: var(--critical);
@@ -1613,10 +1657,10 @@ table.tiers tr.pack td {
 	stroke-width: 1.4;
 }
 .mini .door {
-	fill: var(--label-4);
+	fill: #4a4f57;
 }
 .mini .door.lit {
-	fill: var(--label-1);
+	fill: #ffb84d;
 }
 .mini .stop {
 	stroke: rgba(255, 255, 255, 0.9);
@@ -1666,9 +1710,9 @@ table.tiers tr.pack td {
 }
 .keyrow i.lit {
 	border-radius: 50%;
-	background: var(--label-1);
-	width: 8px;
-	height: 8px;
+	background: #ffb84d;
+	width: 9px;
+	height: 9px;
 }
 .keyrow i.be {
 	border-radius: 50%;

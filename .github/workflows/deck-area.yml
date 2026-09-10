@@ -1,0 +1,46 @@
+# Reads the basemap around the demo deck's example area and commits the reading.
+#
+# `npm run deck` models one catchment the way the app does, from the basemap's own
+# vector tiles, and keeps that reading in `docs/deck/area.json` so the deck builds
+# again without the network. This job refreshes that file from a machine that has
+# the network, on request only, and pushes the result to the branch it was run on.
+# Nothing else is built here: the deck itself is printed wherever `npm run deck` runs.
+
+name: Deck area
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  read:
+    name: Read the basemap around the example area
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Read the area from the basemap
+        run: node docs/deck/build.mjs --read-area
+        env:
+          PUBLIC_MAPID_MAP_KEY: ${{ secrets.MAPID_MAPSERVICES_KEY }}
+
+      - name: Commit the reading
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/deck/area.json
+          if git diff --cached --quiet; then
+            echo 'The reading has not changed.'
+          else
+            git commit -m 'docs(deck): read the basemap around the example area'
+            git push
+          fi

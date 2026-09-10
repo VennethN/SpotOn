@@ -1,7 +1,8 @@
 /**
  * The demo deck, built from the data rather than written by hand.
  *
- *   npm run deck          → docs/deck/spoton-deck.html and docs/deck/spoton-deck.pdf
+ *   npm run deck                         → docs/deck/spoton-deck.html and spoton-deck.pdf
+ *   node docs/deck/build.mjs --read-area → docs/deck/area.json only, from the basemap
  *
  * Every figure on every slide comes from here: the grid file's own metadata, the
  * scoring engine run on that grid, and the constants the engine exports. Nothing is
@@ -12,6 +13,13 @@
  * The engine is TypeScript under `$lib`, so it is loaded through Vite's SSR module
  * loader exactly as the dev server loads it, with the SvelteKit plugin resolving the
  * aliases. The slides themselves are in `slides.mjs`, the look in `deck.css`.
+ *
+ * One slide models the example area the way the app does, from the basemap's own
+ * vector tiles, read through the very reader the app reads them with. That is the one
+ * thing here that needs the network, so the reading is kept in `area.json` beside this
+ * file and the deck builds again from it without one. `--read-area` refreshes it and
+ * nothing else, which is what `.github/workflows/deck-area.yml` runs. With no reading
+ * on disk and no network, the model says so rather than standing empty as if finished.
  *
  * The PDF is printed by headless Chromium. Set `CHROMIUM_BIN` to point at a browser,
  * or let the script find one on the PATH or in a Playwright browsers directory. With
@@ -28,6 +36,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
 const OUT_HTML = join(HERE, 'spoton-deck.html');
 const OUT_PDF = join(HERE, 'spoton-deck.pdf');
+const AREA_FILE = join(HERE, 'area.json');
+const READ_AREA_ONLY = process.argv.includes('--read-area');
 
 const readJson = (rel) => JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
 const readText = (rel) => readFileSync(join(ROOT, rel), 'utf8');
@@ -48,6 +58,12 @@ const vite = await createServer({
 });
 
 try {
+	await build();
+} finally {
+	await vite.close();
+}
+
+async function build() {
 	const load = (p) => vite.ssrLoadModule(p);
 	const [
 		scoring,
@@ -68,7 +84,10 @@ try {
 		competitors,
 		gridmap,
 		format,
-		geo
+		geo,
+		basemap,
+		mapBasemap,
+		areaState
 	] = await Promise.all([
 		load('/src/lib/domain/scoring.ts'),
 		load('/src/lib/domain/weights.ts'),
@@ -88,7 +107,10 @@ try {
 		load('/src/lib/domain/competitors.ts'),
 		load('/src/lib/server/gridmap.ts'),
 		load('/src/lib/utils/format.ts'),
-		load('/src/lib/utils/geo.ts')
+		load('/src/lib/utils/geo.ts'),
+		load('/src/lib/domain/basemap.ts'),
+		load('/src/lib/map/basemap.ts'),
+		load('/src/lib/state/area.ts')
 	]);
 
 	const c = i18n.DICT.en;
@@ -153,6 +175,76 @@ try {
 	const top = demo.results[0];
 	const hex = hexes.find((h) => h.id === top.id);
 	const row = rows.find((r) => r.id === top.id);
+	const centre = { lat: hex.lat, lon: hex.lon };
+	const routesFile = readJson('static/data/routes.json');
+
+	/* ── the place itself, read off the basemap ───────────────────────────── */
+
+	/**
+	 * The basemap around the point, through the app's own reader: the style the public
+	 * configuration allows, MAPID's with a key and the open one otherwise, its tiles
+	 * decoded and cut to the disc by `domain/basemap`. Coordinates are kept to a tenth
+	 * of a metre, which is finer than anything the drawing can show.
+	 */
+	async function readAreaFromBasemap() {
+		const tiles = await mapBasemap.basemapTilesFor('light');
+		if (!tiles) throw new Error('the basemap style could not be fetched');
+		const reader = new areaState.AreaReader();
+		const routes = basemap.parseRoutes(routesFile);
+		const key = basemap.areaKeyOf(centre, R, tiles);
+		const g = await reader.read(tiles, centre, R, routes, key);
+		const round = (p) => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
+		const rings = (rs) => rs.map((r) => r.map(round));
+		const host = tiles.key;
+		const from = /mapid\.io/.test(host)
+			? 'MAPID MAPS'
+			: /cartocdn/.test(host)
+				? 'OpenStreetMap data, CARTO cartography'
+				: host;
+		return {
+			cell: hex.id,
+			name: row.name,
+			radius: R,
+			basemap: host,
+			source: from,
+			read: new Date().toISOString().slice(0, 10),
+			zoom: g.zoom,
+			tiles: g.tiles,
+			buildings: g.buildings.map((b) => ({ rings: rings(b.rings), height: b.height, base: b.base })),
+			roads: g.roads.map((r) => ({ path: r.path.map(round), kind: r.kind, bridge: r.bridge })),
+			water: g.water.map((w) => ({ rings: rings(w.rings) })),
+			waterways: g.waterways.map((w) => ({ path: w.path.map(round), width: w.width })),
+			green: g.green.map((w) => ({ rings: rings(w.rings) })),
+			routes: g.routes.map((r) => ({ path: r.path.map(round), mode: r.mode }))
+		};
+	}
+
+	/** The reading on disk when it is this area's, the basemap otherwise, null when
+	    neither can be had. */
+	async function areaFor(refresh) {
+		if (!refresh && existsSync(AREA_FILE)) {
+			const cached = JSON.parse(readFileSync(AREA_FILE, 'utf8'));
+			if (cached.cell === hex.id && cached.radius === R) return cached;
+		}
+		try {
+			const fresh = await readAreaFromBasemap();
+			writeFileSync(AREA_FILE, JSON.stringify(fresh));
+			console.log(
+				`read the basemap around ${fresh.name}: ${fresh.buildings.length} buildings, ${fresh.roads.length} street pieces, ${fresh.tiles} tiles at z${fresh.zoom}, from ${fresh.source}`
+			);
+			return fresh;
+		} catch (err) {
+			if (READ_AREA_ONLY) throw err;
+			console.log(
+				`the basemap could not be read (${err.message}) and no reading of ${row.name} is on disk, so the model will say so`
+			);
+			return null;
+		}
+	}
+
+	const area = await areaFor(READ_AREA_ONLY || process.env.DECK_REFRESH === '1');
+	if (READ_AREA_ONLY) return;
+
 	const ladder = (key) => metrics.ladderFor(rows, key);
 	const standing = (key) => narrate.standingPhrase(metrics.standingOf(row, key, ladder(key)), c);
 
@@ -204,13 +296,12 @@ try {
 	const fieldFile = readJson('static/data/field.json');
 	const fieldHere = fieldFile.records.filter((r) => r.cell === hex.id);
 
-	// Local metres around the point the range is measured from, for the miniature.
-	const kx = Math.cos((hex.lat * Math.PI) / 180) * 111_320;
-	const ky = 110_574;
-	const local = (lat, lon) => ({
-		x: Math.round((lon - hex.lon) * kx),
-		y: Math.round((hex.lat - lat) * ky)
-	});
+	// Metres from the point the range is measured from, x east and y north, through
+	// the very projection the area model converts its own marks with.
+	const local = (lat, lon) => {
+		const p = geo.localMetres(lat, lon, centre);
+		return { x: Math.round(p.x), y: Math.round(p.y) };
+	};
 
 	const example = {
 		name: row.name,
@@ -284,6 +375,7 @@ try {
 			contributes: c.breakdown.contributes(comp.transitPoints, comp.score),
 			total: c.breakdown.total
 		},
+		area,
 		mini: {
 			radius: R,
 			stops: caughtStops.map((s) => ({ ...local(s.lat, s.lon), mode: s.mode })),
@@ -319,7 +411,6 @@ try {
 	// The corridors are hairlines, and there are thousands of segments, so their
 	// coordinates are kept to whole units: one unit is under a pixel at any size the
 	// map is drawn at, and the halving of the file shows on every page it is printed on.
-	const routesFile = readJson('static/data/routes.json');
 	const routes = {};
 	for (const f of routesFile.features) {
 		const parts = [];
@@ -407,6 +498,15 @@ try {
 			costFloor: cost.COST_FLOOR,
 			minLadder: cost.MIN_LADDER,
 			minBand: rank.MIN_BAND
+		},
+		/* The miniature's own constants: how wide each class of street is drawn, from
+		   the one table the area model and the modelled map share, the height a building
+		   stands at when the tile gives none, and the four things the app's model says
+		   about where its geometry came from. */
+		model: {
+			roadWidth: basemap.ROAD_WIDTH,
+			defaultHeight: basemap.DEFAULT_HEIGHT,
+			states: c.app.model
 		},
 		llm: {
 			chain,
@@ -501,8 +601,6 @@ try {
 		);
 		console.log(`wrote ${OUT_PDF}`);
 	}
-} finally {
-	await vite.close();
 }
 
 /**
