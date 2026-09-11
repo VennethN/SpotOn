@@ -172,27 +172,39 @@ export class Tapak {
 
 		if (action.kind === 'category') {
 			this.#app.setCategory(action.value);
-			const name = c.category[action.value].name.toLowerCase();
-			this.#say(c.tapak.budgetAsk(name), [
-				{ label: c.tapak.budgetTight, action: { kind: 'budget', small: true } },
-				{ label: c.tapak.budgetLoose, action: { kind: 'budget', small: false } }
-			]);
+			/* ONE TAP, ONE QUESTION, and the model takes over from here. There used to be a
+			   second scripted turn in between, asking about the rent, so the reader answered
+			   two questions from a script before hearing one thing from the data. Nothing in
+			   that turn came from the model or from the grid: it was a form with a face. The
+			   rent narrowing is offered on the answer instead, see `#followUps`, where it is
+			   what it actually is, one filter on a result the reader has already seen. */
+			void this.#ask(this.#openingQuestion());
 			return;
 		}
 
 		if (action.kind === 'budget') {
 			this.smallBudget = action.small;
-			const cat = categoryNames(this.#app.categories, c, 'many');
-			// It is the phrase "modal kecil" (small budget) that makes the engine filter
-			// down to areas where commercial space is genuinely available — not small talk.
-			const q = action.small
-				? `Di mana buka ${cat} modal kecil dekat MRT?`
-				: `Di mana buka ${cat} dekat MRT?`;
-			void this.#ask(q, action.small ? c.tapak.prefaceTight : c.tapak.prefaceLoose);
+			void this.#ask(this.#openingQuestion());
 			return;
 		}
 
 		void this.#ask(action.question);
+	}
+
+	/**
+	 * The question a tapped business type asks, and the one the rent chip asks again.
+	 *
+	 * Indonesian whatever the reader's language, because it is a question for the engine:
+	 * "modal kecil" is the phrase that narrows the result to areas where space is genuinely
+	 * on the market in the lower price band, and "dekat MRT" is what puts the transit
+	 * filter on. The business type is written in the reader's language, which both the
+	 * model and the rule parser read.
+	 */
+	#openingQuestion(): string {
+		const cat = categoryNames(this.#app.categories, copy(), 'many');
+		return this.smallBudget
+			? `Di mana buka ${cat} modal kecil dekat MRT?`
+			: `Di mana buka ${cat} dekat MRT?`;
 	}
 
 	/**
@@ -246,8 +258,7 @@ export class Tapak {
 		return idx === -1 ? null : this.turns[idx];
 	}
 
-	async #ask(question: string, preface?: string) {
-		if (preface) this.#say(preface);
+	async #ask(question: string) {
 		// Read before the waiting bubble goes in, so the thread is what was actually
 		// said rather than what is about to be.
 		const history = this.#thread();
@@ -356,6 +367,19 @@ export class Tapak {
 		if (top && !ans.explain) {
 			const why = c.tapak.why(top.name);
 			chips.push({ label: why, action: { kind: 'ask', question: why } });
+		}
+
+		/* The rent question, which used to be asked before anything had been answered. It
+		   is offered here instead, on a ranking, as the narrowing it is: one tap asks the
+		   same question again with the filter on, or with it off again. Read off the
+		   answer's own query rather than off `smallBudget`, because a typed question can
+		   carry the filter too and the chip has to offer the opposite of what is on screen. */
+		if (ans.query.intent === 'RANK' && ans.items.length) {
+			const tight = ans.query.filter?.tier_harga === 'rendah';
+			chips.push({
+				label: tight ? c.tapak.budgetLoose : c.tapak.budgetTight,
+				action: { kind: 'budget', small: !tight }
+			});
 		}
 
 		if (ans.query.intent !== 'FLAG_SATURATED') {

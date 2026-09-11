@@ -1170,17 +1170,16 @@ export const en: Copy = {
 		   and not which greeting is being said. */
 		greet: (total: number, part: DayPart, wording: number) =>
 			`${SALUTE[part][wording]} I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors. What are you thinking of opening?`,
-		/* This used to ask "How is the budget looking?" and offer "Tight" or
-		   "Reasonably open" — two words that say nothing about what will change. The
-		   only thing actually chosen here is whether the results are narrowed to
-		   areas that genuinely have space up for rent, in the lower bracket. So that
-		   is what gets asked, and that is what the buttons say. */
-		budgetAsk: (cat: string) => `A ${cat}, alright. What about the rent?`,
+		/* The rent filter, offered on a ranking rather than asked before one. These used
+		   to be the answers to a scripted "what about the rent?" that stood between the
+		   business type and the first answer, so the reader tapped through two questions
+		   from a script before hearing anything from the data. They once read "Tight"
+		   and "Reasonably open", two words that say nothing about what will change. The
+		   only thing chosen here is whether the results are narrowed to areas that
+		   genuinely have space up for rent, in the lower bracket, so that is what the
+		   buttons say. */
 		budgetTight: 'Only where the rent is cheap',
 		budgetLoose: 'Any rent, just find a good area',
-		prefaceTight:
-			'Right. I will narrow it to areas that genuinely have space up for rent, in the lower bracket.',
-		prefaceLoose: 'Right, I will look at every area, with no rent filter.',
 		restart: 'What would you like to look at now?',
 		tryOther: 'Try another business',
 		avoid: 'Which ones should I avoid?',
