@@ -1198,6 +1198,21 @@ export const id = {
 		explain: {
 			unscored: (name: string, cat: string, simpul: number, radius: number) =>
 				`${name} belum disurvei untuk ${cat}, jadi saya tidak memberinya nilai sama sekali. Yang terukur di sana cuma aksesnya: ${simpul} simpul transit dalam radius ${radius} m.`,
+			/* Pertanyaan yang menyebut satu ukuran dijawab dengan ukuran itu dulu, bukan
+			   dengan skornya. Dulu tidak begitu, jadi "berapa harga tempat di Pusdiklat
+			   BPS" dijawab rincian skor, dan harganya nomor empat di paragrafnya. */
+			measure: (name: string, ukuran: string, nilai: string) =>
+				`Di ${name}, ${ukuran} tercatat ${nilai}.`,
+			measureNone: (name: string, ukuran: string) =>
+				`${name} belum punya angka untuk ${ukuran}, jadi tidak ada yang bisa saya sebutkan. Bukan nol, memang belum terukur.`,
+			/* Posisinya di kisi, karena itu yang sebenarnya ditanyakan orang waktu bilang
+			   "murah tidak". Angka sendirian tidak menjawab itu. */
+			priceRank: (peringkat: number) =>
+				`Itu lebih mahal dari ${peringkat}% petak lain di kisi, jadi termasuk di bawah kebanyakan.`,
+			priceIsSale:
+				'Ini harga JUAL yang diminta penjual, bukan sewa bulanan. Katalog propertinya tidak punya satu pun listing sewa untuk Jakarta, jadi angka sewa memang tidak ada yang bisa saya sebut.',
+			scoreAside: (nilai: string, cat: string) =>
+				`Skor peluangnya sendiri ${nilai} dari 100 untuk ${cat}.`,
 			lead: (name: string, cat: string, nilai: string) =>
 				`${name} dapat ${nilai} dari 100 untuk ${cat}, dan ini yang menyusunnya.`,
 			crowd: (usaha: number, radius: number, nilai: string) =>

@@ -678,6 +678,46 @@ symptom of that is not an error: it is Tapak silently falling back to the plain 
 every turn forever, while every test about invented figures still passes. That check has
 already earned its place once, on prices.
 
+### A shape and a measure, again
+
+`EXPLAIN` arrived answering one question: why is this catchment on the list. It always
+explained the opportunity score, whatever had been asked, and that is the mistake
+"Questions are a shape and a measure, chosen separately" is about, made again in a newer
+shape. Two questions naming the same place produced the same paragraph:
+
+> **what is the rent at Pusdiklat BPS**
+> Pusdiklat BPS scores 59 out of 100 for bakeries, and here is what that is made of. […]
+
+The price was in that paragraph, fourth. Three separate things had to be true before it
+could lead:
+
+- **`ukuran` survives an EXPLAIN.** `llm.ts` read it only for a RANK and overwrote it with
+  the opportunity score otherwise, so a model that read the question perfectly had its
+  answer thrown away one line later.
+- **Naming a place is enough.** A follow-up can POINT ("kenapa yang itu"), which needs a
+  why-word because there is nothing else in the sentence to go on, or it can NAME, which
+  needs none. Without the second, a question with no "kenapa" in it fell through to a
+  ranking. The two shapes that name a place and are not about it are a ranking ask and a
+  comparison, and those are what `RANKING_ASK` and `COMPARE_ASK` exist to hold back.
+- **The English half of the money words existed.** `harga_tempat` matched `harga|sewa|
+  biaya|mahal|murah` and not one English word, while the unit registry beside it had
+  carried `cheap|price` all along. Every English question about money fell past both to
+  the opportunity score.
+
+Two rules keep the widened name matching from firing on ordinary language, and both are
+worth knowing before touching it. A name is only looked for when it is DISTINCTIVE, more
+than one word or at least six letters, because Damai, Duri, Karet, Depok and Tebet are
+catchments and are also words. And a match has to cover most of the name rather than a
+corner of it: "harga karet berapa sekarang" contains the first word of "Karet Sudirman 3"
+and none of the rest, and read as a hit it answers a question about the price of rubber
+with a catchment in Setiabudi.
+
+One collision had to be split by hand and will come back if the patterns are merged. A
+bare "for rent" means ON THE RENT MEASURE and asks what space costs. "Space for rent" asks
+which places are being offered, which is the field survey and a different measure
+entirely. `sewa_ditawarkan` therefore matches the phrases that name the offer and not the
+bare word.
+
 ### What this does not license
 
 The writing pass is not a second opinion and must not become one. It receives figures and

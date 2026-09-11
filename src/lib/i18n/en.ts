@@ -1195,6 +1195,24 @@ export const en: Copy = {
 		explain: {
 			unscored: (name: string, cat: string, simpul: number, radius: number) =>
 				`${name} has not been surveyed for ${cat}, so I have not scored it at all. The only thing measured there is its access: ${num(simpul)} ${simpul === 1 ? 'transit node' : 'transit nodes'} within ${radius} m.`,
+			/* A question naming a figure is answered with that figure first, not with the
+			   score. It was not, so "what is the rent at Pusdiklat BPS" came back as a
+			   score breakdown with the price fourth in it. */
+			/* Worded so the count never has to agree with the measure's own name. Those
+			   names are a mix of singular and plural noun phrases, so "the businesses
+			   nearby is 75" is one template away at all times. */
+			measure: (name: string, ukuran: string, nilai: string) =>
+				`${name} comes in at ${nilai} on ${ukuran}.`,
+			measureNone: (name: string, ukuran: string) =>
+				`${name} has no reading at all for ${ukuran}, so there is nothing I can quote you. Not zero, just never measured.`,
+			/* Where it sits on the grid, because that is what somebody asking "is that
+			   cheap" wants to know. The figure alone does not answer it. */
+			priceRank: (peringkat: number) =>
+				`That is dearer than ${peringkat}% of the grid, so it sits below most of it.`,
+			priceIsSale:
+				'It is an asking price to buy, not a monthly rent. The property catalogue publishes no rentals for Jakarta at all, so there is no rent figure for me to give you.',
+			scoreAside: (nilai: string, cat: string) =>
+				`Its opportunity score is ${nilai} out of 100 for ${cat}.`,
 			lead: (name: string, cat: string, nilai: string) =>
 				`${name} scores ${nilai} out of 100 for ${cat}, and here is what that is made of.`,
 			/* Every count here has to agree with the noun beside it, which is this

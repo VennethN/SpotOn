@@ -160,6 +160,27 @@ function explainSentence(e: Explanation, cat: string, c: Copy): string {
 	// there is nothing to take apart, and saying so is the whole answer.
 	if (!e.covered || e.score === null) return n$.unscored(e.name, cat, e.stops, e.radius);
 
+	/* THE QUESTION ASKED ABOUT A FIGURE, SO THE ANSWER LEADS WITH IT.
+	   
+	   Without this the shape explained the opportunity score whatever was asked, so "what
+	   is the rent at Pusdiklat BPS" and "why is it on the list" produced the same
+	   paragraph and the price sat fourth in it. A shape and a measure are chosen
+	   separately everywhere else in this engine, and this is that rule applied here. */
+	if (e.measure) {
+		const name = metricName(e.measure.ukuran, c);
+		if (e.measure.value === null) return n$.measureNone(e.name, name);
+		const parts = [n$.measure(e.name, name, metricValue({ ...e.measure, value: e.measure.value }, c))];
+		/* Where it sits among the others, which is what "is that cheap" actually asks.
+		   Only for the price, because it is the only measure this row carries a position
+		   on the grid for, and a position invented for the rest would be one. */
+		if (e.measure.ukuran === 'harga_tempat' && e.priceLevel !== null) {
+			parts.push(n$.priceRank(Math.round(e.priceLevel * 100)));
+			parts.push(n$.priceIsSale);
+		}
+		parts.push(n$.scoreAside(pct(e.score), cat));
+		return parts.join(' ');
+	}
+
 	const parts = [n$.lead(e.name, cat, pct(e.score))];
 	parts.push(n$.crowd(e.density, e.radius, pct(e.demand)));
 	parts.push(
