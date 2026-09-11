@@ -312,6 +312,7 @@ export function readBasemapTiles(map: MapLibreMap): BasemapTiles | 'pending' | n
 		}
 		const pick = (re: RegExp): string | undefined => [...names].find((n) => re.test(n));
 		sources.push({
+			id: sourceId,
 			tiles: vector.tiles,
 			minzoom: vector.minzoom ?? 0,
 			maxzoom: vector.maxzoom ?? 14,

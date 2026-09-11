@@ -32,6 +32,7 @@
 
 import * as THREE from 'three';
 import type { AreaGeometry, AreaMarks, LocalPoint, RoadKind, TransitCounts } from '$lib/types';
+import { ROAD_WIDTH } from '$lib/domain/basemap';
 import { clipPathToDisc, ringArea } from '$lib/utils/geo';
 import { daylightAt, type DaylightSample } from './daylight';
 
@@ -101,23 +102,23 @@ const DOOR_OPEN = new THREE.Color(0xffb84d);
 const DOOR_SHUT = new THREE.Color(0x4a4f57);
 
 /**
- * How wide each class of street is drawn, in metres, and in which grey. The widths
- * are those of the road itself, since the footprints beside them are true to scale
- * and a street drawn wider than it is would run through the buildings on it.
+ * Which grey each class of street is laid in, how high above the ground, and whether
+ * it gets lamps. The widths come from `domain/basemap`, shared with the map's own
+ * modelled rendition so the two agree about every street.
  */
-const ROAD: Record<RoadKind, { width: number; colour: number; y: number; lamps: boolean }> = {
-	motorway: { width: 22, colour: 0xb2aea7, y: 0.22, lamps: true },
-	trunk: { width: 18, colour: 0xb2aea7, y: 0.2, lamps: true },
-	primary: { width: 15, colour: 0xb6b2ab, y: 0.18, lamps: true },
-	secondary: { width: 11, colour: 0xb6b2ab, y: 0.16, lamps: true },
-	tertiary: { width: 8.5, colour: 0xbbb7b0, y: 0.14, lamps: true },
-	minor: { width: 6, colour: 0xc0bcb5, y: 0.12, lamps: true },
-	service: { width: 3.5, colour: 0xc5c1ba, y: 0.1, lamps: false },
-	track: { width: 2.5, colour: 0xcbc7c0, y: 0.09, lamps: false },
-	path: { width: 1.8, colour: 0xcfcbc4, y: 0.08, lamps: false },
-	busway: { width: 7, colour: 0xaca8a1, y: 0.19, lamps: false },
-	rail: { width: 3.4, colour: 0x8f8d88, y: 0.24, lamps: false },
-	transit: { width: 3.4, colour: 0x8f8d88, y: 0.24, lamps: false }
+const ROAD: Record<RoadKind, { colour: number; y: number; lamps: boolean }> = {
+	motorway: { colour: 0xb2aea7, y: 0.22, lamps: true },
+	trunk: { colour: 0xb2aea7, y: 0.2, lamps: true },
+	primary: { colour: 0xb6b2ab, y: 0.18, lamps: true },
+	secondary: { colour: 0xb6b2ab, y: 0.16, lamps: true },
+	tertiary: { colour: 0xbbb7b0, y: 0.14, lamps: true },
+	minor: { colour: 0xc0bcb5, y: 0.12, lamps: true },
+	service: { colour: 0xc5c1ba, y: 0.1, lamps: false },
+	track: { colour: 0xcbc7c0, y: 0.09, lamps: false },
+	path: { colour: 0xcfcbc4, y: 0.08, lamps: false },
+	busway: { colour: 0xaca8a1, y: 0.19, lamps: false },
+	rail: { colour: 0x8f8d88, y: 0.24, lamps: false },
+	transit: { colour: 0x8f8d88, y: 0.24, lamps: false }
 };
 /** How far a bridge is carried above the ground it crosses. */
 const BRIDGE_LIFT = 4;
@@ -652,7 +653,7 @@ export class AreaWorld {
 		for (const r of g.roads) {
 			const spec = ROAD[r.kind];
 			this.#colour.setHex(spec.colour);
-			ribbon(roads, r.path, spec.width, spec.y + (r.bridge ? BRIDGE_LIFT : 0), this.#colour);
+			ribbon(roads, r.path, ROAD_WIDTH[r.kind], spec.y + (r.bridge ? BRIDGE_LIFT : 0), this.#colour);
 			if (spec.lamps && !r.bridge) {
 				alongPath(r.path, LAMP_PITCH, (p) => lampSpots.push(p.x, 7, -p.y));
 			}

@@ -34,7 +34,7 @@
 	 */
 	import Segmented from '$lib/components/ui/Segmented.svelte';
 	import { RADII } from '$lib/domain/weights';
-	import { getAppState, type Pivot, type ViewMode } from '$lib/state/app.svelte';
+	import { getAppState, type MapRender, type Pivot, type ViewMode } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 
 	const app = getAppState();
@@ -72,6 +72,24 @@
 				{ value: 'relief', label: c.app.viewRelief, hint: c.app.viewReliefHint }
 			]}
 		/>
+
+		<!-- The same basemap two ways: as its publisher draws it, or modelled the way the
+		     area model is, from the same tiles. Absent when there is nothing to model from,
+		     which is the raster fallback and nothing else. Beside the flat-or-raised switch
+		     because it is the same kind of thing: a way of looking, not a layer. -->
+		{#if !app.basemapNone}
+			<span class="rule" aria-hidden="true"></span>
+
+			<Segmented
+				label={c.app.renderLabel}
+				value={app.render}
+				onchange={(v: MapRender) => (app.render = v)}
+				options={[
+					{ value: 'drawn', label: c.app.renderDrawn, hint: c.app.renderDrawnHint },
+					{ value: 'modelled', label: c.app.renderModelled, hint: c.app.renderModelledHint }
+				]}
+			/>
+		{/if}
 
 		<span class="rule" aria-hidden="true"></span>
 
@@ -211,9 +229,19 @@
 			top: 3.25rem;
 			max-width: calc(100vw - 1rem);
 		}
+		/* Three switches and a slider do not fit one row at 390 px. The switches keep
+		   their row and the slider takes the next, which is better than a slider too
+		   short to drag or a mode name cut in half. A pill with two rows in it reads as a
+		   mistake, so the corners come in. */
 		.bar {
+			flex-wrap: wrap;
+			justify-content: center;
 			gap: 0.375rem;
 			padding: 0.3125rem 0.4375rem;
+			border-radius: var(--r-lg, 16px);
+		}
+		.radius {
+			flex-basis: 100%;
 		}
 		.rule {
 			display: none;
