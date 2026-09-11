@@ -1153,6 +1153,26 @@ competitor the reader has switched off the map must not go on standing in the mo
 it. What does not follow anything is the geometry itself. The map is free, and a model of
 the map is the map looked at another way, so reading it is not metered.
 
+### The map itself can be looked at the same way
+
+`MapControls` carries a second switch beside flat or 3D: DRAWN, the basemap as its
+publisher draws it, or MODELLED, the same tiles drawn by MapLibre in the area model's
+palette. White masses raised to the height the tile carries, streets at their real widths
+from the same table the scene lays its ribbons by, water and green, and none of the
+publisher's cartography or lettering. `map/modelled` builds those layers off the very
+sources `readBasemapTiles` found, so the map's model and the area's model come from one
+reading of one style, and a basemap the area model can read is exactly the basemap the
+map can draw as one. The switch is absent when there is nothing to model from, which is
+the raster fallback and nothing else.
+
+It is a view, like the raised one, and is held to the same rule: it changes how the map
+is looked at and nothing about what is on it. The publisher's layers are put away with
+the visibility each was published with and brought back exactly, never removed, and the
+app's own layers, the catchments, the corridors and the marks, sit above both renditions
+untouched. In the dark theme the palette is taken down rather than kept white, because a
+white city under a dark interface would be the brightest thing on the screen, and unlike
+the model on the card there is no hour lighting it.
+
 ## One earth, and why it took three goes to get there
 
 Every script that measures a distance imports `haversine` from `scripts/lib/geo.mjs`,
