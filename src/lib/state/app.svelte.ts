@@ -21,14 +21,20 @@ import {
 	type UnitFilter
 } from '$lib/domain/units';
 import { capturedStops, parseStops, type Stop } from '$lib/domain/transit';
+import { areaKeyOf, parseRoutes, type RouteLine } from '$lib/domain/basemap';
+import { AreaReader } from './area';
 import { scoreAcrossCategories, scoreAll } from '$lib/domain/scoring';
 import { DEFAULT_WEIGHTS, snapRadius } from '$lib/domain/weights';
+import { localMetres } from '$lib/utils/geo';
 import { lang } from './lang.svelte';
 import { applyTheme, storedTheme, watchSystemDark, type Theme } from './theme.svelte';
 import type {
 	AiAnswer,
 	AiEvent,
 	AiStage,
+	AreaGeometry,
+	AreaMarks,
+	BasemapTiles,
 	CategoryKey,
 	CategorySlice,
 	ChatTurn,
@@ -58,6 +64,16 @@ export type Pivot = 'cell' | 'unit';
  * map. This one only changes how the same thing is looked at.
  */
 export type ViewMode = 'flat' | 'relief';
+
+/**
+ * How the basemap is drawn: as its publisher draws it, or modelled.
+ *
+ * The second is the same tiles drawn in the area model's palette, white masses raised
+ * to the heights they carry, streets at their real widths, and none of the publisher's
+ * cartography: see `map/modelled`. A view, like `ViewMode`, and kept here for the same
+ * reason. It changes how the map is looked at and nothing about what is on it.
+ */
+export type MapRender = 'drawn' | 'modelled';
 
 /**
  * Somebody watching an answer being worked out.
@@ -228,6 +244,8 @@ export class AppState {
 	 * hexagon. The raised view is the one you choose.
 	 */
 	view = $state<ViewMode>('flat');
+	/** Drawn by default. A map opens as a map, and the model is the one you choose. */
+	render = $state<MapRender>('drawn');
 	layers = $state<Record<LayerKey, boolean>>({
 		/**
 		 * The opportunity heatmap is ON from the first frame.
@@ -437,6 +455,51 @@ export class AppState {
 	    the curve is lost, and the panel can say so instead of waiting forever. */
 	openPlacesFailed = $state(false);
 
+	/**
+	 * The vector source the basemap draws its buildings from, once the map knows it.
+	 *
+	 * Set by `MapView` off the style MapLibre actually loaded, because which basemap is
+	 * on screen is decided at runtime. It is what the model of a selected area is built
+	 * from: see `domain/basemap`. Raw rather than proxied, because nothing reads into
+	 * it reactively and a proxy over a list of URL templates buys nothing.
+	 */
+	basemap = $state.raw<BasemapTiles | null>(null);
+	/**
+	 * The style on screen carries no vector buildings at all, so there is nothing to
+	 * model an area from. Only the last-resort raster basemap gets here, and the
+	 * interface says so rather than showing a model that is loading forever.
+	 */
+	basemapNone = $state(false);
+
+	/**
+	 * The transit corridors the map draws, as coordinates.
+	 *
+	 * The map hands `routes.json` to MapLibre by URL and never reads it itself, so this
+	 * is the one reader of the file in the app: the model of an area lays the corridors
+	 * inside its walking range over the streets, in the colours the map draws them in.
+	 * Fetched on the first area read and kept, like the stops. The browser already has
+	 * the file cached from the map's own request.
+	 */
+	routes = $state.raw<RouteLine[] | null>(null);
+	routesFailed = $state(false);
+
+	/**
+	 * The basemap's geometry around the point the range is measured from, cut to the
+	 * walking range: what the area model is drawn from.
+	 *
+	 * Raw on purpose. It holds tens of thousands of coordinates that the scene walks in
+	 * one pass to build its meshes, and a deep proxy over every one of them would make
+	 * that pass many times slower for a reactivity nobody reads. The object is replaced
+	 * whole when a new reading lands, which is all the reactivity the scene needs.
+	 *
+	 * Keyed by the point, the radius and the basemap, so a reading that lands after the
+	 * reader has moved on is told apart from the one they are waiting for: `areaReady`.
+	 */
+	area = $state.raw<AreaGeometry | null>(null);
+	/** The reading that failed, by key, so the failure is forgotten the moment the
+	    reader moves to a different point rather than lingering under the next model. */
+	areaFailedKey = $state<string | null>(null);
+
 	/** In-flight requests, so two callers asking for the same category share one fetch. */
 	#inFlight = new Map<CategoryKey, Promise<void>>();
 	#stopsJob: Promise<void> | null = null;
@@ -444,6 +507,11 @@ export class AppState {
 	#listingsJob: Promise<void> | null = null;
 	#fieldJob: Promise<void> | null = null;
 	#hoursJob: Promise<void> | null = null;
+	#routesJob: Promise<void> | null = null;
+	/** The area reading asked for last, so a slower earlier one cannot land on top of it. */
+	#areaKey: string | null = null;
+	/** The tiles, fetched and decoded once each. See `state/area`. */
+	#reader = new AreaReader();
 
 	constructor(base: HexBase[], meta?: GridMeta, wallet?: Wallet) {
 		this.base = base;
@@ -860,6 +928,65 @@ export class AppState {
 	}
 
 	/**
+	 * Load the transit corridors, once.
+	 *
+	 * Failure is quiet in the same way `loadStops` is: the model still stands, it only
+	 * carries no corridor across it. The map's own lines are drawn by MapLibre from the
+	 * same file and are untouched by this.
+	 */
+	loadRoutes(): Promise<void> {
+		if (this.routes || this.#routesJob) return this.#routesJob ?? Promise.resolve();
+		this.#routesJob = (async () => {
+			try {
+				const res = await fetch(`${base}/data/routes.json`);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				this.routes = parseRoutes(await res.json());
+				this.routesFailed = false;
+			} catch {
+				this.routesFailed = true;
+			} finally {
+				this.#routesJob = null;
+			}
+		})();
+		return this.#routesJob;
+	}
+
+	/**
+	 * Read the basemap around the point the range is measured from, at the current
+	 * radius, and cut it to the walking range.
+	 *
+	 * Called by the model whenever `areaKey` changes, which is the point moving, the
+	 * radius moving, or the basemap becoming known. Nothing here is charged: a model
+	 * of the map is the map, looked at another way, and the map is free.
+	 *
+	 * A reading that is superseded before it lands is dropped. The reader picked another
+	 * cell, and geometry arriving late would stand under that cell's name.
+	 */
+	async loadArea(): Promise<void> {
+		const key = this.areaKey;
+		const from = this.reach;
+		const basemap = this.basemap;
+		if (!key || !from || !basemap) {
+			this.#areaKey = null;
+			return;
+		}
+		if (this.area?.key === key) return;
+		// On its way already. A failed one is allowed to be asked for again.
+		if (this.#areaKey === key && this.areaFailedKey !== key) return;
+		this.#areaKey = key;
+		this.areaFailedKey = null;
+		const radius = this.weights.radius;
+		try {
+			await this.loadRoutes();
+			const geometry = await this.#reader.read(basemap, from, radius, this.routes ?? [], key);
+			if (this.#areaKey !== key) return;
+			this.area = geometry;
+		} catch {
+			if (this.#areaKey === key) this.areaFailedKey = key;
+		}
+	}
+
+	/**
 	 * The selected cell as the GRID holds it.
 	 *
 	 * Not the same thing as `selected`, which is the scored row and stays null until
@@ -1044,6 +1171,67 @@ export class AppState {
 	hoursLoading = $derived.by(() => {
 		if (!this.selectedCell || this.openPlacesFailed) return false;
 		return this.openPlaces === null;
+	});
+
+	/**
+	 * The map's marks around the point, in metres, for the model to stand on the
+	 * basemap's geometry.
+	 *
+	 * Every list is the very set the map draws, `selectedStops`, `selectedPois` and the
+	 * rest, converted through the same `localMetres` the geometry is converted through,
+	 * so a stop stands on the model exactly where it stands on the map. Each follows its
+	 * layer switch for the same reason: a competitor the reader has switched off the map
+	 * must not go on standing in the model of it.
+	 */
+	areaMarks = $derived.by<AreaMarks | null>(() => {
+		const from = this.reach;
+		if (!from) return null;
+		const to = (p: { lat: number; lon: number }) => localMetres(p.lat, p.lon, from);
+		const layers = this.layers;
+		return {
+			boundary: (this.selectedCell?.boundary ?? []).map(([lon, lat]) => localMetres(lat, lon, from)),
+			stops: layers.stops ? this.selectedStops.map((s) => ({ ...to(s), mode: s.mode })) : [],
+			rivals: layers.poi ? this.selectedPois.map(to) : [],
+			units: layers.property ? this.selectedListings.filter((l) => l.premises).map(to) : [],
+			field: layers.field
+				? this.selectedField.map((r) => ({ ...to(r), rent: r.offer === 'sewa' }))
+				: [],
+			doors: this.selectedOpen.map((p) => ({ ...to(p), week: p.week }))
+		};
+	});
+
+	/**
+	 * What the area model would be a model OF right now: the point the range is
+	 * measured from, at the current radius, on the basemap on screen. Null until all
+	 * three are known.
+	 */
+	areaKey = $derived.by(() => {
+		const from = this.reach;
+		const basemap = this.basemap;
+		return from && basemap ? areaKeyOf(from, this.weights.radius, basemap) : null;
+	});
+
+	/** The geometry for THIS point, or nothing. The previous cell's reading is still in
+	    `area` while the next one loads, and a model of the wrong place is worse than a
+	    model still on its way. */
+	areaReady = $derived(this.area && this.area.key === this.areaKey ? this.area : null);
+
+	/** The reading for this point failed. */
+	areaFailed = $derived(this.areaFailedKey !== null && this.areaFailedKey === this.areaKey);
+
+	/**
+	 * Which of four things the model is showing, for the mark on it to say.
+	 *
+	 * `none` is a basemap with no geometry to read, `failed` is a read that did not
+	 * come back, `reading` is everything before the geometry lands, including a map
+	 * whose source is not known yet. One derivation rather than four flags, so the card
+	 * and the full-screen model cannot come to say different things about one read.
+	 */
+	areaStatus = $derived.by<'ready' | 'reading' | 'failed' | 'none'>(() => {
+		if (this.basemapNone) return 'none';
+		if (this.areaReady) return 'ready';
+		if (this.areaFailed) return 'failed';
+		return 'reading';
 	});
 
 	/**

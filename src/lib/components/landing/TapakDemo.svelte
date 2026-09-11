@@ -287,8 +287,8 @@
 		overflow: hidden;
 		/* Old turns pushed off the top are faded rather than cut flat — a straight cut
 		   through the middle of a sentence reads as broken layout. */
-		mask-image: linear-gradient(to bottom, transparent 0, #000 2.75rem);
 		-webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 2.75rem);
+		mask-image: linear-gradient(to bottom, transparent 0, #000 2.75rem);
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end;
