@@ -243,7 +243,7 @@ export const id = {
 		title: 'Setiap kawasan bisa dilihat sebagai maket.',
 		lead: 'Bangunan, jalan, dan haltenya diambil dari peta dasar yang sama, dipotong seradius jalan kaki, dan bisa diputar. Tiap bangunan berdiri setinggi yang tercatat di petanya.',
 		caption: (nama: string, n: number) =>
-			`${nama}, petak paling ramai di kisi: ${n} usaha dalam radius jalan kaki. Cahayanya mengikuti jam Jakarta saat halaman ini dibuka.`,
+			`${nama}: ${n} usaha dalam radius jalan kaki dari titik tengahnya. Cahayanya mengikuti jam Jakarta saat halaman ini dibuka.`,
 		hint: 'Tarik untuk memutar',
 		label: (nama: string) =>
 			`Maket kawasan ${nama}, dibangun dari peta dasar, berputar perlahan.`
