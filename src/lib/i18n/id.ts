@@ -1201,6 +1201,13 @@ export const id = {
 		   sisanya diketik sendiri, dan yang membaca kalimatnya lapisan pemahaman,
 		   bukan daftar frasa di sini. */
 		why: (name: string) => `Kenapa ${name}?`,
+		/* Jalan dari kartu kawasan ke percakapan, soal kawasan yang ada di kartu itu.
+		   Tombol, bukan menu: yang dibukanya kolom pertanyaan, yang menerima apa saja,
+		   dan nama kawasannya dimasukkan ke percakapan supaya apa pun yang diketik
+		   berikutnya dibaca sebagai pertanyaan soal kawasan itu. */
+		askAbout: 'Tanya Tapak soal kawasan ini',
+		aboutPlace: (name: string) => `${name}, ya. Mau tahu apa soal kawasan itu?`,
+		askAboutPlaceholder: (name: string) => `Tanya apa saja soal ${name}…`,
 		retry: 'Coba lagi',
 		/* Diucapkan Tapak sendiri di dalam percakapannya, terpisah dari pemberitahuan yang
 		   muncul di atas peta. Pertanyaannya memang tidak pernah dikirim, jadi giliran itu
