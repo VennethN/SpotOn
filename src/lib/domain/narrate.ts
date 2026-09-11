@@ -65,7 +65,11 @@ export function narrate(ans: AiAnswer, c: Copy): string {
 	const n$ = c.narrate;
 	// The model admits it did not understand. Tapak admits it too, rather than
 	// inventing an answer to a question it does not grasp — this is where trust is kept.
-	if (ans.notUnderstood) return n$.notUnderstood(ans.notUnderstood);
+	if (ans.notUnderstood) {
+		// The model's own sentence, or the interface's when the rule parser could read
+		// nothing in the question and has no sentence of its own to quote.
+		return ans.notUnderstood === true ? n$.unclear : n$.notUnderstood(ans.notUnderstood);
+	}
 
 	// Small talk. The model's own sentence if it wrote one that survived the fence in
 	// `domain/chat`, and this interface's canned line for the topic if it did not — which

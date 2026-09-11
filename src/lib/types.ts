@@ -790,8 +790,16 @@ export interface AiAnswer {
 	query: StructuredQuery;
 	/** Who translated the question — the model, or the fallback rule parser. */
 	parsedBy?: 'model' | 'rules';
-	/** Filled in when the model admits it did not understand; there are no results to show. */
-	notUnderstood?: string;
+	/**
+	 * Filled in when the question was not understood. There are no results to show.
+	 *
+	 * The model's own sentence saying what it could not answer, or `true` from the rule
+	 * parser, which found nothing in the sentence it knows how to read and has no sentence
+	 * of its own to offer: the interface says so in its words, in the reader's language.
+	 * Either way nothing ran, because the alternative was running the default query and
+	 * handing back a confident ranking to "what".
+	 */
+	notUnderstood?: string | true;
 	/**
 	 * Filled in when the turn was small talk rather than a question about the data.
 	 *
