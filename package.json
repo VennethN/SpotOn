@@ -24,10 +24,12 @@
 		"vite": "^8.0.16"
 	},
 	"dependencies": {
+		"@mapbox/vector-tile": "^3.0.0",
 		"@types/three": "^0.185.4",
 		"h3-js": "^4.5.0",
 		"maplibre-gl": "^6.3.0",
 		"mongodb": "^7.5.0",
+		"pbf": "^5.1.2",
 		"three": "^0.185.1"
 	}
 }
