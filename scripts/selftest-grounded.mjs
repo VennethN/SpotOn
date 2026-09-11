@@ -230,6 +230,20 @@ check('"out of 100" is not an ungrounded figure', ok('Tosari scores 68 out of 10
 	const ans = nlq.answer(`kenapa ${top}`, cells, W, ['laundry'], [top]);
 	const facts = grounded.factSheet(ans);
 	check('an explanation produces a fact sheet with its own figures in it', ans.explain != null && facts.includes(top));
+	/* The standing is on the sheet, so a reply saying "higher than 78% of areas" is
+	   quoting a figure the model was handed. The top cell says it in words with no figure,
+	   which is why the second check reads a cell from the middle of the ladder. */
+	check('the sheet says where the score stands', facts.includes('petak yang punya angka ini'));
+	const mid = nlq.answer('di mana sebaiknya buka laundry', cells, W, ['laundry']).items[4]?.name;
+	const midAns = mid ? nlq.answer(`kenapa ${mid}`, cells, W, ['laundry'], [mid]) : null;
+	const midFacts = midAns ? grounded.factSheet(midAns) : '';
+	check(
+		'a standing from the middle of the ladder is a figure on the sheet and in the sentence',
+		midAns !== null &&
+			/Lebih tinggi dari \d+% petak/.test(midFacts) &&
+			grounded.ungroundedFigures(narrate.narrate(midAns, i18n.DICT.en), grounded.allowedFigures(midFacts)).length === 0,
+		`sheet: ${midFacts.split('\n').find((l) => l.includes('Skor peluang'))}`
+	);
 	for (const [lang, dict] of [['id', i18n.DICT.id], ['en', i18n.DICT.en]]) {
 		const composed = narrate.narrate(ans, dict);
 		const bad = grounded.ungroundedFigures(composed, grounded.allowedFigures(facts));

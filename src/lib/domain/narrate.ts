@@ -1,6 +1,6 @@
 import type { Copy } from '$lib/i18n';
 import { formatHour, pct } from '$lib/utils/format';
-import { METRIC_MAP } from './metrics';
+import { METRIC_MAP, standingShare } from './metrics';
 import { DEFAULT_WEIGHTS } from './weights';
 import type {
 	AiAnswer,
@@ -29,6 +29,29 @@ export function metricValue(m: NonNullable<Recommendation['measure']>, c: Copy):
 
 /** What a measure is called, for saying which figure an answer is about. */
 export const metricName = (k: MetricKey, c: Copy): string => c.query.metrics[k] ?? k;
+
+/**
+ * Where a figure sits on the grid, as the fragment every surface says it with.
+ *
+ * ONE PHRASE, said in six places: under the score on the area card, under each index
+ * on the score panel, beside the access index, in the map's hover readout, in Tapak's
+ * remark when a cell is picked, and in the explanation of one place. "Busyness 65"
+ * means nothing until it is set against the rest of the grid, and every one of those
+ * surfaces prints an index, so every one of them carries this. Written once so they
+ * cannot come to say it differently.
+ *
+ * Empty when there is no standing to speak of, which every caller has to be able to
+ * leave out whole: a cell nobody scored, or too few readings to rank against. The two
+ * exact ends and the bottom hundredth have their own words, because "higher than 100%"
+ * is false and "higher than 0%" is useless.
+ */
+export function standingPhrase(level: number | null, c: Copy): string {
+	if (level === null) return '';
+	if (level === 1) return c.mood.standingHighest;
+	if (level === 0) return c.mood.standingLowest;
+	const share = standingShare(level);
+	return share === 0 ? c.mood.standingNearLowest : c.mood.standing(share);
+}
 
 /**
  * The business types an answer covers, written as one phrase in the reader's language.
@@ -174,18 +197,25 @@ function explainSentence(e: Explanation, cat: string, c: Copy): string {
 		const name = metricName(e.measure.ukuran, c);
 		if (e.measure.value === null) return n$.measureNone(e.name, name);
 		const parts = [n$.measure(e.name, name, metricValue({ ...e.measure, value: e.measure.value }, c))];
-		/* Where it sits among the others, which is what "is that cheap" actually asks.
-		   Only for the price, because it is the only measure this row carries a position
-		   on the grid for, and a position invented for the rest would be one. */
-		if (e.measure.ukuran === 'harga_tempat' && e.priceLevel !== null) {
-			parts.push(n$.priceRank(Math.round(e.priceLevel * 100)));
-			parts.push(n$.priceIsSale);
+		/* Where it sits among the others, which is what "is that busy" or "is that many"
+		   actually asks. The price says it in its own words, and says what kind of price
+		   it is, so it is left out of the general phrase rather than said twice. */
+		if (e.measure.ukuran === 'harga_tempat') {
+			if (e.priceLevel !== null) {
+				parts.push(n$.priceRank(Math.round(e.priceLevel * 100)));
+				parts.push(n$.priceIsSale);
+			}
+		} else if (e.standing.measure !== null) {
+			parts.push(n$.standing(standingPhrase(e.standing.measure, c)));
 		}
 		parts.push(n$.scoreAside(pct(e.score), cat));
 		return parts.join(' ');
 	}
 
 	const parts = [n$.lead(e.name, cat, pct(e.score))];
+	// The score against the grid, before the parts it is made of: "is that good" is the
+	// question the score raises, and the parts explain the figure, not its standing.
+	if (e.standing.score !== null) parts.push(n$.standing(standingPhrase(e.standing.score, c)));
 	parts.push(n$.crowd(e.density, e.radius, pct(e.demand)));
 	parts.push(
 		e.rivals === 0 ? n$.rivalsNone(cat) : n$.rivals(e.rivals, cat, pct(e.supply))

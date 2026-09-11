@@ -23,11 +23,11 @@
 	import Fineprint from '$lib/components/ui/Fineprint.svelte';
 	import ScoreBreakdown from '$lib/components/app/ScoreBreakdown.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
-	import { ladderFor, standingOf } from '$lib/domain/metrics';
+	import { standingOf } from '$lib/domain/metrics';
+	import { standingPhrase } from '$lib/domain/narrate';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
 	import { pct } from '$lib/utils/format';
-	import type { MetricKey } from '$lib/types';
 
 	const app = getAppState();
 	const c = $derived(copy());
@@ -46,34 +46,12 @@
 	 * among every area that has one, the way the price already does on its own panel,
 	 * and the counts are left to speak for themselves.
 	 *
-	 * The ladders are cut from the same scored rows the map is painted from, for the
-	 * business type and walking range in force, and recut only when those change.
+	 * The ladders are the app's own, cut from the same scored rows the map is painted
+	 * from, and the phrase is `standingPhrase`, which every other surface that prints an
+	 * index says it with too.
 	 */
-	const ladders = $derived({
-		skor: ladderFor(app.rows, 'skor'),
-		permintaan: ladderFor(app.rows, 'permintaan'),
-		penawaran: ladderFor(app.rows, 'penawaran'),
-		akses_transit: ladderFor(app.rows, 'akses_transit')
-	});
-
-	/**
-	 * The comparator under one index, or nothing when there is too little to rank against.
-	 *
-	 * FLOORED, never rounded. "Higher than N% of areas" is a claim, and the claim has to
-	 * be true: the second-highest cell of 462 stands at 0.998, and rounded that reads
-	 * "higher than 100% of areas", which it is not. Floored it reads 99, which it is. The
-	 * two exact ends get their own words, and the bottom hundredth, which floors to a
-	 * "higher than 0%" that is true and useless, says what it is instead.
-	 */
-	function standing(key: keyof typeof ladders & MetricKey): string {
-		if (!row) return '';
-		const level = standingOf(row, key, ladders[key]);
-		if (level === null) return '';
-		if (level === 0) return c.mood.standingLowest;
-		if (level === 1) return c.mood.standingHighest;
-		const share = Math.floor(level * 100);
-		return share === 0 ? c.mood.standingNearLowest : c.mood.standing(share);
-	}
+	const standing = (key: keyof typeof app.ladders): string =>
+		row ? standingPhrase(standingOf(row, key, app.ladders[key]), c) : '';
 </script>
 
 {#if row}
