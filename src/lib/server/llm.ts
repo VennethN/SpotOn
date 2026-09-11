@@ -325,7 +325,13 @@ intent:
 - FLAG_SATURATED — "mana yang sudah jenuh/penuh", "mana yang harus dihindari".
 - COMPARE — membandingkan dua kawasan yang disebut namanya.
 - COVERAGE — "mana yang belum ada datanya", pertanyaan soal cakupan data.
-- EXPLAIN — merinci SATU kawasan yang sudah ada di layar: "kenapa yang itu", "kenapa Setiabudi Astra", "jelaskan kawasan tadi", "kok bisa segitu". Isi target dengan nama kawasannya. Kalau penggunanya cuma menunjuk ("kenapa itu", "yang pertama kenapa"), ambil namanya dari percakapan di atas lalu tulis di target.
+- EXPLAIN — menjawab soal SATU kawasan yang namanya disebut atau ditunjuk, bukan memeringkat kisi. Isi target dengan nama kawasannya, dan kalau penggunanya cuma menunjuk ("kenapa itu", "yang pertama kenapa"), ambil namanya dari percakapan di atas.
+  PENTING: EXPLAIN JUGA PUNYA ukuran, persis seperti RANK. Isi ukuran dengan yang benar-benar ditanyakan tentang kawasan itu.
+  - "kenapa yang itu" / "kenapa Setiabudi Astra" → ukuran skor
+  - "berapa harga tempat di Pusdiklat BPS" / "what is the rent at Pusdiklat BPS" / "di situ mahal tidak" → ukuran harga_tempat
+  - "seberapa ramai Tosari" → ukuran keramaian
+  - "ada berapa pesaing di Blok M" → ukuran pesaing
+  Menyebut nama satu kawasan sudah cukup untuk EXPLAIN. TIDAK perlu ada kata "kenapa". Yang membedakannya dari RANK cuma satu: RANK meminta daftar dari seluruh kisi, EXPLAIN menanyakan satu tempat yang sudah disebut.
 
 ukuran: pilih dari daftar di atas sesuai apa yang benar-benar ditanyakan.
 - "di mana sebaiknya buka kedai kopi" → skor
@@ -396,7 +402,7 @@ const TOOLS = [
 						type: 'string',
 						enum: ['RANK', 'FLAG_SATURATED', 'COMPARE', 'COVERAGE', 'EXPLAIN'],
 						description:
-							'Jenis pertanyaan. EXPLAIN untuk pertanyaan lanjutan soal SATU kawasan yang sudah disebut, misalnya "kenapa yang itu".'
+							'Jenis pertanyaan. EXPLAIN untuk pertanyaan soal SATU kawasan yang namanya disebut atau ditunjuk, misalnya "kenapa yang itu" atau "berapa harga tempat di Pusdiklat BPS". EXPLAIN tetap perlu ukuran: isi dengan yang ditanyakan tentang kawasan itu.'
 					},
 					kategori: {
 						type: 'array',
@@ -407,7 +413,7 @@ const TOOLS = [
 					ukuran: {
 						type: 'string',
 						enum: METRIC_KEYS,
-						description: `Ukuran yang ditanyakan. ${METRIC_KEYS.map((k) => `${k} = ${METRIC_HELP[k]}`).join(' ')}`
+						description: `Ukuran yang ditanyakan. Dipakai untuk RANK maupun EXPLAIN. ${METRIC_KEYS.map((k) => `${k} = ${METRIC_HELP[k]}`).join(' ')}`
 					},
 					urut: {
 						type: 'string',
@@ -823,7 +829,12 @@ export async function parseWithLLM(
 								? 'rincian skor satu catchment'
 								: `peringkat menurut ${ukuran}`,
 			kategori,
-			ukuran: intent === 'RANK' ? ukuran : DEFAULT_METRIC,
+			/* Kept on an EXPLAIN as well as on a RANK, because an explanation is an
+			   explanation OF something. Thrown away here, a model that correctly read
+			   "what is the rent at Pusdiklat BPS" as one place and one measure had the
+			   measure overwritten with the opportunity score on the way past, and the
+			   reader got a score breakdown to a question about money. */
+			ukuran: intent === 'RANK' || intent === 'EXPLAIN' ? ukuran : DEFAULT_METRIC,
 			radius_m: radius,
 			urut: intent === 'COVERAGE' ? 'asc' : intent === 'RANK' ? urut : 'desc',
 			limit: intent === 'COMPARE' ? 2 : intent === 'EXPLAIN' ? 1 : intent === 'COVERAGE' ? 99 : 5
