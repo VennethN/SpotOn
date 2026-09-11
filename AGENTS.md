@@ -304,6 +304,70 @@ One door is closed the moment a database appears: `signInDemo` refuses outright 
 `hasDatabase()` is true. It only exists because there is nothing behind it to protect, and
 it must not survive the moment there is.
 
+## Getting in and getting out are reported, and the account is findable
+
+Both doors used to go quiet when they were pressed. Signing in swapped the button's
+label for "one moment" and then sat there for as long as the whole trip took. Signing
+out did not even do that. Neither is one wait, and that is why one label could not
+cover either of them.
+
+**On the way in there are two waits, and only the first is short.** The address and
+the password go out and come back in a moment. Then the browser navigates, the layout's
+server load runs again for a request that finally carries a cookie, and the map fetches
+the base grid before it can paint one cell. So the two are named separately, `checking`
+and then the destination being opened, each read off where the work actually is. Neither
+is a percentage and neither runs on a timer, which is the rule `POST /api/ai/query`
+already follows for its own stages, and for the same reason: nothing here could honestly
+be a percentage, since the grid either has arrived or has not.
+
+**On the way out the same two things happen and neither used to show anything.** The
+request clears the session, then the landing page loads over the top. One plain surface
+carries the whole of it.
+
+**Tapak is the waiting state, in all of them.** A spinner says the machine is busy and a
+figure pacing says somebody is looking it up, which is the argument `TapakPanel` already
+settled on the map. It is also the figure standing beside the account's own name on the
+account page, so the thing met at the door is the thing that greets you inside. Do not
+introduce a second waiting mark.
+
+### The destination is drawn before it arrives
+
+`ui/RouteSkeleton` draws the outline of the page being navigated TO, because the page
+being navigated FROM is still the one on screen and a client-side navigation leaves it
+there, motionless, for as long as the load takes. Two destinations get one: `/app`,
+which fetches the grid, and `/account`, which reads that grid on the server and projects
+all 562 catchments. Nothing else does, because nothing else is slow enough to need one.
+
+It is held back briefly before it appears. A navigation that resolves in eighty
+milliseconds is not a wait, and flashing an outline is worse than the instant somebody
+would otherwise have had. That hold is the one timer in any of this and it decides only
+whether to speak, never what to say.
+
+**A placeholder is uniform, and that is the same rule the decorations are held to.**
+`ui/Skeleton` is one flat fill at one weight with no part of it darker than another. A
+placeholder carrying a partial fill would be a figure nobody has measured, drawn with
+the very mark this product spends on a real balance two clicks away. One mark, one
+meaning, and a track with a fill in it means what is left of an allowance. Sizes are
+given by the caller, always, because only the caller knows what is coming: a placeholder
+of the wrong size moves the page twice.
+
+### The account has to be reachable from where the reader is
+
+There was one route to it in the whole application and it was a pair of digits in the
+map chrome. Both figures were right and neither said whose they were.
+
+- **On the map**, `AccountChip` keeps the two figures and now says whose they are: Tapak
+  at the head of it, and the hairline and fill the language toggle beside it wears, so it
+  reads as a control rather than as part of the map's own readout. Tapak rather than an
+  initial in a circle, for the reason the account page already gives.
+- **On the landing page**, `landing/NavAccount`. That page is prerendered, so it is
+  rendered by a build with no reader in front of it and `locals.account` is null for
+  everybody. Asking in the browser is the only way it can know, and until the answer
+  lands the bar holds a placeholder rather than guessing signed out and correcting itself
+  in front of somebody who is signed in. Signed out is also what a dropped request draws,
+  since `GET /api/account` answers "nobody" with a 200 precisely so that being signed out
+  is a state to draw rather than an error to report.
+
 ## Regenerating the data
 
 Every data file says how to rebuild it, in a `regenerate` field in its own

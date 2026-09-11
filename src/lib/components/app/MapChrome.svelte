@@ -89,4 +89,17 @@
 		height: 1rem;
 		background: var(--separator);
 	}
+
+	/* On the narrowest phones the two pills reach for the same pixels, and the account
+	   chip grew when it stopped being a bare pair of digits. The word goes and the mark
+	   stays: the brand is a way back to the front page and it is recognised by its mark,
+	   while the chip carries two figures and a face that cannot be shortened. */
+	@media (max-width: 24rem) {
+		.brand {
+			padding: 0.375rem 0.5rem;
+		}
+		.name {
+			display: none;
+		}
+	}
 </style>
