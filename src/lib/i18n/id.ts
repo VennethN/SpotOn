@@ -1487,6 +1487,16 @@ export const id = {
 			analysis:
 				'Petak dan unit belum bisa dibuka lagi sampai kuotanya terisi atau paketnya dinaikkan.'
 		},
+		/* ── keluar ────────────────────────────────────────────────────────────────
+		   Tombolnya dulu berdiri sendirian di kaki halaman tanpa satu kalimat pun soal
+		   apa yang hilang kalau ditekan. Yang hilang cuma sesinya, dan itu perlu
+		   dikatakan, karena satu-satunya tombol di halaman ini yang mengakhiri sesuatu
+		   pantas menyebut apa yang diakhirinya. */
+		sessionTitle: 'Sesi',
+		signOutNote:
+			'Keluar cuma menutup sesi di peramban ini. Akun, paket, dan sisa kuotanya tetap seperti sekarang.',
+		signingOut: 'Menutup sesi Anda',
+
 		signedOut: 'Sesi Anda sudah berakhir',
 		signedOutNote: 'Masuk lagi untuk melanjutkan. Yang sudah ada di layar tetap bisa dibaca.',
 		seePlans: 'Lihat paket',
