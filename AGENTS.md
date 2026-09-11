@@ -1181,16 +1181,23 @@ the RATE eases, never the angle. In from rest, out to rest, and down from a thro
 exponential approach, which is what an ease in and an ease out are when the thing easing
 is a speed. The card's thumbnail does not turn, because a thumbnail is not a room.
 
-The landing page shows the same model of one catchment in the business district, chosen
-by name in `+page.server` for its towers, because a height read off a tile is only
-visible where there are heights and the busiest cell is a kampung, which at the size of a
-whole disc is a texture. It stands whole, as the round object it is, with the point the
-range is measured from marked at its centre as in the app, turning on its own while it is
-in view and easing to rest when it is not. A hand on it wins, and the drift comes back when the hand lets go. It reads the
-basemap the PUBLIC configuration allows, MAPID's with a public key and the open one
-otherwise, because the Map Service key the app is handed on sign-in is not baked into a
-static page. `state/area` is the reader both of them fetch tiles through, kept out of
-`AppState` for exactly that second caller.
+The landing page shows the same model of a few catchments, one at a time, paged with a
+pair of arrows. They are chosen by name in `+page.server`, and the one that opens is in
+the business district, for its towers: a height read off a tile is only visible where
+there are heights, and the busiest cell is a kampung, which at the size of a whole disc
+is a texture. The rest are parts of the city that look nothing like it or each other. Each
+stands whole, as the round object it is, with the point the range is measured from marked
+at its centre as in the app, turning on its own while it is in view and easing to rest
+when it is not. A hand on it wins, and the drift comes back when the hand lets go. Paging
+does not stop the turn: the next place arrives already turning, and each is read once
+and kept, with the one after it read in the background. The only words on it are the
+place's name, at the top left, and the arrow labels a screen reader hears. The mark the
+app's model wears saying where it came from is not on the front page's: the section's
+lead has already said so, and a sentence on the object would be read instead of it. It
+reads the basemap the PUBLIC configuration allows, MAPID's with a public key and the open
+one otherwise, because the Map Service key the app is handed on sign-in is not baked
+into a static page. `state/area` is the reader both of them fetch tiles through, kept
+out of `AppState` for exactly that second caller.
 
 The card's model runs on JAKARTA'S clock, not the reader's. It ran on the reader's own
 hour when all the hour lit was the sky, which was a fact about them. Now the lit doors on
