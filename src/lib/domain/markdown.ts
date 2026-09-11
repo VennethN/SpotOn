@@ -3,12 +3,13 @@
  *
  * WHAT NEEDS PARSING AT ALL
  *
- * Almost every sentence Tapak says is composed here, from `i18n`, out of figures the
- * scoring engine computed. Those sentences are plain text and always will be. Two
- * strings in the whole product are written by the model: the casual reply (`balasan`)
- * and the reason it did not understand (`alasan`). A model asked for one friendly
- * sentence returns markdown whether or not anybody asked it to, so the reader was
- * seeing literal asterisks around the words the model meant to stress.
+ * Every sentence Tapak can fall back on is composed here, from `i18n`, out of figures the
+ * scoring engine computed, and those are plain text and always will be. Three kinds of
+ * string are written by the model instead: the casual reply (`balasan`), the reason it
+ * did not understand (`alasan`), and the answer itself when one clears the fence in
+ * `domain/grounded`. A model asked for a sentence returns markdown whether or not
+ * anybody asked it to, so the reader was seeing literal asterisks around the words the
+ * model meant to stress.
  *
  * WHY A SUBSET, WRITTEN OUT
  *

@@ -65,8 +65,9 @@ export interface Turn {
 	/**
 	 * The text is arriving in pieces and is not final.
 	 *
-	 * True only for the casual reply, which is the one sentence in the product the model
-	 * writes. It is a PREVIEW: the sentence in the finished answer replaces it, and it
+	 * True only for the casual reply, which is the one sentence the model writes with
+	 * nothing computed behind it. The answer's own sentence is written by the model too and
+	 * arrives whole, because it is made of figures and no figure is ever streamed. It is a PREVIEW: the sentence in the finished answer replaces it, and it
 	 * can be taken away entirely if it fails `domain/chat`'s fence.
 	 */
 	streaming?: boolean;
