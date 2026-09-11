@@ -1,4 +1,4 @@
-import { cleanGroundedReply, factSheet, REPLY_MAX_CHARS } from '$lib/domain/grounded';
+import { cleanGroundedReply, factSheet, groundingFault } from '$lib/domain/grounded';
 import { completeText } from '$lib/server/llm';
 import type { AiAnswer, ChatTurn } from '$lib/types';
 
@@ -44,9 +44,26 @@ import type { AiAnswer, ChatTurn } from '$lib/types';
  * By the time this runs there is already a complete answer in hand and a sentence ready
  * to say it. So the wait here buys phrasing, not information, and a reader must not spend
  * another ninety seconds on it. Time out, and the composed sentence is what they get.
+ *
+ * It was fifteen seconds an attempt and thirty in all, and that is the same mistake the
+ * understanding pass made before it: a free model that is queued answers at second
+ * fourteen or second twenty, and cutting it off at fifteen threw away replies that were
+ * about to land. The symptom was the template standing in on nearly every answer, and
+ * the reader had no way to know a reply had ever been written.
  */
-const WRITE_MS = 30_000;
-const WRITE_ATTEMPT_MS = 15_000;
+const WRITE_MS = 60_000;
+const WRITE_ATTEMPT_MS = 30_000;
+
+/**
+ * Room for the reply, and for the thinking some models do before it.
+ *
+ * Half the fence's length in tokens used to be the cap, on the reasoning that four short
+ * sentences never need more. Several of the free models reason before they answer, and
+ * on OpenRouter that reasoning is spent from the same allowance: a model given room for
+ * the answer alone thinks its way through the allowance and returns nothing at all. The
+ * same figure the understanding pass uses, for the same reason it settled on it.
+ */
+const WRITE_TOKENS = 1024;
 
 const SYSTEM = `Kamu Tapak, pemandu di dalam SpotOn, peta data lokasi usaha di kawasan stasiun transit Jakarta.
 
@@ -59,7 +76,8 @@ ATURAN, DAN INI KERAS:
 - Kalau faktanya tidak bisa menjawab yang ditanya, katakan begitu. Itu jawaban yang sah di sini, dan lebih berguna daripada tebakan yang enak dibaca.
 - Kalau yang ditanya soal SEWA, faktanya harga JUAL, dan itu harus dikatakan terus terang. Tidak ada data sewa untuk Jakarta di katalognya, dan sewa TIDAK BOLEH diperkirakan dari harga jual.
 - JANGAN membacakan ulang seluruh daftar peringkatnya. Daftarnya sudah tampil di layar tepat di bawah kalimatmu. Jawab pertanyaannya, sebut yang perlu disebut saja.
-- Maksimal empat kalimat pendek. Bicara seperti orang yang sudah keliling kawasannya, bukan seperti laporan.
+- Kalau yang ditanya ARTI angkanya ("skornya maksudnya apa", "dari seratus itu apa", "ramai itu bagus atau tidak"), jelaskan apa yang diukur tiap angka dan ke arah mana yang bagus, dengan angka dari fakta. Keramaian menghitung usaha lain di sekitar, dan lebih banyak berarti lebih ramai. Penawaran menghitung pesaing sejenis, dan lebih sedikit berarti celahnya lebih lebar. Skor peluang menggabungkan keduanya dengan harga tempat.
+- Maksimal lima kalimat pendek. Bicara seperti orang yang sudah keliling kawasannya, bukan seperti laporan.
 - Jangan menyapa ulang, jangan memperkenalkan diri, jangan menawarkan bantuan lain di akhir.`;
 
 const LANG_RULE: Record<string, string> = {
@@ -68,7 +86,26 @@ const LANG_RULE: Record<string, string> = {
 };
 
 /**
+ * What the writing pass came back with.
+ *
+ * Exactly one of the two is set. A reply that cleared the fence is `text`; one that broke
+ * it is `fault`, in the words `groundingFault` uses, so the answer can say WHY the plainer
+ * sentence is standing in rather than leaving the reader to wonder why Tapak sounds like
+ * a form again.
+ */
+export interface Written {
+	text: string | null;
+	fault: string | null;
+}
+
+/**
  * Writes one answer, or returns null and lets the interface compose its own.
+ *
+ * Null means no reply came back at all: no key, every model busy, or the budget spent. A
+ * reply that came back and was refused is returned WITH its reason, which is the one
+ * distinction worth making here. Both end in the composed sentence, but a model that is
+ * away is a condition and a model whose every reply is being thrown away is a bug, and
+ * from the reader's side the two look identical.
  *
  * `everyName` is every catchment name on the grid, which is what makes the name rule
  * answerable rather than merely worrying: the set is closed at 562, so a reply can be
@@ -81,7 +118,7 @@ export async function writeReply(
 	history: readonly ChatTurn[],
 	everyName: readonly string[],
 	lang: string
-): Promise<string | null> {
+): Promise<Written | null> {
 	/* Nothing to write from. A turn that computed nothing is either small talk, which has
 	   its own fence and its own sentence, or a refusal, which the model already wrote. */
 	if (!answer.items.length && !answer.explain) return null;
@@ -105,18 +142,22 @@ export async function writeReply(
 		],
 		WRITE_MS,
 		WRITE_ATTEMPT_MS,
-		// Four short sentences. Room to finish one rather than room to write an essay:
-		// a reply that runs past the fence's length is thrown away either way.
-		Math.ceil(REPLY_MAX_CHARS / 2)
+		WRITE_TOKENS
 	);
+	if (!raw) return null;
 
 	const named = [
 		...(answer.explain ? [answer.explain.name] : []),
 		...answer.items.map((i) => i.name)
 	];
 	const clean = cleanGroundedReply(raw, facts, named, everyName);
-	if (raw && !clean) {
-		console.error('[SpotOn] A written reply broke the grounding fence and was dropped.');
-	}
-	return clean;
+	if (clean) return { text: clean, fault: null };
+
+	const fault = groundingFault(raw, facts, named, everyName) ?? 'tidak lolos pagar';
+	// The reply itself goes in the log too, cut short, because the reason alone does not
+	// say whether the fence or the model is at fault, and the sentence does.
+	console.error(
+		`[SpotOn] A written reply broke the grounding fence and was dropped (${fault}): ${raw.trim().slice(0, 240)}`
+	);
+	return { text: null, fault };
 }
