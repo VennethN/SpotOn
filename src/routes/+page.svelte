@@ -4,6 +4,7 @@
 	import DensityProfile from '$lib/components/landing/DensityProfile.svelte';
 	import LandingNav from '$lib/components/landing/LandingNav.svelte';
 	import Marquee from '$lib/components/landing/Marquee.svelte';
+	import ModelStage from '$lib/components/landing/ModelStage.svelte';
 	import SectionMark from '$lib/components/landing/SectionMark.svelte';
 	import StreetStage from '$lib/components/landing/StreetStage.svelte';
 	import QueryMap from '$lib/components/landing/QueryMap.svelte';
@@ -208,12 +209,34 @@
 
 	</section>
 
+	<!-- ── the place itself ─────────────────────────────────────────────── -->
+	<section id="maket" class="band">
+		<Reveal distance={16}>
+			<header class="head">
+				<div>
+					<SectionMark n="04" label={c.model.mark} />
+					<h2>{c.model.title}</h2>
+				</div>
+				<p class="lead">{c.model.lead}</p>
+			</header>
+		</Reveal>
+
+		<!-- The one object on this page that is a real place rather than a composition:
+		     the busiest catchment, the cell the top of the page counts, read off the
+		     basemap in the browser and turned slowly while it is in view. -->
+		<Reveal distance={14}>
+			<div class="panel model">
+				<ModelStage cell={data.stage} radius={k.walkRadius} />
+			</div>
+		</Reveal>
+	</section>
+
 	<!-- ── AI ───────────────────────────────────────────────────────────── -->
 	<section id="ai" class="band">
 		<Reveal distance={16}>
 			<header class="head">
 				<div>
-					<SectionMark n="04" label={c.ai.mark} />
+					<SectionMark n="05" label={c.ai.mark} />
 					<h2>{c.ai.title}</h2>
 				</div>
 				<p class="lead">{c.ai.p1}</p>
@@ -276,7 +299,7 @@
 			     itself conspicuously empty. -->
 			<header class="head solo">
 				<div>
-					<SectionMark n="05" label={c.audience.mark} />
+					<SectionMark n="06" label={c.audience.mark} />
 					<h2>{c.audience.title}</h2>
 				</div>
 			</header>

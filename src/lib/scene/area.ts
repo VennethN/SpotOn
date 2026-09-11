@@ -47,6 +47,8 @@ export interface AreaState {
 	day: number;
 	/** 0..1, position along the camera track: the whole disc, closing in on the centre. */
 	cameraT: number;
+	/** Radians the camera has been turned around the point, by hand or on its own. */
+	spin: number;
 	/** The catalogue has never read this cell's city: the ground is hatched. */
 	nodata: boolean;
 	/** The walking radius, in metres. The disc is this big. */
@@ -75,6 +77,7 @@ const DEFAULT_STATE: AreaState = {
 	hour: 12,
 	day: 0,
 	cameraT: 0,
+	spin: 0,
 	nodata: false,
 	radius: 800,
 	geometry: null,
@@ -1049,11 +1052,12 @@ export class AreaWorld {
 	#marksOf: { stops: AreaStop[]; rivals: LocalPoint[]; units: LocalPoint[]; field: AreaFieldMark[] } | null =
 		null;
 
-	/** Which way the camera stands, so the marks can turn to face it. */
+	/** Which way the camera stands, so the marks can turn to face it. The track turns
+	    it a little as it closes in, and the reader turns it as far as they like. */
 	#cameraYaw(): number {
 		const t = Math.max(0, Math.min(1, this.#state.cameraT));
 		const e = t * t * (3 - 2 * t);
-		return 0.42 - e * 0.12;
+		return 0.42 - e * 0.12 + this.#state.spin;
 	}
 
 	#updateCamera(): void {
@@ -1061,9 +1065,9 @@ export class AreaWorld {
 		const e = t * t * (3 - 2 * t);
 		const R = this.#state.radius;
 
-		// Above and to the south-east, so north is up as it is on the map. A short
-		// orbit only: the angle turns a little as it closes in, and a drastically
-		// changing angle would wreck the reading of the plan.
+		// Above and to the south-east, so north is up as it is on the map, until the
+		// reader turns it: the sun stays where it is in the world, so turning the model
+		// turns the light on it the way turning a real one would.
 		const azim = this.#cameraYaw();
 		const elev = 0.64 - e * 0.1;
 		// On an orthographic camera distance does not change scale, but fog is
