@@ -1142,10 +1142,25 @@ Four rules hold it up, and they are the product's own rules applied to geometry:
   that carries no geometry at all. That last one is the raster fallback and nothing
   else. A blank disc never has to be interpreted.
 
+It is a MINIATURE, not a view. The disc stands on a base with a rim, a soft shadow
+under it, and nothing drawn outside it: the canvas is clear around the disc and the page
+shows through, so what stands on the page is a round object that can be turned, and
+never a window onto a sky. A block cut square was the first framing everywhere, with the
+hour's sky filling the rectangle behind it, and a block cut square is a picture of a
+city where a disc with an edge is a thing. There is no fog for the same reason. Fog is a
+claim about distance, and a model on a table is all at one distance. The framing is
+fitted to a BOX rather than to a width, and at the far end of the camera track the box
+is the whole miniature, base and shadow included, held whole on any screen shape: a
+phone at that end shows a smaller disc, never a cut one. The box is centred a little
+above the disc there, because a building only ever rises, so the room a miniature needs
+is above it and not below. The full-screen view lights the room for the hour, the sky's
+own two colours as a pool of light behind the object with no horizon in it. The card and
+the front page stand it on their own surface.
+
 The full-screen view OPENS CLOSE, on the block around the point, and steps out to the
-whole range on request. The whole disc was the first framing, and on a screen the whole
-disc is a texture: a house is four pixels, and a house is what the reader came in to
-see. The marks are sized in screen pixels for the same reason, placed again as the
+whole miniature on request. The whole disc was the first framing, and on a screen the
+whole disc is a texture: a house is four pixels, and a house is what the reader came in
+to see. The marks are sized in screen pixels for the same reason, placed again as the
 framing moves rather than rebuilt, so a stop is the same size at every distance.
 
 It can be TURNED. A drag across the full-screen model takes it round the point, one to
@@ -1156,9 +1171,12 @@ the RATE eases, never the angle. In from rest, out to rest, and down from a thro
 exponential approach, which is what an ease in and an ease out are when the thing easing
 is a speed. The card's thumbnail does not turn, because a thumbnail is not a room.
 
-The landing page shows the same model of the busiest catchment, the cell the top of the
-page already counts, turning on its own while it is in view and easing to rest when it is
-not. A hand on it wins, and the drift comes back when the hand lets go. It reads the
+The landing page shows the same model of one catchment in the business district, chosen
+by name in `+page.server` for its towers, because a height read off a tile is only
+visible where there are heights and the busiest cell is a kampung, which at the size of a
+whole disc is a texture. It stands whole, as the round object it is, with the point the
+range is measured from marked at its centre as in the app, turning on its own while it is
+in view and easing to rest when it is not. A hand on it wins, and the drift comes back when the hand lets go. It reads the
 basemap the PUBLIC configuration allows, MAPID's with a public key and the open one
 otherwise, because the Map Service key the app is handed on sign-in is not baked into a
 static page. `state/area` is the reader both of them fetch tiles through, kept out of
