@@ -236,15 +236,16 @@ export const id = {
 	},
 
 	/* ── kawasannya sendiri, sebagai maket ─────────────────────────────────
-	   Satu petak sungguhan di halaman depan, dibangun dari peta dasar seperti di
-	   dalam aplikasi, dan berputar pelan selama dilihat. Angkanya dari kisi. */
+	   Beberapa petak sungguhan di halaman depan, dibangun dari peta dasar seperti di
+	   dalam aplikasi, berputar pelan selama dilihat, dan diganti dengan panah. Tidak
+	   ada kalimat di atasnya selain nama petaknya: `prev` dan `next` hanya untuk
+	   pembaca layar. */
 	model: {
 		mark: 'Lihat kawasannya',
 		title: 'Setiap kawasan bisa dilihat sebagai maket.',
 		lead: 'Bangunan, jalan, dan haltenya diambil dari peta dasar yang sama, dipotong seradius jalan kaki, dan bisa diputar. Tiap bangunan berdiri setinggi yang tercatat di petanya.',
-		caption: (nama: string, n: number) =>
-			`${nama}: ${n} usaha dalam radius jalan kaki dari titik tengahnya. Cahayanya mengikuti jam Jakarta saat halaman ini dibuka.`,
-		hint: 'Tarik untuk memutar',
+		prev: 'Kawasan sebelumnya',
+		next: 'Kawasan berikutnya',
 		label: (nama: string) =>
 			`Maket kawasan ${nama}, dibangun dari peta dasar, berputar perlahan.`
 	},

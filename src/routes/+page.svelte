@@ -226,7 +226,7 @@
 		     turned slowly while it is in view. -->
 		<Reveal distance={14}>
 			<div class="panel model">
-				<ModelStage cell={data.showcase} radius={k.walkRadius} />
+				<ModelStage cells={data.showcase} radius={k.walkRadius} />
 			</div>
 		</Reveal>
 	</section>

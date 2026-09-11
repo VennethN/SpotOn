@@ -48,8 +48,9 @@ interface Script {
 
 const W = DEFAULT_WEIGHTS;
 
-/** The cell the front page models from the basemap. See `load` for why this one. */
-const SHOWCASE = 'Setiabudi Astra';
+/** The cells the front page models from the basemap, in the order its arrows go
+    through them. See `load` for why these. */
+const SHOWCASE = ['Setiabudi Astra', 'Blok M BCA', 'Glodok', 'Bendungan Hilir', 'Kuningan', 'Jakarta Kota'];
 
 export interface DemoSet {
 	id: string;
@@ -155,14 +156,25 @@ export const load: PageServerLoad = () => {
 	const busiest = scored.reduce((a, r) => (r.density > (a?.density ?? -1) ? r : a), scored[0]);
 	const topDensity = Math.max(1, ...scored.map((r) => r.density));
 
-	/* The cell modelled from the basemap further down. Chosen by name rather than by
+	/* The cells modelled from the basemap further down. Chosen by name rather than by
 	   count, and the reason is what the model shows: a building stands at the height the
 	   tile carries, and a height is only visible where there are heights. The busiest
 	   cell is a kampung, which at the size of a whole disc is a texture. Setiabudi is the
-	   business district, and its towers are what a reader can see the model doing. The
-	   figure beside it is still that cell's own count. Should the grid ever lose the
-	   cell, the busiest stands in rather than the page breaking. */
-	const shown = scored.find((r) => r.name === SHOWCASE) ?? busiest;
+	   business district, and its towers are what a reader can see the model doing, so it
+	   opens; the rest are parts of the city that look nothing like it or each other.
+	   A name the grid no longer carries is skipped, and should it lose all of them the
+	   busiest stands in rather than the page breaking. One cell per name: the grid names
+	   a cell after the nearest stop, and two cells can share one. */
+	const shown = SHOWCASE.flatMap((name) => {
+		const found = scored.find((r) => r.name === name);
+		return found ? [found] : [];
+	});
+	const showcase = (shown.length ? shown : [busiest]).map((r) => ({
+		name: r.name,
+		lat: r.lat,
+		lon: r.lon,
+		boundary: r.boundary
+	}));
 
 	/**
 	 * WHAT THE MAP LOOKS LIKE AFTER EACH QUESTION.
@@ -250,15 +262,9 @@ export const load: PageServerLoad = () => {
 			units: busiest.units,
 			share: Math.min(1, busiest.density / topDensity)
 		},
-		/* The cell modelled from the basemap. Where it is and its own boundary go with
-		   it so the model can be read in the browser around the real point. */
-		showcase: {
-			name: shown.name,
-			lat: shown.lat,
-			lon: shown.lon,
-			boundary: shown.boundary,
-			businesses: shown.density
-		},
+		/* The cells modelled from the basemap. Where each is and its own boundary go
+		   with it so the model can be read in the browser around the real point. */
+		showcase,
 		conversation
 	};
 };
