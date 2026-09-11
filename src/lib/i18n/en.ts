@@ -814,6 +814,17 @@ export const en: Copy = {
 			access: 'Transit access',
 			space: 'Units on the market'
 		},
+		/* The comparator under each index. A count is its own comparator, 207
+		   businesses is a number anybody can picture, and an index is not: 65 out of
+		   100 means nothing until it is set against the rest of the grid. So the four
+		   indices say where they sit among every area that has one, the way the price
+		   already does on its own panel, and the counts get none. */
+		standing: (persen: number) => `higher than ${persen}% of areas`,
+		standingLowest: 'the lowest of all areas',
+		standingNearLowest: 'among the lowest of all areas',
+		standingHighest: 'the highest of all areas',
+		standingNote:
+			'Each "higher than" sets this area against every other area that has that figure, for the same business type and walking range.',
 		/* ── Transit access ─────────────────────────────────────────────────
 		   Written for a reader who does not read index numbers. The station names
 		   lead: "Blok M" can be pictured, checked and argued with; "access 0.82"
@@ -877,6 +888,9 @@ export const en: Copy = {
 		transitRail: 'Rail stations in range',
 		transitBus: (n: number) => `${n} TransJakarta stops within walking range`,
 		transitWalk: (m: number) => `${m} m`,
+		/* The index against the grid, after the band. "Strong" is a fixed scale, and
+		   this is where strong sits among the rest. */
+		transitStanding: (posisi: string) => `Its access index is ${posisi}.`,
 		transitUplift: (persen: number) =>
 			`This access lifts the cell's opportunity score by roughly ${persen}% against a cell with no transit at all.`,
 		transitWhyRail:
@@ -1170,17 +1184,16 @@ export const en: Copy = {
 		   and not which greeting is being said. */
 		greet: (total: number, part: DayPart, wording: number) =>
 			`${SALUTE[part][wording]} I'm Tapak. I've been round ${total} cells near the MRT, KRL, LRT and TransJakarta corridors. What are you thinking of opening?`,
-		/* This used to ask "How is the budget looking?" and offer "Tight" or
-		   "Reasonably open" — two words that say nothing about what will change. The
-		   only thing actually chosen here is whether the results are narrowed to
-		   areas that genuinely have space up for rent, in the lower bracket. So that
-		   is what gets asked, and that is what the buttons say. */
-		budgetAsk: (cat: string) => `A ${cat}, alright. What about the rent?`,
+		/* The rent filter, offered on a ranking rather than asked before one. These used
+		   to be the answers to a scripted "what about the rent?" that stood between the
+		   business type and the first answer, so the reader tapped through two questions
+		   from a script before hearing anything from the data. They once read "Tight"
+		   and "Reasonably open", two words that say nothing about what will change. The
+		   only thing chosen here is whether the results are narrowed to areas that
+		   genuinely have space up for rent, in the lower bracket, so that is what the
+		   buttons say. */
 		budgetTight: 'Only where the rent is cheap',
 		budgetLoose: 'Any rent, just find a good area',
-		prefaceTight:
-			'Right. I will narrow it to areas that genuinely have space up for rent, in the lower bracket.',
-		prefaceLoose: 'Right, I will look at every area, with no rent filter.',
 		restart: 'What would you like to look at now?',
 		tryOther: 'Try another business',
 		avoid: 'Which ones should I avoid?',
@@ -1191,6 +1204,12 @@ export const en: Copy = {
 		   box below can be talked to. Only one: everything else is typed, and what
 		   reads it is the understanding layer rather than a list of phrasings here. */
 		why: (name: string) => `Why ${name}?`,
+		/* The way from the area card into the conversation, about the place on the card.
+		   A button and not a menu: what it opens is the box, which takes anything, and
+		   the place is put into the thread so whatever is typed next is read about it. */
+		askAbout: 'Ask Tapak about this area',
+		aboutPlace: (name: string) => `${name}, then. What do you want to know about it?`,
+		askAboutPlaceholder: (name: string) => `Ask anything about ${name}…`,
 		retry: 'Try again',
 		/* Said by Tapak inside the thread, separately from the notice over the map. The
 		   question was never sent, so the turn still has to answer something rather than
@@ -1210,6 +1229,12 @@ export const en: Copy = {
 			'Before I answer, what do you want to open? An opportunity score is always for one kind of business, because 83 for a coffee shop is not 83 for a laundry.',
 		notUnderstood: (why: string) =>
 			`${why} All I know is the areas around Jakarta transit, for a set of business types. Want me to look at one of those?`,
+		/* The rule parser read nothing it knows in the sentence, and there is no model
+		   sentence to quote. Said as what CAN be asked rather than as an apology: with no
+		   model only the plain forms work, and the reader is better off hearing what they
+		   are than being handed a ranking they never asked for. */
+		unclear:
+			'I could not read that one. Ask me where to open something, why an area is on the list, or what space costs there, and I will answer from the figures.',
 		coverageNone: 'Every area has data.',
 		coverageSome: (n: number) =>
 			`There are ${n} areas I have no data for at all. I'm not scoring them. Rather than make something up, I'd rather say I don't know.`,
@@ -1263,6 +1288,10 @@ export const en: Copy = {
 				`Its opportunity score is ${nilai} out of 100 for ${cat}.`,
 			lead: (name: string, cat: string, nilai: string) =>
 				`${name} scores ${nilai} out of 100 for ${cat}, and here is what that is made of.`,
+			/* The figure against the grid, in the same fragment the card prints under it.
+			   Said for the score and for whatever measure was asked about, because "is
+			   that a lot" is the question every one of those figures raises. */
+			standing: (posisi: string) => `That is ${posisi}.`,
 			/* Every count here has to agree with the noun beside it, which is this
 			   language's job and not the engine's. Indonesian does not inflect and its
 			   version of these is one sentence each. A catchment with one rival in range
@@ -1301,8 +1330,16 @@ export const en: Copy = {
 		},
 		remarkUncovered: (name: string, cat: string) =>
 			`${name} has not been surveyed yet, so the ${cat} around it have never been counted. I have no figure to give you for it.`,
-		remark: (name: string, verdict: string, cat: string, nilai: string, osm: number, listing: string) =>
-			`${name} is ${verdict} for a ${cat}, scoring ${nilai}. There are ${osm} similar businesses, and ${listing}.`,
+		remark: (
+			name: string,
+			verdict: string,
+			cat: string,
+			nilai: string,
+			osm: number,
+			listing: string,
+			posisi: string
+		) =>
+			`${name} is ${verdict} for a ${cat}, scoring ${nilai}${posisi ? `, ${posisi}` : ''}. There are ${osm} similar businesses, and ${listing}.`,
 		verdictGood: 'one of the good ones',
 		verdictMid: 'middling',
 		verdictLow: 'honestly not promising',
@@ -1386,6 +1423,13 @@ export const en: Copy = {
 		cardIn: (petak: string) => `in ${petak}`,
 		cardWalk: (m: number) => `${num(m)} m from the cell centre`,
 		cardAbout: 'About the place',
+		/* The price per m² against every other unit on the market with one. Said as
+		   "dearer than", the way the area's price rank is, and not as "higher than":
+		   nobody reads a price as high. */
+		standing: (persen: number) => `dearer than ${persen}% of the units on the market`,
+		standingCheapest: 'the cheapest unit on the market',
+		standingNearCheapest: 'among the cheapest units on the market',
+		standingDearest: 'the dearest unit on the market',
 		/* This read "About the area", which was right while everything under it was
 		   measured from the cell centre. The walking range is measured from this front
 		   door now, so the heading names the point it is measured from and the line under

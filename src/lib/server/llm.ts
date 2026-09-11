@@ -248,6 +248,14 @@ export type ParseResult =
    The name sits in two places on purpose. The opening line so the model knows who it
    is at all, and the chat rules so it is in front of the model at the one moment it
    actually writes a sentence a reader will see. */
+/* TWO TURNS THE PROMPT HAD TO NAME, because the model read both as data requests.
+
+   "Explain what do those numbers mean, is more business in the area good or bad" was
+   answered with a fresh ranking of the whole grid, and "what", typed by somebody confused
+   by that, was answered with a breakdown of a place that happened to be in the thread. The
+   first needs data, but the data of the place the numbers were about, so the reply can
+   explain them. The second needs none. Neither is a phrasebook entry: the prompt says what
+   the two SHAPES are and the model still decides each turn. */
 /**
  * What each measure means, for the model.
  *
@@ -312,6 +320,10 @@ Tugasmu HANYA menerjemahkan giliran pengguna menjadi satu pemanggilan alat. Kamu
 
 SATU KEPUTUSAN TIAP GILIRAN: giliran ini perlu data atau tidak. Perlu angka, nama tempat, peringkat, atau rincian satu kawasan → panggil jalankan_query, dan isi argumennya dari seluruh percakapan, bukan cuma dari kalimat terakhir. Tidak perlu angka → ngobrol saja. Kamu yang memutuskan tiap giliran, bukan daftar kalimat yang dihafal: pertanyaan lanjutan bisa berbentuk apa saja, dan yang menentukan cuma apakah menjawabnya butuh membaca data.
 
+Dua bentuk giliran yang sering salah dibaca:
+- Pertanyaan soal ARTI angka di jawaban sebelumnya: "skornya maksudnya apa", "dari seratus itu apa", "what do those numbers mean", "is more business around it good or bad". Angkanya sengaja tidak dibawa ke percakapan ini, jadi panggil jalankan_query lagi untuk kawasan yang angkanya ditanyakan: intent EXPLAIN, target nama kawasan itu dari percakapan, ukuran yang tadi ditanyakan. Mesin menghitung ulang angkanya dan penulis jawabannya menjelaskan artinya dari angka itu. JANGAN memeringkat ulang seluruh kisi, karena yang ditanya bukan daftar baru, dan JANGAN menjawabnya lewat ngobrol, karena ngobrol tidak boleh memuat angka.
+- Reaksi pendek: "what", "hah", "apa", "loh", "maksudnya?", "gimana?". Pengguna bingung dengan jawaban sebelumnya, bukan meminta data. Panggil ngobrol (topik tentang) dan tanya balik bagian mana yang belum jelas. JANGAN memanggil EXPLAIN atau RANK cuma karena ada nama kawasan di giliran sebelumnya.
+
 Data yang tersedia, dan hanya ini:
 - 562 petak heksagon H3 yang menutupi kawasan berjalan kaki (800 m) di sekitar simpul transit Jakarta — MRT, KRL, LRT, dan koridor TransJakarta. 90 di antaranya belum ada datanya.
 - ${CATEGORIES.length} jenis usaha: ${CATEGORIES.map((c) => `${c.key} (${c.name.toLowerCase()})`).join(', ')}.
@@ -332,6 +344,7 @@ intent:
   - "seberapa ramai Tosari" → ukuran keramaian
   - "ada berapa pesaing di Blok M" → ukuran pesaing
   Menyebut nama satu kawasan sudah cukup untuk EXPLAIN. TIDAK perlu ada kata "kenapa". Yang membedakannya dari RANK cuma satu: RANK meminta daftar dari seluruh kisi, EXPLAIN menanyakan satu tempat yang sudah disebut.
+  EXPLAIN hanya kalau giliran INI menyebut atau menunjuk satu kawasan, atau menanyakan arti angka yang tadi dijawab untuk kawasan itu. Nama yang cuma pernah lewat di giliran sebelumnya, tanpa ditunjuk sekarang, bukan alasan memanggil EXPLAIN.
 
 ukuran: pilih dari daftar di atas sesuai apa yang benar-benar ditanyakan.
 - "di mana sebaiknya buka kedai kopi" → skor
@@ -367,7 +380,7 @@ Yang kamu lihat dari giliranmu sendiri cuma nama kawasan yang tadi disebut. Angk
 
 NGOBROL SECUKUPNYA. Panggil ngobrol untuk kalimat yang memang bukan permintaan data:
 - sapaan: "halo", "makasih", "kamu siapa", "sampai jumpa".
-- tentang: apa itu SpotOn, datanya dari mana, apa yang bisa dan tidak bisa dijawab.
+- tentang: apa itu SpotOn, datanya dari mana, apa yang bisa dan tidak bisa dijawab, dan apa yang diukur tiap ukurannya secara umum, tanpa angka.
 - usaha: obrolan umum soal buka usaha kecil — kenapa lokasi penting, bedanya warteg dan kafe, hal yang biasa dipikirkan sebelum menyewa tempat.
 
 Aturan ngobrol, dan ini keras:
@@ -491,7 +504,7 @@ const TOOLS = [
 						type: 'string',
 						enum: CHAT_TOPICS,
 						description:
-							'sapaan = halo/makasih/kamu siapa. tentang = apa itu SpotOn dan datanya. usaha = obrolan umum soal buka usaha kecil.'
+							'sapaan = halo/makasih/kamu siapa. tentang = apa itu SpotOn, datanya, dan apa yang diukurnya. usaha = obrolan umum soal buka usaha kecil.'
 					},
 					balasan: {
 						type: 'string',
