@@ -6,7 +6,7 @@ import {
 	parseCompetitors,
 	type Competitor
 } from '$lib/domain/competitors';
-import { capturedOpen, parseHours, type OpenPlace } from '$lib/domain/activity';
+import { capturedOpen, parseHours, readHours, type OpenPlace } from '$lib/domain/activity';
 import { priceLadder } from '$lib/domain/cost';
 import { parseField, type FieldRecord } from '$lib/domain/field';
 import { capturedListings, parseListings, type Listing } from '$lib/domain/premises';
@@ -869,34 +869,89 @@ export class AppState {
 	 */
 	selectedCell = $derived(this.base.find((h) => h.id === this.selectedId) ?? null);
 
-	/** The stops the selected cell captures, nearest first. */
-	selectedStops = $derived.by(() => {
+	/**
+	 * WHERE THE WALKING RANGE IS MEASURED FROM.
+	 *
+	 * The centre of the selected cell, until a place is open in place mode, and then
+	 * the place itself.
+	 *
+	 * The two pivots ask different questions and the range has to follow. In area mode
+	 * the reader picked 800 m of city, so everything in reach of its centre is what
+	 * they are looking at. In place mode they picked a shopfront, and a ring drawn
+	 * around a cell centre 200 m up the road answers a question nobody asked: what a
+	 * tenant walks is measured from their own front door.
+	 *
+	 * ONE PLACE DECIDES IT, because the ring on the map, the two fans drawn under it
+	 * and the four sets those fans are drawn from all have to agree. As four separate
+	 * reads of `selectedCell`, moving three of them would have put a circle on screen
+	 * with lines reaching out past it.
+	 *
+	 * What this does NOT move is anything the grid measured at build time: the
+	 * opportunity score, how busy a cell is, the competitor count that score was taken
+	 * over, the access index, the median asking price and its rank. Every one of those
+	 * was counted from the cell centre by the build scripts and has no doorway version
+	 * to read, so they stay the catchment's and the copy beside them says so. Inventing
+	 * a place-centred one would be interpolating a figure nobody measured, which is the
+	 * one thing this product does not do.
+	 */
+	reach = $derived.by<{ lat: number; lon: number; place: boolean } | null>(() => {
+		const unit = this.selectedUnit;
+		if (unit) return { lat: unit.listing.lat, lon: unit.listing.lon, place: true };
+		const cell = this.selectedCell;
+		return cell ? { lat: cell.lat, lon: cell.lon, place: false } : null;
+	});
+
+	/** The range is measured from a place rather than from a cell centre. What every
+	    surface pairing a grid figure with a captured set branches on. */
+	reachIsPlace = $derived(this.reach?.place === true);
+
+	/**
+	 * The stops the selected CELL captures, nearest first.
+	 *
+	 * Kept apart from `selectedStops` for the score breakdown, which explains an access
+	 * index the grid computed from the cell centre. A list of names measured from
+	 * anywhere else cannot be the names of what those counts counted.
+	 */
+	cellStops = $derived.by(() => {
 		const cell = this.selectedCell;
 		if (!cell || !this.stops) return [];
 		return capturedStops(cell, this.stops, this.weights.radius);
 	});
 
+	/** The stops within walking range of `reach`, nearest first. The very same list as
+	    `cellStops` in area mode, so the common case pays for one pass and not two. */
+	selectedStops = $derived.by(() => {
+		const from = this.reach;
+		if (!from || !this.stops) return [];
+		if (!from.place) return this.cellStops;
+		return capturedStops(from, this.stops, this.weights.radius);
+	});
+
 	/**
-	 * The competitors the selected cell captures, nearest first.
+	 * The competitors within walking range of `reach`, nearest first.
 	 *
 	 * Empty on the OSM source, and that is the point: the positions ARE the MAPID
 	 * dataset, so drawing them while an OSM count is on screen would show one source's
 	 * competitors as though they were the other's. Nothing is drawn, and
 	 * `poisUnavailable` below is what lets the interface say so instead of leaving the
 	 * reader to wonder where the dots went.
+	 *
+	 * `RivalsPanel` already counts what this holds rather than the scored row's figure,
+	 * and says so, which is why moving the centre costs nothing there: the panel was
+	 * always a caption for the dots on the map.
 	 */
 	selectedPois = $derived.by(() => {
-		const cell = this.selectedCell;
+		const from = this.reach;
 		// Positions exist only in the MAPID catalogue, so pure OSM draws nothing. Reading
 		// both draws them: the dots are then a subset of what was counted rather than a
 		// different source's shops, and `RivalsPanel` says as much beside them.
-		if (!cell || this.weights.source === 'osm') return [];
+		if (!from || this.weights.source === 'osm') return [];
 		/* Every type in the set, in one pool of dots — the same pool the engine counted
 		   as this cell's rivals. Drawing only the first type's would put a count of
 		   fourteen in the panel above a map showing nine. */
 		const points = this.categories.flatMap((k) => this.pois[k] ?? []);
 		if (!points.length) return [];
-		return capturedCompetitors(cell, points, this.weights.radius);
+		return capturedCompetitors(from, points, this.weights.radius);
 	});
 
 	/** A cell is selected, but its competitors cannot be placed on the map. Either the
@@ -912,17 +967,21 @@ export class AppState {
 	});
 
 	/**
-	 * The property listings the selected cell captures, nearest first.
+	 * The property listings within walking range of `reach`, nearest first.
 	 *
-	 * The same distance test the join used, so these ARE the units the median asking
-	 * price was taken over rather than a set that resembles them. Empty for a cell whose
-	 * city the catalogue has not been read for, which `selected.propCovered` is what
-	 * tells apart from a cell where nothing is on the market.
+	 * In area mode this is the same distance test the join used, so these ARE the units
+	 * the median asking price was taken over rather than a set that resembles them.
+	 * Measured from a place they are what is on the market around that doorway, which
+	 * is a different set from the one the median was read off, so `PropertyPanel` says
+	 * which of the two each half of it is talking about.
+	 *
+	 * Empty for a cell whose city the catalogue has not been read for, which
+	 * `selected.propCovered` is what tells apart from a cell where nothing is for sale.
 	 */
 	selectedListings = $derived.by(() => {
-		const cell = this.selectedCell;
-		if (!cell || !this.listings) return [];
-		return capturedListings(cell, this.listings, this.weights.radius);
+		const from = this.reach;
+		if (!from || !this.listings) return [];
+		return capturedListings(from, this.listings, this.weights.radius);
 	});
 
 	/**
@@ -938,15 +997,43 @@ export class AppState {
 	});
 
 	/**
-	 * The businesses with readable opening hours the selected cell captures.
+	 * The businesses with readable opening hours within walking range of `reach`.
 	 *
-	 * The same distance test `join-hours.mjs` used, so the curve drawn from these IS
-	 * the count the grid printed above it rather than a set that resembles it.
+	 * In area mode this is the same distance test `join-hours.mjs` used, so the curve
+	 * drawn from these IS the count the grid printed above it. Measured from a place it
+	 * is a different set, which is why the denominator every sentence about the curve
+	 * quotes comes from `hoursReading` below rather than straight off the grid.
 	 */
 	selectedOpen = $derived.by(() => {
+		const from = this.reach;
+		if (!from || !this.openPlaces) return [];
+		return capturedOpen(from, this.openPlaces, this.weights.radius);
+	});
+
+	/**
+	 * What was counted about opening hours around `reach` — the figures every sentence
+	 * about the curve is allowed to quote.
+	 *
+	 * In area mode `counted` is the grid's own reading and nothing has changed: how many
+	 * businesses stand in range, how many published hours, how many of those could be
+	 * read. Measured from a place the grid has no reading to give, so `readable` is
+	 * counted off the very set the curve is drawn from and `counted` is null rather than
+	 * the cell's borrowed and relabelled.
+	 *
+	 * Held here rather than in the three surfaces that draw the curve, because they all
+	 * have to agree: the card's summary row, the panel and the model are one measurement
+	 * looked at three ways.
+	 */
+	hoursReading = $derived.by(() => {
 		const cell = this.selectedCell;
-		if (!cell || !this.openPlaces) return [];
-		return capturedOpen(cell, this.openPlaces, this.weights.radius);
+		if (!cell) return null;
+		// No reading at all means a grid that has never been through `join-hours.mjs`.
+		// That is a build state rather than a finding, and every caller draws nothing.
+		const grid = readHours(cell, this.weights.radius);
+		if (!grid) return null;
+		return this.reachIsPlace
+			? { readable: this.selectedOpen.length, counted: null }
+			: { readable: grid.h, counted: grid };
 	});
 
 	/** The hours file is on its way and no curve can be drawn yet. Its own flag for the

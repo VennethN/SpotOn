@@ -1,6 +1,7 @@
 <script lang="ts">
 	/**
-	 * When the businesses around the selected area open their doors.
+	 * When the businesses around the selected area, or around the place standing in it,
+	 * open their doors.
 	 *
 	 * THE ONE THING THIS PANEL MUST NOT BLUR
 	 *
@@ -34,7 +35,7 @@
 	 * test. Nothing here does arithmetic of its own beyond scaling a bar to the tallest
 	 * one, so the curve and the count above it cannot come apart.
 	 */
-	import { HOURS_IN_DAY, jakartaNow, peakOf, readHours, weekProfile } from '$lib/domain/activity';
+	import { HOURS_IN_DAY, jakartaNow, peakOf, weekProfile } from '$lib/domain/activity';
 	import Fineprint from '$lib/components/ui/Fineprint.svelte';
 	import SectionHead from '$lib/components/ui/SectionHead.svelte';
 	import { getAppState } from '$lib/state/app.svelte';
@@ -48,9 +49,23 @@
 	const cell = $derived(app.selectedCell);
 	const radius = $derived(app.weights.radius);
 
-	/** The counts the join wrote: businesses in range, how many publish hours, how many
-	    of those could be read. Null on a grid the join has never been run on. */
-	const stat = $derived(cell ? readHours(cell, radius) : null);
+	/**
+	 * What was counted around the point the range is measured from.
+	 *
+	 * `readable` is the denominator every sentence here quotes, and it is the size of
+	 * the very set the curve is drawn from in both modes. `counted` is the join's own
+	 * pair of wider figures — businesses in range at all, and how many of them published
+	 * hours — which exist only for a cell centre: `join-hours.mjs` never stood in a
+	 * doorway, so with a place open it is null and the two sentences that quote those
+	 * figures give way to ones that do not.
+	 *
+	 * Null altogether on a grid the join has never been run on.
+	 */
+	const reading = $derived(app.hoursReading);
+	const readable = $derived(reading?.readable ?? 0);
+	const counted = $derived(reading?.counted ?? null);
+	/** The range is measured from a place, so the panel is about that place. */
+	const fromPlace = $derived(app.reachIsPlace);
 
 	/**
 	 * The rules and the size of the evidence, from the grid file's own metadata.
@@ -108,95 +123,122 @@
 	    width of a panel. */
 	const TICKS = [0, 6, 12, 18];
 
+	/**
+	 * Which of the five things this section is doing, decided once.
+	 *
+	 * The order matters and it is not the same order in the two modes. With the range on
+	 * a cell centre the grid already knows how many readable businesses are in range, so
+	 * a cell below the threshold says so straight away and never flashes a loading line
+	 * for a curve that was never going to be drawn. With the range on a place nobody has
+	 * counted anything until `hours.json` lands, so an empty capture means "not yet"
+	 * rather than "none", and saying "none" first would be a finding invented out of a
+	 * request still in flight.
+	 */
+	type Showing = 'loading' | 'failed' | 'chart' | 'thin' | 'none';
+	const showing = $derived.by<Showing>(() => {
+		if (fromPlace) {
+			if (app.hoursLoading) return 'loading';
+			if (app.openPlacesFailed) return 'failed';
+			return readable >= minReadable ? 'chart' : readable > 0 ? 'thin' : 'none';
+		}
+		if (readable < minReadable) return counted && counted.p > 0 ? 'thin' : 'none';
+		if (app.hoursLoading) return 'loading';
+		if (app.openPlacesFailed) return 'failed';
+		return 'chart';
+	});
 	/** Whether the curve is actually on screen. The denominator belongs to the curve, so
 	    it is only stated where there is one, and the two silences carry those same
 	    figures inside their own sentence instead. */
-	const drawn = $derived(
-		stat !== null && stat.h >= minReadable && !app.hoursLoading && !app.openPlacesFailed
-	);
+	const drawn = $derived(showing === 'chart');
 </script>
 
 <!-- Nothing at all on a grid that has never been through `join-hours.mjs`. That is a
      build state, not a finding about the place, and a section explaining it would be
      an apology to the wrong reader. -->
-{#if cell && stat}
+{#if cell && reading}
 	<section class="act">
-		<SectionHead icon="hours">{c.activity.title}</SectionHead>
+		<SectionHead icon="hours">{fromPlace ? c.activity.titlePlace : c.activity.title}</SectionHead>
 
-		{#if stat.h >= minReadable}
-			{#if app.hoursLoading}
-				<p class="note">{c.activity.loading}</p>
-			{:else if app.openPlacesFailed}
-				<p class="note">{c.activity.failed(stat.h)}</p>
-			{:else}
-				<!-- ── The week, one day at a time ──────────────────────────────── -->
-				<div class="days" role="group" aria-label={c.activity.dayPicker}>
-					{#each c.activity.days as name, i (name)}
-						<!-- Pressed rather than selected, and no tab roles: there is one chart
-						     below and it is always the same chart, so a tablist would promise a
-						     panel per day that does not exist. The full day name is the label
-						     because "Sen" is three letters of a word read aloud. -->
-						<button
-							type="button"
-							class="day"
-							class:on={day === i}
-							aria-pressed={day === i}
-							aria-label={c.activity.dayFull[i]}
-							onclick={() => (picked = i)}
+		{#if showing === 'loading'}
+			<p class="note">{c.activity.loading}</p>
+		{:else if showing === 'failed'}
+			<p class="note">{fromPlace ? c.activity.failedPlace : c.activity.failed(readable)}</p>
+		{:else if showing === 'chart'}
+			<!-- ── The week, one day at a time ──────────────────────────────── -->
+			<div class="days" role="group" aria-label={c.activity.dayPicker}>
+				{#each c.activity.days as name, i (name)}
+					<!-- Pressed rather than selected, and no tab roles: there is one chart
+					     below and it is always the same chart, so a tablist would promise a
+					     panel per day that does not exist. The full day name is the label
+					     because "Sen" is three letters of a word read aloud. -->
+					<button
+						type="button"
+						class="day"
+						class:on={day === i}
+						aria-pressed={day === i}
+						aria-label={c.activity.dayFull[i]}
+						onclick={() => (picked = i)}
+					>
+						{name}
+					</button>
+				{/each}
+			</div>
+
+			<div class="chart">
+				<div class="bars">
+					{#each bars as n, h (h)}
+						<!-- The bar is the figure, so it carries the figure: a screen reader
+						     gets the count and the hour, not a picture it cannot see. -->
+						<div
+							class="slot"
+							class:now={today && h === now.hour}
+							title={c.activity.barTitle(h, n, readable)}
 						>
-							{name}
-						</button>
+							<div
+								class="bar"
+								style:height={`${Math.round((n / tallest) * 100)}%`}
+								aria-hidden="true"
+							></div>
+							<span class="sr">{c.activity.barTitle(h, n, readable)}</span>
+						</div>
 					{/each}
 				</div>
-
-				<div class="chart">
-					<div class="bars">
-						{#each bars as n, h (h)}
-							<!-- The bar is the figure, so it carries the figure: a screen reader
-							     gets the count and the hour, not a picture it cannot see. -->
-							<div
-								class="slot"
-								class:now={today && h === now.hour}
-								title={c.activity.barTitle(h, n, stat.h)}
-							>
-								<div
-									class="bar"
-									style:height={`${Math.round((n / tallest) * 100)}%`}
-									aria-hidden="true"
-								></div>
-								<span class="sr">{c.activity.barTitle(h, n, stat.h)}</span>
-							</div>
-						{/each}
-					</div>
-					<div class="axis" aria-hidden="true">
-						{#each Array(HOURS_IN_DAY) as _, h (h)}
-							<span class="tick">{TICKS.includes(h) ? c.activity.hourShort(h) : ''}</span>
-						{/each}
-					</div>
+				<div class="axis" aria-hidden="true">
+					{#each Array(HOURS_IN_DAY) as _, h (h)}
+						<span class="tick">{TICKS.includes(h) ? c.activity.hourShort(h) : ''}</span>
+					{/each}
 				</div>
+			</div>
 
-				<!-- Two facts, on two lines. Run together in one paragraph the reader has
-				     to parse a sentence to find out whether the doors are open now, which
-				     is the question the chart was opened to answer. -->
-				{#if today}
-					<p class="read now">
-						<span class="mark" aria-hidden="true"></span>
-						{c.activity.nowOpen(now.hour, openNow, stat.h)}
-					</p>
-				{/if}
-				<p class="read">{c.activity.peak(peak.hour, peak.n, stat.h)}</p>
+			<!-- Two facts, on two lines. Run together in one paragraph the reader has
+			     to parse a sentence to find out whether the doors are open now, which
+			     is the question the chart was opened to answer. -->
+			{#if today}
+				<p class="read now">
+					<span class="mark" aria-hidden="true"></span>
+					{c.activity.nowOpen(now.hour, openNow, readable)}
+				</p>
 			{/if}
-		{:else if stat.p > 0}
+			<p class="read">{c.activity.peak(peak.hour, peak.n, readable)}</p>
+		{:else if showing === 'thin'}
 			<!-- Published, but too few to draw. Different from nobody publishing, and the
-			     reader is told which of the two they are looking at. -->
+			     reader is told which of the two they are looking at. Without the join's
+			     wider counts there is no denominator to give, so the sentence measured
+			     from a place states what it has rather than borrowing the cell's. -->
 			<p class="read">
-				{c.activity.thin(stat.h, stat.n, radius)}
-				{#if stat.p > stat.h}
-					{c.activity.refused(stat.p - stat.h)}
+				{#if counted}
+					{c.activity.thin(readable, counted.n, radius)}
+					{#if counted.p > readable}
+						{c.activity.refused(counted.p - readable)}
+					{/if}
+				{:else}
+					{c.activity.thinPlace(readable, radius)}
 				{/if}
 			</p>
 		{:else}
-			<p class="read">{c.activity.none(stat.n, radius)}</p>
+			<p class="read">
+				{counted ? c.activity.none(counted.n, radius) : c.activity.nonePlace(radius)}
+			</p>
 		{/if}
 
 		<!-- The denominator and the disclaimer, in the shape a reader can recognise as
@@ -206,9 +248,13 @@
 		<Fineprint>
 			{#if drawn}
 				<p>
-					{c.activity.basis(stat.h, stat.n, radius)}
-					{#if stat.p > stat.h}
-						{c.activity.refused(stat.p - stat.h)}
+					{#if counted}
+						{c.activity.basis(readable, counted.n, radius)}
+						{#if counted.p > readable}
+							{c.activity.refused(counted.p - readable)}
+						{/if}
+					{:else}
+						{c.activity.basisPlace(readable, radius)}
 					{/if}
 				</p>
 			{/if}

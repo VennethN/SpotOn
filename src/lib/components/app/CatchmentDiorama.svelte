@@ -53,10 +53,10 @@
 	import ScorePanel from '$lib/components/app/ScorePanel.svelte';
 	import CatchmentScene from '$lib/components/ui/CatchmentScene.svelte';
 	import TransitPanel from '$lib/components/app/TransitPanel.svelte';
-	import { jakartaNow, readHours, weekProfile } from '$lib/domain/activity';
+	import { jakartaNow, weekProfile } from '$lib/domain/activity';
 	import { readCost } from '$lib/domain/cost';
 	import { lastRecorded, totalRecorded } from '$lib/domain/field';
-	import { railTotal, stopTotal } from '$lib/domain/transit';
+	import { countStops, railTotal, stopTotal } from '$lib/domain/transit';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { tick } from 'svelte';
@@ -147,8 +147,13 @@
 	   Every one of these is read through the same function its section reads it
 	   through, so the summary and the section cannot come apart. */
 
-	/** Businesses in range, how many publish hours, how many of those could be read. */
-	const hours = $derived(cell ? readHours(cell, radius) : null);
+	/** What was counted about opening hours around the point the range is measured
+	    from. Taken from the app so this row, the section it opens and the model behind
+	    it quote the same denominator. */
+	const hours = $derived(app.hoursReading);
+	/** The range is measured from a place, so the rows lead with that place's figures
+	    wherever there is one to lead with. */
+	const fromPlace = $derived(app.reachIsPlace);
 	const minReadable = $derived(app.meta?.hours?.minReadable ?? 0);
 	/**
 	 * Jakarta's clock, ticking, because the row it feeds is a claim about right now.
@@ -171,9 +176,38 @@
 
 	const cost = $derived(cell ? readCost(cell, app.priceLadder, radius) : null);
 
-	const nodes = $derived(cell ? stopTotal(cell.transit) : 0);
-	const rail = $derived(cell ? railTotal(cell.transit) : 0);
-	const bus = $derived(cell?.transit.brt ?? 0);
+	/**
+	 * The competitor figure this row leads with, which is the one its section leads with.
+	 *
+	 * The dots on the map wherever there are dots, because the row is called "competitors
+	 * on the map" and `RivalsPanel` counts exactly that. It used to lead with the scored
+	 * row's `osm` instead, and the two agreed closely enough to go unnoticed while both
+	 * were counted from the cell centre. They do not agree once the range is measured
+	 * from a place: the count that moved the score was taken over the catchment, the dots
+	 * were captured around the doorway, and the card would have printed one of them
+	 * directly under a map badge showing the other.
+	 *
+	 * The grid's count is the fallback, and it is the right one in every case that
+	 * reaches it: with no positions to draw (OSM, or a point file that failed) the
+	 * section explains the absence and the count in the card is the only figure either
+	 * of them has, and while the file is still in the air an empty capture is not a
+	 * finding. The score's own competitor count is stated in the score section, where it
+	 * is labelled as the score's.
+	 */
+	const rivals = $derived(
+		app.poisUnavailable || app.poisLoading ? (row?.osm ?? 0) : app.selectedPois.length
+	);
+
+	/* The same counts the transit section leads with, read the same way: off the grid
+	   while the range is the cell's, off the captured list once it is a place's. A row
+	   that opened a section showing a different number would be the summary doing its
+	   own arithmetic, which is the one thing this card does not do. */
+	const transit = $derived(
+		fromPlace ? countStops(app.selectedStops) : (cell?.transit ?? { mrt: 0, krl: 0, lrt: 0, brt: 0 })
+	);
+	const nodes = $derived(stopTotal(transit));
+	const rail = $derived(railTotal(transit));
+	const bus = $derived(transit.brt);
 
 	const fieldStats = $derived(cell?.field ?? null);
 	const fieldLast = $derived(lastRecorded(app.selectedField));
@@ -206,26 +240,30 @@
 					key: 'rivals',
 					icon: 'rivals',
 					title: c.mood.rivalsOnMap,
-					value: num(row.osm),
+					value: num(rivals),
 					caption: c.panel.rivalsCap(catMany)
 				});
 			}
 		}
 
 		if (hours) {
-			const thin = hours.h < minReadable;
+			/* Waiting comes first once the range is measured from a place: nothing has
+			   been counted there until `hours.json` lands, so an empty capture below the
+			   threshold would report a thin street rather than a request in flight. */
+			const waiting = app.hoursLoading || app.openPlacesFailed;
+			const thin = !waiting && hours.readable < minReadable;
 			out.push({
 				key: 'hours',
 				icon: 'hours',
-				title: c.activity.title,
-				value: thin || app.hoursLoading || app.openPlacesFailed ? null : num(openNow),
+				title: fromPlace ? c.activity.titlePlace : c.activity.title,
+				value: thin || waiting ? null : num(openNow),
 				caption: app.hoursLoading
 					? c.panel.loading
 					: app.openPlacesFailed
 						? c.panel.failed
 						: thin
 							? c.panel.hoursThin
-							: c.panel.hoursNow(hours.h)
+							: c.panel.hoursNow(hours.readable)
 			});
 		}
 
@@ -248,12 +286,24 @@
 			});
 		}
 
+		/* Measured from a place there is nothing to count until `stops.json` lands, and a
+		   zero captioned "none within walking range" would report an empty street made
+		   out of a request still in flight. On a cell the counts are on the grid, so
+		   neither state is reachable and the row reads exactly as it always did. */
+		const stopsWaiting = fromPlace && app.stops === null && !app.stopsFailed;
+		const stopsLost = fromPlace && app.stopsFailed;
 		out.push({
 			key: 'transit',
 			icon: 'transit',
-			title: c.mood.transit,
-			value: num(nodes),
-			caption: nodes > 0 ? c.mood.transitCountSplit(rail, bus) : c.panel.transitNone
+			title: fromPlace ? c.mood.transitPlace : c.mood.transit,
+			value: stopsWaiting || stopsLost ? null : num(nodes),
+			caption: stopsWaiting
+				? c.panel.loading
+				: stopsLost
+					? c.panel.failed
+					: nodes > 0
+						? c.mood.transitCountSplit(rail, bus)
+						: c.panel.transitNone
 		});
 
 		/* The records are fetched, the counts are not. While the list is in the air, or

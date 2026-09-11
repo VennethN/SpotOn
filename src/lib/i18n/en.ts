@@ -471,11 +471,18 @@ export const en: Copy = {
 			'This cell has a readable price, but too few other cells do for it to be ranked against them. So it cannot yet be called dear or cheap, and nothing was taken off the score.',
 
 		/* ── What is on the market ──────────────────────────────────────────── */
+		/* The price above belongs to the area, the list below to the place. This is what
+		   stops one word "here" standing for two different points of measurement. */
+		medianIsCell: (r: number) =>
+			`The price above is the area's median, measured from the cell centre over ${r} m. The list below is what is on the market within ${r} m of this place.`,
 		marketTitle: 'On the market here',
+		marketTitlePlace: 'On the market around this place',
 		marketCount: (n: number, r: number) =>
 			`${n} commercial ${n === 1 ? 'unit' : 'units'} within ${r} m`,
 		marketPremises: (n: number) => `${n} of them could hold a small business`,
 		marketNone: 'No commercial unit is on the market here.',
+		marketNonePlace:
+			'No other commercial unit is on the market within walking range of this place.',
 		marketLoading: 'Loading the units…',
 		marketFailed:
 			'The list of units could not be loaded. The price and the counts above still hold, both are read from the grid, not from that file.',
@@ -611,6 +618,9 @@ export const en: Copy = {
 	   date. So the two cannot be drawn as one curve. */
 	activity: {
 		title: 'When this area is open',
+		/* Once the range is measured from a place rather than from the cell centre. The
+		   businesses counted really are a different set, so the heading says which. */
+		titlePlace: 'When this place is open',
 		dayPicker: 'Pick a day',
 		days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
 		dayFull: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
@@ -630,6 +640,22 @@ export const en: Copy = {
 			`Only ${terbaca} of the ${usaha} businesses on record within ${r} m ${terbaca === 1 ? 'publishes' : 'publish'} opening hours. Too few to show how the day goes.`,
 		none: (usaha: number, r: number) =>
 			`Not one of the ${usaha} ${usaha === 1 ? 'business' : 'businesses'} on record within ${r} m publishes its opening hours.`,
+
+		/* ── The same silences, measured from a place ──────────────────────
+		   With no denominator, and that is the honest form. `join-hours.mjs` counted how
+		   many businesses stand around a CELL CENTRE and how many of them published
+		   hours. Nobody has ever counted either of those from a front door, so these say
+		   only what was genuinely counted here: how many readable timetables fall inside
+		   the range. Borrowing the cell's denominator would print a fraction whose two
+		   halves were measured from two different points. */
+		thinPlace: (terbaca: number, r: number) =>
+			`Only ${terbaca} ${terbaca === 1 ? 'business' : 'businesses'} within ${r} m of this place ${terbaca === 1 ? 'publishes' : 'publish'} opening hours that can be read. Too few to show how the day goes.`,
+		nonePlace: (r: number) =>
+			`No business within ${r} m of this place publishes opening hours that can be read.`,
+		basisPlace: (terbaca: number, r: number) =>
+			`${terbaca} ${terbaca === 1 ? 'business' : 'businesses'} within ${r} m of this place ${terbaca === 1 ? 'publishes' : 'publish'} opening hours that can be read.`,
+		failedPlace:
+			'The opening hours could not be loaded, so no chart is drawn. Every other figure on this card is unaffected.',
 
 		/* The count names OpenStreetMap on purpose. The sentence at the top of this panel
 		   counts the thirteen business types SpotOn scores, from OSM and MAPID together.
@@ -683,6 +709,11 @@ export const en: Copy = {
 			`Only the light moves. ${readable} ${readable === 1 ? 'business' : 'businesses'} here ${readable === 1 ? 'publishes' : 'publish'} opening hours, too few to show how the day goes.`,
 		stillNone:
 			'Only the light moves. Not one business here publishes its opening hours.',
+		/* A similar silence, and not the same claim. Measured from a place, all that was
+		   counted is how many published timetables could be READ, so that is all this
+		   says. "Not one publishes" would claim to know something nobody counted. */
+		stillPlaceNone:
+			'Only the light moves. No business within walking range of this place publishes opening hours that can be read.',
 		stillLoading: 'Only the light moves until the opening hours have loaded.',
 		stillFailed:
 			'Only the light moves. The opening hours could not be loaded.',
@@ -725,6 +756,10 @@ export const en: Copy = {
 		   lead: "Blok M" can be pictured, checked and argued with; "access 0.82"
 		   can do none of those. The figure is still there, behind the name. */
 		transit: 'What this area reaches',
+		/* The same heading once the range is measured from a place rather than from the
+		   cell centre. What was counted is genuinely a different set, so the heading says
+		   which point it was counted from before the reader takes a figure off it. */
+		transitPlace: 'What this place reaches',
 		/* The count leads rather than being tucked into a sentence. This is the mass
 		   transit edition: how many nodes one cell reaches is the first question, so
 		   the answer is set large before anything else. */
@@ -736,12 +771,30 @@ export const en: Copy = {
 			return `${halte} TransJakarta ${halte === 1 ? 'stop' : 'stops'}`;
 		},
 		transitNone: 'No transit node within walking range of this cell.',
+		transitNonePlace: 'No transit node within walking range of this place.',
+		/* The stop file could not be loaded. Only reachable with the range measured from
+		   a place: measured from a cell the counts are on the grid and survive it, and
+		   only the names are lost. An empty list here is a failed request, not a street
+		   with nothing on it, and the two must not read alike. */
+		transitFailedPlace:
+			'The transit nodes could not be loaded, so nothing can be counted from this place yet.',
 		transitLoading: 'Checking the transit nodes nearby…',
 		transitBand: {
 			strongest: 'Transit access here is among the strongest in Jakarta.',
 			strong: 'Transit access here is strong.',
 			fair: 'Transit access here is fair.',
 			thin: 'Transit access here is thin.'
+		},
+		/* The same sentences, saying whose index it is. Access was computed when the grid
+		   was built, from the cell centre, and there is no reading of it taken from a
+		   front door. So where the count above it was measured from a place, this has to
+		   name the thing it belongs to. Two measurements of different things, printed a
+		   line apart with nothing between them, read as two halves of one. */
+		transitBandCell: {
+			strongest: "The area's transit access is among the strongest in Jakarta.",
+			strong: "The area's transit access is strong.",
+			fair: "The area's transit access is fair.",
+			thin: "The area's transit access is thin."
 		},
 		transitModes: {
 			mrt: 'MRT',
@@ -768,6 +821,7 @@ export const en: Copy = {
 		transitWhyBus:
 			'TransJakarta stops are spread out, so the crowd is divided between many of them. Good for reach, not for one busy doorway.',
 		transitRadius: (m: number) => `Measured from the cell centre, ${m} m radius`,
+		transitRadiusPlace: (m: number) => `Measured from this place, ${m} m radius`,
 		transitShow: 'Show on map',
 		transitHide: 'Hide from map',
 		/* The competitors, drawn where they actually stand. Shared wording with the
@@ -995,11 +1049,18 @@ export const en: Copy = {
 		mapStops: (n: number) => `${n} transit ${n === 1 ? 'node' : 'nodes'}`,
 		mapStopsAria: (n: number, r: number) =>
 			`${n} transit ${n === 1 ? 'node' : 'nodes'} within a ${r} m walk of this cell`,
+		/* Used once the range ring is drawn around a place rather than around the cell
+		   centre. A label saying "of this cell" over a range measured from a front door
+		   would be the one reading on this map a reader cannot check for themselves. */
+		mapStopsAriaPlace: (n: number, r: number) =>
+			`${n} transit ${n === 1 ? 'node' : 'nodes'} within a ${r} m walk of the selected place`,
 		/* The number of competitor dots actually drawn, not the panel's figure. The
 		   badge and the map it sits on must never disagree. */
 		mapRivals: (n: number) => `${n} ${n === 1 ? 'competitor' : 'competitors'}`,
 		mapRivalsAria: (n: number, r: number) =>
 			`${n} similar ${n === 1 ? 'business' : 'businesses'} within a ${r} m walk of this cell`,
+		mapRivalsAriaPlace: (n: number, r: number) =>
+			`${n} similar ${n === 1 ? 'business' : 'businesses'} within a ${r} m walk of the selected place`,
 		mapReach: (r: number) => `${r} m reach`,
 		tipNodata: 'City not surveyed yet · survey priority candidate',
 		tipScore: (cat: string) => `${cat} score`,
@@ -1162,7 +1223,13 @@ export const en: Copy = {
 		cardIn: (petak: string) => `in ${petak}`,
 		cardWalk: (m: number) => `${num(m)} m from the cell centre`,
 		cardAbout: 'About the place',
-		cardArea: 'About the area',
+		/* This read "About the area", which was right while everything under it was
+		   measured from the cell centre. The walking range is measured from this front
+		   door now, so the heading names the point it is measured from and the line under
+		   it names the figures that stay the area's. */
+		cardArea: 'Around this place',
+		cardAreaNote:
+			'The walking range is measured from this place. The opportunity score, how busy it is, the competitor count that score used, the access index and the median asking price stay the area\'s, counted from the cell centre when the grid was built.',
 		cardFigures: 'See every column on the listing',
 		cardNoScore:
 			'This cell has no competitor coverage for the selected business type, so it has no score yet. What is said about the place above still holds.',
