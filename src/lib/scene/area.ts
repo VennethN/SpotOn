@@ -28,6 +28,12 @@
  *    the position OpenStreetMap holds for the business, lit when its published hours
  *    say it is open in the hour on the slider and dark when they do not. The count is
  *    the same count the panel prints. It is only drawn where it was taken.
+ *
+ * And it is a MINIATURE, not a view. The disc stands on a base with a rim, a soft
+ * shadow under it, and nothing drawn outside it: the canvas is clear around the disc
+ * and the page shows through, so what stands on the page is a round object that can be
+ * turned, and never a window onto a sky. There is no fog for the same reason. Fog is a
+ * claim about distance, and a model on a table is all at one distance.
  */
 
 import * as THREE from 'three';
@@ -140,7 +146,12 @@ const LAMP_PITCH = 30;
 const ROUTE_WIDTH: Record<keyof TransitCounts, number> = { mrt: 6, krl: 6, lrt: 5, brt: 5 };
 
 const GROUND_COLOUR = 0xd6d2cb;
-const SLAB_COLOUR = 0xdcd8d1;
+/** The rim of the base, a shade under the ground, so the edge of the disc reads as an edge. */
+const RIM_COLOUR = 0xbfbab2;
+/** How thick the base is, as a share of the radius. */
+const BASE_THICKNESS = 0.05;
+/** How far past the rim its shadow on the table reaches, as a multiple of the radius. */
+const SHADOW_REACH = 1.14;
 const WATER_COLOUR = 0xb3c3cd;
 const GREEN_COLOUR = 0xc4cfb7;
 
@@ -167,6 +178,31 @@ function makeHatchTexture(): THREE.CanvasTexture {
 	t.wrapS = THREE.RepeatWrapping;
 	t.wrapT = THREE.RepeatWrapping;
 	return t;
+}
+
+/**
+ * The shadow a thing standing on a table casts straight down: dark under the base and
+ * gone a little way out from its rim. Not the sun's shadow. The model is lit by the hour
+ * in Jakarta, but the table it stands on is wherever the reader is.
+ */
+function makeShadowTexture(): THREE.CanvasTexture {
+	const S = 256;
+	const c = document.createElement('canvas');
+	c.width = S;
+	c.height = S;
+	const g = c.getContext('2d');
+	if (g) {
+		const rim = 1 / SHADOW_REACH;
+		const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+		grad.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
+		grad.addColorStop(rim * 0.96, 'rgba(0, 0, 0, 0.5)');
+		grad.addColorStop(rim + (1 - rim) * 0.35, 'rgba(0, 0, 0, 0.22)');
+		grad.addColorStop(rim + (1 - rim) * 0.7, 'rgba(0, 0, 0, 0.06)');
+		grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+		g.fillStyle = grad;
+		g.fillRect(0, 0, S, S);
+	}
+	return new THREE.CanvasTexture(c);
 }
 
 /** A soft round sprite for the door marks, so a point is a dot and not a square. */
@@ -451,7 +487,6 @@ export class AreaWorld {
 
 	#sun = new THREE.DirectionalLight(0xffffff, 1);
 	#hemi = new THREE.HemisphereLight(0xffffff, 0x888888, 1);
-	#fog = new THREE.FogExp2(0xdfe3e6, 0.0001);
 
 	/** The slab, the ground and the cell's own boundary. Rebuilt when the radius moves. */
 	#base = new THREE.Group();
@@ -466,6 +501,7 @@ export class AreaWorld {
 
 	#groundMat = new THREE.MeshStandardMaterial({ color: GROUND_COLOUR, roughness: 0.96 });
 	#hatch: THREE.CanvasTexture | null = null;
+	#shadow: THREE.CanvasTexture | null = null;
 	#dot: THREE.CanvasTexture | null = null;
 	/** The cell's boundary on the ground, dark by day and light by night. */
 	#lineMat = new THREE.LineBasicMaterial({ color: 0x2a2f38, transparent: true, opacity: 0.85 });
@@ -488,7 +524,12 @@ export class AreaWorld {
 	#reduced: boolean;
 	#dirty = true;
 	#shadowSize = 2048;
-	#viewWidth = 1800;
+	/**
+	 * The box the framing holds, in metres: what is shown across, what is shown down,
+	 * how much of the width has to stay in frame whatever shape the screen is, and how
+	 * far above the centre of the disc the frame is centred.
+	 */
+	#box = { w: 1800, h: 1200, hold: 0, lift: 0 };
 	/** Metres per screen pixel at the current framing: what the marks are sized by. */
 	#mpp = 1;
 	#dummy = new THREE.Object3D();
@@ -515,12 +556,9 @@ export class AreaWorld {
 		this.#renderer.toneMapping = THREE.ACESFilmicToneMapping;
 		this.#renderer.toneMappingExposure = 1.0;
 
-		// The sky is a CSS gradient behind the canvas, not a dome inside the scene: in an
-		// orthographic projection every ray is parallel, so a dome would be one flat
-		// colour. The fog is set to the horizon colour so the far edge of the disc
-		// dissolves into exactly that sky.
-		this.#scene.fog = this.#fog;
-
+		// No sky and no fog: the canvas is clear around the disc, and what shows through
+		// is the page the miniature stands on. In an orthographic projection every ray is
+		// parallel, so a dome would be one flat colour anyway.
 		this.#sun.castShadow = true;
 		this.#sun.shadow.mapSize.set(this.#shadowSize, this.#shadowSize);
 		this.#sun.shadow.bias = -0.0004;
@@ -537,18 +575,37 @@ export class AreaWorld {
 		this.#dispose(this.#base);
 		const R = this.#state.radius;
 
-		// A slab with visible thickness, which is what tells the eye it is looking at an
-		// object on a table rather than a city photographed from a helicopter.
-		const thick = R * 0.03;
+		// A base with visible thickness and a rim a shade under the ground, which is what
+		// tells the eye it is looking at an object on a table rather than a city
+		// photographed from a helicopter.
+		const thick = R * BASE_THICKNESS;
 		const slab = new THREE.Mesh(
-			new THREE.CylinderGeometry(R, R, thick, 96),
-			new THREE.MeshStandardMaterial({ color: SLAB_COLOUR, roughness: 0.95 })
+			new THREE.CylinderGeometry(R, R, thick, 128),
+			new THREE.MeshStandardMaterial({ color: RIM_COLOUR, roughness: 0.95 })
 		);
 		slab.position.y = -thick / 2;
 		slab.receiveShadow = true;
 		this.#base.add(slab);
 
-		const ground = new THREE.Mesh(new THREE.CircleGeometry(R, 96), this.#groundMat);
+		// The shadow it casts on the table, so the disc sits on the page rather than
+		// floating over it. Under the base it is hidden by the base, so what shows is the
+		// soft ring past the rim.
+		if (!this.#shadow) this.#shadow = makeShadowTexture();
+		const shadow = new THREE.Mesh(
+			new THREE.CircleGeometry(R * SHADOW_REACH, 128),
+			new THREE.MeshBasicMaterial({
+				color: 0x000000,
+				map: this.#shadow,
+				transparent: true,
+				depthWrite: false,
+				toneMapped: false
+			})
+		);
+		shadow.rotation.x = -Math.PI / 2;
+		shadow.position.y = -thick - R * 0.002;
+		this.#base.add(shadow);
+
+		const ground = new THREE.Mesh(new THREE.CircleGeometry(R, 128), this.#groundMat);
 		ground.rotation.x = -Math.PI / 2;
 		ground.position.y = 0.002;
 		ground.receiveShadow = true;
@@ -800,17 +857,24 @@ export class AreaWorld {
 
 		// The point the range is measured from: a beacon in the accent, unlit, so it
 		// reads the same at midnight as at noon. Built at one pixel per unit and scaled
-		// with the rest.
+		// with the rest. The one mark that stands taller than the stops, because it is
+		// what the whole disc is measured from, and it has to be found at a glance out at
+		// the whole disc, where the disc is a texture and a stop is a dot.
 		const beacon = new THREE.Group();
 		const accent = new THREE.MeshBasicMaterial({ color: ACCENT, toneMapped: false });
-		const post = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 26, 8), accent);
-		post.position.y = 13;
-		const head = new THREE.Mesh(new THREE.SphereGeometry(3.4, 16, 12), accent);
-		head.position.y = 27;
-		const halo = new THREE.Mesh(new THREE.RingGeometry(7, 8.4, 48), accent);
+		const post = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 40, 8), accent);
+		post.position.y = 20;
+		const head = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 12), accent);
+		head.position.y = 42;
+		const halo = new THREE.Mesh(new THREE.RingGeometry(10, 12, 64), accent);
 		halo.rotation.x = -Math.PI / 2;
 		halo.position.y = 0.7;
-		beacon.add(post, head, halo);
+		// A second, wider ring on the ground, a hair thick, so the centre reads as a
+		// target on the plan and not only as a pin against the sky.
+		const reach = new THREE.Mesh(new THREE.RingGeometry(19, 20, 64), accent);
+		reach.rotation.x = -Math.PI / 2;
+		reach.position.y = 0.7;
+		beacon.add(post, head, halo, reach);
 		this.#marks.add(beacon);
 		m.beacon = beacon;
 
@@ -999,11 +1063,6 @@ export class AreaWorld {
 		}
 
 		/* The light: arithmetic, from `scene/daylight`, the same sun the schematic had. */
-		this.#fog.color.set(d.fogColor);
-		// Scaled to the size of the model: the schematic's block was 96 m across and this
-		// disc is up to 1,600 m, and fog is a density per metre.
-		this.#fog.density = (d.fogDensity * 40) / (R * 2.6);
-
 		this.#sun.color.set(d.sunColor);
 		this.#sun.intensity = d.sunIntensity;
 		this.#sun.visible = d.sunIntensity > 0.01;
@@ -1017,7 +1076,7 @@ export class AreaWorld {
 		// The shadow map covers what is in frame rather than the whole disc, so that
 		// closed in on a block the shadows are drawn at the block's scale rather than at
 		// the disc's, where one texel is a metre wide.
-		const half = Math.min(R * 1.2, this.#viewWidth * 0.8);
+		const half = Math.min(R * 1.2, this.#box.w * 0.8);
 		const sc = this.#sun.shadow.camera;
 		sc.left = -half;
 		sc.right = half;
@@ -1070,8 +1129,8 @@ export class AreaWorld {
 		// turns the light on it the way turning a real one would.
 		const azim = this.#cameraYaw();
 		const elev = 0.64 - e * 0.1;
-		// On an orthographic camera distance does not change scale, but fog is
-		// computed from it and the near plane has to clear the tallest tower.
+		// On an orthographic camera distance does not change scale. It only has to put
+		// the near plane clear of the tallest tower.
 		const dist = R * 2.6;
 		this.#camera.position.set(
 			Math.sin(azim) * Math.cos(elev) * dist,
@@ -1082,12 +1141,26 @@ export class AreaWorld {
 		this.#camera.near = 1;
 		this.#camera.far = dist + R * 3;
 
-		// "Zoom" on an orthographic camera is the frustum width. Opened wide the whole
-		// disc fits, its edge is visible and the eye reads an object on a table. Closed
-		// in, the block around the point fills the frame and a house is a house, which
-		// is what the reader came in to see and what the card at 340 px needs to show
-		// anything at all.
-		this.#viewWidth = R * (2.35 - e * 1.8);
+		// "Zoom" on an orthographic camera is the frustum, and the frustum is fitted to a
+		// box. Out at the whole disc the box is the whole miniature, base and shadow
+		// included, with air around it, and the eye reads a round object on a table.
+		// Closed in it is the block around the point, which fills the frame so a house
+		// is a house, which is what the reader came in to see and what the card at 340 px
+		// needs to show anything at all. The height of the whole is the disc's own at
+		// this pitch, plus room for a tower standing on its far edge, and the frame is
+		// centred a little above the disc for the same tower: a building only ever rises,
+		// so the room a miniature needs is above it and not below.
+		const whole = { w: R * 2.35, h: R * (2 * Math.sin(elev) + 0.5), lift: R * 0.08 };
+		const close = { w: R * 0.55, h: 0, lift: 0 };
+		this.#box = {
+			w: whole.w + (close.w - whole.w) * e,
+			h: whole.h + (close.h - whole.h) * e,
+			lift: whole.lift + (close.lift - whole.lift) * e,
+			// What has to stay in frame whatever shape the screen is: the whole disc, out
+			// at the whole disc. Closed in, nothing in particular, because a phone is
+			// better served by closing in further than by holding a block's width.
+			hold: R * 2 * SHADOW_REACH * (1 - e)
+		};
 		this.#applyFrustum();
 	}
 
@@ -1095,19 +1168,22 @@ export class AreaWorld {
 		const w = this.#canvas.clientWidth || 1;
 		const h = this.#canvas.clientHeight || 1;
 		const aspect = w / h;
-		let halfW = this.#viewWidth / 2;
+		const box = this.#box;
+		// The frustum holds the box whole, whichever way the screen is shaped.
+		let halfW = Math.max(box.w / 2, (box.h / 2) * aspect);
 		let halfH = halfW / aspect;
-		// On a portrait screen a fixed width gives a huge vertical span and the model
-		// shrinks to a strip. The vertical span is capped, and narrow screens close in.
-		const maxHalfH = this.#viewWidth * 0.62;
-		if (halfH > maxHalfH) {
-			halfH = maxHalfH;
+		// On a portrait screen the width alone gives a huge vertical span and a strip of
+		// model down the middle, so the span is capped and narrow screens close in. Never
+		// inside the box's own height, and never so far that what is held is cut.
+		const cap = Math.max(box.w * 0.62, box.h / 2, box.hold / (2 * aspect));
+		if (halfH > cap) {
+			halfH = cap;
 			halfW = halfH * aspect;
 		}
 		this.#camera.left = -halfW;
 		this.#camera.right = halfW;
-		this.#camera.top = halfH;
-		this.#camera.bottom = -halfH;
+		this.#camera.top = halfH + box.lift;
+		this.#camera.bottom = -halfH + box.lift;
 		this.#camera.updateProjectionMatrix();
 		this.#mpp = (halfW * 2) / w;
 	}
@@ -1161,6 +1237,7 @@ export class AreaWorld {
 	dispose(): void {
 		this.stop();
 		this.#hatch?.dispose();
+		this.#shadow?.dispose();
 		this.#dot?.dispose();
 		this.#scene.traverse((o) => {
 			const mesh = o as THREE.Mesh;
