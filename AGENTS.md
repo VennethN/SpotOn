@@ -1107,6 +1107,38 @@ is painted from, for the business type and walking range in force, and a cell no
 scored has no standing rather than the lowest one. Below `MIN_BAND` readings there is no
 standing at all, for the reason the bands stop there.
 
+**One phrase, everywhere an index is printed.** `standingPhrase` in `domain/narrate` is
+the fragment, and the ladders are held once in `AppState.ladders` for the reason the
+price ladder is. It is said in six places, and a seventh surface printing an index
+should say it too rather than inventing a wording:
+
+- At the head of the area card, on a line under the typology, which is the other word
+  for the same verdict. Not under the big score: stacked there it widened that column
+  until "Kalibata City 2" broke in two.
+- Under each of the four indices on the score panel.
+- Beside the access band on the transit panel: "strong" is a fixed scale, and this is
+  where strong sits among the rest.
+- In the map's hover readout, under the score, and under the count when no business
+  type is named, because moving the pointer is how cells get compared.
+- In Tapak's remark when a cell is picked, after the score. The remark's verdict follows
+  the standing too, top third good and bottom third not promising, because the fixed
+  cut it used called the fourth-best coffee catchment in the city "middling" in the
+  same breath as "higher than 99% of areas".
+- In the explanation of one place, for the score and for whatever measure was asked
+  about, counts included: "how busy is Tosari" is answered by a count, and "is that
+  busy" by where the count sits. The standings ride in `Explanation.standing`, the fact
+  sheet prints them through the same `standingShare`, and the composed sentence quotes
+  the same floored figure, which is what lets it through the fence. The price keeps its
+  own words there, because "dearer than" is what a price rank is and "higher than" is
+  not.
+
+The unit card gets the same comparator for its one figure whose meaning depends on the
+others, the asking price per m², set against every unit on the market with one, in
+`unitStanding`. Per m² rather than the total, because the total ranks a kiosk against a
+shophouse. It is said beside that figure, in the traits line and under the per-m² row,
+and not under the price at the head, for the reason the area card's is not under its
+score.
+
 ## What space costs, and the word this product will not use
 
 MAPID's premium catalogue has no rent for Jakarta. That is a measurement, not a guess:
