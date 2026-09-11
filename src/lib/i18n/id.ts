@@ -741,7 +741,7 @@ export const id = {
 		peakHour: 'Ini jam paling banyak pintu buka di sini.',
 		share: (persen: number) => `Sekitar ${persen}% dari jam paling banyak bukanya.`,
 		basis: () =>
-			'Ramainya naik turun mengikuti pintu yang buka di jam itu. Orangnya gambaran, pintunya hitungan.',
+			'Tanda yang menyala adalah pintu yang terhitung buka pada jam itu, di tempatnya masing-masing. Bangunan dan jalannya dari peta dasar.',
 		/* Empat macam diam, dan bedanya disebut. Tidak satu pun diselesaikan dengan
 		   menggerakkan orang-orangnya supaya layarnya kelihatan hidup. */
 		still: (terbaca: number) =>
@@ -757,7 +757,7 @@ export const id = {
 		stillFailed:
 			'Cuma cahayanya yang berjalan. Jam bukanya gagal dimuat.',
 		stillNodata:
-			'Cuma cahayanya yang berjalan. Kawasan ini belum didata, jadi belum ada isinya yang bisa digambar.',
+			'Cuma cahayanya yang berjalan. Kota kawasan ini belum disurvei, jadi tidak ada pesaing atau unit yang ditandai di atasnya.',
 		sceneLabel: (nama: string, h: number, isi: string) =>
 			`Model kawasan ${nama} pada jam ${jam(h)}. ${isi}`
 	},
@@ -886,8 +886,9 @@ export const id = {
 			'OSM memberi cacah pesaing, bukan titiknya, jadi tidak ada yang bisa digambar. Ganti sumber ke MAPID di keterangan peta untuk melihat posisinya.',
 		rivalsFailed: 'Posisi pesaing gagal dimuat. Cacah di sebelahnya tidak terpengaruh.',
 		prov: 'Titik usaha & properti: katalog MAPID. Pesaing & simpul transit: OSM.',
-		sceneLabel: (nama: string, isi: string) => `Skema kawasan ${nama}. ${isi}`,
-		sceneNodata: 'Kota kawasan ini belum disurvei, jadi jalannya ditampilkan kosong.',
+		sceneLabel: (nama: string, isi: string) =>
+			`Model kawasan ${nama}, dibangun dari peta dasar. ${isi}`,
+		sceneNodata: 'Kota kawasan ini belum disurvei, jadi tidak ada pesaing atau unit yang ditandai.',
 		sceneBody: (n: number, osm: number, cat: string, unit: number) =>
 			`Ada ${n} usaha dalam radius jalan kaki, ${osm} di antaranya ${cat} pesaing, dan ${unit} unit sedang dipasarkan.`,
 		/* Belum ada jenis usaha yang disebut. Cacahnya tetap disebut karena memang
@@ -1082,7 +1083,14 @@ export const id = {
 		home: 'Kembali ke beranda SpotOn',
 		emptyMood: 'Belum ada kawasan yang dipilih. Tekan salah satu petak di peta untuk melihat suasananya.',
 		pickBest: (cat: string) => `Pilihkan yang terbaik untuk ${cat}`,
-		schema: 'skema, bukan denah sebenarnya',
+		/* Tanda di maket: dibangun dari apa, atau kenapa belum ada. Empat keadaan, satu
+		   tanda, supaya tidak perlu ditebak dari piringan yang kosong. */
+		model: {
+			ready: 'bangunan dan jalan dari peta dasar',
+			reading: 'membaca peta dasar…',
+			failed: 'peta dasarnya gagal dibaca',
+			none: 'peta dasar ini tanpa geometri untuk dimodelkan'
+		},
 		fullNumbers: 'Lihat angka lengkapnya',
 		/* Tanda di peta, menempel pada petak yang dipilih. Sengaja cuma cacahnya:
 		   rinciannya ada di panel, yang dibutuhkan di peta cuma "berapa banyak". */

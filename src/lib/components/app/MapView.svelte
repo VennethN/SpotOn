@@ -16,7 +16,7 @@
 	import { boundsOf, emptyFC, ringCoords } from '$lib/utils/geo';
 	import { countStops, railTotal, stopTotal } from '$lib/domain/transit';
 	import { prefersReducedMotion } from '$lib/utils/motion.svelte';
-	import { basemapStyle } from '$lib/map/basemap';
+	import { basemapStyle, readBasemapTiles } from '$lib/map/basemap';
 	import { hatchImage, rivalImage, unitImage } from '$lib/map/icons';
 	import {
 		catchmentFC,
@@ -752,6 +752,37 @@
 		m.on('click', 'catchment-nodata', pickCell);
 	}
 
+	/**
+	 * Tell the app which tiles the basemap on screen is drawn from, so the model of a
+	 * selected area can be built from the same geometry.
+	 *
+	 * Read off the loaded style rather than off configuration, because which basemap is
+	 * on screen is decided at runtime. A source declared by TileJSON URL does not know
+	 * its tile templates until that file arrives, so this is asked once the style is in
+	 * and then on each `sourcedata` until it is settled. True once it is: either the
+	 * source is known, or this style has no vector buildings at all, which is the
+	 * last-resort raster basemap and nothing else.
+	 */
+	function syncBasemap(m: MapLibreMap): boolean {
+		const found = readBasemapTiles(m);
+		if (found === 'pending') return false;
+		if (found === null) {
+			app.basemapNone = true;
+			return true;
+		}
+		app.basemapNone = false;
+		if (app.basemap?.key !== found.key) app.basemap = found;
+		return true;
+	}
+	/** Keeps asking until the source is settled, then stops listening. */
+	function watchBasemap(m: MapLibreMap) {
+		if (syncBasemap(m)) return;
+		const onSource = () => {
+			if (syncBasemap(m)) m.off('sourcedata', onSource);
+		};
+		m.on('sourcedata', onSource);
+	}
+
 	function positionTip(x: number, y: number) {
 		if (!tipEl) return;
 		const w = tipEl.offsetWidth;
@@ -1127,6 +1158,7 @@
 			m.once('styledata', () => {
 				addLayers(m);
 				ready = true;
+				watchBasemap(m);
 			});
 			m.on('move', scheduleLabels);
 			m.on('zoom', scheduleLabels);
@@ -1161,6 +1193,7 @@
 			m.once('styledata', () => {
 				addLayers(m);
 				ready = true;
+				watchBasemap(m);
 			});
 		})();
 	});

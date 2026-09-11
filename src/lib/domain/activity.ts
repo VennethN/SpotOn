@@ -221,6 +221,19 @@ export function jakartaNow(now = new Date()): { day: number; hour: number } {
 }
 
 /**
+ * Jakarta's hour with its minutes, as a fraction, for the light over the model.
+ *
+ * The counts above are per whole hour and `jakartaNow` says which one it is. The sun
+ * does not move in steps, so the model's light is read off this instead, and both come
+ * from the same clock: a model whose light said half past six while its doors said six
+ * would be two readings of one moment disagreeing by thirty minutes.
+ */
+export function jakartaHour(now = new Date()): number {
+	const shifted = new Date(now.getTime() + JAKARTA_UTC_OFFSET * 3600_000);
+	return shifted.getUTCHours() + shifted.getUTCMinutes() / 60;
+}
+
+/**
  * One cell's counts at one radius, as the grid holds them.
  *
  * An unknown radius returns nothing rather than the nearest stop. A count labelled

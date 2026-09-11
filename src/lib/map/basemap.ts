@@ -1,5 +1,11 @@
 import { env } from '$env/dynamic/public';
-import type { StyleSpecification } from 'maplibre-gl';
+import type {
+	LayerSpecification,
+	Map as MapLibreMap,
+	StyleSpecification,
+	VectorTileSource
+} from 'maplibre-gl';
+import type { BasemapSource, BasemapTiles } from '$lib/types';
 
 /**
  * Which basemap the map draws on.
@@ -244,4 +250,83 @@ export async function basemapStyle(
 
 	// Vector first, raster only if CARTO's style server does not answer. See `rasterStyle`.
 	return (await vectorStyle(theme)) ?? rasterStyle(theme);
+}
+
+/* ── what the area model is built from ─────────────────────────────────────
+   The model of a selected area is the basemap's own geometry, cut to the walking
+   range: see `domain/basemap`. Which basemap that is gets decided above, at runtime,
+   so the tile source has to be read back off the style MapLibre actually loaded rather
+   than off configuration. `MapView` calls this once the style is in and hands the
+   answer to `AppState`, which fetches the tiles the way it fetches the stops. */
+
+/** A layer's source-layer, on the kinds of layer that have one. */
+const sourceLayerOf = (layer: LayerSpecification): string | null => {
+	const named = (layer as { 'source-layer'?: unknown })['source-layer'];
+	return typeof named === 'string' ? named : null;
+};
+
+/**
+ * Every vector source carrying buildings, as the live map holds them.
+ *
+ * All of them, in the style's order, because a style can draw a city from more than
+ * one: MAPID's lays an Indonesia set over a world set, and for Jakarta the world tiles
+ * come back empty while the Indonesia tiles carry the streets. Reading only the first
+ * source found was how the model of a Jakarta cell once came back as a bare disc under
+ * a mark saying it was built from the basemap.
+ *
+ * `'pending'` means a source is there but its tile templates are not known yet: a
+ * source declared by TileJSON URL learns them when that file arrives, which is a
+ * `sourcedata` event later. `null` means this style draws no vector buildings at all,
+ * which is the last-resort raster basemap and nothing else, and then there is nothing
+ * to model from and the interface says so.
+ */
+export function readBasemapTiles(map: MapLibreMap): BasemapTiles | 'pending' | null {
+	const layers = map.getStyle()?.layers ?? [];
+
+	// Which source each building layer draws from, and what it calls the layer.
+	const buildingLayers = new Map<string, string>();
+	for (const l of layers) {
+		const name = sourceLayerOf(l);
+		if (l.type === 'symbol' || !name || !/building/i.test(name)) continue;
+		const sourceId = 'source' in l ? l.source : null;
+		if (typeof sourceId === 'string' && !buildingLayers.has(sourceId)) buildingLayers.set(sourceId, name);
+	}
+	if (!buildingLayers.size) return null;
+
+	const sources: BasemapSource[] = [];
+	for (const [sourceId, building] of buildingLayers) {
+		const source = map.getSource(sourceId);
+		if (!source || source.type !== 'vector') continue;
+		const vector = source as VectorTileSource;
+		if (!vector.tiles?.length) return 'pending';
+
+		// Every source-layer this style draws from the same source, spelled as it
+		// spells them. Read by name rather than assumed, so a style that calls its roads
+		// something else is read rather than ignored.
+		const names = new Set<string>();
+		for (const l of layers) {
+			if ('source' in l && l.source === sourceId) {
+				const name = sourceLayerOf(l);
+				if (name) names.add(name);
+			}
+		}
+		const pick = (re: RegExp): string | undefined => [...names].find((n) => re.test(n));
+		sources.push({
+			tiles: vector.tiles,
+			minzoom: vector.minzoom ?? 0,
+			maxzoom: vector.maxzoom ?? 14,
+			scheme: vector.scheme === 'tms' ? 'tms' : 'xyz',
+			layers: {
+				building,
+				transportation: pick(/^transportation$|^road|^street|^highway/i),
+				water: pick(/^water$/i),
+				waterway: pick(/^waterway/i),
+				park: pick(/^park$/i),
+				landcover: pick(/^landcover/i),
+				landuse: pick(/^landuse$/i)
+			}
+		});
+	}
+	if (!sources.length) return null;
+	return { key: sources.map((s) => s.tiles[0]).join(' '), sources };
 }

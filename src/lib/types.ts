@@ -988,3 +988,165 @@ export interface AccountView {
 	 */
 	demo: boolean;
 }
+
+/**
+ * What the basemap draws around one point, read back off its own tiles.
+ *
+ * THE MODEL OF AN AREA IS THE MAP, CUT TO THE WALKING RANGE. The card's model and
+ * the full-screen one used to be a schematic block, one composed street standing for
+ * every cell with only the counts varying. They are now a recreation of the place:
+ * the building footprints, streets, water and parks the basemap itself carries, at the
+ * heights it carries, cut to a disc of the walking radius around the point the range
+ * is measured from. `map/tiles` reads it, `scene/area` draws it.
+ *
+ * Every coordinate here is in METRES from that point, x east and y north, so the scene
+ * never sees a longitude and the same shape serves any radius. Nothing here is
+ * invented: a building without a tagged height stands at the height the tile schema
+ * writes for one, which is the same figure the map's own 3D view raises it to.
+ */
+export interface LocalPoint {
+	/** Metres east of the centre. */
+	x: number;
+	/** Metres north of the centre. */
+	y: number;
+}
+
+/** A closed ring, first point not repeated at the end. */
+export type LocalRing = LocalPoint[];
+
+/**
+ * The road classes the OpenMapTiles schema draws, which is what both the open basemap
+ * and MAPID's are built on. `busway` and `transit` are Jakarta's own: the TransJakarta
+ * corridors and the LRT tracks, kept apart from the roads they run beside.
+ */
+export type RoadKind =
+	| 'motorway'
+	| 'trunk'
+	| 'primary'
+	| 'secondary'
+	| 'tertiary'
+	| 'minor'
+	| 'service'
+	| 'track'
+	| 'path'
+	| 'busway'
+	| 'rail'
+	| 'transit';
+
+export interface AreaBuilding {
+	/** The outer ring first, then any holes. */
+	rings: LocalRing[];
+	/** Roof height in metres, as the tile carries it. */
+	height: number;
+	/** Where the walls start: above zero for a part standing on another. */
+	base: number;
+}
+
+export interface AreaRoad {
+	path: LocalPoint[];
+	kind: RoadKind;
+	/** Carried over something rather than laid on the ground. */
+	bridge: boolean;
+}
+
+export interface AreaPolygon {
+	rings: LocalRing[];
+}
+
+export interface AreaWaterway {
+	path: LocalPoint[];
+	/** Drawn width in metres, by class: a river is wider than a stream. */
+	width: number;
+}
+
+/** One of the transit corridors the map already draws, cut to the disc. */
+export interface AreaRoute {
+	path: LocalPoint[];
+	mode: keyof TransitCounts;
+}
+
+export interface AreaGeometry {
+	/** Which point, radius and basemap this was read for. The scene uses it to tell a
+	    finished reading from the previous cell's, still on screen while the next loads. */
+	key: string;
+	radius: number;
+	centre: { lat: number; lon: number };
+	buildings: AreaBuilding[];
+	roads: AreaRoad[];
+	water: AreaPolygon[];
+	waterways: AreaWaterway[];
+	green: AreaPolygon[];
+	routes: AreaRoute[];
+	/** How many tiles were read, and at which zoom. For the record, not for the copy. */
+	tiles: number;
+	zoom: number;
+}
+
+/**
+ * The vector source the basemap draws its buildings from, as the live map knows it.
+ *
+ * Read off the style MapLibre has actually loaded rather than off configuration,
+ * because which basemap is on screen is decided at runtime: MAPID's when the key is
+ * accepted, the open one when it is not. Whichever it is, this is what the area model
+ * is built from, so the model is always a recreation of the map the reader is looking
+ * at and never of some other map.
+ */
+export interface BasemapTiles {
+	/** Tells one basemap from another across a theme switch: the templates, joined. */
+	key: string;
+	/**
+	 * Every vector source the style draws buildings from, in the style's own order.
+	 *
+	 * More than one is the rule rather than the exception: MAPID's style lays an
+	 * Indonesia set over a world set, and for Jakarta the world tiles come back empty
+	 * while the Indonesia tiles carry the city. The model reads all of them, which is
+	 * what the map does.
+	 */
+	sources: BasemapSource[];
+}
+
+/** One vector source of the basemap, with the layer names as its style spells them. */
+export interface BasemapSource {
+	/** Tile URL templates carrying `{z}`, `{x}` and `{y}`. */
+	tiles: string[];
+	minzoom: number;
+	maxzoom: number;
+	scheme: 'xyz' | 'tms';
+	/**
+	 * The source-layer names, as this style spells them. Only the buildings are
+	 * required: a style with no water layer draws a model with no water, which is what
+	 * the map itself would show.
+	 */
+	layers: {
+		building: string;
+		transportation?: string;
+		water?: string;
+		waterway?: string;
+		park?: string;
+		landcover?: string;
+		landuse?: string;
+	};
+}
+
+/**
+ * The catalogue's marks around the point, in metres, as the model stands them.
+ *
+ * The same sets the map draws, converted through the same `localMetres` the basemap's
+ * geometry is, so a stop stands on the model exactly where it stands on the map. Each
+ * list follows its layer switch, as the map's own marks do.
+ */
+export interface AreaMarks {
+	/** The selected cell's own boundary, for the outline on the ground. */
+	boundary: LocalPoint[];
+	stops: Array<LocalPoint & { mode: keyof TransitCounts }>;
+	rivals: LocalPoint[];
+	/** Premises on the market, one mark each even where several share a coordinate. */
+	units: LocalPoint[];
+	field: Array<LocalPoint & { rent: boolean }>;
+	/**
+	 * Every business in range with readable opening hours, and its week. The model
+	 * lights each one at the hours its timetable says the door is open, which is the
+	 * very count the activity chart draws, shown where it was counted.
+	 */
+	doors: Array<LocalPoint & { week: number[] }>;
+}
