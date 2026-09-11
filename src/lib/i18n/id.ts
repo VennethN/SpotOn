@@ -164,7 +164,7 @@ export const id = {
 	},
 
 	stats: {
-		hexes: { label: 'petak kawasan dinilai', sub: (r: number) => `heksagon H3, jalan kaki ${r} m` },
+		hexes: { label: 'petak kawasan dinilai', sub: (r: number) => `petak heksagon, jalan kaki ${r} m` },
 		stops: { label: 'titik transit terdata', sub: 'MRT, KRL, LRT, TransJakarta' },
 		pois: { label: 'gerai usaha terdata', sub: 'dalam radius jalan kaki' },
 		cats: {
@@ -281,9 +281,10 @@ export const id = {
 		stage: {
 			reading: 'Sebentar, saya baca dulu pertanyaannya',
 			/* Jujur untuk semua sebabnya, bukan cuma yang paling sering. Modelnya bisa
-			   penuh, bisa lambat, bisa balas ngawur. Yang pasti cuma satu: yang tadi
-			   belum menjawab. */
-			retrying: 'Belum ada jawaban dari yang tadi, saya coba yang lain',
+			   penuh, bisa lambat, bisa balas ngawur. Yang pasti cuma satu: belum ada
+			   jawaban. Rantai modelnya tidak ikut disebut: "yang tadi" cuma bermakna buat
+			   yang tahu modelnya ada beberapa, dan pembaca tidak pernah diberi tahu itu. */
+			retrying: 'Masih belum ada jawaban, saya coba cara lain',
 			/* Bukan "sedang mengambil data", karena belum ada data yang diambil. Yang
 			   sedang terjadi persis ini: pertanyaannya sudah ditangkap, dan pencarian
 			   yang mau dijalankan sedang disusun. */
@@ -361,8 +362,10 @@ export const id = {
 		team: 'Valent Nathanael · Farhan Aulianda · Anthony Gilles Rudolfo',
 		campus: 'Universitas Bina Nusantara',
 		dataLabel: 'Data',
+		/* Atribusi saja. Dulu di sini ada catatan untuk tim soal peta dasar yang wajib
+		   dipakai produk finalnya, dan itu bukan sesuatu yang bisa diapa-apakan pembaca. */
 		dataNote:
-			'Geometri dan POI © OpenStreetMap contributors (ODbL). Titik usaha dan properti komersial dari katalog Data Premium MAPID. Basemap wajib pada produk final: MAPID MAPS.'
+			'Data transit dan usaha © OpenStreetMap contributors (ODbL). Titik usaha, listing properti, dan catatan lapangan dari MAPID.'
 	},
 
 	meta: {
@@ -539,7 +542,7 @@ export const id = {
 			'Tidak ada unit komersial lain yang dipasarkan dalam jarak jalan kaki dari tempat ini.',
 		marketLoading: 'Memuat daftar unitnya…',
 		marketFailed:
-			'Daftar unitnya tidak bisa dimuat. Harga dan cacahnya di atas tetap berlaku, keduanya dibaca dari kisi, bukan dari berkas itu.',
+			'Daftar unitnya tidak bisa dimuat. Harga dan cacahnya di atas tetap berlaku.',
 		/* Nama tipe. Kunci-kuncinya dari data (TIPE_2 di katalog), bukan terjemahan,
 		   jadi harus lengkap di kedua bahasa. */
 		types: {
@@ -1120,7 +1123,7 @@ export const id = {
 			ready: 'bangunan dan jalan dari peta dasar',
 			reading: 'membaca peta dasar…',
 			failed: 'peta dasarnya gagal dibaca',
-			none: 'peta dasar ini tanpa geometri untuk dimodelkan'
+			none: 'peta dasar ini tidak bisa dijadikan maket'
 		},
 		fullNumbers: 'Lihat angka lengkapnya',
 		/* Tanda di peta, menempel pada petak yang dipilih. Sengaja cuma cacahnya:
@@ -1142,7 +1145,7 @@ export const id = {
 		mapRivalsAriaPlace: (n: number, r: number) =>
 			`${n} pesaing sejenis dalam ${r} m jalan kaki dari tempat yang dipilih`,
 		mapReach: (r: number) => `jangkauan ${r} m`,
-		tipNodata: 'Kotanya belum disurvei · kandidat prioritas survei',
+		tipNodata: 'Kotanya belum disurvei',
 		tipScore: (cat: string) => `skor ${cat}`,
 		tipBusy: (n: number) => `${n} usaha di sekitar`,
 		tipRivals: (n: number) => `${n} pesaing`,
@@ -1491,7 +1494,7 @@ export const id = {
 		demoHead: 'Mode demo',
 		demoEnter: 'Masuk sebagai akun demo',
 		demoWhy:
-			'Tidak ada database yang dipasang, jadi SpotOn jalan dengan satu akun contoh. Kuota, paket, dan pembelian semuanya tetap berjalan seperti aslinya, cuma disimpan di memori server dan hilang begitu servernya berhenti.',
+			'SpotOn sedang jalan dengan satu akun contoh. Kuota, paket, dan pembelian semuanya tetap berjalan seperti aslinya, cuma tidak ada yang disimpan: isinya hilang begitu servernya berhenti.',
 		demoBadge: 'Akun demo',
 		demoNote: 'Akun ini tidak disimpan di mana pun. Isinya hilang begitu server berhenti.',
 
@@ -1499,7 +1502,7 @@ export const id = {
 			credentials: 'Email atau kata sandinya tidak cocok.',
 			taken: 'Alamat itu sudah dipakai akun lain.',
 			invalid: 'Isiannya belum lengkap, atau kata sandinya terlalu pendek.',
-			unavailable: 'Database-nya tidak bisa dihubungi. Coba sebentar lagi.',
+			unavailable: 'Ada yang tidak menjawab di sisi kami. Coba sebentar lagi.',
 			signedout: 'Sesi Anda sudah berakhir. Masuk lagi ya.'
 		},
 
@@ -1561,7 +1564,7 @@ export const id = {
 			analysis: 'Kawasan dan tempat'
 		},
 		meterNote: {
-			ai: 'Satu potong tiap kali Anda bertanya, terjawab atau tidak. Yang dibayar adalah panggilan ke model bahasanya, dan panggilan itu tetap terjadi walaupun jawabannya kosong.',
+			ai: 'Satu potong tiap kali Anda bertanya, terjawab atau tidak. Yang dibayar adalah membaca pertanyaannya, dan itu tetap terjadi walaupun jawabannya kosong.',
 			analysis:
 				'Satu potong tiap kali Anda membuka satu petak atau satu unit sendiri. Menutup kartunya tidak dihitung, membuka lagi yang sedang terbuka juga tidak, dan petak yang dibuka Tapak sendiri tidak menagih apa pun.'
 		},
