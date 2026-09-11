@@ -47,6 +47,7 @@
 	import { daylightAt } from '$lib/scene/daylight';
 	import { getAppState } from '$lib/state/app.svelte';
 	import { copy } from '$lib/state/lang.svelte';
+	import { SpringValue } from '$lib/utils/motion.svelte';
 
 	const app = getAppState();
 	const c = $derived(copy());
@@ -55,13 +56,37 @@
 	const catMany = $derived(categoryNames(app.categories, c, 'many'));
 
 	/**
-	 * Wider than the card's. The frame is now the whole screen, so the camera can stand
-	 * back far enough to hold the whole disc, edge and all, which is the relationship
-	 * the model is for: the point, and everything within walking range of it. The card
-	 * has to crop in only because at 340 px the same framing shrinks the streets to a
-	 * texture.
+	 * How close the camera stands: 1 is the block around the point, 0 the whole disc.
+	 *
+	 * IT OPENS CLOSE. The whole disc was the first framing, and on a screen the whole
+	 * disc is a texture: a house is four pixels, and a house is what the reader came in
+	 * to see. So the view opens on the block, where a building is a building, and the
+	 * edge of the disc and the whole range are a press away rather than the other way
+	 * round. A spring rather than a jump, so the eye can follow where it went.
 	 */
-	const CAMERA_T = 0.34;
+	const CLOSE = 1;
+	const WHOLE = 0;
+	const STEP = 0.5;
+	let level = $state(CLOSE);
+	const camera = new SpringValue(CLOSE, { damping: 1, response: 0.6 });
+	$effect(() => () => camera.destroy());
+
+	function zoomTo(next: number) {
+		level = Math.max(WHOLE, Math.min(CLOSE, next));
+		camera.to(level);
+	}
+	/* The wheel does what the buttons do, a little at a time. Nothing behind the model
+	   scrolls, so there is nothing for the wheel to be taken from. */
+	function onWheel(e: WheelEvent) {
+		if (e.deltaY === 0) return;
+		zoomTo(level - Math.sign(e.deltaY) * 0.2);
+	}
+	function onZoomKey(e: KeyboardEvent) {
+		if (e.key === '+' || e.key === '=') zoomTo(level + STEP);
+		else if (e.key === '-' || e.key === '_') zoomTo(level - STEP);
+		else return;
+		e.preventDefault();
+	}
 
 	/** A day at a pace that can be watched: twenty-four hours in eighteen seconds. */
 	const HOURS_PER_SECOND = HOURS_IN_DAY / 18;
@@ -236,7 +261,13 @@
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window
+	onkeydown={(e) => {
+		onKey(e);
+		onZoomKey(e);
+	}}
+	onwheel={onWheel}
+/>
 
 {#if row}
 	<div
@@ -253,7 +284,7 @@
 		<AreaScene
 			{hour}
 			day={now.day}
-			cameraT={CAMERA_T}
+			cameraT={camera.current}
 			nodata={blank}
 			{radius}
 			geometry={app.areaReady}
@@ -284,6 +315,35 @@
 		<div class="clock">
 			<span class="time">{c.zoom.clock(hour)}</span>
 			<span class="phase">{c.phase[day.phase]}</span>
+		</div>
+
+		<!-- Closer, or out to the whole range. Away from the slider, because the slider
+		     is about the hour and this is about where the reader is standing. -->
+		<div class="steps">
+			<button
+				type="button"
+				class="step"
+				onclick={() => zoomTo(level + STEP)}
+				disabled={level >= CLOSE}
+				aria-label={c.zoom.closer}
+				title={c.zoom.closer}
+			>
+				<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
+					<path d="M7 2.5v9M2.5 7h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+				</svg>
+			</button>
+			<button
+				type="button"
+				class="step"
+				onclick={() => zoomTo(level - STEP)}
+				disabled={level <= WHOLE}
+				aria-label={c.zoom.farther}
+				title={c.zoom.farther}
+			>
+				<svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true">
+					<path d="M2.5 7h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+				</svg>
+			</button>
 		</div>
 
 		<div class="dock">
@@ -457,6 +517,46 @@
 	}
 	.close:active {
 		transform: scale(0.96);
+	}
+
+	/* The two steps, mid-height at the edge, in the close button's material. */
+	.steps {
+		position: absolute;
+		right: clamp(0.75rem, 3vw, 2rem);
+		top: 50%;
+		transform: translateY(-50%);
+		display: flex;
+		flex-direction: column;
+		gap: 0.3125rem;
+	}
+	.step {
+		display: grid;
+		place-items: center;
+		width: 2.125rem;
+		height: 2.125rem;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(0, 0, 0, 0.42);
+		-webkit-backdrop-filter: blur(8px);
+		backdrop-filter: blur(8px);
+		color: var(--ink);
+		cursor: pointer;
+		transition:
+			transform 100ms ease-out,
+			background-color 140ms ease-out,
+			opacity 140ms ease-out;
+	}
+	.step:hover:not(:disabled) {
+		background: rgba(0, 0, 0, 0.58);
+	}
+	.step:active:not(:disabled) {
+		transform: scale(0.94);
+	}
+	/* At either end the step that cannot go further stays, faded, so the pair keeps
+	   its shape and the reader can see which way is left. */
+	.step:disabled {
+		opacity: 0.35;
+		cursor: default;
 	}
 
 	.clock {

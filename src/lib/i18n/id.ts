@@ -730,6 +730,11 @@ export const id = {
 		pause: 'Hentikan',
 		now: 'Sekarang',
 		nowAria: 'Kembali ke jam Jakarta sekarang',
+		/* Maketnya dibuka dekat, di blok sekitar titiknya, dan bisa dijauhkan sampai
+		   seluruh jangkauan. Dua langkah, bukan skala bebas: yang ada cuma dekat dan
+		   seluruhnya, dan di antaranya. */
+		closer: 'Mendekat',
+		farther: 'Menjauh',
 		/* Yang dicetak selalu jam bulat yang dihitung, bukan posisi persis slidernya.
 		   Slider di 07.30 tetap bercerita tentang jam 07.00, jam yang dihitung dan
 		   sedang dilewati pembaca. */
