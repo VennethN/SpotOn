@@ -70,8 +70,8 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
-		backdrop-filter: blur(3.5px);
 		-webkit-backdrop-filter: blur(3.5px);
+		backdrop-filter: blur(3.5px);
 		mask-image: linear-gradient(
 			to bottom,
 			#000 0%,

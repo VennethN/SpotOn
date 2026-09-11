@@ -21,6 +21,16 @@ CI (`.github/workflows/ci.yml`) runs typecheck and build on every push and pull
 request, then deploys when it lands on `main`. There is no test runner, so those
 two commands are the whole safety net. Run both before you push.
 
+The build minifies the CSS, and the minifier keeps only the LAST of a prefixed and an
+unprefixed declaration of the same property. So a vendor-prefixed declaration goes
+FIRST and the standard one last, everywhere: `-webkit-backdrop-filter` above
+`backdrop-filter`, `-webkit-mask-image` above `mask-image`. Written the other way
+round, the standard one is dropped from the build and only the prefixed one ships,
+which Chrome does not read at all for `backdrop-filter`. That is how the tilt-shift
+blur on the models worked on every dev server and on no deployed page, for as long
+as it had been written that way. Nothing catches it: the dev server does not minify,
+and the check does not look at CSS.
+
 ## Commits and pushes
 
 Use [Conventional Commits](https://www.conventionalcommits.org/). The subject

@@ -160,9 +160,9 @@
 		position: absolute;
 		inset: 0;
 		pointer-events: none;
-		backdrop-filter: blur(3.5px);
 		-webkit-backdrop-filter: blur(3.5px);
-		mask-image: linear-gradient(
+		backdrop-filter: blur(3.5px);
+		-webkit-mask-image: linear-gradient(
 			to bottom,
 			#000 0%,
 			rgba(0, 0, 0, 0.45) 16%,
@@ -171,7 +171,7 @@
 			rgba(0, 0, 0, 0.5) 82%,
 			#000 100%
 		);
-		-webkit-mask-image: linear-gradient(
+		mask-image: linear-gradient(
 			to bottom,
 			#000 0%,
 			rgba(0, 0, 0, 0.45) 16%,
