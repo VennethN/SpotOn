@@ -1,7 +1,9 @@
 # Final-stage materials
 
 Everything the organisers asked for in *Informasi Persiapan Final Top 10 WebGIS
-Competition 2026*, written as a pitch rather than a report: one story, told in the
+Competition 2026* (the announcement itself is here as
+`Pengumuman_untuk_Tahapan_Final.pdf`: the deliverables, the rundown for 23 and 24
+September, the dress code, and the 22 September 15.00 WIB submission deadline), written as a pitch rather than a report: one story, told in the
 second person, with the product doing the showing. The few figures that remain are
 read from the grid file's metadata or computed by the scoring engine, and every
 screenshot is the real interface.

@@ -20,6 +20,8 @@ proposal-drafting repository (`MapID/`) so that the context lives alongside the 
 | `assets/Proposal_SpotOn.pdf` | The PDF version of the proposal sent to the organisers. |
 | `assets/fig1_peta.png` … `fig4_pipeline.png` | The figures used in the proposal (map, AI panel, detail panel, end-to-end flow). |
 | `assets/mockup-proposal.html` | The single-file mockup built for the proposal. This application's scoring engine and sample dataset originate here. |
+| `final/Pengumuman_untuk_Tahapan_Final.pdf` | The organisers' announcement for the Top 10 final: what to prepare, the two-day rundown, and the submission deadline. |
+| `final/` | The pitch deck, A2 poster and product video built for that final, with the scripts that produce them. |
 
 ## Deliberately not copied
 
