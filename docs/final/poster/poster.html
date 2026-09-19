@@ -7,73 +7,44 @@
 @font-face { font-family: 'Albert Sans'; src: url('fonts/albert-latin.woff2') format('woff2'); font-weight: 100 900; font-style: normal; }
 @font-face { font-family: 'Albert Sans'; src: url('fonts/albert-latin-ext.woff2') format('woff2'); font-weight: 100 900; font-style: normal; unicode-range: U+0100-02BA; }
 @page { size: 420mm 594mm; margin: 0; }
-:root {
-  --ink: #0b0c0e; --ink2: #34373d; --muted: #6b7280; --line: #d9dde3; --bg: #eceef1; --card: #ffffff;
-  --blue: #0071e3; --blue-soft: #e1ecfa; --blue-deep: #143f7c; --pale: #c9cdd4;
-  --orange: #ef8f3c; --red: #e05a5a; --green: #46b077; --purple: #c76bbe;
-}
+:root { --ink: #0b0c0e; --ink2: #34373d; --muted: #6b7280; --line: #dde1e7; --bg: #f2f3f5; --card: #fff; --blue: #0071e3; --pale: #c9cdd4; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-body { width: 420mm; height: 594mm; background: var(--bg); color: var(--ink); font-family: 'Albert Sans', system-ui, sans-serif; font-size: 12pt; line-height: 1.3; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-p { margin: 0 0 2mm; }
-.page { position: relative; width: 420mm; height: 594mm; padding: 9mm 11mm 9mm; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 108mm 165mm 171mm 114mm; gap: 6mm; }
-header { grid-column: 1 / -1; background: var(--ink); color: #fff; border-radius: 7mm; padding: 8mm 10mm; display: grid; grid-template-columns: 1.15fr 1fr; gap: 9mm; overflow: hidden; }
-.brand { display: flex; align-items: center; gap: 4mm; margin-bottom: 5mm; }
-.brand img { width: 13mm; height: 13mm; }
-.brand span { font-size: 26pt; font-weight: 700; letter-spacing: -0.01em; }
-h1 { font-size: 38pt; line-height: 0.98; letter-spacing: -0.025em; font-weight: 800; margin: 0 0 5mm; }
-.lede { font-size: 12.5pt; color: var(--pale); line-height: 1.3; margin-bottom: 5mm; max-width: 180mm; }
-.team { display: grid; grid-template-columns: auto auto; gap: 1mm 9mm; font-size: 11pt; color: var(--pale); line-height: 1.25; }
-.team b { color: #fff; font-weight: 700; }
-.hero { position: relative; border-radius: 5mm; overflow: hidden; background: #2e3a4a; }
+body { width: 420mm; height: 594mm; background: var(--bg); color: var(--ink); font-family: 'Albert Sans', system-ui, sans-serif; font-size: 13.5pt; line-height: 1.34; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+p { margin: 0 0 2.6mm; }
+.page { position: relative; width: 420mm; height: 594mm; padding: 10mm 12mm 9mm; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 122mm 158mm 165mm 104mm; gap: 7mm; }
+header { grid-column: 1 / -1; background: var(--ink); color: #fff; border-radius: 8mm; padding: 11mm 12mm; display: grid; grid-template-columns: 1.05fr 1fr; gap: 10mm; overflow: hidden; }
+.brand { display: flex; align-items: center; gap: 4mm; margin-bottom: 6mm; }
+.brand img { width: 13mm; height: 13mm; } .brand span { font-size: 26pt; font-weight: 700; }
+h1 { font-size: 46pt; line-height: 0.98; letter-spacing: -0.03em; font-weight: 800; margin: 0 0 7mm; }
+.lede { font-size: 16pt; color: var(--pale); line-height: 1.3; margin-bottom: 7mm; max-width: 175mm; }
+.team { font-size: 12.5pt; color: var(--pale); line-height: 1.35; } .team b { color: #fff; }
+.team .comp { color: #8fb8f0; margin-top: 2mm; }
+.hero { position: relative; border-radius: 6mm; overflow: hidden; background: #2e3a4a; }
 .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.hero .tag { position: absolute; left: 5mm; bottom: 5mm; right: 5mm; background: rgba(11,12,14,0.72); color: #fff; padding: 2mm 3.5mm; border-radius: 3mm; font-size: 10.5pt; }
-section { background: var(--card); border-radius: 6mm; padding: 6mm 6.5mm 5mm; border: 0.4mm solid var(--line); display: flex; flex-direction: column; gap: 2.2mm; min-width: 0; overflow: hidden; }
+.hero .tag { position: absolute; left: 6mm; bottom: 6mm; right: 6mm; background: rgba(11,12,14,0.74); color: #fff; padding: 3mm 4mm; border-radius: 3mm; font-size: 12pt; }
+section { background: var(--card); border-radius: 7mm; padding: 8mm 8mm 6mm; border: 0.4mm solid var(--line); display: flex; flex-direction: column; gap: 2.4mm; min-width: 0; overflow: hidden; }
 .wide { grid-column: span 2; }
-.sec-head { display: flex; align-items: center; gap: 3.5mm; margin-bottom: 0.5mm; }
-.hex { width: 10mm; height: 10mm; flex: 0 0 auto; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13pt; background: var(--blue); clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
-.hex.soft { background: var(--blue-soft); color: var(--blue); }
-h2 { font-size: 19pt; line-height: 1.05; letter-spacing: -0.015em; font-weight: 700; margin: 0; }
-.kicker { font-size: 10pt; font-weight: 700; color: var(--blue); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1mm; }
-ul { margin: 0; padding-left: 5.5mm; }
-li { margin-bottom: 1mm; }
-li::marker { color: var(--blue); }
-.rows { display: grid; gap: 2.2mm; }
-.row { display: grid; grid-template-columns: 8.5mm 1fr; gap: 2.8mm; align-items: start; }
-.row .hex { width: 8.5mm; height: 8.5mm; font-size: 10.5pt; }
-.row b { display: block; font-size: 12pt; }
-.row span { color: var(--ink2); font-size: 11pt; }
-figure { margin: 0; }
-figure img { width: 100%; display: block; border-radius: 3.5mm; border: 0.3mm solid var(--line); object-fit: cover; object-position: top; }
-figcaption { font-size: 10pt; color: var(--muted); margin-top: 1.5mm; line-height: 1.3; }
-.cap36 img { height: auto; } .cap44 img { height: auto; } .cap78 img { height: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 10.5pt; }
-th, td { text-align: left; padding: 1.2mm 1.5mm; border-bottom: 0.3mm solid var(--line); vertical-align: top; }
-th { font-weight: 700; color: var(--muted); font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.06em; }
-td.n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
-.src { display: inline-block; padding: 0.3mm 1.8mm; border-radius: 1.8mm; font-size: 9pt; font-weight: 700; color: #fff; margin-right: 1mm; vertical-align: middle; }
-.src.mapid { background: var(--blue-deep); } .src.apps { background: var(--purple); } .src.osm { background: var(--green); } .src.prop { background: var(--orange); }
-.flow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.2mm; }
-.step { background: var(--bg); border-radius: 3.2mm; padding: 2.6mm 3mm; font-size: 10.5pt; color: var(--ink2); line-height: 1.28; }
-.step b { display: block; color: var(--ink); font-size: 11.5pt; margin-bottom: 0.6mm; }
-.step .hex { width: 7mm; height: 7mm; font-size: 9.5pt; margin-bottom: 1.2mm; }
-.formula { background: var(--blue-soft); border-radius: 3.2mm; padding: 2.6mm 3.5mm; font-size: 12pt; color: var(--blue-deep); font-weight: 600; }
-.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.5mm; }
-.stat { background: var(--bg); border-radius: 3.2mm; padding: 2.6mm 3.2mm 2.2mm; }
-.stat .v { font-size: 24pt; font-weight: 800; letter-spacing: -0.02em; line-height: 1; color: var(--blue); font-variant-numeric: tabular-nums; }
-.stat .l { font-size: 10.5pt; color: var(--ink2); margin-top: 1.5mm; line-height: 1.25; }
-.three { display: grid; grid-template-columns: 1.5fr 1fr 0.85fr; gap: 5mm; align-items: start; }
-.note { font-size: 10.3pt; color: var(--muted); }
-.quote { border-left: 1.1mm solid var(--blue); padding-left: 3.2mm; color: var(--ink2); font-size: 11pt; }
-.qr { display: grid; grid-template-columns: 54mm 1fr; gap: 5mm; align-items: center; }
-.qr img { width: 54mm; height: 54mm; border-radius: 3.5mm; border: 0.4mm solid var(--line); }
-.url { font-size: 19pt; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); line-height: 1.1; }
-.url small { display: block; font-size: 11pt; color: var(--muted); font-weight: 500; margin-top: 2mm; line-height: 1.3; }
-.tapak { display: grid; grid-template-columns: 16mm 1fr; gap: 3.5mm; align-items: center; background: var(--bg); border-radius: 3.5mm; padding: 2.2mm 3.5mm; font-size: 11pt; color: var(--ink2); }
-.tapak img { width: 16mm; height: 16mm; border-radius: 50%; }
-.typ { display: flex; gap: 2mm; flex-wrap: wrap; margin-bottom: 1mm; }
-.typ span { padding: 0.9mm 2.4mm; border-radius: 10mm; font-size: 10.5pt; font-weight: 600; background: var(--bg); }
-.typ i { display: inline-block; width: 2.8mm; height: 2.8mm; border-radius: 50%; margin-right: 1.4mm; }
+.k { font-size: 10.5pt; font-weight: 700; color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; }
+h2 { font-size: 24pt; line-height: 1.04; letter-spacing: -0.025em; font-weight: 800; margin: 0 0 2mm; }
+h2.big { font-size: 27pt; }
+.lead b { color: var(--ink); }
+.lead p { margin-bottom: 1.8mm; }
+figure { margin: 0; } figure img { width: 100%; display: block; border-radius: 4mm; border: 0.3mm solid var(--line); object-fit: cover; object-position: top; }
+.cap42 img { height: 34mm; } .cap58 img { height: 50mm; } .mid img { object-position: center; }
+figcaption { font-size: 11pt; color: var(--muted); margin-top: 1.8mm; line-height: 1.3; }
+.muted { color: var(--muted); font-size: 12pt; }
+.blue { color: var(--blue); font-weight: 700; }
+.three { display: grid; grid-template-columns: 1.55fr 1fr; gap: 7mm; align-items: start; }
+.stack figure + figure { margin-top: 4mm; }
+.qr { display: flex; flex-direction: column; gap: 3mm; }
+.qr img { width: 42mm; height: 42mm; border-radius: 4mm; border: 0.4mm solid var(--line); }
+.url { font-size: 19.5pt; font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; white-space: nowrap; }
+.url small { display: block; font-size: 11.5pt; color: var(--muted); font-weight: 500; margin-top: 2.5mm; line-height: 1.3; }
+.who { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 6mm; }
+.who div { font-size: 12pt; color: var(--ink2); line-height: 1.3; }
+.who b { display: block; color: var(--ink); }
+.spacer { flex: 1; }
 </style>
 </head>
 <body>
@@ -83,128 +54,81 @@ td.n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; 
   <div>
     <div class="brand"><img src="img/mark-white.png" alt=""><span>SpotOn</span></div>
     <h1>Don't guess where to open. Ask the map.</h1>
-    <p class="lede">An AI-assisted WebGIS for retail and F&amp;B site selection around Jakarta's transit network. Demand, competition and available space, scored per walkable cell and explained in plain language.</p>
-    <div class="team">
-      <div><b>Team Triple T</b><br>Universitas Bina Nusantara<br><span style="color:#8fb8f0">MAPID WebGIS Competition 2026<br>Maps That Think! · Final</span></div>
-      <div><b>Valent Nathanael</b> · Project lead, data and AI<br><b>Farhan Aulianda</b> · Frontend and WebGIS<br><b>Anthony Gilles Rudolfo</b> · GIS analysis, UI and UX</div>
-    </div>
+    <p class="lede">The map that tells small businesses where to open around Jakarta's stations, and why.</p>
+    <div class="team"><b>Team Triple T</b> · Universitas Bina Nusantara<br>Valent Nathanael · Farhan Aulianda · Anthony Gilles Rudolfo<div class="comp">MAPID WebGIS Competition 2026 · Maps That Think! · Final</div></div>
   </div>
-  <div class="hero"><img src="img/hero.jpg" alt="A modelled street block around a Jakarta transit stop"><div class="tag">A street block modelled from real counts. The outlined plot is the business you could open.</div></div>
+  <div class="hero"><img src="img/hero-plot.jpg" alt="A modelled street block with an empty outlined plot"><div class="tag">That outlined plot is still empty. It could be your shop.</div></div>
 </header>
 
 <section>
-  <div class="sec-head"><div class="hex">2</div><h2>Background &amp; Problem Statement</h2></div>
-  <p>The blocks around Jakarta's MRT, KRL, LRT and TransJakarta stops are the busiest trading ground in the city. Yet most owners still choose a location on instinct, a hunch, or by copying a competitor. The wrong choice means an early closure and capital lost.</p>
-  <div class="rows">
-    <div class="row"><div class="hex soft">1</div><div><b>Nobody counted how busy it is</b><span>Everyone knows station blocks are busy. Nobody knows which blocks.</span></div></div>
-    <div class="row"><div class="hex soft">2</div><div><b>The competition is invisible</b><span>A street already full of coffee shops is a way to lose money.</span></div></div>
-    <div class="row"><div class="hex soft">3</div><div><b>The space is never counted</b><span>A good area with nothing to rent is not an opportunity.</span></div></div>
-  </div>
-  <figure class="cap36"><img src="img/chart-spread-trim.png" alt="Bar chart of cells by business density"><figcaption>Busy is not spread evenly. Cells by how many businesses stand within walking range: most are quiet, a few are dense.</figcaption></figure>
+  <p class="k">2 · Background and problem</p>
+  <h2>Every week, someone signs a lease on a hunch.</h2>
+  <p>You want to open a coffee shop near the station. Everyone says the area is busy. Nobody can tell you which corner, who you are up against, or whether there is even a shop to rent. So you guess. Too many guess wrong, and it is their savings that go.</p>
+  <div class="lead"><p><b>Which corner is actually busy?</b> Nobody has counted.</p><p><b>Who is already there?</b> The competition is invisible.</p><p><b>Is there space to rent?</b> A good area with nothing to rent is not an opportunity.</p></div>
+  <p class="muted">Built for the people who take that risk: first-time owners, small businesses, franchise teams and investors.</p>
 </section>
 
 <section>
-  <div class="sec-head"><div class="hex">3</div><h2>Objective &amp; Solution</h2></div>
-  <p class="kicker">Objectives</p>
-  <ul>
-    <li>Bring demand, competition and available space into one Opportunity Score per cell and business type.</li>
-    <li>Explain every score step by step, with the number of data points behind it.</li>
-    <li>Say "not surveyed" where data is missing, instead of interpolating a plausible value.</li>
-  </ul>
-  <p class="kicker">Solution</p>
-  <p>SpotOn is a decision-support WebGIS. Jakarta is covered with an H3 hexagonal grid, and the <b>562 cells</b> with a transit stop within an 800 m walk are scored for <b>13 business types</b>. Tapak, the AI guide inside the map, answers plain-language questions in Indonesian or English with the reasons attached.</p>
-  <figure class="cap36"><img src="img/grid-model-trim.png" alt="Three-dimensional model of the hexagonal grid"><figcaption>One hexagon, one cell. Height and colour both carry the Opportunity Score, sampled from the grid's real scores.</figcaption></figure>
+  <p class="k">3 · Objective and solution</p>
+  <h2>Ask the map, in your own words.</h2>
+  <p>Type what you want to open. SpotOn answers with the best spots around Jakarta's stations and the reasons behind each, like a friend who has walked every street.</p>
+  <div class="lead"><p><b>Is it busy?</b> We counted.</p><p><b>Who is already there?</b> We know them by name.</p><p><b>Is there space to rent?</b> Only spots with space qualify.</p></div>
+  <p class="blue">From a hunch to a shortlist, in one question.</p>
+  <figure class="cap42"><img src="img/ask.jpg" alt="Tapak answering a coffee shop question on the map"></figure>
 </section>
 
 <section>
-  <div class="sec-head"><div class="hex">4</div><h2>Data &amp; Methodology</h2></div>
-  <table>
-    <tr><th>Source</th><th>What it contributes</th><th class="n">Count</th></tr>
-    <tr><td><span class="src mapid">MAPID</span>Data Premium</td><td>Competitor points, 13 types</td><td class="n">24,630</td></tr>
-    <tr><td><span class="src apps">MAPID Apps</span>Missions</td><td>Field records, 4 missions</td><td class="n">1,027</td></tr>
-    <tr><td><span class="src osm">OSM</span>Overpass</td><td>Transit stops, POIs, hours</td><td class="n">1,105</td></tr>
-    <tr><td><span class="src prop">MAPID</span>Property</td><td>Listings with asking prices</td><td class="n">3,547</td></tr>
-  </table>
-  <div class="flow">
-    <div class="step"><div class="hex">1</div><b>H3 grid</b>Resolution 8, 800 m walk, transit-served cells only.</div>
-    <div class="step"><div class="hex">2</div><b>Spatial join</b>Rivals, trade, stops, listings and notes per cell.</div>
-    <div class="step"><div class="hex">3</div><b>Score and rank</b>clamp(busy − rivals) × space gate × access × cost, per type.</div>
-    <div class="step"><div class="hex">4</div><b>AI layer</b>The model picks the operation. The engine computes every figure.</div>
-  </div>
-  <p class="note">Field records never enter the score. A grounding check drops any AI sentence quoting a figure the engine did not compute.</p>
+  <p class="k">4 · Data and methodology</p>
+  <h2>We count what is really there.</h2>
+  <p>Every shop around every station, every unit on the market, and notes from people who walked the streets with MAPID Apps.</p>
+  <p>Jakarta is cut into walkable cells, and each cell gets one score per kind of business: how busy it is, minus your rivals, only where there is space to rent, with a boost for transit. The AI writes the sentence and never invents a number.</p>
+  <figure class="cap42 mid"><img src="img/coverage.jpg" alt="Every cell around a Jakarta station"><figcaption>562 station areas · 24,630 businesses · 1,027 field notes · MAPID and OpenStreetMap.</figcaption></figure>
 </section>
 
 <section class="wide">
-  <div class="sec-head"><div class="hex">5</div><h2>WebGIS &amp; Key Features</h2></div>
+  <p class="k">5 · WebGIS and key features</p>
+  <h2 class="big">Everything a site visit tells you, before you go.</h2>
   <div class="three">
-    <figure class="cap78"><img src="img/light-app-rank-coffee.jpg" alt="The SpotOn map with Tapak's ranked answer"><figcaption>Ask "Where should I open a coffee shop near a station?" and the map recolours by Opportunity Score, ranks the cells and lists the reasons.</figcaption></figure>
-    <div class="rows">
-      <div class="row"><div class="hex soft">A</div><div><b>Interactive map on MAPID MAPS</b><span>562 hexagons, flat or 3D. Zoom, click, filter, layer control, attribute table, ID and EN.</span></div></div>
-      <div class="row"><div class="hex soft">B</div><div><b>Tapak, the AI guide</b><span>Ask in plain language. The map recolours and flies to the answer. Follow up with "why that one".</span></div></div>
-      <div class="row"><div class="hex soft">C</div><div><b>Area card</b><span>Score breakdown, competitors, transit nodes, opening hours, cost of space and field notes.</span></div></div>
-      <div class="row"><div class="hex soft">D</div><div><b>Place pivot</b><span>Every premise on the market, ranked with the score of its area. Nobody rents a hexagon.</span></div></div>
-      <div class="row"><div class="hex soft">E</div><div><b>Your own weights</b><span>Demand against competition, walking radius, space requirement, competitor source.</span></div></div>
-    </div>
+    <figure><img src="img/light-app-rank-coffee.jpg" alt="The SpotOn map with Tapak's ranked answer"><figcaption>Ask "Where should I open a coffee shop near a station?" and the city recolours for coffee shops, with the best five named and the reasons under each.</figcaption></figure>
     <div>
-      <figure class="cap44"><img src="img/map-3d.jpg" alt="The grid in 3D"><figcaption>3D view: height carries the same figure as colour.</figcaption></figure>
-      <figure class="cap44" style="margin-top:2.5mm"><img src="img/light-app-by-place.jpg" alt="The place pivot"><figcaption>By place: 2,232 premises on the market, sortable by price, area score or floor area.</figcaption></figure>
+      <div class="lead"><p><b>Ask,</b> and the city recolours. No forms, no jargon, no GIS skills.</p><p><b>Open any area</b> and see why: how busy it is, who is already there, what the space costs, and what people noted on the street.</p><p><b>Pick a real shop to rent,</b> not a hexagon. Every unit on the market, ranked with the score of its area.</p><p><b>Turn it your way.</b> Flat or 3D, busy against rivals, walking distance, and where the counts come from.</p></div>
+      <p class="muted">Indonesian or English. Laptop or phone. Free to look around.</p>
     </div>
   </div>
-  <div class="tapak"><img src="img/tapak-avatar.png" alt=""><div><b>How a reader interacts.</b> Type a question or tap a suggestion. The map answers. Click a cell or a result and the card explains it. Ask a follow-up in the same thread. Every figure on screen is computed by the scoring engine from the data, and the model only writes the sentence around it.</div></div>
 </section>
 
 <section>
-  <div class="sec-head"><div class="hex">6</div><h2>Results &amp; Insights</h2></div>
-  <div class="stats">
-    <div class="stat"><div class="v">462</div><div class="l">cells scored, with the N behind every figure</div></div>
-    <div class="stat"><div class="v">100</div><div class="l">cells left unscored: no source has surveyed their city yet</div></div>
+  <p class="k">6 · Results and insights</p>
+  <h2>Ask for a coffee shop. SpotOn says Rawa Selatan.</h2>
+  <p>A busy street with only five coffee shops, twelve units up for rent and four transit stops within a walk. The best gap in the city, scored 65 out of 100.</p>
+  <p>It also says where not to go: seventeen areas are already full of coffee shops. And where nobody has looked yet, it says so instead of guessing.</p>
+  <figure class="cap58"><img src="img/map-3d.jpg" alt="The city scored for coffee shops, in 3D"><figcaption>The city scored for coffee shops. Every number comes from the data, never from the AI.</figcaption></figure>
+</section>
+
+<section>
+  <p class="k">7 · Benefits and potential applications</p>
+  <h2>Fewer wrong leases. More shops that last.</h2>
+  <p>A shortlist you can defend in minutes, with the information the chains pay for.</p>
+  <div class="who">
+    <div><b>First shop</b>What fits near home, and what it costs.</div>
+    <div><b>Franchise teams</b>Rank a corridor before the site visits.</div>
+    <div><b>Property agents</b>Match a listing to the business that will thrive there.</div>
+    <div><b>Any transit city</b>Bandung and Surabaya next.</div>
   </div>
-  <p class="kicker">Coffee shops, all 562 cells</p>
-  <div class="typ"><span><i style="background:#2f72cd"></i>37 underserved</span><span><i style="background:#b3cdf0"></i>508 competitive</span><span><i style="background:#e05a5a"></i>17 saturated</span></div>
-  <table>
-    <tr><th>Top catchments</th><th class="n">Score</th><th class="n">Rivals</th><th class="n">Units</th></tr>
-    <tr><td>Rawa Selatan</td><td class="n">65</td><td class="n">5</td><td class="n">12</td></tr>
-    <tr><td>Pondok Jati</td><td class="n">63</td><td class="n">10</td><td class="n">9</td></tr>
-    <tr><td>Pasar Pramuka</td><td class="n">63</td><td class="n">14</td><td class="n">5</td></tr>
-  </table>
-  <p class="quote"><b>Why Rawa Selatan?</b> 273 other businesses within 800 m put the trade around it at 96 out of 100. Only 5 coffee shops stand in the same range, so competition reads 9. 12 units are on the market at a median of Rp 40.2m per m², and 4 transit nodes are within walking range.</p>
-  <p>Minimarkets tell the opposite story: 529 cells competitive, 32 saturated, only 1 underserved. The gaps are few and specific, which is what a site finder needs.</p>
-  <p class="note">709 of the 1,027 field records fall inside the grid, across 191 cells. 55 property records offer space for rent, the only rental signal for Jakarta.</p>
 </section>
 
 <section>
-  <div class="sec-head"><div class="hex">7</div><h2>Benefits &amp; Applications</h2></div>
-  <p class="kicker">Benefits</p>
-  <ul>
-    <li>Less risk of opening in the wrong place.</li>
-    <li>Small businesses compete on data, with no GIS skills.</li>
-    <li>Every figure traceable to its source and its N.</li>
-  </ul>
-  <p class="kicker">Target users and applications</p>
-  <ul>
-    <li><b>Investors and franchise teams</b> screening transit sites.</li>
-    <li><b>First-time owners</b> asking what fits near home.</li>
-    <li><b>Survey planning</b>: unscored cells guide the next mission.</li>
-    <li><b>Other cities</b>: swap the transit data and catalogue.</li>
-  </ul>
+  <p class="k">8 · Conclusion</p>
+  <h2>Ask before you sign.</h2>
+  <p>Location was the biggest decision a small business made on the least information. SpotOn turns the shops, the stations and the space around every Jakarta station into one answer you can question, in your own words.</p>
+  <p class="muted">Next: more streets walked with MAPID Apps, rent listings, and two more cities.</p>
 </section>
 
 <section>
-  <div class="sec-head"><div class="hex">8</div><h2>Conclusion</h2></div>
-  <p>Site selection around transit was decided on instinct because demand, competition and available space were never counted together. SpotOn counts them per walkable cell from MAPID and OpenStreetMap data and turns them into one transparent Opportunity Score for 13 business types. The result is insight rather than raw points: ranked catchments, a typology for every cell, a card that takes each score apart, and an AI guide that explains it while every number stays computed by the engine.</p>
-  <p class="kicker">Future development</p>
-  <ul>
-    <li>Grow the field surveys to cover the 100 unscored cells.</li>
-    <li>Read formality tier and storefront quality from mission photos.</li>
-    <li>Rent listings, more business types, a mobile-first card.</li>
-  </ul>
-</section>
-
-<section>
-  <div class="sec-head"><div class="hex">9</div><h2>Open the WebGIS</h2></div>
-  <div class="qr"><img src="img/qr.png" alt="QR code to the SpotOn WebGIS"><div class="url">spot-on-three.<br>vercel.app<small>Scan to open SpotOn. Desktop and mobile, Indonesian and English, no install.</small></div></div>
-  <p class="note" style="margin-top:1.5mm">Source: github.com/VennethN/SpotOn. SvelteKit and MapLibre GL on the MAPID MAPS basemap, deployed on Vercel.</p>
-  <p class="note">Transit and business data © OpenStreetMap contributors (ODbL). Business points, listings and field notes from MAPID Data Premium and MAPID Apps, within the competition's terms.</p>
+  <p class="k">9 · Open the WebGIS</p>
+  <div class="qr"><img src="img/qr.png" alt="QR code to the SpotOn WebGIS"><div class="url">spot-on-three.vercel.app<small>Scan and ask it something. Free to open, on a laptop or a phone, in Indonesian or English.</small></div></div>
+  <div class="spacer"></div>
+  <p class="muted">github.com/VennethN/SpotOn · Built on MAPID MAPS with MAPID and OpenStreetMap (ODbL) data.</p>
 </section>
 
 </div>

@@ -30,28 +30,28 @@ await scene('title', async (page, ctx, mark) => {
 await scene('landing', async (page, ctx, mark, cap) => {
   await page.goto(base + '/', { waitUntil: 'load' }); await page.waitForTimeout(3000);
   const en = page.getByRole('button', { name: 'EN', exact: true }).first(); if (await en.count()) await en.click();
-  await page.waitForTimeout(600); mark('hero'); await cap("Around Jakarta's stations, location is still guesswork.");
+  await page.waitForTimeout(600); mark('hero'); await cap("Busy, they say. But which corner?");
   await page.mouse.move(960, 540);
   for (let i = 0; i < 24; i++) { await page.mouse.wheel(0, 18); await page.waitForTimeout(120); }
   await page.waitForTimeout(3200);
-  await cap(null); await page.evaluate(() => document.getElementById('data')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); await page.waitForTimeout(1400); mark('data'); await cap('562 walkable cells, counted one by one.'); await page.waitForTimeout(5200);
-  await cap(null); await page.evaluate(() => document.getElementById('cara-kerja')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); await page.waitForTimeout(1400); mark('grid'); await cap('One score per cell, per business type.'); await page.waitForTimeout(5200);
+  await cap(null); await page.evaluate(() => document.getElementById('data')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); await page.waitForTimeout(1400); mark('data'); await cap('We count what is really there.'); await page.waitForTimeout(5200);
+  await cap(null); await page.evaluate(() => document.getElementById('cara-kerja')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); await page.waitForTimeout(1400); mark('grid'); await cap('One score per area, for your kind of business.'); await page.waitForTimeout(5200);
 });
 await scene('app', async (page, ctx, mark, cap) => {
   await ctx.request.post(base + '/api/auth/login', { data: {} });
   await page.goto(base + '/app', { waitUntil: 'load' }); await page.waitForTimeout(4500);
   await page.getByRole('button', { name: 'EN', exact: true }).first().click(); await page.waitForTimeout(1200); mark('launcher');
-  await cap('Ask Tapak, the AI guide, in plain language.');
+  await cap('Ask in your own words.');
   const box = page.locator('input[aria-label="Ask Tapak"]:visible').first();
   await box.click(); await page.waitForTimeout(400);
   await box.pressSequentially('Where should I open a coffee shop near a station?', { delay: 42 });
   await page.waitForTimeout(500); await box.press('Enter'); mark('asked');
-  await page.getByRole('button', { name: /^1 / }).first().waitFor({ timeout: 20000 }); mark('answer'); await page.waitForTimeout(2500); await cap('The map recolours with the answer.'); await page.waitForTimeout(3500);
+  await page.getByRole('button', { name: /^1 / }).first().waitFor({ timeout: 20000 }); mark('answer'); await page.waitForTimeout(2500); await cap('The best spots, and why.'); await page.waitForTimeout(3500);
   await cap(null); await page.getByRole('button', { name: /^1 / }).first().click(); mark('card'); await page.waitForTimeout(1200); await cap('Open any area and see why.'); await page.waitForTimeout(4800);
-  await page.getByRole('button', { name: /^Why / }).first().click(); mark('why'); await page.waitForTimeout(1500); await cap('Every figure is computed from the data, never by the model.'); await page.waitForTimeout(8000);
+  await page.getByRole('button', { name: /^Why / }).first().click(); mark('why'); await page.waitForTimeout(1500); await cap('Every number is real, never made up.'); await page.waitForTimeout(8000);
   await cap(null); const dismiss = page.getByRole('button', { name: /Dismiss/ }).first(); if (await dismiss.count()) { await dismiss.click().catch(() => {}); await page.waitForTimeout(500); }
-  await page.locator('button', { hasText: /^3D$/ }).first().click({ force: true }); mark('3d'); await page.waitForTimeout(800); await cap('Switch to 3D.'); await page.waitForTimeout(4200);
-  await page.locator('button', { hasText: /^By place$/ }).first().click({ force: true }); mark('place'); await page.waitForTimeout(1200); await cap('Or rank the premises actually on the market.'); await page.waitForTimeout(5000);
+  await page.locator('button', { hasText: /^3D$/ }).first().click({ force: true }); mark('3d'); await page.waitForTimeout(800); await cap('See it in 3D.'); await page.waitForTimeout(4200);
+  await page.locator('button', { hasText: /^By place$/ }).first().click({ force: true }); mark('place'); await page.waitForTimeout(1200); await cap('Pick a real shop to rent, not a hexagon.'); await page.waitForTimeout(5000);
 });
 await scene('closing', async (page, ctx, mark) => {
   await page.goto('file://' + path.resolve('cards/closing.html')); await page.evaluate(() => document.fonts.ready); mark('ready'); await page.waitForTimeout(6500);

@@ -1,15 +1,16 @@
 # Final-stage materials
 
 Everything the organisers asked for in *Informasi Persiapan Final Top 10 WebGIS
-Competition 2026*, built from the product itself: every figure in the copy is read
-from the grid file's metadata or computed by the scoring engine, and every screenshot
-is the real interface.
+Competition 2026*, written as a pitch rather than a report: one story, told in the
+second person, with the product doing the showing. The few figures that remain are
+read from the grid file's metadata or computed by the scoring engine, and every
+screenshot is the real interface.
 
 | Deliverable | File | Rule it answers |
 | --- | --- | --- |
 | Pitch deck, 8 slides, English, no text under 18 pt | `SpotOn_Pitch_Deck.pptx` | PPT: max 8 slides including opener and closer, min 18 pt, English. Speaker notes carry a 5-minute script. |
 | A2 poster, English, 9 mandated sections plus QR code | `SpotOn_Poster_A2.pdf` (print), `SpotOn_Poster_A2_preview.png` (screen) | Poster: title and team, background and problem, objective and solution, data and methodology, WebGIS and features, results and insights, benefits and applications, conclusion, QR code and link. |
-| Product video, 59 seconds, 1080p with narration | `SpotOn_Product_Video.mp4` | Video: at most one minute, a short overview of the product. |
+| Product video, 58 seconds, 1080p with narration | `SpotOn_Product_Video.mp4` | Video: at most one minute, a short overview of the product. |
 | QR code to the live WebGIS | `qr-spot-on-three.png` | Links to https://spot-on-three.vercel.app |
 
 ## Before submitting

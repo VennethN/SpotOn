@@ -7,14 +7,14 @@ def vdur(path):
     with contextlib.closing(wave.open(path)) as w: return w.getnframes() / w.getframerate()
 X = 0.45  # crossfade seconds
 segs = [
-  dict(name='title',   file='raw/title.webm',   start=0.3,                          dur=4.6,  voice='01-title',   at=0.8),
-  dict(name='hero',    file='raw/landing.webm', start=mark('landing','hero')-0.3,   dur=5.6,  voice='02-problem', at=0.2),
-  dict(name='data',    file='raw/landing.webm', start=mark('landing','data')-0.2,   dur=5.2,  voice='03-data',    at=0.2),
-  dict(name='grid',    file='raw/landing.webm', start=mark('landing','grid')-0.2,   dur=6.0),
+  dict(name='title',   file='raw/title.webm',   start=0.3,                          dur=4.4,  voice='01-title',   at=0.8),
+  dict(name='hero',    file='raw/landing.webm', start=mark('landing','hero')-0.3,   dur=8.2,  voice='02-problem', at=0.2),
+  dict(name='data',    file='raw/landing.webm', start=mark('landing','data')-0.2,   dur=4.4,  voice='03-data',    at=0.2),
+  dict(name='grid',    file='raw/landing.webm', start=mark('landing','grid')-0.2,   dur=4.4),
   dict(name='ask',     file='raw/app.webm',     start=mark('app','launcher')-0.4,   dur=mark('app','card')-mark('app','launcher')-0.4, voice='04-ask', at=0.3),
-  dict(name='why',     file='raw/app.webm',     start=mark('app','card')-0.2,       dur=13.2, voice='05-why',     at=0.3),
+  dict(name='why',     file='raw/app.webm',     start=mark('app','card')-0.2,       dur=10.0, voice='05-why',     at=0.3),
   dict(name='views',   file='raw/app.webm',     start=mark('app','3d')-0.3,         dur=mark('app','place')+4.6-(mark('app','3d')-0.3),  voice='06-views',   at=0.2),
-  dict(name='closing', file='raw/closing.webm', start=0.2,                          dur=5.4,  voice='07-close',   at=0.6),
+  dict(name='closing', file='raw/closing.webm', start=0.2,                          dur=4.4,  voice='07-close',   at=0.6),
 ]
 os.makedirs('parts', exist_ok=True)
 for s in segs:

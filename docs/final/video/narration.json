@@ -1,9 +1,9 @@
 [
  {"id": "01-title",   "text": "SpotOn. Don't guess where to open. Ask the map."},
- {"id": "02-problem", "text": "Around Jakarta's stations, most businesses still pick a location on instinct. SpotOn counts what is really there."},
- {"id": "03-data",    "text": "Five hundred and sixty two walkable cells. Businesses from the MAPID catalogue, transit stops, premises on the market, and field records from MAPID Apps, counted cell by cell."},
- {"id": "04-ask",     "text": "Ask Tapak, the AI guide, in plain language. The engine scores every cell for your business type, and the map recolours with the answer."},
- {"id": "05-why",     "text": "Open any area and see why. How busy it is, how many rivals, transit access, and the cost of space. Every figure comes from the data, never from the model."},
- {"id": "06-views",   "text": "Switch to 3D, or rank the actual premises on the market."},
- {"id": "07-close",   "text": "SpotOn, by team Triple T. Ask the map."}
+ {"id": "02-problem", "text": "You want to open a coffee shop near the station. Everyone says it's busy. But which corner? Who's already there? Is there even a shop to rent?"},
+ {"id": "03-data",    "text": "SpotOn counts what's really there. Every shop, every unit on the market, every stop, around every station in Jakarta."},
+ {"id": "04-ask",     "text": "Ask in your own words. The map lights up with the best spots for your business, and tells you why."},
+ {"id": "05-why",     "text": "Open any area. See how busy it is, who you're up against, and what the space costs. Every number is real, never made up."},
+ {"id": "06-views",   "text": "Then pick a real shop to rent, not a hexagon."},
+ {"id": "07-close",   "text": "SpotOn. Ask the map."}
 ]
