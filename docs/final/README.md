@@ -68,3 +68,22 @@ with retries and keeps it, so a dropped tile cannot leave a model bare and a sec
 take needs no network. The Piper voice is the release asset
 `voice-en-us-lessac-medium.tar.gz` from `rhasspy/piper` v0.0.2. `assemble.py` needs
 `pip install imageio-ffmpeg`, whose ffmpeg has libx264, aac and xfade.
+
+### The pictures in the deck and the poster
+
+From this directory:
+
+```bash
+node shoot.mjs && python3 crops.py                # shots/, then crops/ and poster/img/*.jpg
+python3 deck/swap-pictures.py                     # the crops into SpotOn_Pitch_Deck.pptx, in place
+(cd poster && node render.mjs)                    # SpotOn_Poster_A2.pdf and poster-preview.png, to move up here
+```
+
+The deck's layout, text and notes come from `deck/build.cjs`, which reads its
+figures from `deck/figures.json` (produced from `src/lib/data/hexes.json` and the
+`/api/scores` endpoint) and its pictures from a `../crops` and `../assets` layout
+beside it. Rebuilding it needs pptxgenjs in a scratch folder. `swap-pictures.py`
+is the short way: it replaces the pictures inside the built deck, each keyed by its
+slide and its size in pixels, and touches nothing else. `deck/preview.py` is a
+rough renderer that draws every slide with a font wider than Calibri, so any text
+that fits there fits in PowerPoint.

@@ -1,2 +1,6 @@
-# What tilecache.mjs keeps of the basemap for the takes.
+# What shoot.mjs and crops.py produce on the way to the poster's img/ and the deck.
+# The shots are pictures of the running site, and the crops are cut from them.
+shots/
+crops/
+# What tilecache.mjs keeps of the basemap for the takes and the shots.
 tilecache/
