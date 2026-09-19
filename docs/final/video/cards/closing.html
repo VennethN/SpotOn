@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face { font-family: 'Albert Sans'; src: url('fonts/albert-latin.woff2') format('woff2'); font-weight: 100 900; }
+html,body{margin:0;width:1920px;height:1080px;background:#0b0c0e;color:#fff;font-family:'Albert Sans',system-ui,sans-serif;overflow:hidden}
+.wrap{position:absolute;left:160px;top:200px;width:1000px}
+.brand{display:flex;align-items:center;gap:22px;opacity:0;animation:up .8s ease-out .2s forwards}
+.brand img{width:64px;height:64px}.brand span{font-size:44px;font-weight:700}
+h1{font-size:96px;line-height:1.02;letter-spacing:-.03em;font-weight:800;margin:40px 0 24px;opacity:0;animation:up .9s ease-out .6s forwards}
+p{font-size:30px;color:#c9cdd4;margin:0 0 40px;opacity:0;animation:up .9s ease-out 1s forwards}
+.qr{display:flex;align-items:center;gap:40px;opacity:0;animation:up .9s ease-out 1.3s forwards}
+.qr img{width:260px;height:260px;background:#fff;border-radius:22px;padding:14px}
+.url{font-size:46px;font-weight:800;letter-spacing:-.01em}.url small{display:block;font-size:26px;color:#8fb8f0;font-weight:500;margin-top:10px}
+.team{position:absolute;left:160px;bottom:90px;font-size:26px;color:#c9cdd4;opacity:0;animation:up .9s ease-out 1.7s forwards}.team b{color:#fff}
+.side{position:absolute;right:0;top:0;width:640px;height:1080px;background:url('hero.png') center/cover;opacity:.35;-webkit-mask-image:linear-gradient(90deg,transparent,#000 60%);mask-image:linear-gradient(90deg,transparent,#000 60%)}
+@keyframes up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+</style></head><body><div class="side"></div>
+<div class="wrap"><div class="brand"><img src="mark-white.png"><span>SpotOn</span></div>
+<h1>Ask the map.</h1><p>Open SpotOn on desktop or mobile, in Indonesian or English.</p>
+<div class="qr"><img src="qr.png"><div class="url">spot-on-three.vercel.app<small>github.com/VennethN/SpotOn</small></div></div></div>
+<div class="team"><b>Team Triple T</b> · Valent Nathanael · Farhan Aulianda · Anthony Gilles Rudolfo · Universitas Bina Nusantara</div>
+</body></html>

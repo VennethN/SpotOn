@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SpotOn · A2 poster · MAPID WebGIS Competition 2026 final</title>
+<style>
+@font-face { font-family: 'Albert Sans'; src: url('fonts/albert-latin.woff2') format('woff2'); font-weight: 100 900; font-style: normal; }
+@font-face { font-family: 'Albert Sans'; src: url('fonts/albert-latin-ext.woff2') format('woff2'); font-weight: 100 900; font-style: normal; unicode-range: U+0100-02BA; }
+@page { size: 420mm 594mm; margin: 0; }
+:root {
+  --ink: #0b0c0e; --ink2: #34373d; --muted: #6b7280; --line: #d9dde3; --bg: #eceef1; --card: #ffffff;
+  --blue: #0071e3; --blue-soft: #e1ecfa; --blue-deep: #143f7c; --pale: #c9cdd4;
+  --orange: #ef8f3c; --red: #e05a5a; --green: #46b077; --purple: #c76bbe;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { width: 420mm; height: 594mm; background: var(--bg); color: var(--ink); font-family: 'Albert Sans', system-ui, sans-serif; font-size: 12pt; line-height: 1.3; overflow: hidden; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+p { margin: 0 0 2mm; }
+.page { position: relative; width: 420mm; height: 594mm; padding: 9mm 11mm 9mm; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 108mm 165mm 171mm 114mm; gap: 6mm; }
+header { grid-column: 1 / -1; background: var(--ink); color: #fff; border-radius: 7mm; padding: 8mm 10mm; display: grid; grid-template-columns: 1.15fr 1fr; gap: 9mm; overflow: hidden; }
+.brand { display: flex; align-items: center; gap: 4mm; margin-bottom: 5mm; }
+.brand img { width: 13mm; height: 13mm; }
+.brand span { font-size: 26pt; font-weight: 700; letter-spacing: -0.01em; }
+h1 { font-size: 38pt; line-height: 0.98; letter-spacing: -0.025em; font-weight: 800; margin: 0 0 5mm; }
+.lede { font-size: 12.5pt; color: var(--pale); line-height: 1.3; margin-bottom: 5mm; max-width: 180mm; }
+.team { display: grid; grid-template-columns: auto auto; gap: 1mm 9mm; font-size: 11pt; color: var(--pale); line-height: 1.25; }
+.team b { color: #fff; font-weight: 700; }
+.hero { position: relative; border-radius: 5mm; overflow: hidden; background: #2e3a4a; }
+.hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hero .tag { position: absolute; left: 5mm; bottom: 5mm; right: 5mm; background: rgba(11,12,14,0.72); color: #fff; padding: 2mm 3.5mm; border-radius: 3mm; font-size: 10.5pt; }
+section { background: var(--card); border-radius: 6mm; padding: 6mm 6.5mm 5mm; border: 0.4mm solid var(--line); display: flex; flex-direction: column; gap: 2.2mm; min-width: 0; overflow: hidden; }
+.wide { grid-column: span 2; }
+.sec-head { display: flex; align-items: center; gap: 3.5mm; margin-bottom: 0.5mm; }
+.hex { width: 10mm; height: 10mm; flex: 0 0 auto; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13pt; background: var(--blue); clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
+.hex.soft { background: var(--blue-soft); color: var(--blue); }
+h2 { font-size: 19pt; line-height: 1.05; letter-spacing: -0.015em; font-weight: 700; margin: 0; }
+.kicker { font-size: 10pt; font-weight: 700; color: var(--blue); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1mm; }
+ul { margin: 0; padding-left: 5.5mm; }
+li { margin-bottom: 1mm; }
+li::marker { color: var(--blue); }
+.rows { display: grid; gap: 2.2mm; }
+.row { display: grid; grid-template-columns: 8.5mm 1fr; gap: 2.8mm; align-items: start; }
+.row .hex { width: 8.5mm; height: 8.5mm; font-size: 10.5pt; }
+.row b { display: block; font-size: 12pt; }
+.row span { color: var(--ink2); font-size: 11pt; }
+figure { margin: 0; }
+figure img { width: 100%; display: block; border-radius: 3.5mm; border: 0.3mm solid var(--line); object-fit: cover; object-position: top; }
+figcaption { font-size: 10pt; color: var(--muted); margin-top: 1.5mm; line-height: 1.3; }
+.cap36 img { height: auto; } .cap44 img { height: auto; } .cap78 img { height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 10.5pt; }
+th, td { text-align: left; padding: 1.2mm 1.5mm; border-bottom: 0.3mm solid var(--line); vertical-align: top; }
+th { font-weight: 700; color: var(--muted); font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.06em; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.src { display: inline-block; padding: 0.3mm 1.8mm; border-radius: 1.8mm; font-size: 9pt; font-weight: 700; color: #fff; margin-right: 1mm; vertical-align: middle; }
+.src.mapid { background: var(--blue-deep); } .src.apps { background: var(--purple); } .src.osm { background: var(--green); } .src.prop { background: var(--orange); }
+.flow { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.2mm; }
+.step { background: var(--bg); border-radius: 3.2mm; padding: 2.6mm 3mm; font-size: 10.5pt; color: var(--ink2); line-height: 1.28; }
+.step b { display: block; color: var(--ink); font-size: 11.5pt; margin-bottom: 0.6mm; }
+.step .hex { width: 7mm; height: 7mm; font-size: 9.5pt; margin-bottom: 1.2mm; }
+.formula { background: var(--blue-soft); border-radius: 3.2mm; padding: 2.6mm 3.5mm; font-size: 12pt; color: var(--blue-deep); font-weight: 600; }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.5mm; }
+.stat { background: var(--bg); border-radius: 3.2mm; padding: 2.6mm 3.2mm 2.2mm; }
+.stat .v { font-size: 24pt; font-weight: 800; letter-spacing: -0.02em; line-height: 1; color: var(--blue); font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 10.5pt; color: var(--ink2); margin-top: 1.5mm; line-height: 1.25; }
+.three { display: grid; grid-template-columns: 1.5fr 1fr 0.85fr; gap: 5mm; align-items: start; }
+.note { font-size: 10.3pt; color: var(--muted); }
+.quote { border-left: 1.1mm solid var(--blue); padding-left: 3.2mm; color: var(--ink2); font-size: 11pt; }
+.qr { display: grid; grid-template-columns: 54mm 1fr; gap: 5mm; align-items: center; }
+.qr img { width: 54mm; height: 54mm; border-radius: 3.5mm; border: 0.4mm solid var(--line); }
+.url { font-size: 19pt; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); line-height: 1.1; }
+.url small { display: block; font-size: 11pt; color: var(--muted); font-weight: 500; margin-top: 2mm; line-height: 1.3; }
+.tapak { display: grid; grid-template-columns: 16mm 1fr; gap: 3.5mm; align-items: center; background: var(--bg); border-radius: 3.5mm; padding: 2.2mm 3.5mm; font-size: 11pt; color: var(--ink2); }
+.tapak img { width: 16mm; height: 16mm; border-radius: 50%; }
+.typ { display: flex; gap: 2mm; flex-wrap: wrap; margin-bottom: 1mm; }
+.typ span { padding: 0.9mm 2.4mm; border-radius: 10mm; font-size: 10.5pt; font-weight: 600; background: var(--bg); }
+.typ i { display: inline-block; width: 2.8mm; height: 2.8mm; border-radius: 50%; margin-right: 1.4mm; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <div>
+    <div class="brand"><img src="img/mark-white.png" alt=""><span>SpotOn</span></div>
+    <h1>Don't guess where to open. Ask the map.</h1>
+    <p class="lede">An AI-assisted WebGIS for retail and F&amp;B site selection around Jakarta's transit network. Demand, competition and available space, scored per walkable cell and explained in plain language.</p>
+    <div class="team">
+      <div><b>Team Triple T</b><br>Universitas Bina Nusantara<br><span style="color:#8fb8f0">MAPID WebGIS Competition 2026<br>Maps That Think! · Final</span></div>
+      <div><b>Valent Nathanael</b> · Project lead, data and AI<br><b>Farhan Aulianda</b> · Frontend and WebGIS<br><b>Anthony Gilles Rudolfo</b> · GIS analysis, UI and UX</div>
+    </div>
+  </div>
+  <div class="hero"><img src="img/hero.jpg" alt="A modelled street block around a Jakarta transit stop"><div class="tag">A street block modelled from real counts. The outlined plot is the business you could open.</div></div>
+</header>
+
+<section>
+  <div class="sec-head"><div class="hex">2</div><h2>Background &amp; Problem Statement</h2></div>
+  <p>The blocks around Jakarta's MRT, KRL, LRT and TransJakarta stops are the busiest trading ground in the city. Yet most owners still choose a location on instinct, a hunch, or by copying a competitor. The wrong choice means an early closure and capital lost.</p>
+  <div class="rows">
+    <div class="row"><div class="hex soft">1</div><div><b>Nobody counted how busy it is</b><span>Everyone knows station blocks are busy. Nobody knows which blocks.</span></div></div>
+    <div class="row"><div class="hex soft">2</div><div><b>The competition is invisible</b><span>A street already full of coffee shops is a way to lose money.</span></div></div>
+    <div class="row"><div class="hex soft">3</div><div><b>The space is never counted</b><span>A good area with nothing to rent is not an opportunity.</span></div></div>
+  </div>
+  <figure class="cap36"><img src="img/chart-spread-trim.png" alt="Bar chart of cells by business density"><figcaption>Busy is not spread evenly. Cells by how many businesses stand within walking range: most are quiet, a few are dense.</figcaption></figure>
+</section>
+
+<section>
+  <div class="sec-head"><div class="hex">3</div><h2>Objective &amp; Solution</h2></div>
+  <p class="kicker">Objectives</p>
+  <ul>
+    <li>Bring demand, competition and available space into one Opportunity Score per cell and business type.</li>
+    <li>Explain every score step by step, with the number of data points behind it.</li>
+    <li>Say "not surveyed" where data is missing, instead of interpolating a plausible value.</li>
+  </ul>
+  <p class="kicker">Solution</p>
+  <p>SpotOn is a decision-support WebGIS. Jakarta is covered with an H3 hexagonal grid, and the <b>562 cells</b> with a transit stop within an 800 m walk are scored for <b>13 business types</b>. Tapak, the AI guide inside the map, answers plain-language questions in Indonesian or English with the reasons attached.</p>
+  <figure class="cap36"><img src="img/grid-model-trim.png" alt="Three-dimensional model of the hexagonal grid"><figcaption>One hexagon, one cell. Height and colour both carry the Opportunity Score, sampled from the grid's real scores.</figcaption></figure>
+</section>
+
+<section>
+  <div class="sec-head"><div class="hex">4</div><h2>Data &amp; Methodology</h2></div>
+  <table>
+    <tr><th>Source</th><th>What it contributes</th><th class="n">Count</th></tr>
+    <tr><td><span class="src mapid">MAPID</span>Data Premium</td><td>Competitor points, 13 types</td><td class="n">24,630</td></tr>
+    <tr><td><span class="src apps">MAPID Apps</span>Missions</td><td>Field records, 4 missions</td><td class="n">1,027</td></tr>
+    <tr><td><span class="src osm">OSM</span>Overpass</td><td>Transit stops, POIs, hours</td><td class="n">1,105</td></tr>
+    <tr><td><span class="src prop">MAPID</span>Property</td><td>Listings with asking prices</td><td class="n">3,547</td></tr>
+  </table>
+  <div class="flow">
+    <div class="step"><div class="hex">1</div><b>H3 grid</b>Resolution 8, 800 m walk, transit-served cells only.</div>
+    <div class="step"><div class="hex">2</div><b>Spatial join</b>Rivals, trade, stops, listings and notes per cell.</div>
+    <div class="step"><div class="hex">3</div><b>Score and rank</b>clamp(busy − rivals) × space gate × access × cost, per type.</div>
+    <div class="step"><div class="hex">4</div><b>AI layer</b>The model picks the operation. The engine computes every figure.</div>
+  </div>
+  <p class="note">Field records never enter the score. A grounding check drops any AI sentence quoting a figure the engine did not compute.</p>
+</section>
+
+<section class="wide">
+  <div class="sec-head"><div class="hex">5</div><h2>WebGIS &amp; Key Features</h2></div>
+  <div class="three">
+    <figure class="cap78"><img src="img/light-app-rank-coffee.jpg" alt="The SpotOn map with Tapak's ranked answer"><figcaption>Ask "Where should I open a coffee shop near a station?" and the map recolours by Opportunity Score, ranks the cells and lists the reasons.</figcaption></figure>
+    <div class="rows">
+      <div class="row"><div class="hex soft">A</div><div><b>Interactive map on MAPID MAPS</b><span>562 hexagons, flat or 3D. Zoom, click, filter, layer control, attribute table, ID and EN.</span></div></div>
+      <div class="row"><div class="hex soft">B</div><div><b>Tapak, the AI guide</b><span>Ask in plain language. The map recolours and flies to the answer. Follow up with "why that one".</span></div></div>
+      <div class="row"><div class="hex soft">C</div><div><b>Area card</b><span>Score breakdown, competitors, transit nodes, opening hours, cost of space and field notes.</span></div></div>
+      <div class="row"><div class="hex soft">D</div><div><b>Place pivot</b><span>Every premise on the market, ranked with the score of its area. Nobody rents a hexagon.</span></div></div>
+      <div class="row"><div class="hex soft">E</div><div><b>Your own weights</b><span>Demand against competition, walking radius, space requirement, competitor source.</span></div></div>
+    </div>
+    <div>
+      <figure class="cap44"><img src="img/map-3d.jpg" alt="The grid in 3D"><figcaption>3D view: height carries the same figure as colour.</figcaption></figure>
+      <figure class="cap44" style="margin-top:2.5mm"><img src="img/light-app-by-place.jpg" alt="The place pivot"><figcaption>By place: 2,232 premises on the market, sortable by price, area score or floor area.</figcaption></figure>
+    </div>
+  </div>
+  <div class="tapak"><img src="img/tapak-avatar.png" alt=""><div><b>How a reader interacts.</b> Type a question or tap a suggestion. The map answers. Click a cell or a result and the card explains it. Ask a follow-up in the same thread. Every figure on screen is computed by the scoring engine from the data, and the model only writes the sentence around it.</div></div>
+</section>
+
+<section>
+  <div class="sec-head"><div class="hex">6</div><h2>Results &amp; Insights</h2></div>
+  <div class="stats">
+    <div class="stat"><div class="v">462</div><div class="l">cells scored, with the N behind every figure</div></div>
+    <div class="stat"><div class="v">100</div><div class="l">cells left unscored: no source has surveyed their city yet</div></div>
+  </div>
+  <p class="kicker">Coffee shops, all 562 cells</p>
+  <div class="typ"><span><i style="background:#2f72cd"></i>37 underserved</span><span><i style="background:#b3cdf0"></i>508 competitive</span><span><i style="background:#e05a5a"></i>17 saturated</span></div>
+  <table>
+    <tr><th>Top catchments</th><th class="n">Score</th><th class="n">Rivals</th><th class="n">Units</th></tr>
+    <tr><td>Rawa Selatan</td><td class="n">65</td><td class="n">5</td><td class="n">12</td></tr>
+    <tr><td>Pondok Jati</td><td class="n">63</td><td class="n">10</td><td class="n">9</td></tr>
+    <tr><td>Pasar Pramuka</td><td class="n">63</td><td class="n">14</td><td class="n">5</td></tr>
+  </table>
+  <p class="quote"><b>Why Rawa Selatan?</b> 273 other businesses within 800 m put the trade around it at 96 out of 100. Only 5 coffee shops stand in the same range, so competition reads 9. 12 units are on the market at a median of Rp 40.2m per m², and 4 transit nodes are within walking range.</p>
+  <p>Minimarkets tell the opposite story: 529 cells competitive, 32 saturated, only 1 underserved. The gaps are few and specific, which is what a site finder needs.</p>
+  <p class="note">709 of the 1,027 field records fall inside the grid, across 191 cells. 55 property records offer space for rent, the only rental signal for Jakarta.</p>
+</section>
+
+<section>
+  <div class="sec-head"><div class="hex">7</div><h2>Benefits &amp; Applications</h2></div>
+  <p class="kicker">Benefits</p>
+  <ul>
+    <li>Less risk of opening in the wrong place.</li>
+    <li>Small businesses compete on data, with no GIS skills.</li>
+    <li>Every figure traceable to its source and its N.</li>
+  </ul>
+  <p class="kicker">Target users and applications</p>
+  <ul>
+    <li><b>Investors and franchise teams</b> screening transit sites.</li>
+    <li><b>First-time owners</b> asking what fits near home.</li>
+    <li><b>Survey planning</b>: unscored cells guide the next mission.</li>
+    <li><b>Other cities</b>: swap the transit data and catalogue.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sec-head"><div class="hex">8</div><h2>Conclusion</h2></div>
+  <p>Site selection around transit was decided on instinct because demand, competition and available space were never counted together. SpotOn counts them per walkable cell from MAPID and OpenStreetMap data and turns them into one transparent Opportunity Score for 13 business types. The result is insight rather than raw points: ranked catchments, a typology for every cell, a card that takes each score apart, and an AI guide that explains it while every number stays computed by the engine.</p>
+  <p class="kicker">Future development</p>
+  <ul>
+    <li>Grow the field surveys to cover the 100 unscored cells.</li>
+    <li>Read formality tier and storefront quality from mission photos.</li>
+    <li>Rent listings, more business types, a mobile-first card.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="sec-head"><div class="hex">9</div><h2>Open the WebGIS</h2></div>
+  <div class="qr"><img src="img/qr.png" alt="QR code to the SpotOn WebGIS"><div class="url">spot-on-three.<br>vercel.app<small>Scan to open SpotOn. Desktop and mobile, Indonesian and English, no install.</small></div></div>
+  <p class="note" style="margin-top:1.5mm">Source: github.com/VennethN/SpotOn. SvelteKit and MapLibre GL on the MAPID MAPS basemap, deployed on Vercel.</p>
+  <p class="note">Transit and business data © OpenStreetMap contributors (ODbL). Business points, listings and field notes from MAPID Data Premium and MAPID Apps, within the competition's terms.</p>
+</section>
+
+</div>
+</body>
+</html>

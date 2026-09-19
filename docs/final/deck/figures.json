@@ -1,0 +1,133 @@
+{
+ "hexes": 562,
+ "resolution": 8,
+ "walkRadius": 800,
+ "stops": 1105,
+ "stopsByMode": {
+  "krl": 76,
+  "brt": 976,
+  "mrt": 20,
+  "lrt": 33
+ },
+ "osmPois": 5711,
+ "mapidPoints": 24630,
+ "categories": 13,
+ "listings": 3547,
+ "cellsPriced": 284,
+ "cellsPropCovered": 462,
+ "medianPricePerM2": 45000000,
+ "mission": {
+  "records": 1027,
+  "placed": 709,
+  "cells": 191,
+  "byMission": {
+   "struk": 98,
+   "menu": 61,
+   "properti": 54,
+   "catatan": 496
+  },
+  "sewa": 20,
+  "offerSewaTotal": 55,
+  "pay": {
+   "QRIS": 131,
+   "Tunai": 24,
+   "E-wallet": 21,
+   "Debit": 12,
+   "Kartu Kredit": 7
+  },
+  "crowd": {
+   "sedang": 53,
+   "sepi": 27,
+   "ramai": 19
+  }
+ },
+ "hours": {
+  "businesses": 19421,
+  "published": 3129,
+  "readable": 3047
+ },
+ "surveyedCells": 462,
+ "unsurveyedCells": 100,
+ "cellsWithField": 191,
+ "scoresShape": [
+  "id",
+  "name",
+  "lat",
+  "lon",
+  "boundary",
+  "transit",
+  "access",
+  "field",
+  "price",
+  "priceLevel",
+  "costFactor",
+  "units",
+  "propCovered",
+  "osm",
+  "source",
+  "covered",
+  "score",
+  "demand",
+  "supply",
+  "density",
+  "typology"
+ ],
+ "kopiTypology": {
+  "underserved": 37,
+  "competitive": 508,
+  "saturated": 17
+ },
+ "kopiTop5": [
+  {
+   "name": "Rawa Selatan",
+   "score": 65,
+   "density": 273,
+   "osm": 5,
+   "units": 12
+  },
+  {
+   "name": "Pondok Jati",
+   "score": 63,
+   "density": 198,
+   "osm": 10,
+   "units": 9
+  },
+  {
+   "name": "Pasar Pramuka",
+   "score": 63,
+   "density": 217,
+   "osm": 14,
+   "units": 5
+  },
+  {
+   "name": "Kalibata City 2",
+   "score": 62,
+   "density": 130,
+   "osm": 11,
+   "units": 3
+  },
+  {
+   "name": "Taman Spatodhea",
+   "score": 62,
+   "density": 83,
+   "osm": 3,
+   "units": 19
+  }
+ ],
+ "kopiScored": 562,
+ "minimarketTypology": {
+  "competitive": 529,
+  "saturated": 32,
+  "underserved": 1
+ },
+ "laundryTypology": {
+  "underserved": 22,
+  "competitive": 534,
+  "saturated": 6
+ },
+ "apotekTypology": {
+  "underserved": 31,
+  "competitive": 525,
+  "saturated": 6
+ }
+}

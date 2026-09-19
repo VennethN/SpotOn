@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face { font-family: 'Albert Sans'; src: url('fonts/albert-latin.woff2') format('woff2'); font-weight: 100 900; }
+html,body{margin:0;width:1920px;height:1080px;background:#0b0c0e;color:#fff;font-family:'Albert Sans',system-ui,sans-serif;overflow:hidden}
+.bg{position:absolute;inset:0;background:url('hero.png') center/cover;opacity:0;animation:bg 1.6s ease-out .2s forwards}
+.shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,12,14,.96) 0%,rgba(11,12,14,.85) 45%,rgba(11,12,14,.35) 100%)}
+.wrap{position:absolute;left:140px;top:300px;width:1100px}
+.brand{display:flex;align-items:center;gap:22px;opacity:0;animation:up .8s ease-out .5s forwards}
+.brand img{width:64px;height:64px}.brand span{font-size:44px;font-weight:700}
+h1{font-size:112px;line-height:1;letter-spacing:-.03em;font-weight:800;margin:36px 0 28px;opacity:0;animation:up .9s ease-out .9s forwards}
+p{font-size:34px;color:#c9cdd4;margin:0;opacity:0;animation:up .9s ease-out 1.4s forwards;max-width:900px;line-height:1.3}
+.foot{position:absolute;left:140px;bottom:80px;font-size:26px;color:#8fb8f0;opacity:0;animation:up .9s ease-out 1.8s forwards}
+@keyframes up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes bg{to{opacity:1}}
+</style></head><body><div class="bg"></div><div class="shade"></div>
+<div class="wrap"><div class="brand"><img src="mark-white.png"><span>SpotOn</span></div>
+<h1>Don't guess<br>where to open.<br>Ask the map.</h1>
+<p>An AI-assisted WebGIS for retail and F&amp;B site selection around Jakarta's transit network.</p></div>
+<div class="foot">Team Triple T · Universitas Bina Nusantara · MAPID WebGIS Competition 2026</div>
+</body></html>
