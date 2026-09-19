@@ -1,0 +1,10 @@
+# Everything the scripts here produce on the way to ../SpotOn_Product_Video.mp4.
+# The takes, the cuts and the spoken lines are functions of the scripts and the site;
+# the card assets are copies of files elsewhere in the repository, or a picture of it.
+raw/
+parts/
+voice/
+cards/fonts/
+cards/hero.png
+cards/mark-white.png
+cards/qr.png

@@ -3,7 +3,9 @@
  {"id": "02-problem", "text": "You want to open a coffee shop near the station. Everyone says it's busy. But which corner? Who's already there? Is there even a shop to rent?"},
  {"id": "03-data",    "text": "SpotOn counts what's really there. Every shop, every unit on the market, every stop, around every station in Jakarta."},
  {"id": "04-ask",     "text": "Ask in your own words. The map lights up with the best spots for your business, and tells you why."},
- {"id": "05-why",     "text": "Open any area. See how busy it is, who you're up against, and what the space costs. Every number is real, never made up."},
- {"id": "06-views",   "text": "Then pick a real shop to rent, not a hexagon."},
- {"id": "07-close",   "text": "SpotOn. Ask the map."}
+ {"id": "05-area",    "text": "Open any area. See how busy it is, who you're up against, and what the space costs."},
+ {"id": "06-step",    "text": "Step into the street. Every building and every stop, modelled from the map."},
+ {"id": "07-real",    "text": "Every number is real, never made up."},
+ {"id": "08-views",   "text": "Then pick a real shop to rent, not a hexagon."},
+ {"id": "09-close",   "text": "SpotOn. Ask the map."}
 ]
