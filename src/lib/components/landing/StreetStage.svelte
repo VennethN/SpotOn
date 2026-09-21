@@ -36,12 +36,31 @@
 	 *
 	 * The mapping is still non-linear: some stretches hold so the reader has time to
 	 * read, others move along calmly.
+	 *
+	 * WHAT REDUCED MOTION CHANGES HERE, AND WHAT IT DOES NOT
+	 *
+	 * Nothing on this stage runs on its own. The scroll is its only clock, and the three
+	 * text panels are gated to it. So a reader who has asked for less motion gets the same
+	 * stage with the mass taken out: the springs snap to the scroll instead of trailing it
+	 * (`SpringValue` decides that) and the scene draws one frame per change instead of
+	 * running a loop (`StreetWorld` decides that). The panels still arrive one at a time,
+	 * because they share one corner of the screen and can only be read one at a time.
+	 *
+	 * There used to be a `prefers-reduced-motion` block below that collapsed the track to
+	 * one screen, pinned the clock to 19.00 and forced every panel to full opacity. That
+	 * setting is on far more machines than it sounds: Windows switches it on the moment
+	 * system animations are turned off, which says nothing about the reader. On every one
+	 * of them the three panels stood stacked in the corner, the first over the nav bar and
+	 * the third clipped off, the clock read an hour that was nobody's, and the hint under
+	 * the button still said to scroll for a walk that had been taken away. Do not put it
+	 * back. Nothing here has to be shown at once, because nothing here would otherwise
+	 * play by itself.
 	 */
 	import StreetScene from '$lib/components/ui/StreetScene.svelte';
 	import { daylightAt, localHour } from '$lib/scene/daylight';
 	import { formatHour } from '$lib/utils/format';
 	import { copy } from '$lib/state/lang.svelte';
-	import { SpringValue, prefersReducedMotion } from '$lib/utils/motion.svelte';
+	import { SpringValue } from '$lib/utils/motion.svelte';
 	import type { CategoryKey } from '$lib/types';
 
 	/** One real cell, counted by the server. Every figure the scene shows comes from here. */
@@ -81,7 +100,6 @@
 	}
 
 	const START_HOUR = localHour();
-	const reduced = prefersReducedMotion();
 
 	/* A full day, once, always forward. It ends at the same hour the page was opened
 	   — the visitor comes back to their own time, and the lot next to the cafe is
@@ -134,7 +152,7 @@
 		};
 	});
 
-	const hour = $derived(reduced ? 19 : hourSpring.current);
+	const hour = $derived(hourSpring.current);
 	const day = $derived(daylightAt(hour));
 	/* The illustrated day, held under the ceiling this cell's own count sets. */
 	const density = $derived(dayShape(hour) * cell.share);
@@ -382,22 +400,6 @@
 					transparent 66%
 				),
 				linear-gradient(to bottom, rgba(0, 0, 0, calc(var(--scrim) * 0.7)) 0%, transparent 20%);
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.stage {
-			height: auto;
-		}
-		.sticky {
-			position: relative;
-			height: 88svh;
-		}
-		.copy {
-			position: relative;
-			opacity: 1 !important;
-			left: auto;
-			bottom: auto;
 		}
 	}
 </style>
